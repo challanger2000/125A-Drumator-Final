@@ -825,11 +825,11 @@ struct V101PatternEditHost final : Steinberg::Vst::IComponentHandler {
  bool editing=false;
  unsigned calls=0;
  Steinberg::Vst::ParamValue last=-1.;
- Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID iid,void** ptr) override{
+ Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID interfaceId,void** ptr) override{
    if(!ptr)return Steinberg::kInvalidArgument;
    *ptr=nullptr;
-   if(Steinberg::FUnknownPrivate::iidEqual(iid,Steinberg::FUnknown::iid)||
-      Steinberg::FUnknownPrivate::iidEqual(iid,Steinberg::Vst::IComponentHandler::iid)){
+   if(Steinberg::FUnknownPrivate::iidEqual(interfaceId,Steinberg::FUnknown::iid)||
+      Steinberg::FUnknownPrivate::iidEqual(interfaceId,Steinberg::Vst::IComponentHandler::iid)){
      *ptr=static_cast<Steinberg::Vst::IComponentHandler*>(this);
      addRef();
      return Steinberg::kResultOk;
