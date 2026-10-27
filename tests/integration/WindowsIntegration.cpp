@@ -18,6 +18,7 @@
 #include "core/UiRowControls.h"
 #include "core/UiCompactLayout.h"
 #include "core/UiSongLayout.h"
+#include "UiV101NativePreview.h"
 #include "vst3/DrumatorProcessor.h"
 #include "vst3/DrumatorEditor.h"
 #include "vst3/PluginIDs.h"
@@ -673,6 +674,66 @@ void captureVstgui(DrumatorView& v,const std::string& title,double scale){
  evidence("Native VSTGUI render "+title+" "+std::to_string(width)+"x"+
           std::to_string(height)+" pixel checksum "+std::to_string(checksum));
 }
+
+void captureV101Preview(const char* title,double scale){
+ using L=drumator::UiV101Layout;
+ const double h=L::editorHeight(0,L::visibleRows,L::Expansions{});
+ auto bitmap=VSTGUI::renderBitmapOffscreen(
+   VSTGUI::CPoint(L::width,h),scale,
+   [](VSTGUI::CDrawContext& context){drumator::qa::UiV101NativePreview::draw(context);});
+ check(bitmap!=nullptr,"V1.0.1 native VSTGUI prototype render failed");
+ auto* access=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
+ check(access!=nullptr,"V1.0.1 native pixels unavailable");
+ const auto width=access->getBitmapWidth(),height=access->getBitmapHeight();
+ check(width>=1280&&height>=686&&width<=2400&&height<=1300,
+       "V1.0.1 render pixel dimensions wrong");
+ unsigned light=0,dark=0,orange=0;
+ for(std::uint32_t y=0;y<height;y+=7)
+   for(std::uint32_t x=0;x<width;x+=7){
+     check(access->setPosition(x,y),"V1.0.1 sample pixel out of range");
+     VSTGUI::CColor pixel{};access->getColor(pixel);
+     if(pixel.red>185&&pixel.green>180&&pixel.blue>170)++light;
+     if(pixel.red<64&&pixel.green<75&&pixel.blue<93)++dark;
+     if(pixel.red>165&&pixel.red>pixel.green+60&&pixel.green>40)++orange;
+   }
+ check(light>400&&dark>600&&orange>25,"V1.0.1 pixel oracle: missing chassis, rows or lit steps");
+ const std::size_t stride=(static_cast<std::size_t>(width)*3u+3u)&~std::size_t{3u};
+ std::array<unsigned char,54> hdr{};
+ auto le16=[&](std::size_t at,std::uint16_t v){
+   hdr[at]=static_cast<unsigned char>(v);
+   hdr[at+1]=static_cast<unsigned char>(v>>8);
+ };
+ auto le32=[&](std::size_t at,std::uint32_t v){
+   for(int i=0;i<4;++i)hdr[at+static_cast<std::size_t>(i)]=
+     static_cast<unsigned char>(v>>(8*i));
+ };
+ hdr[0]='B';hdr[1]='M';le32(2,static_cast<std::uint32_t>(54+stride*height));
+ le32(10,54);le32(14,40);le32(18,width);
+ le32(22,static_cast<std::uint32_t>(-static_cast<std::int32_t>(height)));
+ le16(26,1);le16(28,24);le32(34,static_cast<std::uint32_t>(stride*height));
+ std::filesystem::create_directories("gui-shots");
+ std::ofstream out(std::string("gui-shots/")+title+".bmp",std::ios::binary);
+ check(out.good(),"V1.0.1 native BMP path not writable");
+ out.write(reinterpret_cast<const char*>(hdr.data()),static_cast<std::streamsize>(hdr.size()));
+ std::vector<unsigned char> scanline(stride,0);
+ for(std::uint32_t y=0;y<height;++y){
+   for(std::uint32_t x=0;x<width;++x){
+     check(access->setPosition(x,y),"V1.0.1 output pixel out of range");
+     VSTGUI::CColor pixel{};access->getColor(pixel);
+     const auto at=static_cast<std::size_t>(x)*3u;
+     scanline[at]=pixel.blue;scanline[at+1]=pixel.green;scanline[at+2]=pixel.red;
+   }
+   out.write(reinterpret_cast<const char*>(scanline.data()),
+             static_cast<std::streamsize>(scanline.size()));
+ }
+ access->forget();
+ check(out.good(),"V1.0.1 native BMP write failed");
+ evidence(std::string("V1.0.1 native VSTGUI design prototype ")+title+" "+
+          std::to_string(width)+"x"+std::to_string(height)+
+          " light="+std::to_string(light)+" dark="+std::to_string(dark)+
+          " active="+std::to_string(orange)+" PASS");
+}
+
 void testGuiPhysicalStepsRaster(){
  Fixture f;f.kit(namedKit('X',4));f.open();
  auto* v=IntegrationAccess::view(*f.c,0);
@@ -3514,6 +3575,18 @@ int main(int argc,char** argv){
  if(!platform)return 3;platform->setResourceBasePath(VSTGUI::UTF8String(argv[1]));
  entered=CreateEventW(nullptr,TRUE,FALSE,nullptr);resume=CreateEventW(nullptr,TRUE,FALSE,nullptr);
  if(argc==3){
+   if(std::strcmp(argv[2],"--v101-preview-render")==0){
+     int result=0;
+     try {
+       captureV101Preview("v101-layout-native-prototype-100",1.0);
+       captureV101Preview("v101-layout-native-prototype-130",1.3);
+     }catch(const std::exception& ex){
+       std::cerr<<"V1.0.1 native preview render FAIL: "<<ex.what()<<'\n';
+       result=3;
+     }
+     CloseHandle(entered);CloseHandle(resume);
+     VSTGUI::exit();CoUninitialize();return result;
+   }
    if(std::strcmp(argv[2],"--packaged-logo-render")==0){
      int result=0;
      try {
