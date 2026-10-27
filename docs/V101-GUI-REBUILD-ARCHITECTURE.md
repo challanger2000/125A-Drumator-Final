@@ -446,3 +446,12 @@ did not need an additional fix.
 **Design note:** The 100/130% screenshots are real native previews of
 the isolated V1.0.1 layer, not an installed DAW replacement. Owner visual
 approval and production editor integration remain separate milestones.
+
+### V1.0.1 production-view adapter milestone — Windows QA (27 October 2026)
+
+- **Tested run:** [#40595226738](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40595226738), trigger commit `f1822a60830d58c1dee0a9415481d60dd7c103c1`. Subsequent `37f88e38` restored the manual-only GUI branch CI policy; no product source changed in that follow-up.
+- **Windows MSVC x64/VST3:** COMPILE PASS; **24/24 CTests PASS**, **47/47 Steinberg Validator PASS**, independent pinned **125A Plugin Tester v0.3.2 58 PASS / 0 WARNING / 0 FAIL**.
+- Native preview images 100/130% plus VEL/SET/Zoom pixels PASS; exact Windows rendering artifact **12776970164**.
+- The V1.0.1 native painter is now in production source `src/vst3/UiV101NativePainter.h`. The Windows visual fixture includes this **same** painter rather than maintaining a test-only copy. `UiV101Scene.h` captures genuine Controller data for both.
+- `DrumatorView` now has a **separately selectable** V1.0.1 candidate implementation: direct pointer lifecycle, layout/host resize rollback, pattern/row menus, SONG EDIT and existing sample-editor handoff, WAV/FLAC import/drop, native sample options, and real controller-backed controls. `Controller::createCustomView("DrumatorV101StepGrid")` selects this candidate; the current `Drumator.uidesc` still selects the legacy `DrumatorStepGrid` view to protect V1.0.0 compatibility.
+- Critical scope boundary: this green run validates production **compilation** plus shared native scene/input unit oracles, **not** a complete actual-host interaction test of the candidate V1.0.1 view. Its menu popups, host resizing/reopen, async WAV dialogs, and migration-specific user experience still require native-host acceptance. SONG and Wave use their existing editor rendering during the transitional V1.0.1 view; visual redesign remains outstanding. Do not merge, activate V1.0.1 by default, or advertise a final V1.0.1 release yet.
