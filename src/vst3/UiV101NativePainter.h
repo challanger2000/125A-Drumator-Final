@@ -554,7 +554,7 @@ struct UiV101NativePreview final {
           Skin::panelEdge());
    char summary[160]{};
    std::snprintf(summary,sizeof(summary),
-                 "INSTRUMENTS %zu-%zu / %zu   |   PATTERN %c   |   NATIVE CONTROLLER STATE",
+                 "INSTRUMENTS %zu-%zu / %zu   |   PATTERN %c",
                  ui.firstRow+1,ui.firstRow+shown,scene.visibleRows,
                  static_cast<char>('A'+scene.pattern));
    label(c,summary,{45.,footerTop+9.,922.,footerTop+33.},10,
