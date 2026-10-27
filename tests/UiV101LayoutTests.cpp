@@ -3,6 +3,25 @@
 using L=drumator::UiV101Layout;
 #define CHECK(x) do{if(!(x)){std::cerr<<__LINE__<<" " #x "\n";return 1;}}while(false)
 int main(){
+  // Existing host zoom choices, identical cap geometry, and modal hit map.
+  CHECK(L::zoomPresets.size()==4);
+  CHECK(L::zoomPresets[0]==1.&&L::zoomPresets[1]==1.2);
+  CHECK(L::zoomPresets[2]==1.3&&L::zoomPresets[3]==1.5);
+  for(std::size_t i=0;i<L::headerGroupCount;++i){
+    const auto r=L::headerGroup(i);
+    CHECK(r.x1-r.x0==108.&&r.y1-r.y0==34.);
+    CHECK(r.hit(r.x0+4.,r.y0+4.));
+    if(i)CHECK(L::headerGroup(i-1).x1+9.==r.x0);
+  }
+  CHECK(L::zoomHit(1200.,25.,false)==-2);
+  CHECK(L::zoomHit(1200.,25.,true)==-2);
+  for(std::size_t i=0;i<L::zoomPresets.size();++i){
+    const auto r=L::zoomOption(i);
+    CHECK(r.x1-r.x0==114.&&r.y1-r.y0==24.);
+    CHECK(L::zoomHit(r.x0+20.,r.y0+12.,true)==static_cast<int>(i));
+    CHECK(L::zoomHit(r.x0+20.,r.y0+12.,false)==-1);
+  }
+  CHECK(L::zoomHit(1100.,165.,true)==-1);
   L::Expansions e{};
   const double y=L::header;
   CHECK(L::editorHeight(0,10,e)==686.);
