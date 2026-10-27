@@ -886,6 +886,9 @@ void testV101Interaction(){
        "V101 obsolete low header click area remains active");
  check(ui.down(382.,115.)==UI::Result::DeferredToView,
        "V101 raised PTNR MENU must defer to a real popup");
+ check(ui.takeDeferredRequest().kind==UI::DeferredKind::PatternMenu&&
+       ui.takeDeferredRequest().kind==UI::DeferredKind::None,
+       "V101 pattern popup request must be precise and consume once");
  // Real host/controller pattern and song commands, not UI-only highlights.
  check(ui.down(170.,120.)==UI::Result::Applied&&f.c->currentPattern()==3&&
        hostHandler.calls==1&&std::abs(hostHandler.last-3./7.)<.00001,
@@ -905,6 +908,8 @@ void testV101Interaction(){
        "V101 SONG button not routed to Controller");
  check(ui.down(650.,120.)==UI::Result::DeferredToView,
        "V101 SONG EDIT must defer to actual editor");
+ check(ui.takeDeferredRequest().kind==UI::DeferredKind::SongEditor,
+       "V101 SONG EDIT view intent was lost");
  const auto beforeStep=f.c->velocity(2,0,0);
  check(ui.down(428.,L::header+20.)==UI::Result::Applied&&
        f.c->velocity(2,0,0)!=(beforeStep),
@@ -969,6 +974,14 @@ void testV101Interaction(){
  check(ui.down(151.,expandedTop+69.)==UI::Result::DeferredToView&&
        f.c->rowOutput(9)==outBefore,
        "V101 OUTPUT selector silently mutated Controller");
+ const auto outputRequest=ui.takeDeferredRequest();
+ check(outputRequest.kind==UI::DeferredKind::OutputMenu&&outputRequest.row==9,
+       "V101 OUTPUT view request lost exact instrument target");
+ check(ui.down(280.,expandedTop+69.)==UI::Result::DeferredToView,
+       "V101 CHOKE menu not deferred");
+ const auto chokeRequest=ui.takeDeferredRequest();
+ check(chokeRequest.kind==UI::DeferredKind::ChokeMenu&&chokeRequest.row==9,
+       "V101 CHOKE view request lost exact instrument target");
  check(ui.down(401.,expandedTop+69.)==UI::Result::Applied,
        "V101 SET copy row failed");
  const double row8Top=L::rowTop(ui.state().firstRow,7,ui.expandedRows());
@@ -984,6 +997,8 @@ void testV101Interaction(){
        "V101 zoom menu did not open");
  check(ui.down(1200.,139.)==UI::Result::DeferredToView&&
        ui.userZoom()==1.5,"V101 150 percent selection not proposed");
+ check(ui.takeDeferredRequest().kind==UI::DeferredKind::Zoom,
+       "V101 zoom view request not distinguishable from popup actions");
  ui.confirmZoom(false);
  check(ui.userZoom()==1.0,"V101 host-rejected zoom did not rollback");
  check(ui.down(1200.,24.)==UI::Result::Handled,
