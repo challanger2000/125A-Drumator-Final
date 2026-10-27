@@ -861,6 +861,10 @@ void testV101Interaction(){
  using UI=drumator::UiV101Interaction;
  V101PatternEditHost hostHandler;
  Fixture f;f.kit(v101PreviewKit());
+ // PITCH is a real PreparedSample rebuild. The processor deliberately rejects
+ // pitch changes until a valid output sample rate is established; unlike
+ // VOL/PAN, pitch cannot be tested on an unprepared audio component.
+ prepareAudio(*f.p);
  check(f.c->setComponentHandler(&hostHandler)==kResultOk,
        "V101 test host automation callback installation failed");
  UI ui(*f.c);
