@@ -1117,7 +1117,8 @@ void testV101LiveEditor(){
  // from ten to six rows and back without stale click areas.
  const auto initialHeight=view->getViewSize().getHeight();
  click(*view,1175.,initialHeight-L::footer+22.);
- check(view->getViewSize().getHeight()==446.,
+ check(view->getViewSize().getHeight()==
+           L::editorHeight(10,6,L::Expansions{}),
        "V101 attached host NEXT PAGE did not resize to six rows");
  click(*view,1070.,view->getViewSize().getHeight()-L::footer+22.);
  check(view->getViewSize().getHeight()==686.,
