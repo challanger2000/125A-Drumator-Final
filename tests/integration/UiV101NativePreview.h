@@ -1,7 +1,8 @@
 #pragma once
 // Native VSTGUI DESIGN PREVIEW: separate from the released Drumator editor.
-// Demo step values and sample names are placeholders, not controller state.
+// Receives real Controller-derived data; layout and live mouse input are separate.
 #include "core/UiV101Layout.h"
+#include "vst3/UiV101Interaction.h"
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/cgraphicstransform.h"
@@ -205,9 +206,16 @@ struct UiV101NativePreview final {
  }
  static void draw(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* knobSprite,
                   VSTGUI::CBitmap* productTitle,const Scene& scene,
-                  bool zoomMenuOpen=false,std::size_t zoomPreset=0){
+                  bool zoomMenuOpen=false,std::size_t zoomPreset=0,
+                  const UiV101Interaction::State& ui={}){
    constexpr Color cream{207,203,193,255};
-   const double total=L::editorHeight(0,L::visibleRows,L::Expansions{});
+   auto expanded=L::Expansions{};
+   if(ui.expandedRow<L::instruments)expanded[ui.expandedRow]=ui.expansion;
+   const auto limit=ui.expansion==L::Expansion::None?
+                    L::visibleRows:L::visibleRows-1;
+   const auto shown=ui.firstRow<scene.visibleRows?
+                    std::min(limit,scene.visibleRows-ui.firstRow):std::size_t{0};
+   const double total=L::editorHeight(ui.firstRow,shown,expanded);
    fill(c,{0.,0.,L::width,total},cream);
    fill(c,{2.,2.,L::width-2.,total-2.},{219,215,206,255});
    fill(c,{4.,4.,L::width-4.,total-4.},{199,196,189,255});
@@ -270,8 +278,9 @@ struct UiV101NativePreview final {
    label(c,"VOL",{1037.,140.,1087.,157.},10);
    label(c,"PAN",{1097.,140.,1147.,157.},10);
    label(c,"PITCH",{1153.,140.,1214.,157.},10);
-   for(std::size_t row=0;row<L::visibleRows;++row){
-     const double y=L::header+row*L::rowHeight;
+   for(std::size_t index=0;index<shown;++index){
+     const std::size_t row=ui.firstRow+index;
+     const double y=L::rowTop(ui.firstRow,index,expanded);
      const auto& data=scene.rows[row];
      const bool live=row<scene.visibleRows;
      fill(c,{12.,y+1.,1260.,y+L::rowHeight-1.},{4,14,25,255});
@@ -284,7 +293,7 @@ struct UiV101NativePreview final {
      fill(c,{L::select.x0,y+L::select.y0,L::select.x1,y+L::select.y1},
           {5,12,19,255});
      fill(c,{L::select.x0+3.,y+14.,L::select.x1-3.,y+33.},
-          live&&data.hasSample?Color{246,171,70,255}:Color{76,93,103,255});
+          live&&row==ui.selectedRow?Color{246,171,70,255}:Color{76,93,103,255});
      cap(c,L::mute,y,"M",live&&data.muted);
      cap(c,L::solo,y,"S",live&&data.solo);
      cap(c,L::fill,y,"FILL",false,9);
@@ -309,13 +318,49 @@ struct UiV101NativePreview final {
        dial(c,knobSprite,L::knobCenters[k],y+24.,
             k==0?static_cast<int>(data.gain):k==1?data.pan:data.pitch,
             static_cast<int>(k));
-     cap(c,L::velocity,y,"VEL",false,9);
-     cap(c,L::settings,y,"SET",false,9);
+     cap(c,L::velocity,y,"VEL",ui.expandedRow==row&&
+           ui.expansion==L::Expansion::Velocity,9);
+     cap(c,L::settings,y,"SET",ui.expandedRow==row&&
+           ui.expansion==L::Expansion::Settings,9);
+     if(ui.expandedRow==row&&ui.expansion!=L::Expansion::None){
+       fill(c,{13.,y+49.,1260.,y+95.},{5,17,29,255});
+       fill(c,{15.,y+50.,1258.,y+94.},{15,32,49,255});
+       if(ui.expansion==L::Expansion::Velocity){
+         label(c,"VELOCITY",{132.,y+55.,265.,y+88.},11,{213,227,237,255},false);
+         fill(c,{417.,y+53.,1031.,y+92.},{4,13,25,255});
+         for(std::size_t step=0;step<L::steps;++step){
+           const auto velocity=step<scene.patternLength?
+                               data.velocities[step]:std::uint8_t{0};
+           const double xx=L::stepX+step*L::stepPitch;
+           if(velocity==0){
+             fill(c,{xx+2.,y+88.,xx+15.,y+90.},{37,56,75,255});
+           }else{
+             const double barHeight=3.+32.*static_cast<double>(velocity)/127.;
+             fill(c,{xx+2.,y+89.-barHeight,xx+15.,y+89.},
+                  {245,139,40,255});
+             fill(c,{xx+3.,y+89.-barHeight,xx+14.,y+87.-barHeight},
+                  {255,201,99,255});
+           }
+         }
+       }else{
+         constexpr std::array<const char*,6> settingsLabels{{
+           "OUT","CHOKE","COPY ROW","PASTE ROW","CLEAR ROW","RANDOM VEL"
+         }};
+         for(std::size_t button=0;button<settingsLabels.size();++button)
+           cap(c,UiV101Interaction::settingsRect(button),y,
+               settingsLabels[button],false,10);
+       }
+     }
    }
    fill(c,{14.,total-44.,1260.,total-12.},{207,204,197,255});
    border(c,{14.,total-44.,1260.,total-12.},{157,152,145,255});
-   label(c,"PAGE 1 / 2   |   CONTROLLER STATE (NATIVE TEST FIXTURE)",
-         {31.,total-42.,922.,total-14.},11,{66,68,70,255},false);
+   char summary[160]{};
+   std::snprintf(summary,sizeof(summary),
+                 "INSTRUMENTS %zu-%zu / %zu   |   PATTERN %c   |   NATIVE CONTROLLER STATE",
+                 ui.firstRow+1,ui.firstRow+shown,scene.visibleRows,
+                 static_cast<char>('A'+scene.pattern));
+   label(c,summary,{31.,total-42.,922.,total-14.},11,
+         {66,68,70,255},false);
    label(c,"REFERENCE LAYOUT - NOT A RELEASE BUILD",
          {940.,total-42.,1248.,total-14.},10,{92,76,66,255});
    if(zoomMenuOpen){
