@@ -51,7 +51,7 @@ struct UiV101NativePreview final {
  struct RowData final {
    std::string name;
    bool hasSample=false,muted=false,solo=false;
-   unsigned gain=100;
+   unsigned gain=100,randomRealtime=0;
    int pan=0,pitch=0;
    std::array<std::uint8_t,L::steps> velocities{};
  };
@@ -538,6 +538,15 @@ struct UiV101NativePreview final {
          for(std::size_t button=0;button<settingsLabels.size();++button)
            cap(c,UiV101Interaction::settingsRect(button),y,
                settingsLabels[button],false,10);
+         cap(c,UiV101Interaction::realtimeMinus,y,"-",false,13);
+         char realtimeText[35]{};
+         std::snprintf(realtimeText,sizeof(realtimeText),
+                       "RT RANDOM  %u%%",data.randomRealtime);
+         label(c,realtimeText,
+               {UiV101Interaction::realtimeValue.x0,y+56.,
+                UiV101Interaction::realtimeValue.x1,y+88.},10,
+               {218,226,234,255},false);
+         cap(c,UiV101Interaction::realtimePlus,y,"+",false,13);
        }
      }
    }
