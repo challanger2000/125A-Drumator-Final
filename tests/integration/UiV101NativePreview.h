@@ -338,7 +338,7 @@ struct UiV101NativePreview final {
              const double barHeight=3.+32.*static_cast<double>(velocity)/127.;
              fill(c,{xx+2.,y+89.-barHeight,xx+15.,y+89.},
                   {245,139,40,255});
-             fill(c,{xx+3.,y+89.-barHeight,xx+14.,y+87.-barHeight},
+             fill(c,{xx+3.,y+87.-barHeight,xx+14.,y+89.-barHeight},
                   {255,201,99,255});
            }
          }
