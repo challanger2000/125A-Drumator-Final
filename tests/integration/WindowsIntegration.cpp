@@ -675,8 +675,99 @@ void captureVstgui(DrumatorView& v,const std::string& title,double scale){
           std::to_string(height)+" pixel checksum "+std::to_string(checksum));
 }
 
+// One-directional V1.0.1 view model: real controller getters only.
+// Does not mutate the released controller, audio or original editor.
+drumator::qa::UiV101NativePreview::Scene captureV101ControllerScene(Controller& c){
+ using Scene=drumator::qa::UiV101NativePreview::Scene;
+ Scene scene{};
+ scene.pattern=c.currentPattern();
+ scene.visibleRows=c.visibleRows();
+ scene.patternLength=c.patternLength(scene.pattern);
+ scene.songEnabled=c.songEnabled();
+ scene.swing=c.swingPercent();
+ scene.humanize=c.humanizePercent();
+ scene.master=c.masterVolume();
+ for(std::size_t row=0;row<scene.rows.size();++row){
+   auto& dst=scene.rows[row];
+   dst.name=c.label(row);
+   dst.hasSample=c.hasSample(row);
+   dst.muted=c.isRowMuted(row);
+   dst.solo=c.isRowSolo(row);
+   dst.gain=c.rowGain(row);
+   dst.pan=c.rowPan(row);
+   dst.pitch=c.rowPitch(row);
+   for(std::size_t step=0;step<dst.velocities.size();++step)
+     dst.velocities[step]=c.velocity(scene.pattern,row,step);
+ }
+ return scene;
+}
+// Deterministic actual embedded-kit fixture. All visible labels and parameter
+// readouts flow through real KitCodec -> real Controller -> Scene -> VSTGUI.
+KitState v101PreviewKit(){
+ KitState kit;
+ constexpr std::array<const char*,10> names{{
+   "Kick 01","Snare 01","HiHat Closed","HiHat Open","Tom Low",
+   "Tom Mid","Tom High","Clap 01","Rim 01","Perc 01"
+ }};
+ kit.visible=10;
+ kit.selected=2; // pattern C, assertion checks C is lit, not hard-coded A
+ kit.swing=15;
+ kit.humanize=10;
+ kit.masterVolume=105;
+ kit.gain[0]=135;
+ kit.pan[1]=65;
+ kit.pitch[2]=30; // +6 semitones
+ kit.muted=std::uint16_t{1u<<5};
+ kit.solo=std::uint16_t{1u<<8};
+ const auto wav=constantStereo(.12f,-.10f);
+ for(std::size_t row=0;row<names.size();++row){
+   kit.displayNames[row]=names[row];
+   kit.names[row]=std::string(names[row])+".wav";
+   kit.wav[row]=wav;
+   for(std::size_t step=0;step<kSteps;++step){
+     const bool active=(row%3==0&&step%4==0)||
+                       (row%3==1&&step%4==2)||
+                       (row%3==2&&step%8==4);
+     kit.grid[2*kRows*kSteps+row*kSteps+step]=active?static_cast<std::uint8_t>(95+row):0;
+   }
+ }
+ return kit;
+}
+void testV101ControllerScene(){
+ Fixture f;
+ const auto kit=v101PreviewKit();
+ f.kit(kit);
+ const auto s=captureV101ControllerScene(*f.c);
+ check(s.pattern==2&&s.visibleRows==10&&s.patternLength==32,
+       "V101 controller scene pattern / viewport not real");
+ check(s.swing==15&&s.humanize==10&&s.master==105,
+       "V101 controller scene global knobs not real");
+ check(s.rows[0].name=="Kick 01"&&s.rows[9].name=="Perc 01",
+       "V101 controller scene sample labels not real");
+ check(s.rows[0].hasSample&&s.rows[9].hasSample,
+       "V101 controller scene embedded sample presence lost");
+ check(s.rows[5].muted&&s.rows[8].solo&&
+       !s.rows[4].muted&&!s.rows[4].solo,
+       "V101 controller scene gate states wrong");
+ check(s.rows[0].gain==135&&s.rows[1].pan==-35&&s.rows[2].pitch==6,
+       "V101 controller scene mix controls wrong");
+ check(s.rows[0].velocities[0]==95&&s.rows[0].velocities[1]==0&&
+       s.rows[1].velocities[2]==96&&s.rows[2].velocities[4]==97,
+       "V101 controller scene step data mismatch");
+ check(f.c->toggleStep(2,0,0),"V101 controller step toggle failed");
+ const auto updated=captureV101ControllerScene(*f.c);
+ check(updated.rows[0].velocities[0]==0&&s.rows[0].velocities[0]==95,
+       "V101 scene stale or mutates previous snapshot");
+ evidence("V101 controller-backed GUI model: PCM kit/labels, pattern C, step mutation, gates, actual mix and globals PASS");
+}
+
 void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false){
  using L=drumator::UiV101Layout;
+ Fixture fixture;
+ fixture.kit(v101PreviewKit());
+ const auto scene=captureV101ControllerScene(*fixture.c);
+ check(scene.pattern==2&&scene.rows[0].hasSample,
+       "V1.0.1 capture did not use an actual decoded controller kit");
  const double h=L::editorHeight(0,L::visibleRows,L::Expansions{});
  // Decode precisely the SAME PNG resources as the installable 1.0.0 VST3.
  // Fail closed; a substituted procedural knob/title is not valid QA evidence.
@@ -690,8 +781,8 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false){
        "V1.0.1 preview did not load original metallic DRUMATOR title PNG");
  auto bitmap=VSTGUI::renderBitmapOffscreen(
    VSTGUI::CPoint(L::width,h),scale,
-   [knob,titleLogo,zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
-     drumator::qa::UiV101NativePreview::draw(context,knob,titleLogo,zoomMenuOpen,
+   [knob,titleLogo,&scene,zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
+     drumator::qa::UiV101NativePreview::draw(context,knob,titleLogo,scene,zoomMenuOpen,
        scale>1.2?std::size_t{2}:std::size_t{0});
    });
  knob->forget();
@@ -3675,6 +3766,7 @@ int main(int argc,char** argv){
  run("V18 multi-view native lifecycle",testMultiViewLifecycleNotifications);
  run("Z02 native attached views",testZoom);
  run("VSTGUI precision controls",testPrecisionPanel);
+ run("V101 actual Controller to native visual scene",testV101ControllerScene);
  run("VSTGUI native pixel render set",testVisualRender);
  run("GUI49 musical four-sample native 130pct capture",testGui49MusicalFourSampleCapture);
  run("GUI 11I centered PATTERN and meter header geometry",test11IHeaderPatternCentered);
