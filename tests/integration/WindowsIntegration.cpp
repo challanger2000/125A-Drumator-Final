@@ -1069,6 +1069,19 @@ void testV101LiveEditor(){
  const auto pixelAfter=currentStepPixel();
  check(pixelBefore!=pixelAfter&&pixelBefore[0]>pixelAfter[0]+70,
        "V101 attached real painter did not follow mouse Step edit");
+ click(*view,L::knobCenters[0],L::header+24.,
+       VSTGUI::kLButton|VSTGUI::kControl);
+ check(f.c->rowGain(0)==100,
+       "V101 real Ctrl-click Volume default reset lost");
+ VSTGUI::CPoint knobStart(L::knobCenters[0],L::header+24.);
+ (void)view->onMouseDown(knobStart,
+        VSTGUI::CButtonState(VSTGUI::kLButton|VSTGUI::kShift));
+ VSTGUI::CPoint knobMove(L::knobCenters[0],L::header+12.);
+ (void)view->onMouseMoved(knobMove,
+        VSTGUI::CButtonState(VSTGUI::kLButton|VSTGUI::kShift));
+ (void)view->onMouseUp(knobMove,VSTGUI::CButtonState(VSTGUI::kLButton));
+ check(f.c->rowGain(0)==101,
+       "V101 real Shift-fine Volume drag wrong or silently cancelled");
  click(*view,170.,115.);
  check(f.c->currentPattern()==3&&automation.calls>=1,
        "V101 actual host Pattern D did not execute automation");
