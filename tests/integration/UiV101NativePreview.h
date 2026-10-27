@@ -84,7 +84,7 @@ struct UiV101NativePreview final {
    if(row==7)return step==6||step==14||step==22;
    return step==4||step==20;
  }
- static void draw(VSTGUI::CDrawContext& c){
+ static void draw(VSTGUI::CDrawContext& c,bool zoomMenuOpen=false,std::size_t zoomPreset=0){
    constexpr Color cream{207,203,193,255};
    const double total=L::editorHeight(0,L::visibleRows,L::Expansions{});
    fill(c,{0.,0.,L::width,total},cream);
@@ -101,7 +101,14 @@ struct UiV101NativePreview final {
    label(c,"D R U M A T O R",{335.,10.,945.,63.},34,{51,55,62,255});
    label(c,"V1.0.1  NATIVE GUI LAYOUT PREVIEW",{500.,59.,810.,77.},10,{80,75,68,255});
    fill(c,{944.,43.,1160.,44.},{121,116,111,255});
-   label(c,"ZOOM  100% / 130%",{1084.,14.,1248.,37.},11,{59,57,56,255});
+   // Exactly one collapsed Zoom control. The menu itself is painted as an
+   // overlay after all rows, as a real hardware-style popover would be.
+   label(c,"ZOOM",{1086.,15.,1135.,43.},11,{59,57,56,255});
+   const char* const zoomNames[]={"100%","120%","130%","150%"};
+   const auto selected=zoomPreset<4?zoomPreset:std::size_t{0};
+   char zoomCaption[20]{};
+   std::snprintf(zoomCaption,sizeof(zoomCaption),"%s  v",zoomNames[selected]);
+   cap(c,L::zoomTrigger,0.,zoomCaption,zoomMenuOpen,11);
    // Actual Drumator features only. This header is not yet interactive.
    fill(c,{21.,82.,1260.,140.},{184,181,172,255});
    fill(c,{23.,84.,1258.,138.},{225,223,216,255});
@@ -120,11 +127,8 @@ struct UiV101NativePreview final {
    }};
    cap(c,{364.,29.,414.,63.},78.,"MENU");
    cap(c,{431.,29.,514.,63.},78.,"2 BARS");
-   constexpr double first=529.,buttonWidth=108.,buttonGap=9.;
-   for(std::size_t i=0;i<groupNames.size();++i){
-     const double left=first+i*(buttonWidth+buttonGap);
-     cap(c,{left,29.,left+buttonWidth,63.},78.,groupNames[i],false,11);
-   }
+   for(std::size_t i=0;i<groupNames.size();++i)
+     cap(c,L::headerGroup(i),0.,groupNames[i],false,11);
    fill(c,{1132.,109.,1146.,129.},{20,30,41,255});
    fill(c,{1151.,105.,1160.,129.},{29,54,65,255});
    fill(c,{1164.,111.,1174.,129.},{29,62,82,255});
@@ -193,6 +197,20 @@ struct UiV101NativePreview final {
          {31.,total-42.,922.,total-14.},11,{66,68,70,255},false);
    label(c,"REFERENCE LAYOUT - NOT A RELEASE BUILD",
          {940.,total-42.,1248.,total-14.},10,{92,76,66,255});
+   if(zoomMenuOpen){
+     fill(c,{1130.,45.,1252.,155.},{12,20,29,255});
+     border(c,{1130.,45.,1252.,155.},{104,115,121,255});
+     for(std::size_t i=0;i<L::zoomPresets.size();++i){
+       const auto rect=L::zoomOption(i);
+       // Preserve a fixed 24px option height at every UI scale.
+       fill(c,{rect.x0,rect.y0,rect.x1,rect.y1},
+            i==selected?Color{210,131,51,255}:Color{61,70,77,255});
+       border(c,{rect.x0,rect.y0,rect.x1,rect.y1},
+              i==selected?Color{250,191,103,255}:Color{98,110,120,255});
+       label(c,zoomNames[i],{rect.x0,rect.y0,rect.x1,rect.y1},11,
+             i==selected?Color{24,29,35,255}:Color{232,235,235,255});
+     }
+   }
  }
 };
 }
