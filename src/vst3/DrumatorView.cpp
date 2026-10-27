@@ -1310,12 +1310,15 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
        static_cast<std::size_t>(sampleEditorPressed_)]),VSTGUI::kDrawStroked);
      c->setLineWidth(1.);
    }
-   // Gain below the signal, compact and directly readable at its control.
+   // Machined buttons change their paint font to dark ink; restore the
+   // light editor ink for GAIN and its numeric value against graphite.
+   c->setFont(VSTGUI::kNormalFont,12);c->setFontColor(letters);
    c->drawString("GAIN",{558,405,622,428});
    c->setFillColor(off);c->drawRect({615,416,900,430},VSTGUI::kDrawFilled);
    const auto gainX=615.+285.*std::clamp(static_cast<double>(sampleEditorEdit_.gain)/4.,0.,1.);
    c->setFillColor(accent);c->drawRect({615,416,gainX,430},VSTGUI::kDrawFilled);
    c->setFillColor(letters);c->drawRect({gainX-4,409,gainX+4,437},VSTGUI::kDrawFilled);
+   c->setFontColor(letters);
    char gainText[36]{};
    std::snprintf(gainText,sizeof(gainText),"%u%%",
                  static_cast<unsigned>(std::lround(sampleEditorEdit_.gain*100.f)));
