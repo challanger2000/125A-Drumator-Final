@@ -95,9 +95,9 @@ public:
    if(total<=L::visibleRows)return false;
    endGesture(true);
    closeExpansion();
-   const auto count=shownRows();
-   const auto next=direction>0?std::min(state_.firstRow+count,total-1):
-     (state_.firstRow>=count?state_.firstRow-count:0);
+   constexpr auto stride=L::visibleRows;
+   const auto next=direction>0?std::min(state_.firstRow+stride,total-1):
+     (state_.firstRow>=stride?state_.firstRow-stride:0);
    if(next==state_.firstRow)return false;
    state_.firstRow=next;
    state_.selectedRow=next;
@@ -119,6 +119,13 @@ public:
      return Result::Handled; // modal menu blocks click-through
    }
    if(L::zoomHit(x,y,false)==-2){state_.zoomOpen=true;return Result::Handled;}
+   const double footerTop=height()-L::footer;
+   if(y>=footerTop+7.&&y<footerTop+38.){
+     if(L::Rect{975.,footerTop+7.,1095.,footerTop+38.}.hit(x,y))
+       return page(-1)?Result::Handled:Result::Ignored;
+     if(L::Rect{1105.,footerTop+7.,1235.,footerTop+38.}.hit(x,y))
+       return page(1)?Result::Handled:Result::Ignored;
+   }
    if(y>=107.&&y<141.){
      for(std::size_t i=0;i<8;++i){
        const L::Rect key{33.+39.*i,107.,68.+39.*i,141.};
