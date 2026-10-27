@@ -249,7 +249,11 @@ struct Fixture {
  }
  DrumatorEditor& open(){
    const auto n=editors.size();check(n<frames.size(),"too many fixture views");
-   auto* e=dynamic_cast<DrumatorEditor*>(c->createView(ViewType::kEditor));check(e!=nullptr,"create real editor");
+   // Legacy regression fixtures continue exercising the original V1.0.0
+   // template. Do not weaken or rewrite their historic hit coordinates.
+   auto* e=new DrumatorEditor(c,"DrumatorView","Drumator.uidesc");
+   e->setAllowedZoomFactors({});
+   e->setZoomChecked(c->preferredZoom());
    auto& h=frames[n];h.hwnd=CreateWindowExW(0,L"STATIC",L"Drumator native QA",WS_OVERLAPPEDWINDOW|WS_VISIBLE,
      0,0,1280,850,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
    check(h.hwnd!=nullptr,"create parent HWND");static_cast<IPlugView*>(e)->setFrame(&h);
@@ -260,8 +264,10 @@ struct Fixture {
  // deliberately a separate test editor until DAW-facing activation passes.
  DrumatorEditor& openV101(){
    const auto n=editors.size();check(n<frames.size(),"too many V101 fixture editors");
-   auto* e=new DrumatorEditor(c,"DrumatorV101View","Drumator.uidesc");
-   e->setAllowedZoomFactors({});
+   // This is the actual currently selected factory default, not a separate
+   // test-only editor constructor.
+   auto* e=dynamic_cast<DrumatorEditor*>(c->createView(ViewType::kEditor));
+   check(e!=nullptr,"V101 production default factory returned no editor");
    auto& h=frames[n];
    h.hwnd=CreateWindowExW(0,L"STATIC",L"Drumator V1.0.1 native QA",
                            WS_OVERLAPPEDWINDOW|WS_VISIBLE,0,0,1280,850,
