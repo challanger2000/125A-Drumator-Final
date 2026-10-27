@@ -16,7 +16,7 @@ struct UiCompactLayout final {
       groupTitleTop=49.,groupTitleBottom=65.,globalKnobY=119.,
       songEditorHeight=432.,patternStart=457.+headerRightShift,patternPitch=49.,
       patternButtonWidth=47.;
- static constexpr double stepX=420.,stepWidth=19.;
+ static constexpr double stepX=622.,stepWidth=19.;
  static constexpr double knobRadius=25.,rowKnobY=88.;
  // Render geometry contract: labels clear the mounted 30px ring by 3px.
  static constexpr double rowKnobMountRadius=30.,rowKnobLabelTop=-46.,
@@ -31,11 +31,11 @@ struct UiCompactLayout final {
  static constexpr Slot patternTools{850.+headerRightShift,969.+headerRightShift},
                        songToggle{972.+headerRightShift,1042.+headerRightShift},
                        songEdit{1045.+headerRightShift,1125.+headerRightShift};
- static constexpr Slot rowMenu{20.,64.};
- static constexpr Slot select{18.,42.},sample{151.,308.},sampleMenu{188.,225.},previous{151.,174.},
-   next{285.,308.},preview{312.,352.},fill{110.,148.},mute{46.,75.},
-   solo{78.,107.},choke{136.,185.},output{67.,133.},
-   velocityToggle{1234.,1258.},rowAdd{16.,110.},rowRemove{116.,210.};
+ static constexpr Slot rowMenu{28.,94.};
+ static constexpr Slot select{16.,74.},sample{78.,205.},sampleMenu{275.,301.},previous{303.,329.},
+   next{332.,358.},preview{362.,398.},fill{403.,452.},mute{457.,491.},
+   solo{496.,530.},choke{570.,615.},output{535.,615.},
+   velocityToggle{1233.,1259.},rowAdd{16.,110.},rowRemove{116.,210.};
  // V1.0.1 layout feasibility: shared geometry contract for the intended
  // unbroken instrument strips. This is a PROPOSAL only; original working
  // coordinates above remain active until draw and hit testing migrate together.
@@ -56,8 +56,8 @@ struct UiCompactLayout final {
   static_assert(expandRight<=right);
   static_assert(stepEnd-stepStart==608.);
  };
- static constexpr std::array<double,4> rowKnobCenters{{1066.,1134.,1202.,376.}};
- static_assert(rowKnobCenters[2]+rowKnobMountRadius<velocityToggle.left);
+ static constexpr std::array<double,4> rowKnobCenters{{133.,254.,375.,496.}};
+ static_assert(rowMenu.right < rowKnobCenters[0]-rowKnobMountRadius);
  static constexpr std::array<double,3> globalKnobCenters{{79.,177.,1180.+headerRightShift}};
  // One geometry contract for the moved MAIN L/R LEDs, CLIP text and click reset.
  static constexpr double meterLeft=1255.+headerRightShift;
