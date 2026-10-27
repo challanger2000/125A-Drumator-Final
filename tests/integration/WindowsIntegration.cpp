@@ -1185,16 +1185,37 @@ void testV101LiveEditor(){
  check(f.c->visibleRows()==15,"V101 real host REMOVE ROW not connected");
  click(*view,95.,rowFooterY+22.);
  check(f.c->visibleRows()==16,"V101 real host ADD ROW not connected");
- // SONG EDIT must remain operable on the legacy SONG page during the
- // transitional paint migration, then return to the V101 main view.
+ // V1.0.1 real SONG editor uses the shared hardware paint family but
+ // the exact original UiSongLayout click targets (no behavior regression).
  click(*view,650.,115.);
- check(IntegrationAccess::songEditorOpen(*view),
-       "V101 host SONG EDIT did not open existing song editor");
- const auto back=UiCompactLayout::songEdit;
- click(*view,(back.left+back.right)/2.,
-       (UiCompactLayout::headerButtonTop+UiCompactLayout::headerButtonBottom)/2.);
- check(!IntegrationAccess::songEditorOpen(*view)&&view->isV101(),
-       "V101 SONG return did not restore live hardware main view");
+ check(IntegrationAccess::songEditorOpen(*view)&&
+       view->getViewSize().getHeight()==UiCompactLayout::songEditorHeight,
+       "V101 SONG board did not open at its real native height");
+ captureVstgui(*view,"v101-song-board-hardware-100",1.0);
+ const auto songCount=f.c->songCount();
+ click(*view,181.,352.); // Pattern B for selected entry
+ check(f.c->songEntry(0).pattern==1,
+       "V101 SONG Pattern B hardware button disconnected");
+ click(*view,716.,352.); // 1/2 BAR for same entry
+ check(f.c->songEntry(0).steps==8,
+       "V101 SONG 1/2 BAR hardware button disconnected");
+ click(*view,1050.,352.);
+ check(f.c->songCount()==songCount+1,
+       "V101 SONG ADD ENTRY lost count or layout");
+ click(*view,1175.,352.);
+ check(f.c->songCount()==songCount,
+       "V101 SONG REMOVE LAST failed to undo added position");
+ const auto startBar=f.c->songStartBar();
+ click(*view,606.,180.);
+ check(f.c->songStartBar()==startBar+1,
+       "V101 SONG START + lost exact increment");
+ click(*view,675.,180.);
+ check(f.c->songStartBar()==1,
+       "V101 SONG START RESET not connected");
+ click(*view,650.,115.);
+ check(!IntegrationAccess::songEditorOpen(*view)&&view->isV101()&&
+       view->getViewSize().getHeight()==686.,
+       "V101 SONG close did not return to native main GUI and height");
  // Compact 95x25 footer keys must page in the actual host, resizing
  // from ten to six rows and back without stale click areas.
  const auto initialHeight=view->getViewSize().getHeight();
@@ -1216,6 +1237,19 @@ void testV101LiveEditor(){
  check(IntegrationAccess::sampleEditorOpen(*view)||
        f.c->sampleEditorRequestPending(0,view),
        "V101 live EDIT click did not reach sample editor snapshot");
+ if(!IntegrationAccess::sampleEditorOpen(*view))
+   check(IntegrationAccess::openSampleEditorForCapture(*view,0),
+         "V101 WAV editor source not ready for native rendering verification");
+ check(IntegrationAccess::sampleEditorOpen(*view),
+       "V101 real Wave editor did not open for rendering verification");
+ captureVstgui(*view,"v101-wave-editor-hardware-100",1.0);
+ const auto preEdit=IntegrationAccess::sampleEditorDraft(*view);
+ click(*view,300.,210.);
+ check(IntegrationAccess::sampleEditorDraft(*view).start!=preEdit.start,
+       "V101 Wave START marker stopped responding after redraw");
+ click(*view,875.,473.); // CANCEL
+ check(!IntegrationAccess::sampleEditorOpen(*view)&&view->isV101(),
+       "V101 Wave CANCEL failed to return to hardware main GUI");
  f.closeLast();
  check(IntegrationAccess::viewCount(*f.c)==0,
        "V101 real host closing editor leaked a Controller view");
