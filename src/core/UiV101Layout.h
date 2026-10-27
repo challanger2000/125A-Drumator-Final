@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include "core/UiCompactLayout.h"
 
 namespace drumator {
 struct UiV101Layout final {
@@ -13,6 +14,8 @@ struct UiV101Layout final {
   // One cap width and pitch for all five secondary header controls.
   static constexpr std::size_t headerGroupCount=5;
   static constexpr double headerGroupStart=529.,headerGroupWidth=108.,headerGroupGap=9.;
+  // Zoom presets are the actual existing Drumator choices, never visual guesses.
+  static constexpr auto zoomPresets=UiCompactLayout::userZooms;
   static constexpr double knobRadius=18.;
   static constexpr std::array<double,3> knobCenters{{1062.,1122.,1182.}};
   struct Rect final {
@@ -26,6 +29,21 @@ struct UiV101Layout final {
     return {x,107.,x+headerGroupWidth,141.};
   }
   static_assert(headerGroupStart+(headerGroupCount-1)*(headerGroupWidth+headerGroupGap)+headerGroupWidth<1132.);
+  static constexpr Rect zoomTrigger{1140.,14.,1248.,44.};
+  static constexpr Rect zoomOption(std::size_t index) noexcept{
+    const double top=49.+26.*static_cast<double>(index);
+    return {1134.,top,1248.,top+24.};
+  }
+  // -2 = open/close trigger, 0..3 = zoom preset, -1 = no hit.
+  // The menu is modal while open; the renderer draws it over header controls.
+  static constexpr int zoomHit(double x,double y,bool open) noexcept{
+    if(zoomTrigger.hit(x,y))return -2;
+    if(open){
+      for(std::size_t i=0;i<zoomPresets.size();++i)
+        if(zoomOption(i).hit(x,y))return static_cast<int>(i);
+    }
+    return -1;
+  }
   // Coordinates relative to row top; single-height instrument channel.
   static constexpr Rect select{8.,4.,19.,45.},mute{20.,8.,47.,40.},
     solo{52.,8.,79.,40.},fill{84.,8.,124.,40.},
@@ -109,6 +127,11 @@ struct UiV101Layout final {
   static_assert(previous.x1==load.x0&&load.x1==next.x0);
 };
 // MSVC evaluates constexpr function bodies reliably after the class is complete.
+static_assert(UiV101Layout::zoomPresets[0]==1.0 &&
+              UiV101Layout::zoomPresets[1]==1.2 &&
+              UiV101Layout::zoomPresets[2]==1.3 &&
+              UiV101Layout::zoomPresets[3]==1.5);
+static_assert(UiV101Layout::zoomOption(3).y1<=UiV101Layout::header);
 static_assert(UiV101Layout::stepRect(UiV101Layout::steps-1).x1<=UiV101Layout::stepEnd);
 static_assert(UiV101Layout::editorHeight(0,UiV101Layout::visibleRows,
               UiV101Layout::Expansions{})*1.5<=1080.);
