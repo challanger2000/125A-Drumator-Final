@@ -255,6 +255,22 @@ struct Fixture {
    check(static_cast<IPlugView*>(e)->attached(h.hwnd,kPlatformTypeHWND)==kResultOk,"attach actual VSTGUI editor");
    editors.push_back(e);pump();return *e;
  }
+ // Attach the V1.0.1 template through a real Win32 IPlugFrame. This is
+ // deliberately a separate test editor until DAW-facing activation passes.
+ DrumatorEditor& openV101(){
+   const auto n=editors.size();check(n<frames.size(),"too many V101 fixture editors");
+   auto* e=new DrumatorEditor(c,"DrumatorV101View","Drumator.uidesc");
+   e->setAllowedZoomFactors({});
+   auto& h=frames[n];
+   h.hwnd=CreateWindowExW(0,L"STATIC",L"Drumator V1.0.1 native QA",
+                           WS_OVERLAPPEDWINDOW|WS_VISIBLE,0,0,1280,850,
+                           nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
+   check(h.hwnd!=nullptr,"create V101 native parent HWND");
+   static_cast<IPlugView*>(e)->setFrame(&h);
+   check(static_cast<IPlugView*>(e)->attached(h.hwnd,kPlatformTypeHWND)==kResultOk,
+         "attach native V101 editor template to actual Windows host frame");
+   editors.push_back(e);pump();return *e;
+ }
  static std::vector<std::uint8_t> encode(const KitState& kit){std::vector<std::uint8_t> b;check(KitCodec::encode(kit,b),"valid kit encode");return b;}
  tresult recall(const std::vector<std::uint8_t>& bytes){
    drumator::qa::ByteStream stream(const_cast<std::uint8_t*>(bytes.data()),bytes.size());return c->setComponentState(&stream);
