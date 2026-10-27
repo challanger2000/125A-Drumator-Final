@@ -7,12 +7,16 @@ int main(){
   CHECK(L::zoomPresets.size()==4);
   CHECK(L::zoomPresets[0]==1.&&L::zoomPresets[1]==1.2);
   CHECK(L::zoomPresets[2]==1.3&&L::zoomPresets[3]==1.5);
+  // Label-specific fixed sizes; uniform 34px cap height and 9px spacing.
+  constexpr std::array<double,5> capWidths{{84.,74.,96.,112.,102.}};
   for(std::size_t i=0;i<L::headerGroupCount;++i){
     const auto r=L::headerGroup(i);
-    CHECK(r.x1-r.x0==108.&&r.y1-r.y0==34.);
+    CHECK(r.x1-r.x0==capWidths[i]&&r.y1-r.y0==34.);
     CHECK(r.hit(r.x0+4.,r.y0+4.));
     if(i)CHECK(L::headerGroup(i-1).x1+9.==r.x0);
   }
+  CHECK(L::headerGroup(0).x0>514.);
+  CHECK(L::headerGroup(4).x1<1132.);
   CHECK(L::zoomHit(1200.,25.,false)==-2);
   CHECK(L::zoomHit(1200.,25.,true)==-2);
   for(std::size_t i=0;i<L::zoomPresets.size();++i){
