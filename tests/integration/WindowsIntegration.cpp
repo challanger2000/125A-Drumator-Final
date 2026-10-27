@@ -996,11 +996,11 @@ void testV101Interaction(){
  Fixture all;auto kit=v101PreviewKit();kit.visible=16;all.kit(kit);
  UI pages(*all.c);
  // Compact 95x25 caps: the renderer and hit handler share these bounds.
- check(L::footerPrev.x1-L::footerPrev.x0==95.&&
-       L::footerNext.x1-L::footerNext.x0==95.&&
-       L::footerPrev.y1-L::footerPrev.y0==25.&&
-       L::footerNext.y1-L::footerNext.y0==25.,
-       "V101 footer buttons have mismatched or oversized hit rectangles");
+ static_assert(L::footerPrev.x1-L::footerPrev.x0==95.&&
+               L::footerNext.x1-L::footerNext.x0==95.&&
+               L::footerPrev.y1-L::footerPrev.y0==25.&&
+               L::footerNext.y1-L::footerNext.y0==25.,
+               "V101 footer buttons have mismatched or oversized hit rectangles");
  const double footerY=pages.height()-L::footer;
  check(pages.down(1175.,footerY+22.)==UI::Result::Handled&&
        pages.state().firstRow==10&&pages.shownRows()==6,
