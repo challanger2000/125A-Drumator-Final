@@ -675,12 +675,15 @@ void captureVstgui(DrumatorView& v,const std::string& title,double scale){
           std::to_string(height)+" pixel checksum "+std::to_string(checksum));
 }
 
-void captureV101Preview(const char* title,double scale){
+void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false){
  using L=drumator::UiV101Layout;
  const double h=L::editorHeight(0,L::visibleRows,L::Expansions{});
  auto bitmap=VSTGUI::renderBitmapOffscreen(
    VSTGUI::CPoint(L::width,h),scale,
-   [](VSTGUI::CDrawContext& context){drumator::qa::UiV101NativePreview::draw(context);});
+   [zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
+     drumator::qa::UiV101NativePreview::draw(context,zoomMenuOpen,
+       scale>1.2?std::size_t{2}:std::size_t{0});
+   });
  check(bitmap!=nullptr,"V1.0.1 native VSTGUI prototype render failed");
  auto* access=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
  check(access!=nullptr,"V1.0.1 native pixels unavailable");
@@ -3580,6 +3583,7 @@ int main(int argc,char** argv){
      try {
        captureV101Preview("v101-layout-native-prototype-100",1.0);
        captureV101Preview("v101-layout-native-prototype-130",1.3);
+       captureV101Preview("v101-layout-native-zoom-menu-100",1.0,true);
      }catch(const std::exception& ex){
        std::cerr<<"V1.0.1 native preview render FAIL: "<<ex.what()<<'\n';
        result=3;
