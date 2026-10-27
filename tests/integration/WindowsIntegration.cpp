@@ -942,14 +942,30 @@ void testV101Interaction(){
  evidence("V101 interactive controller routing: header, patterns, knob drag, VEL rollback, SETTINGS, zoom modal and 16-row paging PASS");
 }
 
-void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false){
+enum class V101CaptureMode { Normal, Velocity, Settings };
+void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
+                        V101CaptureMode mode=V101CaptureMode::Normal){
  using L=drumator::UiV101Layout;
  Fixture fixture;
  fixture.kit(v101PreviewKit());
+ drumator::UiV101Interaction ui(*fixture.c);
+ if(mode!=V101CaptureMode::Normal){
+   check(ui.down(1230.,L::header+9*L::rowHeight+12.)==
+           drumator::UiV101Interaction::Result::Handled,
+         "V101 screenshot did not open velocity expansion through UI hit");
+   if(mode==V101CaptureMode::Settings){
+     const double top=L::rowTop(ui.state().firstRow,8,ui.expandedRows());
+     check(ui.down(1230.,top+36.)==
+             drumator::UiV101Interaction::Result::Handled,
+           "V101 screenshot failed to select settings expansion");
+   }
+ }
  const auto scene=captureV101ControllerScene(*fixture.c);
  check(scene.pattern==2&&scene.rows[0].hasSample,
        "V1.0.1 capture did not use an actual decoded controller kit");
- const double h=L::editorHeight(0,L::visibleRows,L::Expansions{});
+ const double h=ui.height();
+ check(h*1.5<=1080.,
+       "V101 expanded-row screenshot would exceed 1080 at 150 percent");
  // Decode precisely the SAME PNG resources as the installable 1.0.0 VST3.
  // Fail closed; a substituted procedural knob/title is not valid QA evidence.
  auto* knob=new VSTGUI::CMultiFrameBitmap(
@@ -962,9 +978,9 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false){
        "V1.0.1 preview did not load original metallic DRUMATOR title PNG");
  auto bitmap=VSTGUI::renderBitmapOffscreen(
    VSTGUI::CPoint(L::width,h),scale,
-   [knob,titleLogo,&scene,zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
+   [knob,titleLogo,&scene,&ui,zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
      drumator::qa::UiV101NativePreview::draw(context,knob,titleLogo,scene,zoomMenuOpen,
-       scale>1.2?std::size_t{2}:std::size_t{0});
+       scale>1.2?std::size_t{2}:std::size_t{0},ui.state());
    });
  knob->forget();
  titleLogo->forget();
@@ -3868,6 +3884,8 @@ int main(int argc,char** argv){
        captureV101Preview("v101-layout-native-prototype-100",1.0);
        captureV101Preview("v101-layout-native-prototype-130",1.3);
        captureV101Preview("v101-layout-native-zoom-menu-100",1.0,true);
+       captureV101Preview("v101-controller-velocity-lane-100",1.0,false,V101CaptureMode::Velocity);
+       captureV101Preview("v101-controller-settings-lane-100",1.0,false,V101CaptureMode::Settings);
      }catch(const std::exception& ex){
        std::cerr<<"V1.0.1 native preview render FAIL: "<<ex.what()<<'\n';
        result=3;
