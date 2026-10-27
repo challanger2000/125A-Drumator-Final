@@ -995,12 +995,22 @@ void testV101Interaction(){
  // Page navigation across all 16 rows must return to the original first page.
  Fixture all;auto kit=v101PreviewKit();kit.visible=16;all.kit(kit);
  UI pages(*all.c);
- check(pages.down(1150.,pages.height()-22.)==UI::Result::Handled&&
+ // Compact 95x25 caps: the renderer and hit handler share these bounds.
+ check(L::footerPrev.x1-L::footerPrev.x0==95.&&
+       L::footerNext.x1-L::footerNext.x0==95.&&
+       L::footerPrev.y1-L::footerPrev.y0==25.&&
+       L::footerNext.y1-L::footerNext.y0==25.,
+       "V101 footer buttons have mismatched or oversized hit rectangles");
+ const double footerY=pages.height()-L::footer;
+ check(pages.down(1175.,footerY+22.)==UI::Result::Handled&&
        pages.state().firstRow==10&&pages.shownRows()==6,
-       "V101 page next did not reveal final six rows");
- check(pages.down(1020.,pages.height()-22.)==UI::Result::Handled&&
+       "V101 compact next page did not reveal final six rows");
+ check(pages.down(985.,footerY+22.)==UI::Result::Ignored&&
+       pages.state().firstRow==10,
+       "V101 old oversized PREV click hotspot still active");
+ check(pages.down(1070.,footerY+22.)==UI::Result::Handled&&
        pages.state().firstRow==0&&pages.shownRows()==10,
-       "V101 page previous not symmetrical");
+       "V101 compact previous page not symmetrical");
  evidence("V101 interactive controller routing: header, patterns, knob drag, VEL rollback, SETTINGS, zoom modal and 16-row paging PASS");
 }
 
@@ -1064,6 +1074,20 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
  const auto width=access->getBitmapWidth(),height=access->getBitmapHeight();
  check(width>=1280&&height>=686&&width<=2400&&height<=1300,
        "V1.0.1 render pixel dimensions wrong");
+ // Native pixel contract: the footer must not mask either case screw.
+ // Geometry-only checks would miss the former opaque paint overlay.
+ if(scale==1.&&mode==V101CaptureMode::Normal&&!zoomMenuOpen){
+   const auto screwY=static_cast<std::uint32_t>(h-15.);
+   const auto sampleAt=[&](std::uint32_t x,std::uint32_t y){
+     check(access->setPosition(x,y),"V101 footer screw pixel missing");
+     VSTGUI::CColor color{};access->getColor(color);return color;
+   };
+   const auto left=sampleAt(14,screwY),right=sampleAt(1266,screwY);
+   const auto metalLeft=sampleAt(28,screwY),metalRight=sampleAt(1253,screwY);
+   check(left.red<150&&right.red<150&&
+         metalLeft.red>left.red+30&&metalRight.red>right.red+30,
+         "V101 footer overlay concealed the left or right case screw");
+ }
  // Reference-material contract at native 100%. The supplied hardware
  // reference has warm steel (R>G>B) and a midnight-navy instrument body,
  // not cool-grey chrome or an almost-black row.
