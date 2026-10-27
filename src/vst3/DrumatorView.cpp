@@ -1334,8 +1334,14 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
 }
 void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
  drawV101(c);
- v101::UiV101SongPainter::draw(*c,controller_,songPage_,songSlot_,
-                              status_.c_str());
+ // The startup placeholder is not an error and becomes stale after
+ // restoring a project kit; never show it in the SONG footer.
+ const bool emptyNotice=status_=="EMPTY: CLICK SAMPLE OR DROP A WAV/FLAC";
+ bool kitHasSamples=false;
+ for(std::size_t row=0;row<controller_.visibleRows();++row)
+   if(controller_.hasSample(row)){kitHasSamples=true;break;}
+ const char* notice=emptyNotice&&kitHasSamples?"":status_.c_str();
+ v101::UiV101SongPainter::draw(*c,controller_,songPage_,songSlot_,notice);
  // The top-row SONG EDIT key stays visibly latched while its board is open.
  v101::UiV101NativePreview::cap(*c,UiV101Layout::headerGroup(1),
                                  0.,"SONG EDIT",true,10);
