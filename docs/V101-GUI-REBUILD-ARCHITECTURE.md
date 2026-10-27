@@ -305,3 +305,18 @@ view popup. Original Pattern and SONG Controller behavior remains under
 the existing integration regression. **Status: source committed; Windows
 CI raster and user design approval not yet obtained.** `main` and
 `release/v1.0.0` unchanged.
+
+### Raised silver-header QA — verified on Windows (27 October 2026)
+
+**Successful native screenshot + QA run:** [#40582025305](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40582025305), tested trigger SHA `a18646628786049b24eeca65e00fa8f11db563aa`.
+
+- MSVC Windows x64 plugin / native integration build: **PASS**.
+- 24/24 CTests: **PASS**, including unified 32px PATTERN/2 BARS/SONG click hit map, PTNR MENU deferral and controller-backed input regressions.
+- Official Steinberg validator: **47/47 PASS**.
+- Independent 125A Plugin Tester v0.3.2: **58 PASS / 0 WARNING / 0 FAIL**.
+- Generated native preview 100% and raster 130%, zoom overlay, VEL and SET; exact run artifact `125A-Drumator-VSTGUI-Native-Renderings`. Visually verified the header's left border starts at the same x=12 as the navy sequencer and every header action has a uniform 32px silver key.
+- Workflow-only commit `b4993a1` immediately restored the on-demand CI policy; no auto-trigger on ordinary V1.0.1 work.
+
+**Failed intermediate attempts are not hidden**: #40580416043 exposed an obsolete 30px SONG height assertion, corrected in `d2f1ccd`; #40581398480 hit /WX C4127 due to a constant checked through the test macro, corrected using compile-time `static_assert` in `a4bea1f`. Final run above verifies that corrected exact source.
+
+**Owner design approval pending.** The warm engraved DRUMATOR title is a new paint-only replacement in the *separate native V1.0.1 prototype*; the existing V1.0.0 plugin editor, its dark-title PNG resource, audio engine and main/release branches have not been changed. Actual DAW V1.0.1 editor activation and deferred menu functions remain a separate engineering gate.
