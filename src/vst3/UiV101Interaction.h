@@ -160,6 +160,8 @@ public:
      return Result::Handled; // modal menu blocks click-through
    }
    if(L::zoomHit(x,y,false)==-2){state_.zoomOpen=true;return Result::Handled;}
+   if(L::meterReset.hit(x,y))
+     return controller_.clearMeterClips()?Result::Applied:Result::Failed;
    const double footerTop=height()-L::footer;
    // The pointer targets are precisely the painted, smaller 95x25 caps.
    // Outside them, the footer is inert (no old oversized hidden hotspots).
