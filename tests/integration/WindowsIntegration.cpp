@@ -1008,7 +1008,10 @@ void testV101Interaction(){
  check(pages.down(985.,footerY+22.)==UI::Result::Ignored&&
        pages.state().firstRow==10,
        "V101 old oversized PREV click hotspot still active");
- check(pages.down(1070.,footerY+22.)==UI::Result::Handled&&
+ // Page two contains only six rows, so its footer moves UP by
+ // four row-heights. Always click the CURRENT viewport's footer.
+ const double secondFooterY=pages.height()-L::footer;
+ check(pages.down(1070.,secondFooterY+22.)==UI::Result::Handled&&
        pages.state().firstRow==0&&pages.shownRows()==10,
        "V101 compact previous page not symmetrical");
  evidence("V101 interactive controller routing: header, patterns, knob drag, VEL rollback, SETTINGS, zoom modal and 16-row paging PASS");
