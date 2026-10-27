@@ -1126,9 +1126,14 @@ void testV101LiveEditor(){
  click(*view,(choke3.x0+choke3.x1)/2.,(choke3.y0+choke3.y1)/2.);
  check(f.c->rowChoke(0)==3,"V101 host CHOKE menu did not set group 3");
  // Sample options are reachable without holding Shift/Alt.
- click(*view,267.,L::header+L::rowHeight+20.);
+ // SET expansion is 48 px high, so the second physical row
+ // begins after both the first 48 px lane and its expanded controls.
+ L::Expansions openSet{};
+ openSet[0]=L::Expansion::Settings;
+ const double secondRowTop=L::rowTop(0,1,openSet);
+ click(*view,267.,secondRowTop+20.);
  const auto sampleGeometry=drumator::UiV101Popup::geometry(
-     drumator::UiV101Popup::Kind::Sample,L::header+L::rowHeight,
+     drumator::UiV101Popup::Kind::Sample,secondRowTop,
      view->getViewSize().getHeight());
  const auto remove=drumator::UiV101Popup::cell(sampleGeometry,2);
  click(*view,(remove.x0+remove.x1)/2.,(remove.y0+remove.y1)/2.);
