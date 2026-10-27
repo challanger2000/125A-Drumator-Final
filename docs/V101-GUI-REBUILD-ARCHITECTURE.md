@@ -214,3 +214,25 @@ still look like a retro desktop UI rather than expensive rack hardware.
 Any subsequent design refinements should be grouped in one coherent package,
 then built once, not in a series of trivial Action runs. The newly colored
 renderer remains a standalone QA prototype, not the VST3 editor opened in DAW.
+
+### Hardware material pass following owner review (27 October 2026)
+
+Native VSTGUI renderer `tests/integration/UiV101NativePreview.h`
+has received a **coherent material treatment** rather than another color-only
+revision. A deterministic three-point satin gradient (`satin`), pixel-corner
+machined button silhouettes (`rounded`), corner fasteners (`screw`),
+recessed bronze/graphite header sections, bezel-lit key edges, and subtle
+horizontal steel brushing are all drawn by VSTGUI. Dark navy row modules now
+have dark gaskets, an inset directional gradient, upper catch light and
+lower shadow. Original amber step lenses have dimensional bezels and a warm
+light source; the existing original 125A rotary sprite gets a machined mounting
+socket instead of a flat circle.
+
+**No geometry, step pitch, hit rectangles, Controller/DSP, pattern semantics,
+sample state or shipping V1.0.0 editor was changed.** New drawing helpers
+operate entirely inside the isolated native visual fixture. The previously
+verified warm-steel / navy RGB pixel contract and native 100/130%/VEL/SET
+capture oracles are intentionally retained, not weakened.
+
+**QA for this material pass: pending one batched Windows workflow run.
+Visual acceptance pending inspection of its genuine screenshot.**
