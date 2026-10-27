@@ -320,3 +320,30 @@ CI raster and user design approval not yet obtained.** `main` and
 **Failed intermediate attempts are not hidden**: #40580416043 exposed an obsolete 30px SONG height assertion, corrected in `d2f1ccd`; #40581398480 hit /WX C4127 due to a constant checked through the test macro, corrected using compile-time `static_assert` in `a4bea1f`. Final run above verifies that corrected exact source.
 
 **Owner design approval pending.** The warm engraved DRUMATOR title is a new paint-only replacement in the *separate native V1.0.1 prototype*; the existing V1.0.0 plugin editor, its dark-title PNG resource, audio engine and main/release branches have not been changed. Actual DAW V1.0.1 editor activation and deferred menu functions remain a separate engineering gate.
+
+### Futuristic user-logo asset — source integration (27 October 2026)
+
+The owner supplied `resource/Futuristisches Metalllogo DRUMATOR.png`
+on `develop/v1.0.1-gui-redesign`. This exact filename has been retained.
+The dark chrome DRUMATOR wordmark, glowing triangular A and symmetric amber
+lightbars replace the temporary V1.0.1 per-glyph metal engraving in the
+**isolated native VSTGUI renderer only**. The old title resources are
+preserved for the shipping V1.0.0 editor.
+
+`CMakeLists.txt` includes the new PNG in VSTGUI bundle resources. The new
+`measureTitle` function reads its alpha-visible bounding box once on
+image load, and `hardwareTitle` draws the original image at uniform scale
+inside logical x=192..1118, y=7..76. It preserves both side flashes and
+never crops lettering or changes interactive hit positions. Title metrics
+are intended to be cached by the eventual live editor, not recomputed
+on every paint.
+
+The native Windows test fails closed if the resource is missing, has
+no visible alpha data, is opaque in the upper-left source corner, occupies
+an overlapping header rectangle, or its orange lightbars fail to appear
+in the final 100% VSTGUI header pixel capture. This is a new visual
+regression contract, not only a successful PNG file presence check.
+
+**QA status for this new logo candidate: NOT YET RUN.** Do not call the
+live VST3 editor migrated: the native renderer remains isolated, and the
+host-side popups/Studio One interaction acceptance remains future work.
