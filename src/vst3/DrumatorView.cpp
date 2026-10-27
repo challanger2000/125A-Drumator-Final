@@ -1104,6 +1104,7 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
  }
  const auto previous=v101_.state();
  const auto previousHeight=v101_.height();
+ const auto previousRows=controller_.visibleRows();
  const auto result=v101_.down(x,y,erase,fine);
  using R=UiV101Interaction::Result;
  using K=UiV101Interaction::DeferredKind;
@@ -1137,9 +1138,12 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
  }
  if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_&&
     v101_.height()!=previousHeight&&!adjustEditorHeight()) {
+   const bool reverted=controller_.visibleRows()==previousRows||
+                       controller_.restoreVisibleRows(previousRows);
    v101_.restoreLayout(previous);
-   (void)adjustEditorHeight();
-   status_="HOST REJECTED ROW VIEW RESIZE";
+   if(reverted)status_="HOST REJECTED ROW VIEW RESIZE";
+   else status_="ERROR: ROW COUNT ROLLBACK REJECTED";
+   invalid();
  }
  if(result==R::Failed)status_="CONTROL ACTION NOT APPLIED";
  if(result!=R::Ignored)invalid();
