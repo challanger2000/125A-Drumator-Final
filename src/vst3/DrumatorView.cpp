@@ -1158,6 +1158,172 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
  return result!=R::Ignored;
 }
 
+void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
+ drawV101(c);
+   // Identical UiWaveEditorLayout geometry; only the V1.0.1 materials
+   // and paint primitives change. All source-frame marker math is preserved.
+   using P=v101::UiV101NativePreview;
+   P::satin(*c,{225.,96.,1055.,610.},{222,214,203,255},
+            {192,184,174,255},{155,146,135,255},22);
+   P::border(*c,{225.,96.,1055.,610.},P::Skin::panelEdge());
+   c->setFillColor(P::Skin::graphite());
+   c->drawRect({230,100,1050,605},VSTGUI::kDrawFilled);
+   // Narrow metallic title shoulder; restrained lower bevel.
+   c->setFillColor(VSTGUI::CColor{27,41,56,255});
+   c->drawRect({234,104,1046,151},VSTGUI::kDrawFilled);
+   c->setFillColor(VSTGUI::CColor{157,151,143,255});
+   c->drawRect({234,104,1046,106},VSTGUI::kDrawFilled);
+   c->setFillColor(VSTGUI::CColor{53,61,68,255});
+   c->drawRect({234,149,1046,151},VSTGUI::kDrawFilled);
+   c->setFrameColor(VSTGUI::CColor{91,102,111,255});
+   c->drawRect({230,100,1050,605},VSTGUI::kDrawStroked);
+   c->setFont(VSTGUI::kNormalFont,18);c->setFontColor(letters);
+   c->drawString("WAVE EDITOR",{260,114,1000,148});
+   const auto sampleCaption=controller_.label(sampleEditorRow_);
+   c->setFont(VSTGUI::kNormalFont,11);c->setFontColor({177,198,211,255});
+   c->drawString(sampleCaption.c_str(),{740,115,1024,147},VSTGUI::kRightText);
+   // Wide, filled peak envelope: adjacent interpolated columns preserve
+   // transients without inventing audio or filtering source PCM.
+   c->setFillColor(VSTGUI::CColor{5,19,36,255});
+   c->drawRect(editorRect(UiWaveEditorLayout::waveform),VSTGUI::kDrawFilled);
+   c->setFrameColor(VSTGUI::CColor{47,109,154,255});
+   c->drawRect(editorRect(UiWaveEditorLayout::waveform),VSTGUI::kDrawStroked);
+   c->setFrameColor(VSTGUI::CColor{47,109,154,255});c->drawLine({284,268},{994,268});
+   if(sampleEditorStereo_)c->drawLine({284,326},{994,326});
+   const auto n=sampleEditorWave_.size();
+   for(int pixel=0;pixel<710;++pixel){
+     const double scaled=(static_cast<double>(pixel)+0.5)*n/710.;
+     const auto idx=std::min(n-1,static_cast<std::size_t>(scaled));
+     const auto next=std::min(n-1,idx+1);
+     const double fraction=scaled-static_cast<double>(idx);
+     const auto& a=sampleEditorWave_[idx];const auto& b=sampleEditorWave_[next];
+     // Include both adjacent ranges: interpolation never loses a one-bin peak.
+     const double lo=std::min({static_cast<double>(a.minimum),
+           static_cast<double>(b.minimum),0.});
+     const double hi=std::max({static_cast<double>(a.maximum),
+           static_cast<double>(b.maximum),0.});
+     const double mid=sampleEditorStereo_?213.:268.;
+     const double amp=sampleEditorStereo_?48.:104.;
+     const double sourceFrame=sampleEditorFirst_+
+         (pixel+0.5)*static_cast<double>(sampleEditorLast_-sampleEditorFirst_)/710.;
+     const auto& e=sampleEditorEdit_;
+     // The same discrete source-frame envelope as the audio engine.
+     // A one-frame Fade Out now displays silence, matching rendered PCM.
+     const double fade=static_cast<double>(e.amplitude(
+           static_cast<std::uint32_t>(std::floor(sourceFrame))));
+     const double upper=std::clamp(mid-hi*amp*fade,sampleEditorStereo_?156.:156.,
+                                   sampleEditorStereo_?264.:381.);
+     const double lower=std::clamp(mid-lo*amp*fade,sampleEditorStereo_?156.:156.,
+                                   sampleEditorStereo_?264.:381.);
+     c->setFrameColor(accent);c->drawLine({284.+pixel,upper},{284.+pixel,lower});
+     if(sampleEditorStereo_){
+       const auto& rightA=sampleEditorWaveRight_[idx];
+       const auto& rightB=sampleEditorWaveRight_[next];
+       const double rlo=std::min({static_cast<double>(rightA.minimum),
+                                static_cast<double>(rightB.minimum),0.});
+       const double rhi=std::max({static_cast<double>(rightA.maximum),
+                                static_cast<double>(rightB.maximum),0.});
+       c->drawLine({284.+pixel,std::clamp(326.-rhi*48.*fade,273.,381.)},
+                   {284.+pixel,std::clamp(326.-rlo*48.*fade,273.,381.)});
+     }
+     (void)fraction;
+   }
+   const auto visible=static_cast<double>(sampleEditorLast_-sampleEditorFirst_);
+   const auto sx=284.+710.*(static_cast<double>(sampleEditorEdit_.start)-sampleEditorFirst_)/visible;
+   const auto ex=284.+710.*(static_cast<double>(sampleEditorEdit_.end)-sampleEditorFirst_)/visible;
+   c->setFrameColor(on);c->setLineWidth(2.);
+   if(sx>=284.&&sx<=994.)c->drawLine({sx,175},{sx,382});
+   c->setFrameColor(letters);
+   if(ex>=284.&&ex<=994.)c->drawLine({ex,175},{ex,382});
+   // Fade handles and ramp overlays use source-frame positions.
+   const auto fadeInX=sx+710.*static_cast<double>(sampleEditorEdit_.fadeIn)/visible;
+   const auto fadeOutX=ex-710.*static_cast<double>(sampleEditorEdit_.fadeOut)/visible;
+   c->setFrameColor(on);
+   if(fadeInX>=284.&&sx<=994.)
+     c->drawLine({std::clamp(sx,284.,994.),278},
+                 {std::clamp(fadeInX,284.,994.),180});
+   c->setFrameColor(letters);
+   if(ex>=284.&&fadeOutX<=994.)
+     c->drawLine({std::clamp(fadeOutX,284.,994.),180},
+                 {std::clamp(ex,284.,994.),278});
+   if(fadeInX>=284.&&fadeInX<=994.){
+     const auto handle=std::clamp(fadeInX,289.,989.);
+     c->setFillColor(on);c->drawRect({handle-5,175,handle+5,188},VSTGUI::kDrawFilled);
+   }
+   if(fadeOutX>=284.&&fadeOutX<=994.){
+     const auto handle=std::clamp(fadeOutX,289.,989.);
+     c->setFillColor(letters);c->drawRect({handle-5,175,handle+5,188},VSTGUI::kDrawFilled);
+   }
+   c->setLineWidth(1.);
+   // Scrollbar is proportional to the visible source-frame interval.
+   constexpr double scrollX=284.,scrollWidth=710.;
+   c->setFillColor(off);c->drawRect({scrollX,387,scrollX+scrollWidth,402},VSTGUI::kDrawFilled);
+   const double thumbWidth=scrollWidth*
+       static_cast<double>(sampleEditorLast_-sampleEditorFirst_)/sampleEditorFrames_;
+   const double thumbX=scrollX+scrollWidth*
+       static_cast<double>(sampleEditorFirst_)/sampleEditorFrames_;
+   c->setFillColor(accent);
+   c->drawRect({thumbX,387,thumbX+thumbWidth,402},VSTGUI::kDrawFilled);
+   // Separate labels and values; source WAV sample rate, never host tempo/rate.
+   // Internal edits remain exact integer audio-frame positions and durations.
+   const double msPerFrame=sampleEditorRate_?1000.0/sampleEditorRate_:0.;
+   constexpr const char* labels[]={"START","END","FADE IN","FADE OUT","GAIN"};
+   const double positions[]={sampleEditorEdit_.start*msPerFrame,
+     sampleEditorEdit_.end*msPerFrame,sampleEditorEdit_.fadeIn*msPerFrame,
+     sampleEditorEdit_.fadeOut*msPerFrame,
+     std::round(sampleEditorEdit_.gain*100.f)};
+   c->setFont(VSTGUI::kNormalFont,12);c->setFontColor(letters);
+   for(std::size_t i=0;i<5;++i){
+     const double left=268.+i*153.;
+     char value[48]{};
+     if(i==4)std::snprintf(value,sizeof(value),"%.0f %%",positions[i]);
+     else if(sampleEditorRate_)std::snprintf(value,sizeof(value),"%.2f ms",positions[i]);
+     else std::snprintf(value,sizeof(value),"-- ms");
+     c->drawString(labels[i],{left,497,left+140.,515});
+     c->drawString(value,{left,519,left+140.,539});
+   }
+   // All eight controls use the same rect for paint, hit-test and press.
+   // Eight identical satin-metal keycaps with the original click areas.
+   const auto waveKey=[&](const UiWaveEditorLayout::Rect& r,
+                          const char* name,bool active=false) {
+     P::cap(*c,{r.left,r.top,r.right,r.bottom},0.,name,active,10);
+   };
+   waveKey(UiWaveEditorLayout::zoomIn,"ZOOM +");
+   waveKey(UiWaveEditorLayout::zoomOut,"ZOOM -");
+   waveKey(UiWaveEditorLayout::fit,"FIT");
+   waveKey(UiWaveEditorLayout::preview,"PREVIEW");
+   waveKey(UiWaveEditorLayout::stop,"STOP");
+   waveKey(UiWaveEditorLayout::reset,"RESET");
+   c->setFrameColor(accent);
+   c->drawRect(editorRect(UiWaveEditorLayout::previewGroup),VSTGUI::kDrawStroked);
+   waveKey(UiWaveEditorLayout::cancel,"CANCEL");
+   waveKey(UiWaveEditorLayout::apply,"APPLY");
+   if(sampleEditorPressed_>=0&&
+      sampleEditorPressed_<static_cast<int>(UiWaveEditorLayout::toolbar.size())){
+     c->setFrameColor(on);c->setLineWidth(2.);
+     c->drawRect(editorRect(UiWaveEditorLayout::toolbar[
+       static_cast<std::size_t>(sampleEditorPressed_)]),VSTGUI::kDrawStroked);
+     c->setLineWidth(1.);
+   }
+   // Gain below the signal, compact and directly readable at its control.
+   c->drawString("GAIN",{558,405,622,428});
+   c->setFillColor(off);c->drawRect({615,416,900,430},VSTGUI::kDrawFilled);
+   const auto gainX=615.+285.*std::clamp(static_cast<double>(sampleEditorEdit_.gain)/4.,0.,1.);
+   c->setFillColor(accent);c->drawRect({615,416,gainX,430},VSTGUI::kDrawFilled);
+   c->setFillColor(letters);c->drawRect({gainX-4,409,gainX+4,437},VSTGUI::kDrawFilled);
+   char gainText[36]{};
+   std::snprintf(gainText,sizeof(gainText),"%u%%",
+                 static_cast<unsigned>(std::lround(sampleEditorEdit_.gain*100.f)));
+   c->drawString(gainText,{911,405,1001,439});
+   c->setFont(VSTGUI::kNormalFont,12);c->setFontColor(letters);
+   if(!status_.empty())
+     c->drawString(status_.c_str(),{265,556,1020,585});
+ // Dark mounting fasteners at the corners of the modal metal surround.
+ v101::UiV101NativePreview::screw(*c,235.,106.);
+ v101::UiV101NativePreview::screw(*c,1045.,106.);
+ v101::UiV101NativePreview::screw(*c,235.,600.);
+ v101::UiV101NativePreview::screw(*c,1045.,600.);
+}
 void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
  drawV101(c);
  v101::UiV101SongPainter::draw(*c,controller_,songPage_,songSlot_,
