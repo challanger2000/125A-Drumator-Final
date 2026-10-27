@@ -1025,6 +1025,9 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  const Painter::TitleBounds title{v101TitleBounds_[0],v101TitleBounds_[1],
                                   v101TitleBounds_[2],v101TitleBounds_[3]};
  auto scene=v101::captureControllerScene(controller_);
+ scene.meterLeft=mainMeterL_;
+ scene.meterRight=mainMeterR_;
+ scene.clipped=controller_.meterState().clip!=0;
  Painter::draw(*c,static_cast<VSTGUI::CMultiFrameBitmap*>(knobBitmap_),
                v101TitleBitmap_,title,scene,v101_.state().zoomOpen,
                v101_.state().zoomIndex,v101_.state());
