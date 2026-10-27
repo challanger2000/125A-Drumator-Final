@@ -21,6 +21,25 @@ struct UiV101NativePreview final {
  using L=UiV101Layout;
  using Color=VSTGUI::CColor;
  using Box=VSTGUI::CRect;
+ // Material colors sampled from the supplied reference screenshot. The
+ // original light steel is warm (R>G>B), and the sequencer is dark navy,
+ // deliberately NOT Windows grey or near-black.
+ struct Skin {
+   static Color steel(){return {201,194,183,255};}
+   static Color steelHighlight(){return {217,209,197,255};}
+   static Color steelShadow(){return {171,164,155,255};}
+   static Color headerWell(){return {197,190,179,255};}
+   static Color headerSurface(){return {207,200,189,255};}
+   static Color graphite(){return {29,32,36,255};}
+   static Color panelEdge(){return {101,93,86,255};}
+   static Color navyWell(){return {15,27,40,255};}
+   static Color navyA(){return {27,41,56,255};}
+   static Color navyB(){return {30,45,61,255};}
+   static Color navyTrim(){return {63,78,92,255};}
+   static Color stepOff(){return {36,51,70,255};}
+   static Color amber(){return {250,145,30,255};}
+   static Color amberLens(){return {255,195,74,255};}
+ };
  struct RowData final {
    std::string name;
    bool hasSample=false,muted=false,solo=false;
@@ -72,7 +91,7 @@ struct UiV101NativePreview final {
        if(command=='M')path->beginSubpath(left+x*sf,top+y*sf);
        else path->addLine(left+x*sf,top+y*sf);
      }
-     c.setFillColor(shape.red?Color{215,25,32,255}:Color{56,58,60,255});
+     c.setFillColor(shape.red?Color{215,25,32,255}:Color{222,218,209,255});
      c.drawGraphicsPath(path,VSTGUI::CDrawContext::kPathFilledEvenOdd);
      path->forget();
    }
@@ -109,27 +128,27 @@ struct UiV101NativePreview final {
    const double left=b.left,top=b.top,right=b.right,bottom=b.bottom;
    const double innerTop=top+3.,innerBottom=bottom-4.;
    const double mid=innerTop+(innerBottom-innerTop)*.56;
-   // Recessed graphite mounting lip and cast shadow.
-   fill(c,{left,top+2.,right,bottom+2.},{5,10,16,255});
+   // Black recessed gasket, warm satin-metal key and orange lens.
+   // Four warm-tone facets prevent the default Windows-grey pushbutton look.
+   fill(c,{left,top+2.,right,bottom+2.},{9,12,16,255});
    fill(c,{left,top,right,bottom-1.},active?
-        Color{89,48,21,255}:Color{25,29,35,255});
+        Color{99,45,17,255}:Skin::graphite());
    border(c,{left+.5,top+.5,right-.5,bottom-1.5},
-          active?Color{245,177,79,255}:Color{95,98,100,255});
-   // Satin-aluminium key top, subtle non-flat light direction.
+          active?Color{255,191,75,255}:Color{113,105,97,255});
    fill(c,{left+2.,top+2.,right-2.,bottom-4.},active?
-        Color{210,91,35,255}:Color{175,178,178,255});
+        Color{207,80,28,255}:Skin::steelShadow());
    fill(c,{left+3.,innerTop,right-3.,mid},active?
-        Color{251,177,75,255}:Color{228,229,223,255});
+        Color{255,192,85,255}:Color{224,218,209,255});
    fill(c,{left+3.,mid,right-3.,innerBottom},active?
-        Color{234,125,48,255}:Color{193,195,193,255});
+        Color{239,123,37,255}:Color{185,178,169,255});
    fill(c,{left+3.,top+3.,right-3.,top+5.},active?
-        Color{255,216,118,255}:Color{246,246,240,255});
+        Color{255,227,139,255}:Color{239,235,226,255});
    fill(c,{left+3.,bottom-6.,right-3.,bottom-4.},active?
-        Color{153,60,22,255}:Color{132,137,139,255});
+        Color{167,63,18,255}:Color{129,121,115,255});
    fill(c,{left+2.,top+5.,left+3.,bottom-5.},active?
-        Color{253,191,93,255}:Color{238,238,231,255});
+        Color{255,199,102,255}:Color{229,224,213,255});
    fill(c,{right-3.,top+5.,right-2.,bottom-5.},active?
-        Color{139,56,26,255}:Color{109,113,117,255});
+        Color{143,54,18,255}:Color{99,93,90,255});
    // Center the cap legends without special button-dependent styling.
    label(c,text,{left+2.,top+2.,right-2.,bottom-2.},font,
          active?Color{71,31,13,255}:Color{22,28,34,255});
@@ -140,15 +159,15 @@ struct UiV101NativePreview final {
  // Original established dark face, quarter accent and lit amber key lens.
  static void stepCap(VSTGUI::CDrawContext& c,double sx,double y,bool lit,bool downbeat){
    const Box outer{sx+1.,y+7.,sx+18.,y+41.};
-   fill(c,outer,{5,17,33,255});
-   border(c,outer,downbeat?Color{91,139,183,255}:Color{38,77,117,255});
+   fill(c,outer,{8,15,22,255});
+   border(c,outer,downbeat?Color{83,110,138,255}:Color{43,65,86,255});
    fill(c,{sx+3.,y+10.,sx+16.,y+38.},
-        lit?Color{234,93,12,255}:Color{41,53,69,255});
+        lit?Color{232,88,12,255}:Skin::stepOff());
    fill(c,{sx+4.,y+11.,sx+15.,y+19.},
-        lit?Color{255,156,39,255}:Color{79,94,111,255});
+        lit?Skin::amberLens():Color{73,92,112,255});
    fill(c,{sx+4.,y+11.,sx+15.,y+13.},
-        lit?Color{255,201,92,255}:Color{103,114,127,255});
-   if(lit)fill(c,{sx+6.,y+31.,sx+13.,y+35.},{255,226,151,255});
+        lit?Color{255,224,121,255}:Color{105,122,138,255});
+   if(lit)fill(c,{sx+6.,y+31.,sx+13.,y+35.},{255,214,111,255});
  }
  // Headphone pictogram replaces the ambiguous play triangle in PREVIEW.
  // All coordinates derive from the preview cap's shared hit/paint rectangle.
@@ -208,7 +227,7 @@ struct UiV101NativePreview final {
                   VSTGUI::CBitmap* productTitle,const Scene& scene,
                   bool zoomMenuOpen=false,std::size_t zoomPreset=0,
                   const UiV101Interaction::State& ui={}){
-   constexpr Color cream{207,203,193,255};
+   const auto cream=Skin::steel();
    auto expanded=L::Expansions{};
    if(ui.expandedRow<L::instruments)expanded[ui.expandedRow]=ui.expansion;
    const auto limit=ui.expansion==L::Expansion::None?
@@ -216,12 +235,19 @@ struct UiV101NativePreview final {
    const auto shown=ui.firstRow<scene.visibleRows?
                     std::min(limit,scene.visibleRows-ui.firstRow):std::size_t{0};
    const double total=L::editorHeight(ui.firstRow,shown,expanded);
-   fill(c,{0.,0.,L::width,total},cream);
-   fill(c,{2.,2.,L::width-2.,total-2.},{219,215,206,255});
-   fill(c,{4.,4.,L::width-4.,total-4.},{199,196,189,255});
-   fill(c,{6.,6.,L::width-6.,total-6.},{214,211,202,255});
-   border(c,{5.,5.,L::width-5.,total-5.},{114,112,106,255});
-   // Official vector 125A signet and original metallic Drumator PNG.
+   fill(c,{0.,0.,L::width,total},{139,129,119,255});
+   fill(c,{2.,2.,L::width-2.,total-2.},cream);
+   fill(c,{4.,4.,L::width-4.,total-4.},Skin::steelShadow());
+   fill(c,{6.,6.,L::width-6.,total-6.},Skin::steel());
+   border(c,{5.,5.,L::width-5.,total-5.},Skin::panelEdge());
+   // Restrained directional brushing/highlights, not visible grey stripes.
+   fill(c,{7.,7.,L::width-7.,9.},Skin::steelHighlight());
+   fill(c,{7.,total-9.,L::width-7.,total-7.},{163,154,144,255});
+   // Original 125A SVG geometry on a dark enamel badge, like the supplied
+   // hardware reference. Only badge treatment / SVG fill change, not paths.
+   fill(c,{27.,9.,155.,74.},{26,25,25,255});
+   border(c,{27.,9.,155.,74.},{105,101,94,255});
+   fill(c,{30.,12.,152.,71.},{33,35,38,255});
    brandLogo(c,32.,12.,55.);
    titleBitmap(c,productTitle);
    // The percentage and dropdown affordance identify the single zoom control;
@@ -234,9 +260,16 @@ struct UiV101NativePreview final {
    std::snprintf(zoomCaption,sizeof(zoomCaption),"%s  v",zoomNames[selected]);
    cap(c,L::zoomTrigger,0.,zoomCaption,zoomMenuOpen,11);
    // Actual Drumator features only. This header is not yet interactive.
-   fill(c,{21.,82.,1260.,140.},{184,181,172,255});
-   fill(c,{23.,84.,1258.,138.},{225,223,216,255});
-   border(c,{21.,82.,1260.,140.},{147,143,137,255});
+   fill(c,{21.,82.,1260.,140.},Skin::headerWell());
+   fill(c,{23.,84.,1258.,138.},Skin::headerSurface());
+   fill(c,{23.,84.,1258.,86.},Skin::steelHighlight());
+   fill(c,{23.,136.,1258.,138.},{172,162,151,255});
+   border(c,{21.,82.,1260.,140.},Skin::panelEdge());
+   // Engraved panel divisions, painted behind all interactive controls.
+   for(const double xx:{350.,521.,729.,1115.}){
+     fill(c,{xx,86.,xx+1.,136.},{151,141,131,255});
+     fill(c,{xx+1.,86.,xx+2.,136.},{227,218,206,255});
+   }
    label(c,"PATTERN",{33.,85.,154.,104.},11,{51,54,57,255},false);
    for(int i=0;i<8;++i){
      const char key[2]={static_cast<char>('A'+i),'\0'};
@@ -264,7 +297,8 @@ struct UiV101NativePreview final {
    fill(c,{1164.,111.,1174.,129.},{29,62,82,255});
    label(c,"L / R",{1181.,107.,1240.,126.},11,{49,54,58,255});
    // Column headings remain outside the 48px-high channels.
-   fill(c,{12.,142.,1261.,157.},{21,37,54,255});
+   fill(c,{12.,142.,1261.,157.},Skin::navyWell());
+   fill(c,{12.,142.,1261.,143.},Skin::navyTrim());
    label(c,"M",{20.,140.,47.,157.},10);
    label(c,"S",{52.,140.,79.,157.},10);
    label(c,"FILL",{84.,140.,124.,157.},10);
@@ -283,12 +317,12 @@ struct UiV101NativePreview final {
      const double y=L::rowTop(ui.firstRow,index,expanded);
      const auto& data=scene.rows[row];
      const bool live=row<scene.visibleRows;
-     fill(c,{12.,y+1.,1260.,y+L::rowHeight-1.},{4,14,25,255});
+     fill(c,{12.,y+1.,1260.,y+L::rowHeight-1.},Skin::navyWell());
      fill(c,{14.,y+3.,1258.,y+L::rowHeight-3.},
-          row%2?Color{17,37,54,255}:Color{20,43,61,255});
-     fill(c,{14.,y+3.,1258.,y+4.},{65,85,100,255});
+          row%2?Skin::navyA():Skin::navyB());
+     fill(c,{14.,y+3.,1258.,y+4.},Skin::navyTrim());
      fill(c,{14.,y+L::rowHeight-5.,1258.,y+L::rowHeight-4.},
-          {6,19,31,255});
+          {10,23,36,255});
      // Slim selection rail: visible without adding another chunky module.
      fill(c,{L::select.x0,y+L::select.y0,L::select.x1,y+L::select.y1},
           {5,12,19,255});
@@ -297,8 +331,8 @@ struct UiV101NativePreview final {
      cap(c,L::mute,y,"M",live&&data.muted);
      cap(c,L::solo,y,"S",live&&data.solo);
      cap(c,L::fill,y,"FILL",false,9);
-     fill(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},{5,13,22,255});
-     border(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},{80,101,115,255});
+     fill(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},{8,17,25,255});
+     border(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},{77,91,103,255});
      cap(c,L::previous,y,"<",false,12);
      cap(c,L::next,y,">",false,12);
      const std::string emptyName="(EMPTY)";
@@ -307,7 +341,7 @@ struct UiV101NativePreview final {
            11,live?Color{203,222,235,255}:Color{103,116,127,255},false);
      headphone(c,L::preview,y);
      cap(c,L::edit,y,"EDIT",false,11);
-     fill(c,{L::stepWell.x0,y+4.,L::stepWell.x1,y+44.},{4,14,27,255});
+     fill(c,{L::stepWell.x0,y+4.,L::stepWell.x1,y+44.},{13,25,39,255});
      for(std::size_t step=0;step<L::steps;++step){
        const auto r=L::stepRect(step);
        const double sx=r.x0;
@@ -323,8 +357,8 @@ struct UiV101NativePreview final {
      cap(c,L::settings,y,"SET",ui.expandedRow==row&&
            ui.expansion==L::Expansion::Settings,9);
      if(ui.expandedRow==row&&ui.expansion!=L::Expansion::None){
-       fill(c,{13.,y+49.,1260.,y+95.},{5,17,29,255});
-       fill(c,{15.,y+50.,1258.,y+94.},{15,32,49,255});
+       fill(c,{13.,y+49.,1260.,y+95.},Skin::navyWell());
+       fill(c,{15.,y+50.,1258.,y+94.},Skin::navyA());
        if(ui.expansion==L::Expansion::Velocity){
          label(c,"VELOCITY",{132.,y+55.,265.,y+88.},11,{213,227,237,255},false);
          fill(c,{417.,y+53.,1031.,y+92.},{4,13,25,255});
@@ -352,8 +386,8 @@ struct UiV101NativePreview final {
        }
      }
    }
-   fill(c,{14.,total-44.,1260.,total-12.},{207,204,197,255});
-   border(c,{14.,total-44.,1260.,total-12.},{157,152,145,255});
+   fill(c,{14.,total-44.,1260.,total-12.},Skin::headerSurface());
+   border(c,{14.,total-44.,1260.,total-12.},Skin::panelEdge());
    char summary[160]{};
    std::snprintf(summary,sizeof(summary),
                  "INSTRUMENTS %zu-%zu / %zu   |   PATTERN %c   |   NATIVE CONTROLLER STATE",
