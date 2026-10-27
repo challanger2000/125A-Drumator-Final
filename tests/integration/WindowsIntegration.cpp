@@ -813,6 +813,32 @@ void testV101ControllerScene(){
    return std::array<int,3>{{color.red,color.green,color.blue}};
  };
  const auto beforePixel=stepPixel(s),afterPixel=stepPixel(updated);
+ // Dynamic L/R and clip LEDs must be driven by numeric scene values.
+ // A decorative/static meter would fail this exact same native paint test.
+ const auto meterPixels=[&](float gain,bool clip){
+   auto measured=s;
+   measured.meterLeft=gain;
+   measured.meterRight=gain;
+   measured.clipped=clip;
+   auto bmp=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+     [&](VSTGUI::CDrawContext& dc){
+       drumator::qa::UiV101NativePreview::draw(dc,knob,pngTitle,titleBounds,
+                                                 measured);
+     });
+   check(bmp!=nullptr,"V101 real meter bitmap unavailable");
+   auto* a=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
+   check(a!=nullptr,"V101 meter pixels unavailable");
+   VSTGUI::CColor level{},clipLed{};
+   check(a->setPosition(1139,106),"V101 L meter pixel out of bounds");
+   a->getColor(level);
+   check(a->setPosition(1234,109),"V101 clip LED pixel out of bounds");
+   a->getColor(clipLed);a->forget();
+   return std::array<int,2>{{level.green,clipLed.red}};
+ };
+ const auto meterOff=meterPixels(0.f,false);
+ const auto meterOn=meterPixels(1.f,true);
+ check(meterOn[0]>meterOff[0]+80&&meterOn[1]>meterOff[1]+120,
+       "V101 L/R or CLIP painter is still decorative instead of live");
  knob->forget();
  pngTitle->forget();
  check(beforePixel!=afterPixel&&beforePixel[0]>afterPixel[0]+70,
