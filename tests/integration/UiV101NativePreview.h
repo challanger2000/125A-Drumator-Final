@@ -253,14 +253,15 @@ struct UiV101NativePreview final {
                         const char* title,const char* readout){
    fraction=std::clamp(fraction,0.,1.);
    label(c,title,{cx-46.,85.,cx+46.,100.},11,{55,56,58,255});
-   c.setFillColor({59,55,50,255});
-   c.drawEllipse({cx-30.,cy-30.,cx+30.,cy+30.},VSTGUI::kDrawFilled);
+   // Small recessed socket; must not cover SWING/HUMANIZE/MASTER labels.
+   c.setFillColor({62,58,53,255});
+   c.drawEllipse({cx-22.,cy-22.,cx+22.,cy+22.},VSTGUI::kDrawFilled);
    c.setFrameColor({238,230,214,255});c.setLineWidth(1.);
-   c.drawEllipse({cx-29.,cy-29.,cx+29.,cy+29.},VSTGUI::kDrawStroked);
+   c.drawEllipse({cx-21.,cy-21.,cx+21.,cy+21.},VSTGUI::kDrawStroked);
    c.setFillColor({12,15,20,255});
-   c.drawEllipse({cx-27.,cy-27.,cx+27.,cy+27.},VSTGUI::kDrawFilled);
+   c.drawEllipse({cx-19.,cy-19.,cx+19.,cy+19.},VSTGUI::kDrawFilled);
    c.setFrameColor({126,115,103,255});
-   c.drawEllipse({cx-26.,cy-26.,cx+26.,cy+26.},VSTGUI::kDrawStroked);
+   c.drawEllipse({cx-18.,cy-18.,cx+18.,cy+18.},VSTGUI::kDrawStroked);
    constexpr double pi=3.14159265358979323846;
    for(int tick=0;tick<9;++tick){
      const double angle=(-135.+static_cast<double>(tick)*270./8.)*pi/180.;
@@ -275,12 +276,13 @@ struct UiV101NativePreview final {
                   double x,double y,int value,int index){
    const double fraction=index==0?value/200.:index==1?(value+100.)/200.:
                          (value+24.)/48.;
+   // Radius < 24px: mounting rings never touch adjacent 48px rows.
    c.setFillColor({8,16,24,255});
-   c.drawEllipse({x-28.,y-28.,x+28.,y+28.},VSTGUI::kDrawFilled);
+   c.drawEllipse({x-23.,y-23.,x+23.,y+23.},VSTGUI::kDrawFilled);
    c.setFrameColor({92,100,108,255});c.setLineWidth(1.);
-   c.drawEllipse({x-27.,y-27.,x+27.,y+27.},VSTGUI::kDrawStroked);
+   c.drawEllipse({x-22.,y-22.,x+22.,y+22.},VSTGUI::kDrawStroked);
    c.setFillColor({7,11,17,255});
-   c.drawEllipse({x-25.,y-25.,x+25.,y+25.},VSTGUI::kDrawFilled);
+   c.drawEllipse({x-20.,y-20.,x+20.,y+20.},VSTGUI::kDrawFilled);
    originalDial(c,sprite,x,y,std::clamp(fraction,0.,1.),50.);
  }
  static void draw(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* knobSprite,
@@ -303,8 +305,8 @@ struct UiV101NativePreview final {
    // Subpixel-style horizontal brushing is deliberately faint (alpha ~22).
    // Highlights change with vertical position; no generated bitmap needed.
    c.setLineWidth(1.);
-   for(int yy=14;yy<static_cast<int>(total)-13;yy+=7){
-     c.setFrameColor({241,235,226,24});
+   for(int yy=14;yy<static_cast<int>(total)-13;yy+=5){
+     c.setFrameColor({241,235,226,9});
      c.drawLine({12.,static_cast<double>(yy)},
                 {L::width-12.,static_cast<double>(yy)});
    }
