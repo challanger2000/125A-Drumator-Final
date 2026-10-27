@@ -1029,6 +1029,9 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  scene.meterRight=mainMeterR_;
  scene.clipped=controller_.meterState().clip!=0;
  scene.status=status_;
+ if(status_=="EMPTY: CLICK SAMPLE OR DROP A WAV/FLAC")
+   for(std::size_t row=0;row<controller_.visibleRows();++row)
+     if(controller_.hasSample(row)){scene.status.clear();break;}
  Painter::draw(*c,static_cast<VSTGUI::CMultiFrameBitmap*>(knobBitmap_),
                v101TitleBitmap_,title,scene,v101_.state().zoomOpen,
                v101_.state().zoomIndex,v101_.state());
