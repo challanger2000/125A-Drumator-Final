@@ -11,9 +11,9 @@ struct UiV101Layout final {
   static constexpr std::size_t instruments=16,visibleRows=10,steps=32;
   static constexpr double width=1280.,header=158.,rowHeight=48.,expansionHeight=48.,footer=48.;
   static constexpr double stepX=420.,stepPitch=19.,stepEnd=stepX+steps*stepPitch;
-  // One cap width and pitch for all five secondary header controls.
+  // Compact fixed-size hardware caps: widths depend on control type, never runtime text.
+  // SONG / KIT / SWING / HUMANIZE / MASTER: identical height and 9px gutters.
   static constexpr std::size_t headerGroupCount=5;
-  static constexpr double headerGroupStart=529.,headerGroupWidth=108.,headerGroupGap=9.;
   // Zoom presets are the actual existing Drumator choices, never visual guesses.
   static constexpr auto zoomPresets=UiCompactLayout::userZooms;
   static constexpr double knobRadius=18.;
@@ -24,11 +24,16 @@ struct UiV101Layout final {
       return x>=x0&&x<x1&&y>=y0&&y<y1;
     }
   };
+  static constexpr std::array<Rect,headerGroupCount> headerGroups{{
+    {529.,107.,613.,141.},  // SONG     84
+    {622.,107.,696.,141.},  // KIT      74
+    {705.,107.,801.,141.},  // SWING    96
+    {810.,107.,922.,141.},  // HUMANIZE 112
+    {931.,107.,1033.,141.}  // MASTER   102
+  }};
   static constexpr Rect headerGroup(std::size_t i) noexcept{
-    const double x=headerGroupStart+i*(headerGroupWidth+headerGroupGap);
-    return {x,107.,x+headerGroupWidth,141.};
+    return headerGroups[i];
   }
-  static_assert(headerGroupStart+(headerGroupCount-1)*(headerGroupWidth+headerGroupGap)+headerGroupWidth<1132.);
   static constexpr Rect zoomTrigger{1140.,14.,1248.,44.};
   static constexpr Rect zoomOption(std::size_t index) noexcept{
     const double top=49.+26.*static_cast<double>(index);
@@ -127,6 +132,8 @@ struct UiV101Layout final {
   static_assert(previous.x1==load.x0&&load.x1==next.x0);
 };
 // MSVC evaluates constexpr function bodies reliably after the class is complete.
+static_assert(UiV101Layout::headerGroups[0].x0>514.);
+static_assert(UiV101Layout::headerGroups[4].x1<1132.);
 static_assert(UiV101Layout::zoomPresets[0]==1.0 &&
               UiV101Layout::zoomPresets[1]==1.2 &&
               UiV101Layout::zoomPresets[2]==1.3 &&
