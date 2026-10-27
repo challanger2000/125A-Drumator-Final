@@ -23,6 +23,9 @@ public:
    std::size_t zoomIndex=0;
  };
  explicit UiV101Interaction(Controller& c) : controller_(c) {}
+ ~UiV101Interaction(){endGesture(false);}
+ UiV101Interaction(const UiV101Interaction&)=delete;
+ UiV101Interaction& operator=(const UiV101Interaction&)=delete;
 
  const State& state()const noexcept{return state_;}
  // One expanded row max. With 9 visible + 1 expansion, 150% <=1080 px.
@@ -41,6 +44,11 @@ public:
    return L::editorHeight(state_.firstRow,shownRows(),expandedRows());
  }
  double userZoom()const noexcept{return L::zoomPresets[state_.zoomIndex];}
+ // Called by the real editor only after setZoomChecked + host resize negotiation.
+ // A failed resize must not leave the visible menu out of sync with the host.
+ void confirmZoom(bool accepted)noexcept {
+   if(!accepted)state_.zoomIndex=priorZoomIndex_;
+ }
  L::Hit rowHit(double x,double y)const noexcept{
    return L::hit(x,y,state_.firstRow,shownRows(),expandedRows());
  }
@@ -104,6 +112,7 @@ public:
      state_.zoomOpen=false;
      if(selected==-2)return Result::Handled;
      if(selected>=0){
+       priorZoomIndex_=state_.zoomIndex;
        state_.zoomIndex=static_cast<std::size_t>(selected);
        return Result::DeferredToView; // host/editor must negotiate actual resize
      }
@@ -210,6 +219,7 @@ private:
  enum class Gesture { None, RowKnob, HeaderKnob, Velocity };
  Controller& controller_;
  State state_{};
+ std::size_t priorZoomIndex_=0;
  Gesture gesture_=Gesture::None;
  int knobIndex_=-1;
  std::size_t knobRow_=L::instruments,laneRow_=L::instruments,lanePattern_=0;
