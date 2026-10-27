@@ -1,4 +1,5 @@
 #include "core/UiV101Layout.h"
+#include "vst3/UiV101Popup.h"
 #include <iostream>
 using L=drumator::UiV101Layout;
 #define CHECK(x) do{if(!(x)){std::cerr<<__LINE__<<" " #x "\n";return 1;}}while(false)
@@ -53,6 +54,7 @@ int main(){
   CHECK(action(90,y+20)==L::Action::Fill);
   CHECK(action(140,y+20)==L::Action::Previous);
   CHECK(action(200,y+20)==L::Action::Load);
+  CHECK(action(267,y+20)==L::Action::SampleMenu);
   CHECK(action(290,y+20)==L::Action::Next);
   CHECK(action(320,y+20)==L::Action::Preview);
   CHECK(action(380,y+20)==L::Action::Edit);
@@ -84,6 +86,18 @@ int main(){
     const double x=L::stepX+L::stepPitch*i;
     CHECK(L::rowHit(0,x+8.,20.,L::Expansion::None).step==static_cast<int>(i));
     CHECK(L::rowHit(0,x+18.,20.,L::Expansion::None).action==L::Action::None);
+  }
+  using P=drumator::UiV101Popup;
+  for(const auto kind:{P::Kind::Pattern,P::Kind::Fill,P::Kind::Output,
+                       P::Kind::Choke,P::Kind::Sample}){
+    const auto geometry=P::geometry(kind,L::header+5.*L::rowHeight,686.);
+    CHECK(geometry.y>=L::header);
+    CHECK(geometry.y+geometry.rows*geometry.cellHeight<=686.);
+    for(int i=0;i<P::count(kind);++i){
+      const auto button=P::cell(geometry,i);
+      CHECK(P::hit(kind,geometry,(button.x0+button.x1)/2.,
+                   (button.y0+button.y1)/2.)==i);
+    }
   }
   std::cout<<"V1.0.1 independent GUI hit-map PASS\n";
   return 0;
