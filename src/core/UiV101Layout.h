@@ -10,6 +10,9 @@ struct UiV101Layout final {
   static constexpr std::size_t instruments=16,visibleRows=10,steps=32;
   static constexpr double width=1280.,header=158.,rowHeight=48.,expansionHeight=48.,footer=48.;
   static constexpr double stepX=420.,stepPitch=19.,stepEnd=stepX+steps*stepPitch;
+  // One cap width and pitch for all five secondary header controls.
+  static constexpr std::size_t headerGroupCount=5;
+  static constexpr double headerGroupStart=529.,headerGroupWidth=108.,headerGroupGap=9.;
   static constexpr double knobRadius=18.;
   static constexpr std::array<double,3> knobCenters{{1062.,1122.,1182.}};
   struct Rect final {
@@ -18,6 +21,11 @@ struct UiV101Layout final {
       return x>=x0&&x<x1&&y>=y0&&y<y1;
     }
   };
+  static constexpr Rect headerGroup(std::size_t i) noexcept{
+    const double x=headerGroupStart+i*(headerGroupWidth+headerGroupGap);
+    return {x,107.,x+headerGroupWidth,141.};
+  }
+  static_assert(headerGroupStart+(headerGroupCount-1)*(headerGroupWidth+headerGroupGap)+headerGroupWidth<1132.);
   // Coordinates relative to row top; single-height instrument channel.
   static constexpr Rect select{8.,4.,19.,45.},mute{20.,8.,47.,40.},
     solo{52.,8.,79.,40.},fill{84.,8.,124.,40.},
