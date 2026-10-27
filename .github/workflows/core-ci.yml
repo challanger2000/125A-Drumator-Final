@@ -1,0 +1,186 @@
+name: Drumator Windows Core and VST3 Integration
+on:
+  push:
+    branches: [main, release/v1.0.0]
+    paths:
+      - 'src/core/**'
+      - 'src/vst3/**'
+      - 'resource/**'
+      - 'tests/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/core-ci.yml'
+  workflow_dispatch:
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Obtain exact Steinberg SDK 3.8.1
+        shell: pwsh
+        run: |
+          git clone --recursive --branch v3.8.1_build_84 --depth 1 https://github.com/steinbergmedia/vst3sdk.git sdk
+          $actual = (git -C sdk rev-parse HEAD).Trim()
+          if ($actual -ne '3cdf9ca5d1f5b1b21e0a86832aa4abe55607bd96') {
+            throw "Unexpected SDK checkout: $actual"
+          }
+          $status = git -C sdk submodule status --recursive
+          $status | Write-Output
+          if (@($status).Count -eq 0 -or @($status | Where-Object { $_ -notmatch '^ [0-9a-f]{40} ' }).Count -gt 0) {
+            throw "SDK has missing or modified submodules"
+          }
+      - name: Configure Windows x64 VST3 and standalone QA
+        run: cmake -S . -B build -A x64 -DBUILD_TESTING=ON -DDRUMATOR_BUILD_VST3=ON -DVST3_SDK_ROOT="$env:GITHUB_WORKSPACE/sdk"
+      - name: Build tests and Drumator VST3
+        run: cmake --build build --config Release --target drumator_test_suite drumator_editor_smoke drumator_audio_host_smoke Drumator validator moduleinfotool --parallel 2
+      - name: Run deterministic regressions
+        shell: pwsh
+        run: |
+          ctest --test-dir build -C Release --output-on-failure --test-output-size-failed 1000000 --output-log build/ctest-functional.log
+          $testExit = $LASTEXITCODE
+          # CTest normally hides passing-test stdout. Preserve actual case
+          # results and measured timings in the Checks API as well as logs.
+          Get-Content build/Testing/Temporary/LastTest.log | Where-Object {
+            $_.StartsWith('::notice ')
+          } | Write-Output
+          Get-Content build/ctest-functional.log | Where-Object {
+            $_ -match 'tests passed, .*tests failed out of'
+          } | ForEach-Object { Write-Output "::notice title=125A Drumator CTest summary::$_" }
+          if ($testExit -ne 0) {
+            Write-Output '=== Full native failure tail ==='
+            Get-Content build/Testing/Temporary/LastTest.log | Select-Object -Last 180 | Write-Output
+            exit $testExit
+          }
+      - name: Assemble standard Windows VST3 bundle and validate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $found = @(Get-ChildItem -Path build/VST3 -Filter 'Drumator.vst3' -File -Recurse)
+          if ($found.Count -ne 1) {
+            throw "Expected exactly one compiled Windows VST3 binary; found $($found.Count)"
+          }
+          $bundle = Join-Path $PWD 'artifact/125A Drumator.vst3'
+          $binaryDirectory = Join-Path $bundle 'Contents/x86_64-win'
+          $resourceDirectory = Join-Path $bundle 'Contents/Resources'
+          New-Item -ItemType Directory -Path $binaryDirectory,$resourceDirectory -Force | Out-Null
+          Copy-Item $found[0].FullName -Destination (Join-Path $binaryDirectory '125A Drumator.vst3')
+          Copy-Item 'resource/Drumator.uidesc' -Destination (Join-Path $resourceDirectory 'Drumator.uidesc')
+          Copy-Item 'resource/abstraktes_blaues_metall_mit_sanftem_glanz.png' -Destination (Join-Path $resourceDirectory 'abstraktes_blaues_metall_mit_sanftem_glanz.png')
+          Copy-Item 'resource/125A_Drumator_Knob.png' -Destination (Join-Path $resourceDirectory '125A_Drumator_Knob.png')
+          Copy-Item 'resource/125A_Drumator_Screw.png' -Destination (Join-Path $resourceDirectory '125A_Drumator_Screw.png')
+          Copy-Item 'resource/125A_Drumator_Faceplate.png' -Destination (Join-Path $resourceDirectory '125A_Drumator_Faceplate.png')
+          Copy-Item 'resource/Metallisches DRUMATOR-Logo.png' -Destination (Join-Path $resourceDirectory 'Metallisches DRUMATOR-Logo.png')
+          $moduleInfo = Join-Path $resourceDirectory 'moduleinfo.json'
+          & './build/bin/Release/moduleinfotool.exe' -create -version 0.1.0 -path $bundle -output $moduleInfo
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $moduleInfo)) {
+            throw "Official Steinberg moduleinfotool creation failed"
+          }
+          # The SDK serializer emits trailing commas. Normalize to strict JSON
+          # without changing class IDs or other generated metadata.
+          $rawInfo = [System.IO.File]::ReadAllText($moduleInfo)
+          $normalizedInfo = [regex]::Replace($rawInfo, ',(?=\s*[}\]])', '')
+          $parsedInfo = $normalizedInfo | ConvertFrom-Json
+          if ($parsedInfo.Classes[0].Name -ne '125A Drumator') {
+            throw 'VST3 factory name is not 125A Drumator'
+          }
+          [System.IO.File]::WriteAllText($moduleInfo, $normalizedInfo, [System.Text.UTF8Encoding]::new($false))
+          & './build/bin/Release/moduleinfotool.exe' -validate -path $bundle
+          if ($LASTEXITCODE -ne 0) { throw 'Official Steinberg moduleinfotool validation failed' }
+          $validatorOutput = @(& './build/bin/Release/validator.exe' $bundle)
+          $validatorExit = $LASTEXITCODE
+          $validatorOutput | Write-Output
+          $validatorOutput | Where-Object { $_ -match '^Result: .*tests passed, .*tests failed' } |
+            ForEach-Object { Write-Output "::notice title=Official Steinberg Validator::$_" }
+          if ($validatorExit -ne 0) { throw 'Steinberg VST3 Validator failed' }
+          $bundleFiles = @(Get-ChildItem $bundle -File -Recurse)
+          if (@($bundleFiles | Where-Object { $_.Length -eq 0 }).Count -gt 0) {
+            throw 'Bundle contains zero-length files'
+          }
+          # Assert the exact complete, conventionally named installable tree.
+          $artifactRoot = Join-Path $PWD 'artifact'
+          $topLevel = @(Get-ChildItem $artifactRoot)
+          if ($topLevel.Count -ne 1 -or $topLevel[0].Name -cne '125A Drumator.vst3' -or -not $topLevel[0].PSIsContainer) {
+            throw 'Wrong VST3 outer folder name or unexpected artifact root content'
+          }
+          $expected = @(
+            '125A Drumator.vst3/Contents/x86_64-win/125A Drumator.vst3',
+            '125A Drumator.vst3/Contents/Resources/Drumator.uidesc',
+            '125A Drumator.vst3/Contents/Resources/abstraktes_blaues_metall_mit_sanftem_glanz.png',
+            '125A Drumator.vst3/Contents/Resources/125A_Drumator_Knob.png',
+            '125A Drumator.vst3/Contents/Resources/125A_Drumator_Screw.png',
+            '125A Drumator.vst3/Contents/Resources/125A_Drumator_Faceplate.png',
+            '125A Drumator.vst3/Contents/Resources/Metallisches DRUMATOR-Logo.png',
+            '125A Drumator.vst3/Contents/Resources/moduleinfo.json'
+          ) | Sort-Object
+          $actual = @($bundleFiles | ForEach-Object {
+            [System.IO.Path]::GetRelativePath($artifactRoot, $_.FullName).Replace('\','/')
+          }) | Sort-Object
+          foreach ($requiredImage in @('125A_Drumator_Faceplate.png', 'Metallisches DRUMATOR-Logo.png')) {
+            $imagePath = Join-Path $resourceDirectory $requiredImage
+            if (!(Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 1024) {
+              throw "Missing or empty mandatory visual resource: $requiredImage"
+            }
+          }
+          if (@(Compare-Object $expected $actual).Count -ne 0) {
+            throw "Wrong VST3 packaging: actual=$($actual -join ', ')"
+          }
+          # An installable VST3 can pass Validator with an editor of 0x0.
+          # Load the actual packaged DLL, create its editor and require 1100x600.
+          $smoke = @(Get-ChildItem -Path build -Filter 'drumator_editor_smoke.exe' -File -Recurse)
+          if ($smoke.Count -ne 1) {
+            throw "Expected one editor smoke test executable; found $($smoke.Count)"
+          }
+          & $smoke[0].FullName (Join-Path $binaryDirectory '125A Drumator.vst3')
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Actual packaged VST3 editor geometry smoke test FAILED'
+          }
+          # Full VST3 host simulation: actual MIDI, WAV message and audio.
+          $audioSmoke = @(Get-ChildItem -Path build -Filter 'drumator_audio_host_smoke.exe' -File -Recurse)
+          if ($audioSmoke.Count -ne 1) {
+            throw 'Packaged audio smoke executable missing or ambiguous'
+          }
+          & $audioSmoke[0].FullName (Join-Path $binaryDirectory '125A Drumator.vst3')
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Packaged VST3 WAV/MIDI/audio host simulation FAILED'
+          }
+          # The GitHub runner lacks a usable on-screen Direct2D desktop.
+          # Prove the actual final bundle's PNG files are decoded and painted
+          # by the native VSTGUI renderer (separately from the real DLL host
+          # attach above). Fail closed if the metallic logo is not in pixels.
+          $nativeIntegration = @(Get-ChildItem -Path build -Filter 'drumator_integration_tests.exe' -File -Recurse)
+          if ($nativeIntegration.Count -ne 1) {
+            throw 'Expected exactly one native integration executable'
+          }
+          & $nativeIntegration[0].FullName $resourceDirectory '--packaged-logo-render'
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Final VST3 packaged Resources native silver-logo render FAILED'
+          }
+          # The packaged render runs from the repository workspace (unlike
+          # CTest, which runs in build/). Archive its real verified pixels,
+          # never silently omit the only packaged-resource screenshot.
+          $packagedRender = Join-Path $PWD 'gui-shots/packaged-vst3-resources-silver-100.bmp'
+          if (!(Test-Path -LiteralPath $packagedRender)) {
+            throw 'Packaged Resources GUI screenshot file missing'
+          }
+          Copy-Item -LiteralPath $packagedRender -Destination 'build/gui-shots/packaged-vst3-resources-silver-100.bmp' -Force
+          $bundleFiles | Select-Object FullName,Length | Format-Table
+      - name: Archive native VSTGUI pixel renderings
+        uses: actions/upload-artifact@v4
+        with:
+          name: 125A-Drumator-VSTGUI-Native-Renderings
+          # CTest runs from build/, so native render outputs are placed there.
+          path: build/gui-shots/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 125A-Drumator-M11-Full-Kit-Stress-QA
+          # Upload the artifact ROOT, not the .vst3 directory itself: 
+          # upload-artifact strips the supplied root from stored paths.
+          path: artifact/
+          if-no-files-found: error
+
+  independent-plugin-tester:
+    needs: windows
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/125a-plugin-tester-qa.yml
