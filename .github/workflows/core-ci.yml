@@ -68,6 +68,7 @@ jobs:
           Copy-Item 'resource/125A_Drumator_Screw.png' -Destination (Join-Path $resourceDirectory '125A_Drumator_Screw.png')
           Copy-Item 'resource/125A_Drumator_Faceplate.png' -Destination (Join-Path $resourceDirectory '125A_Drumator_Faceplate.png')
           Copy-Item 'resource/Metallisches DRUMATOR-Logo.png' -Destination (Join-Path $resourceDirectory 'Metallisches DRUMATOR-Logo.png')
+          Copy-Item -LiteralPath 'resource/Futuristisches Metalllogo DRUMATOR.png' -Destination (Join-Path $resourceDirectory 'Futuristisches Metalllogo DRUMATOR.png')
           $moduleInfo = Join-Path $resourceDirectory 'moduleinfo.json'
           & './build/bin/Release/moduleinfotool.exe' -create -version 1.0.0 -path $bundle -output $moduleInfo
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $moduleInfo)) {
@@ -110,12 +111,13 @@ jobs:
             '125A Drumator.vst3/Contents/Resources/125A_Drumator_Screw.png',
             '125A Drumator.vst3/Contents/Resources/125A_Drumator_Faceplate.png',
             '125A Drumator.vst3/Contents/Resources/Metallisches DRUMATOR-Logo.png',
+            '125A Drumator.vst3/Contents/Resources/Futuristisches Metalllogo DRUMATOR.png',
             '125A Drumator.vst3/Contents/Resources/moduleinfo.json'
           ) | Sort-Object
           $actual = @($bundleFiles | ForEach-Object {
             [System.IO.Path]::GetRelativePath($artifactRoot, $_.FullName).Replace('\','/')
           }) | Sort-Object
-          foreach ($requiredImage in @('125A_Drumator_Faceplate.png', 'Metallisches DRUMATOR-Logo.png')) {
+          foreach ($requiredImage in @('125A_Drumator_Faceplate.png', 'Metallisches DRUMATOR-Logo.png', 'Futuristisches Metalllogo DRUMATOR.png')) {
             $imagePath = Join-Path $resourceDirectory $requiredImage
             if (!(Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 1024) {
               throw "Missing or empty mandatory visual resource: $requiredImage"
