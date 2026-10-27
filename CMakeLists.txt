@@ -262,7 +262,8 @@ if(DRUMATOR_BUILD_VST3)
                 resource/125A_Drumator_Faceplate.png
                 resource/125A_Drumator_Knob.png
                 resource/125A_Drumator_Screw.png
-                "resource/Metallisches DRUMATOR-Logo.png")
+                "resource/Metallisches DRUMATOR-Logo.png"
+                "resource/Futuristisches Metalllogo DRUMATOR.png")
   # Steinberg official Win32 bundle resource setup, even though CI assembles
   # the final bundle manually to avoid administrator symlink privileges.
   # The official helper macro is evaluated in this parent project scope.
