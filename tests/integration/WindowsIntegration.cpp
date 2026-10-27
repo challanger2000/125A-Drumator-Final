@@ -994,7 +994,7 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
    check(scale==1.&&ui.state().firstRow==1&&
          ui.state().expandedRow==9&&
          ui.height()==686.,"V101 expanded native raster wrong viewport/zoom");
-   check(access->setPosition(428,620),
+   check(access->setPosition(mode==V101CaptureMode::Velocity?428:480,620),
          "V101 expanded row sample pixel inaccessible");
    VSTGUI::CColor sample{};access->getColor(sample);
    if(mode==V101CaptureMode::Velocity){
