@@ -99,7 +99,9 @@ struct UiV101Layout final {
   static_assert(knobCenters[1]+knobRadius<knobCenters[2]-knobRadius);
   static_assert(knobCenters[2]+knobRadius+18.<=velocity.x0);
   static_assert(previous.x1==load.x0&&load.x1==next.x0);
-  static_assert(stepRect(steps-1).x1<=stepEnd);
-  static_assert(editorHeight(0,visibleRows,Expansions{})*1.5<=1080.);
 };
+// MSVC evaluates constexpr function bodies reliably after the class is complete.
+static_assert(UiV101Layout::stepRect(UiV101Layout::steps-1).x1<=UiV101Layout::stepEnd);
+static_assert(UiV101Layout::editorHeight(0,UiV101Layout::visibleRows,
+              UiV101Layout::Expansions{})*1.5<=1080.);
 }
