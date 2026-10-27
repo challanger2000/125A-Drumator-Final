@@ -2026,6 +2026,27 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
  const double x=pos.x,y=pos.y;
  if(!(buttons&VSTGUI::kLButton))return VSTGUI::kMouseEventNotHandled;
  if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
+   // Preserve the V1.0.0 Ctrl/double-click knob-default gesture. Normal
+   // pointer drags remain owned by the V1.0.1 interaction model.
+   if((buttons&VSTGUI::kControl)||(buttons&VSTGUI::kDoubleClick)){
+     for(int i=0;i<3;++i) {
+       if(UiV101Layout::headerKnob(static_cast<std::size_t>(i)).hit(x,y)){
+         if(!changeKnobValue(i+4,0,UiCompactLayout::defaultValue(i+4)))
+           status_="GLOBAL KNOB RESET NOT APPLIED";
+         invalid();return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+       }
+     }
+     const auto hit=v101_.rowHit(x,y);
+     int knob=-1;
+     if(hit.action==UiV101Layout::Action::Volume)knob=0;
+     else if(hit.action==UiV101Layout::Action::Pan)knob=1;
+     else if(hit.action==UiV101Layout::Action::Pitch)knob=2;
+     if(knob>=0){
+       if(!changeKnobValue(knob,hit.row,UiCompactLayout::defaultValue(knob)))
+         status_="ROW KNOB RESET NOT APPLIED";
+       invalid();return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+     }
+   }
    if(!v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0))
      return VSTGUI::kMouseEventNotHandled;
    return VSTGUI::kMouseEventHandled;
