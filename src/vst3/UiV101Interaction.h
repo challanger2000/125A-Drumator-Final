@@ -16,7 +16,8 @@ public:
  using L=UiV101Layout;
  enum class Result { Ignored, Handled, Applied, DeferredToView, Failed };
  enum class SettingsAction { None, Output, Choke, Copy, Paste, Clear,
-                             RandomVelocity, RandomRealtimeDown, RandomRealtimeUp };
+                             RandomVelocity, RandomRealtimeDown, RandomRealtimeUp,
+                             RandomRealtimeDrag };
  // A DeferredToView result must carry its exact host-side action and target.
  // The view consumes this once to open a popup/dialog; never infer it from
  // a subsequent mouse position or a potentially changed selected row.
@@ -101,6 +102,7 @@ public:
        return static_cast<SettingsAction>(static_cast<int>(i)+1);
    if(realtimeMinus.hit(x,relativeY))return SettingsAction::RandomRealtimeDown;
    if(realtimePlus.hit(x,relativeY))return SettingsAction::RandomRealtimeUp;
+   if(realtimeValue.hit(x,relativeY))return SettingsAction::RandomRealtimeDrag;
    return SettingsAction::None;
  }
  // Real 32-step lane uses the same x/pitch as the main Step grid.
@@ -228,7 +230,15 @@ public:
         state_.expandedRow!=h.row)return Result::Ignored;
      const double relativeY=y-L::rowTop(state_.firstRow,h.row-state_.firstRow,
                                           expandedRows());
-     return settingsAction(h.row,settingsAt(x,relativeY));
+     const auto settings=settingsAt(x,relativeY);
+     if(settings==SettingsAction::RandomRealtimeDrag){
+       gesture_=Gesture::RealtimeKnob;
+       knobRow_=h.row;
+       knobAnchorY_=y;
+       fineKnob_=fine;
+       return Result::Handled;
+     }
+     return settingsAction(h.row,settings);
    }
    const auto out=UiV101ControllerBridge::apply(controller_,h);
    if(out==UiV101ControllerBridge::Route::DeferredToView){
@@ -268,6 +278,8 @@ public:
      (index==0?controller_.adjustSwing(increments):
       index==1?controller_.adjustHumanize(increments):
                controller_.adjustMasterVolume(increments)):
+     gesture_==Gesture::RealtimeKnob?
+       controller_.adjustRandomVelocity(knobRow_,increments):
      (index==2?controller_.adjustRowPitch(knobRow_,increments):
                controller_.adjustRowMix(knobRow_,index==1,increments));
    if(ok){knobAnchorY_-=increments*step;return Result::Applied;}
@@ -291,7 +303,7 @@ public:
  }
 
 private:
- enum class Gesture { None, RowKnob, HeaderKnob, Velocity };
+ enum class Gesture { None, RowKnob, HeaderKnob, RealtimeKnob, Velocity };
  Controller& controller_;
  State state_{};
  DeferredRequest deferred_{};
@@ -348,6 +360,7 @@ private:
        ok=controller_.adjustRandomVelocity(row,-10);break;
      case SettingsAction::RandomRealtimeUp:
        ok=controller_.adjustRandomVelocity(row,10);break;
+     case SettingsAction::RandomRealtimeDrag:return Result::Ignored;
    }
    return ok?Result::Applied:Result::Failed;
  }
