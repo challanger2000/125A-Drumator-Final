@@ -987,6 +987,13 @@ void testV101Interaction(){
  check(ui.down(900.,expandedTop+69.)==UI::Result::Applied&&
        f.c->rowRandomVelocity(9)==randomRealtime,
        "V101 realtime random decrease not connected");
+ check(ui.down(1000.,expandedTop+69.)==UI::Result::Handled,
+       "V101 realtime percent field did not start direct mouse drag");
+ check(ui.move(1000.,expandedTop+57.)==UI::Result::Applied&&
+       f.c->rowRandomVelocity(9)==3,
+       "V101 realtime percent drag cannot reach exact sub-10 values");
+ check(ui.up()==UI::Result::Handled,
+       "V101 realtime drag failed to release");
  check(ui.down(401.,expandedTop+69.)==UI::Result::Applied,
        "V101 SET copy row failed");
  const double row8Top=L::rowTop(ui.state().firstRow,7,ui.expandedRows());
@@ -1012,6 +1019,8 @@ void testV101Interaction(){
        "V101 zoom option not routed");
  ui.confirmZoom(true);
  check(ui.userZoom()==1.5,"V101 host-approved zoom not retained");
+ check(ui.down(1200.,110.)==UI::Result::Applied,
+       "V101 real main meter clip-reset hit not wired to Controller");
  // Page navigation across all 16 rows must return to the original first page.
  Fixture all;auto kit=v101PreviewKit();kit.visible=16;all.kit(kit);
  UI pages(*all.c);
