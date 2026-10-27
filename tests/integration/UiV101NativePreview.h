@@ -366,7 +366,8 @@ struct UiV101NativePreview final {
    fill(c,{7.,7.,L::width-7.,9.},Skin::steelHighlight());
    fill(c,{7.,total-9.,L::width-7.,total-7.},{157,148,139,255});
    screw(c,14.,15.);screw(c,L::width-14.,15.);
-   screw(c,14.,total-15.);screw(c,L::width-14.,total-15.);
+   // Bottom fasteners draw AFTER the inset footer so their metal edges
+   // cannot be masked by the solid footer background.
    // Original 125A SVG geometry on a dark enamel badge, like the supplied
    // hardware reference. Only badge treatment / SVG fill change, not paths.
    rounded(c,{26.,10.,157.,76.},{34,31,30,255},5.);
@@ -539,19 +540,30 @@ struct UiV101NativePreview final {
        }
      }
    }
-   fill(c,{14.,total-44.,1260.,total-12.},Skin::headerSurface());
-   border(c,{14.,total-44.,1260.,total-12.},Skin::panelEdge());
+   // Compact recessed fascia; its edges avoid both corner screw heads.
+   const double footerTop=total-L::footer;
+   const auto panel=L::footerPanel;
+   rounded(c,{panel.x0,footerTop+panel.y0,panel.x1,footerTop+panel.y1},
+           {123,114,105,255},3.);
+   satin(c,{panel.x0+2.,footerTop+panel.y0+2.,
+            panel.x1-2.,footerTop+panel.y1-2.},
+         {218,210,199,255},Skin::headerSurface(),
+         {180,172,161,255},8);
+   border(c,{panel.x0,footerTop+panel.y0,panel.x1,footerTop+panel.y1},
+          Skin::panelEdge());
    char summary[160]{};
    std::snprintf(summary,sizeof(summary),
                  "INSTRUMENTS %zu-%zu / %zu   |   PATTERN %c   |   NATIVE CONTROLLER STATE",
                  ui.firstRow+1,ui.firstRow+shown,scene.visibleRows,
                  static_cast<char>('A'+scene.pattern));
-   label(c,summary,{31.,total-42.,922.,total-14.},11,
+   label(c,summary,{45.,footerTop+9.,922.,footerTop+33.},10,
          {66,68,70,255},false);
-   cap(c,{975.,7.,1095.,38.},total-L::footer,"PREV PAGE",
-         ui.firstRow>0,10);
-   cap(c,{1105.,7.,1235.,38.},total-L::footer,"NEXT PAGE",
-         ui.firstRow+shown<scene.visibleRows,10);
+   // Both controls are identically sized 95x25 machined metal keys.
+   cap(c,L::footerPrev,footerTop,"PREV PAGE",ui.firstRow>0,9);
+   cap(c,L::footerNext,footerTop,"NEXT PAGE",
+         ui.firstRow+shown<scene.visibleRows,9);
+   screw(c,L::footerScrewLeftX,total-15.);
+   screw(c,L::footerScrewRightX,total-15.);
    if(zoomMenuOpen){
      fill(c,{1130.,45.,1252.,155.},{12,20,29,255});
      border(c,{1130.,45.,1252.,155.},{104,115,121,255});
