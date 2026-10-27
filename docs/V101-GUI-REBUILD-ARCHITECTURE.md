@@ -80,3 +80,51 @@ generated yet. Nothing has been activated in the packaged plugin, and the
 existing 1.0.0 editor/controller/processor production code was not changed.
 The next manually dispatched full QA should validate this entire package
 before any visual acceptance.
+
+### V1.0.1 interaction + native expansion milestone (source candidate, QA NOT RUN)
+
+`src/vst3/UiV101Interaction.h` now manages a standalone pointer and
+presentation state for the new 1280px GUI. No shipped view is switched over.
+It implements real Controller-backed pattern A–H selection, 1/2 bar selection,
+SONG toggle, row and global rotary drags, selective Velocity-lane painting
+with undoable begin/commit/cancel gestures and protection for unoccupied steps,
+single-row-exclusive VEL/SET expansion, SET copy/paste/clear/random velocity,
+zoom selection with explicit host-resize rollback, and two-way pagination
+across 16 instruments. OUT and CHOKE selectors plus Song Editor, FILL, import,
+sample editor and other host-dependent actions still require real view popups.
+
+**Height contract:** Up to ten collapsed instrument rows; no more than nine
+while one extra 48px VEL/SET lane is expanded. Ten-row overflow automatically
+shifts first row to keep the selected expanded row visible. Both states
+measure 686 logical px and therefore 1029 px at 150%; no overlap with footer.
+
+The native QA renderer now uses `UiV101Interaction::State` to draw the
+controller-backed 9-row VEL and SET expansions and genuine button/velocity
+pixels. New offscreen capture variants:
+`v101-controller-velocity-lane-100.bmp` and
+`v101-controller-settings-lane-100.bmp`. The capture code asserts a
+specific orange velocity pixel and a text-free silver SET-button pixel:
+**screenshots must reflect the requested state, not merely exist**.
+
+A dedicated `testV101Interaction` Windows integration test exercises real
+Controller mutations for header/pattern, song, rotary drag, 1-bar step
+exclusion, M/S, ninth/tenth-row viewport behavior, velocity rollback and
+commit, blank-step rejection, VEL/SET exclusivity, SET clipboard and clear,
+popup deferral, zoom rejection/retry, and 16-row forward/back pagination.
+
+| Area | New regression | Windows result | DAW result |
+|---|---|---|---|
+| Controller-derived scene + original brand/knob PNG | real KitCodec, native pixel transition | NOT RUN | NOT RUN |
+| Header pattern/song/length and rotary drag | testV101Interaction | NOT RUN | NOT RUN |
+| Step hit, 16/32 limit, mute and solo | testV101Interaction | NOT RUN | NOT RUN |
+| Velocity press, cancel/commit, empty-step protection | testV101Interaction | NOT RUN | NOT RUN |
+| One expanded row, 150% bound, navigation 16 rows | testV101Interaction + CTest geometry | NOT RUN | NOT RUN |
+| SET copy/paste/clear, OUT/CHOKE modal deferral | testV101Interaction | NOT RUN | NOT RUN |
+| Zoom modal and host-rejected zoom rollback | state test only; host resize not wired | NOT RUN | NOT RUN |
+| SONG EDIT, FILL, sample/load/editor dialogs | no implementation yet | NOT RUN | NOT RUN |
+
+This is a coherent package ready for **one manually dispatched** Windows
+Actions run. The development branch intentionally has no automatic push CI.
+Tests, bitmap captures and packaged VST3 acceptance **must not be described
+as PASS until that manual run succeeds**. Even with green CI this remains
+a separate view prototype rather than the installed plugin's live GUI.
