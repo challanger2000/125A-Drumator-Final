@@ -718,8 +718,8 @@ bool DrumatorView::sampleDropTargetAt(double x,double y) const noexcept {
  const auto index=UiCompactLayout::rowAt(y,firstRow_,displayedRows(),velocityExpanded_);
  if(index>=displayedRows())return false;
  const auto top=rowTopOnPage(index);
- return UiCompactLayout::mainHit(y,top)&&x>=UiCompactLayout::sample.left&&
-        x<UiCompactLayout::sample.right;
+ return y>=top+70.&&y<top+105.&&x>=UiCompactLayout::sample.left+24.&&
+        x<UiCompactLayout::sample.right-24.;
 }
 DrumatorView::~DrumatorView() {
  controller_.cancelSampleEditorRequestsForView(this);
@@ -758,13 +758,13 @@ void DrumatorView::editName(std::size_t row) {
  if(row>=controller_.visibleRows()||!getFrame())return;
  const double y=rowTopOnPage(row-firstRow_);
  if(!nameEdit_){
-   nameEdit_=new VSTGUI::CTextEdit({UiCompactLayout::sample.left,y+4,UiCompactLayout::sample.right,y+33},this,1001,controller_.label(row).c_str());
+   nameEdit_=new VSTGUI::CTextEdit({UiCompactLayout::sample.left+24.,y+71,UiCompactLayout::sample.right-24.,y+104},this,1001,controller_.label(row).c_str());
    nameEdit_->registerTextEditListener(this);
    getFrame()->addView(nameEdit_);
  }
  editingNameRow_=row;
  nameEditGeneration_=controller_.editGeneration();
- nameEdit_->setViewSize({UiCompactLayout::sample.left,y+4,UiCompactLayout::sample.right,y+33});
+ nameEdit_->setViewSize({UiCompactLayout::sample.left+24.,y+71,UiCompactLayout::sample.right-24.,y+104});
  nameEdit_->setText(controller_.customName(row).empty()?controller_.label(row).c_str():
                    controller_.customName(row).c_str());
  nameEdit_->setVisible(true);
