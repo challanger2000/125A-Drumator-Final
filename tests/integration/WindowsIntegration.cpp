@@ -1029,6 +1029,115 @@ void testV101Interaction(){
  evidence("V101 interactive controller routing: header, patterns, knob drag, VEL rollback, SETTINGS, zoom modal and 16-row paging PASS");
 }
 
+// This is the actual CView attached through a Windows VST3 editor and host
+// frame. The earlier V101 tests cover only a detached interaction object.
+void testV101LiveEditor(){
+ using L=drumator::UiV101Layout;
+ Fixture f;auto kit=v101PreviewKit();kit.visible=16;f.kit(kit);
+ prepareAudio(*f.p);
+ V101PatternEditHost automation;
+ check(f.c->setComponentHandler(&automation)==kResultOk,
+       "V101 host test cannot install automatable Pattern callback");
+ auto& hostEditor=f.openV101();
+ check(IntegrationAccess::viewCount(*f.c)==1,
+       "V101 native host did not register exactly one Controller view");
+ auto* view=IntegrationAccess::view(*f.c,0);
+ check(view->isV101(),"V101 host loaded legacy painter instead of candidate");
+ check(view->getViewSize().getWidth()==1280.&&
+       view->getViewSize().getHeight()==686.,
+       "V101 native host has wrong initial editor bounds");
+ check(view->sampleDropTargetAt(200.,L::header+22.),
+       "V101 real view did not expose sample field for WAV/FLAC drop");
+ check(!view->sampleDropTargetAt(420.,L::header+22.),
+       "V101 real view accepted sample drop on Step bank");
+ // Real VSTGUI::CView pixels, not the isolated hardware fixture.
+ const auto currentStepPixel=[&](){
+   const auto bmp=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+       [&](VSTGUI::CDrawContext& dc){view->draw(&dc);});
+   check(bmp!=nullptr,"V101 live attached editor offscreen draw failed");
+   auto* px=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
+   check(px&&px->setPosition(428,178),"V101 live key raster unavailable");
+   VSTGUI::CColor color{};px->getColor(color);px->forget();
+   return std::array<int,3>{{color.red,color.green,color.blue}};
+ };
+ const auto pixelBefore=currentStepPixel();
+ const auto original=f.c->velocity(2,0,0);
+ click(*view,428.,L::header+20.);
+ check(f.c->velocity(2,0,0)!=original,
+       "V101 actual attached mouse Step did not reach Controller");
+ const auto pixelAfter=currentStepPixel();
+ check(pixelBefore!=pixelAfter&&pixelBefore[0]>pixelAfter[0]+70,
+       "V101 attached real painter did not follow mouse Step edit");
+ click(*view,170.,115.);
+ check(f.c->currentPattern()==3&&automation.calls>=1,
+       "V101 actual host Pattern D did not execute automation");
+ click(*view,130.,115.);
+ check(f.c->currentPattern()==2,"V101 actual host Pattern C restore failed");
+ click(*view,90.,L::header+20.);
+ const auto fillGeometry=drumator::UiV101Popup::geometry(
+     drumator::UiV101Popup::Kind::Fill,L::header,view->getViewSize().getHeight());
+ const auto every2=drumator::UiV101Popup::cell(fillGeometry,0);
+ click(*view,(every2.x0+every2.x1)/2.,(every2.y0+every2.y1)/2.);
+ check(f.c->velocity(2,0,2)>0,
+       "V101 attached FILL menu did not edit the real row");
+ // Mouse-only SET row; OUTPUT and CHOKE popups use the painted hit geometry.
+ click(*view,1230.,L::header+36.);
+ click(*view,151.,L::header+69.);
+ const auto outputGeometry=drumator::UiV101Popup::geometry(
+     drumator::UiV101Popup::Kind::Output,L::header,view->getViewSize().getHeight());
+ const auto output2=drumator::UiV101Popup::cell(outputGeometry,2);
+ click(*view,(output2.x0+output2.x1)/2.,(output2.y0+output2.y1)/2.);
+ check(f.c->rowOutput(0)==2,"V101 host OUTPUT menu did not set bus 2");
+ click(*view,280.,L::header+69.);
+ const auto chokeGeometry=drumator::UiV101Popup::geometry(
+     drumator::UiV101Popup::Kind::Choke,L::header,view->getViewSize().getHeight());
+ const auto choke3=drumator::UiV101Popup::cell(chokeGeometry,3);
+ click(*view,(choke3.x0+choke3.x1)/2.,(choke3.y0+choke3.y1)/2.);
+ check(f.c->rowChoke(0)==3,"V101 host CHOKE menu did not set group 3");
+ // Sample options are reachable without holding Shift/Alt.
+ click(*view,267.,L::header+L::rowHeight+20.);
+ const auto sampleGeometry=drumator::UiV101Popup::geometry(
+     drumator::UiV101Popup::Kind::Sample,L::header+L::rowHeight,
+     view->getViewSize().getHeight());
+ const auto remove=drumator::UiV101Popup::cell(sampleGeometry,2);
+ click(*view,(remove.x0+remove.x1)/2.,(remove.y0+remove.y1)/2.);
+ check(!f.c->hasSample(1),"V101 host sample-menu REMOVE targeted wrong row");
+ // SONG EDIT must remain operable on the legacy SONG page during the
+ // transitional paint migration, then return to the V101 main view.
+ click(*view,650.,115.);
+ check(IntegrationAccess::songEditorOpen(*view),
+       "V101 host SONG EDIT did not open existing song editor");
+ const auto back=UiCompactLayout::songEdit;
+ click(*view,(back.left+back.right)/2.,
+       (UiCompactLayout::headerButtonTop+UiCompactLayout::headerButtonBottom)/2.);
+ check(!IntegrationAccess::songEditorOpen(*view)&&view->isV101(),
+       "V101 SONG return did not restore live hardware main view");
+ // Compact 95x25 footer keys must page in the actual host, resizing
+ // from ten to six rows and back without stale click areas.
+ const auto initialHeight=view->getViewSize().getHeight();
+ click(*view,1175.,initialHeight-L::footer+22.);
+ check(view->getViewSize().getHeight()==446.,
+       "V101 attached host NEXT PAGE did not resize to six rows");
+ click(*view,1070.,view->getViewSize().getHeight()-L::footer+22.);
+ check(view->getViewSize().getHeight()==686.,
+       "V101 attached host PREV PAGE did not return to ten rows");
+ // 80x28 real zoom, with preset selection and host resize negotiation.
+ click(*view,1200.,25.);click(*view,1200.,139.);
+ check(std::abs(hostEditor.getZoomFactor()-1.5)<0.0001,
+       "V101 host zoom selector did not apply the 150 percent zoom");
+ check(f.frames[0].calls>0,"V101 native host did not receive any resize calls");
+ // Wave editor: a direct EDIT click must request the correct real sample,
+ // either immediately or through the existing async snapshot pipeline.
+ click(*view,380.,L::header+24.);
+ check(IntegrationAccess::sampleEditorOpen(*view)||
+       f.c->sampleEditorRequestPending(0,view),
+       "V101 live EDIT click did not reach sample editor snapshot");
+ f.closeLast();
+ check(IntegrationAccess::viewCount(*f.c)==0,
+       "V101 real host closing editor leaked a Controller view");
+ evidence("V101 attached native VST3 editor: live raster, Step/Pattern/FILL, OUTPUT/CHOKE, sample menu, SONG return, 16-row paging, zoom, WAV edit request and teardown PASS");
+}
+
 enum class V101CaptureMode { Normal, Velocity, Settings };
 void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
                         V101CaptureMode mode=V101CaptureMode::Normal){
@@ -4126,6 +4235,7 @@ int main(int argc,char** argv){
  run("VSTGUI precision controls",testPrecisionPanel);
  run("V101 actual Controller to native visual scene",testV101ControllerScene);
  run("V101 native interactive controller, lane and zoom actions",testV101Interaction);
+ run("V101 real VST3 editor attach, mouse dispatch, dialogs and zoom",testV101LiveEditor);
  run("VSTGUI native pixel render set",testVisualRender);
  run("GUI49 musical four-sample native 130pct capture",testGui49MusicalFourSampleCapture);
  run("GUI 11I centered PATTERN and meter header geometry",test11IHeaderPatternCentered);
