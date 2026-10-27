@@ -588,7 +588,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
 }
 Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString name) {
  if(name&&std::strcmp(name,Steinberg::Vst::ViewType::kEditor)==0) {
-    auto* editor=new DrumatorEditor(this,"DrumatorView","Drumator.uidesc");
+    auto* editor=new DrumatorEditor(this,"DrumatorV101View","Drumator.uidesc");
     // Disable inherited VSTGUI Zoom context menu: it bypasses checked
     // host resize and persistent zoom. Visible 100/150 controls remain.
     editor->setAllowedZoomFactors({});
