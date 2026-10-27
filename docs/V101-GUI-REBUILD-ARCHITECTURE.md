@@ -192,3 +192,25 @@ The native raster test now asserts warm-steel color ordering at a blank
 faceplate coordinate and navy color ordering at a bare row-chassis coordinate.
 **This paint-only candidate requires one native Windows screenshot review;
 it is not yet a visually accepted or production-integrated V1.0.1 editor.**
+
+### Reference-color QA evidence — Windows SUCCESS (27 October 2026)
+
+**Run [#40571877383](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40571877383)**,
+code/trigger commit `644a02402d9fda1a9aefbb87becb32d70edc1299`:
+
+- Windows VST3/test build: **PASS**.
+- **24/24** CTests, including the native-render material RGB contract and
+  the separate controller/input integration tests: **PASS**.
+- Steinberg validator: **47/47 PASS**.
+- Native 100/130% screenshot fixtures, menu, VEL/SET: **PASS**.
+- Independent plugin tester: **58 PASS / 0 WARN / 0 FAIL**.
+- Preview images: workflow artifact `125A-Drumator-VSTGUI-Native-Renderings`.
+- Manual-only GUI-branch CI push filter restored in commit `ec33d6d`
+  (workflow-only; image renderer code unchanged).
+
+**Owner visual approval still pending.** Even with sampled colors matching the
+reference more closely, the hard-edged rectangular button/bevel geometry may
+still look like a retro desktop UI rather than expensive rack hardware.
+Any subsequent design refinements should be grouped in one coherent package,
+then built once, not in a series of trivial Action runs. The newly colored
+renderer remains a standalone QA prototype, not the VST3 editor opened in DAW.
