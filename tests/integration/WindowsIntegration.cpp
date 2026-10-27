@@ -114,6 +114,7 @@ namespace drumator {
 // including Undo/clipboard/paths, rather than mirroring the commit algorithm.
 struct IntegrationAccess {
  static bool sampleEditorOpen(const DrumatorView& view){return view.sampleEditorOpen_;}
+ static bool songEditorOpen(const DrumatorView& view){return view.songEditorOpen_;}
  static std::string sampleEditorStatus(const DrumatorView& v){return v.status_;}
  static bool openSampleEditorForCapture(DrumatorView& view,std::size_t row){return view.openSampleEditor(row);}
  static bool importPathViaView(DrumatorView& view,std::size_t row,const std::string& path){return view.loadPath(row,path);}
