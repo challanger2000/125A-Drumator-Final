@@ -51,6 +51,29 @@ fictional mute/solo states or knob values. The integration fixture now:
    the new Scene reflects it, and the VSTGUI key pixel must visibly change
    between the two renderings.
 
+### Isolated native mouse-action bridge (unbuilt candidate)
+
+The new `src/vst3/UiV101ControllerBridge.h` accepts the shared
+`UiV101Layout::Hit` result and routes real mouse-target actions:
+
+- `Step` → `Controller::toggleStep`; ignores hidden rows and steps
+  beyond the active 16/32-step pattern length
+- `Mute` / `Solo` → `Controller::toggleRowGate`
+- `Previous` / `Next` → existing sample-navigation methods
+- `Preview` → existing sample audition method
+- `Fill`, `Load`, `Edit`, row selection, all rotary adjustments and
+  `VEL`/`SET` report **DeferredToView**; a future actual GUI View must
+  supply popup/modal and mouse-drag lifecycle rather than silently acting.
+
+One native regression derives actual step, mute, fill and rotary hits from
+geometry and confirms the real Controller state changes **only** for
+implemented operations. This remains an isolated integration path, not the
+active V1.0.1 editor; no DAW click is yet connected.
+
+**Status: source committed; Windows compile, tests and DAW interaction
+NOT RUN.** The next full QA should be explicitly launched once for the
+combined authentic assets, controller scene and input bridge.
+
 **Status: committed, not compiled or QA-approved.** The former static
 layout screenshots are superseded, and no screenshot for this code has been
 generated yet. Nothing has been activated in the packaged plugin, and the
