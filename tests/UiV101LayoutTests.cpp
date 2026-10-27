@@ -8,7 +8,7 @@ int main(){
   CHECK(L::zoomPresets[0]==1.&&L::zoomPresets[1]==1.2);
   CHECK(L::zoomPresets[2]==1.3&&L::zoomPresets[3]==1.5);
   // SONG and SONG EDIT are the only buttons in this group.
-  CHECK(L::headerGroupCount==2);
+  static_assert(L::headerGroupCount==2);
   CHECK(L::headerGroup(0).x1-L::headerGroup(0).x0==83.);
   CHECK(L::headerGroup(1).x1-L::headerGroup(1).x0==98.);
   CHECK(L::headerGroup(0).y1-L::headerGroup(0).y0==30.);
