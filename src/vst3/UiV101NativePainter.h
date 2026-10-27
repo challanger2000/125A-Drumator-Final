@@ -58,7 +58,7 @@ struct UiV101NativePreview final {
  struct Scene final {
    std::size_t pattern=0,visibleRows=L::visibleRows;
    std::uint8_t patternLength=32;
-   bool songEnabled=false;
+   bool songEnabled=false,canRemoveRow=false;
    unsigned swing=0,humanize=0,master=100;
    std::array<RowData,L::instruments> rows{};
  };
@@ -557,7 +557,9 @@ struct UiV101NativePreview final {
                  "INSTRUMENTS %zu-%zu / %zu   |   PATTERN %c",
                  ui.firstRow+1,ui.firstRow+shown,scene.visibleRows,
                  static_cast<char>('A'+scene.pattern));
-   label(c,summary,{45.,footerTop+9.,922.,footerTop+33.},10,
+   cap(c,L::footerAdd,footerTop,"ADD ROW",scene.visibleRows<L::instruments,9);
+   cap(c,L::footerRemove,footerTop,"REMOVE ROW",scene.canRemoveRow,9);
+   label(c,summary,{260.,footerTop+9.,922.,footerTop+33.},10,
          {66,68,70,255},false);
    // Both controls are identically sized 95x25 machined metal keys.
    cap(c,L::footerPrev,footerTop,"PREV PAGE",ui.firstRow>0,9);
