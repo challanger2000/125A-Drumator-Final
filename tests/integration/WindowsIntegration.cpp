@@ -818,16 +818,58 @@ void testV101ControllerScene(){
  evidence("V101 controller-backed GUI model: PCM kit/labels, pattern C, step mutation, gates, actual mix and globals PASS");
 }
 
+// Minimal VST3 host edit handler, used only by the isolated GUI input test.
+// Pattern selector changes are host-automatable, and require a valid
+// IComponentHandler::performEdit. The generic Fixture does not install one.
+struct V101PatternEditHost final : Steinberg::Vst::IComponentHandler {
+ bool editing=false;
+ unsigned calls=0;
+ Steinberg::Vst::ParamValue last=-1.;
+ Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID iid,void** ptr) override{
+   if(!ptr)return Steinberg::kInvalidArgument;
+   *ptr=nullptr;
+   if(Steinberg::FUnknownPrivate::iidEqual(iid,Steinberg::FUnknown::iid)||
+      Steinberg::FUnknownPrivate::iidEqual(iid,Steinberg::Vst::IComponentHandler::iid)){
+     *ptr=static_cast<Steinberg::Vst::IComponentHandler*>(this);
+     addRef();
+     return Steinberg::kResultOk;
+   }
+   return Steinberg::kResultFalse;
+ }
+ Steinberg::uint32 PLUGIN_API addRef() override{return 1;}
+ Steinberg::uint32 PLUGIN_API release() override{return 1;}
+ Steinberg::tresult PLUGIN_API beginEdit(Steinberg::Vst::ParamID id) override {
+   if(id!=drumator::kPatternParam)return Steinberg::kResultFalse;
+   editing=true;return Steinberg::kResultOk;
+ }
+ Steinberg::tresult PLUGIN_API performEdit(Steinberg::Vst::ParamID id,
+                                         Steinberg::Vst::ParamValue value) override {
+   if(!editing||id!=drumator::kPatternParam)return Steinberg::kResultFalse;
+   ++calls;last=value;return Steinberg::kResultOk;
+ }
+ Steinberg::tresult PLUGIN_API endEdit(Steinberg::Vst::ParamID id) override {
+   if(!editing||id!=drumator::kPatternParam)return Steinberg::kResultFalse;
+   editing=false;return Steinberg::kResultOk;
+ }
+ Steinberg::tresult PLUGIN_API restartComponent(Steinberg::int32) override{
+   return Steinberg::kResultOk;
+ }
+};
+
 void testV101Interaction(){
  using L=drumator::UiV101Layout;
  using UI=drumator::UiV101Interaction;
+ V101PatternEditHost hostHandler;
  Fixture f;f.kit(v101PreviewKit());
+ check(f.c->setComponentHandler(&hostHandler)==kResultOk,
+       "V101 test host automation callback installation failed");
  UI ui(*f.c);
  check(ui.shownRows()==10&&ui.height()==686.,
        "V101 initial page size/150-percent height incorrect");
  // Real host/controller pattern and song commands, not UI-only highlights.
- check(ui.down(170.,120.)==UI::Result::Applied&&f.c->currentPattern()==3,
-       "V101 header pattern D did not select real controller pattern");
+ check(ui.down(170.,120.)==UI::Result::Applied&&f.c->currentPattern()==3&&
+       hostHandler.calls==1&&std::abs(hostHandler.last-3./7.)<.00001,
+       "V101 header pattern D did not commit through host edit callback");
  check(ui.down(130.,120.)==UI::Result::Applied&&f.c->currentPattern()==2,
        "V101 header pattern C restore failed");
  check(ui.down(460.,120.)==UI::Result::Applied&&f.c->patternLength(2)==16,
