@@ -19,6 +19,7 @@
 #include "core/UiCompactLayout.h"
 #include "core/UiSongLayout.h"
 #include "UiV101NativePreview.h"
+#include "vst3/UiV101ControllerBridge.h"
 #include "vst3/DrumatorProcessor.h"
 #include "vst3/DrumatorEditor.h"
 #include "vst3/PluginIDs.h"
@@ -758,6 +759,38 @@ void testV101ControllerScene(){
  const auto updated=captureV101ControllerScene(*f.c);
  check(updated.rows[0].velocities[0]==0&&s.rows[0].velocities[0]==95,
        "V101 scene stale or mutates previous snapshot");
+ // The new geometry -> bridge -> actual Controller path must work with real
+ // mouse coordinates; popup-only controls must NOT silently mutate state.
+ using L=drumator::UiV101Layout;
+ using Bridge=drumator::UiV101ControllerBridge;
+ constexpr L::Expansions noExpansion{};
+ const auto stepHit=L::hit(L::stepX+L::stepPitch+8.,L::header+20.,0,10,noExpansion);
+ check(stepHit.row==0&&stepHit.step==1&&stepHit.action==L::Action::Step,
+       "V101 pixel-row step hit geometry incorrect");
+ check(Bridge::apply(*f.c,stepHit)==Bridge::Route::Applied&&
+       f.c->velocity(2,0,1)==100,
+       "V101 step hit -> real Controller toggle path failed");
+ const auto muteHit=L::hit(30.,L::header+5.*L::rowHeight+20.,0,10,noExpansion);
+ check(muteHit.row==5&&muteHit.action==L::Action::Mute,
+       "V101 mute physical hit geometry wrong");
+ check(Bridge::apply(*f.c,muteHit)==Bridge::Route::Applied&&
+       !f.c->isRowMuted(5),
+       "V101 mute hit -> real Controller state failed");
+ const auto fillHit=L::hit(90.,L::header+20.,0,10,noExpansion);
+ check(fillHit.action==L::Action::Fill&&
+       Bridge::apply(*f.c,fillHit)==Bridge::Route::DeferredToView,
+       "V101 FILL popup must be left to the actual view");
+ const auto gainBefore=f.c->rowGain(0);
+ const auto rotaryHit=L::hit(L::knobCenters[0],L::header+24.,0,10,noExpansion);
+ check(rotaryHit.action==L::Action::Volume&&
+       Bridge::apply(*f.c,rotaryHit)==Bridge::Route::DeferredToView&&
+       f.c->rowGain(0)==gainBefore,
+       "V101 rotary requires mouse-drag lifecycle and must not change gain on click");
+ check(Bridge::apply(*f.c,{0,L::Action::Step,32})==Bridge::Route::Ignored,
+       "V101 out-of-range step bridge should not mutate Controller");
+ check(Bridge::apply(*f.c,{10,L::Action::Mute,-1})==Bridge::Route::Ignored,
+       "V101 hidden row bridge must not mutate Controller");
+
  // A genuine VSTGUI pixel must change when a real controller Step flips.
  // Checking the Scene struct alone would miss a disconnected paint function.
  auto* knob=new VSTGUI::CMultiFrameBitmap(
