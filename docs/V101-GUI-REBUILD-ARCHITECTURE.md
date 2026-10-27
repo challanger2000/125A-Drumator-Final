@@ -255,3 +255,27 @@ designated segment. No GUI hit rectangles or DSP/Controller changes.
 
 **Corrected source not yet Windows-rendered at time of this note**;
 one combined QA/capture pass must verify the actual pixel result.
+
+### Post-review hardware material QA accepted by CI (27 October 2026)
+
+**Windows workflow #40576509346** (`cbff75b94db5257b5619ce4cd31ae463a0b64ecd`) completed
+**SUCCESS** after correcting the oversized ring geometry:
+
+- MSVC Windows VST3 and integration test build: PASS.
+- CTest **24/24 PASS**, including new Controller/VEL/SET and native screen oracles.
+- Official Steinberg VST3 Validator **47/47 PASS**.
+- Native VSTGUI 100% and 130%, velocity, settings and zoom captures: PASS.
+- Independent 125A Plugin Tester v0.3.2: **58 PASS / 0 WARNING / 0 FAIL**.
+- Native artifact `125A-Drumator-VSTGUI-Native-Renderings`, exact run.
+- The preview has been **visually inspected against the earlier hardware-pass
+  screenshot**: rotary mounting sockets are smaller, no longer collide across
+  instrument rows and no longer obscure SWING/HUMANIZE/MASTER labels. The satin
+  brushing is more restrained.
+- Auto-push on V1.0.1 was restored to manual-only by workflow-only commit
+  `49a8725` after the run began.
+
+**Acceptance boundary:** Technically QA-green native prototype is *not*
+an owner-approved final GUI or the active DAW editor. Material direction now
+merits owner design review. The next engineering work remains integration
+into the actual plugin VSTGUI view and completion of deferred native menu
+and editor interactions; no code has been merged to main or released.
