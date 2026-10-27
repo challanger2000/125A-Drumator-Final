@@ -1215,8 +1215,7 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
      const auto& e=sampleEditorEdit_;
      // The same discrete source-frame envelope as the audio engine.
      // A one-frame Fade Out now displays silence, matching rendered PCM.
-     const double fade=static_cast<double>(e.amplitude(
-           static_cast<std::uint32_t>(std::floor(sourceFrame))));
+     const double fade=e.amplitude(static_cast<std::uint32_t>(std::floor(sourceFrame)));
      const double upper=std::clamp(mid-hi*amp*fade,sampleEditorStereo_?156.:156.,
                                    sampleEditorStereo_?264.:381.);
      const double lower=std::clamp(mid-lo*amp*fade,sampleEditorStereo_?156.:156.,
