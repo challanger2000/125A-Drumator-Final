@@ -830,6 +830,7 @@ void DrumatorView::onTextEditPlatformControlLostFocus(VSTGUI::CTextEdit* edit) {
  invalid();
 }
 void DrumatorView::discardTransientEditsForRecall() noexcept {
+ if(v101Mode_){v101_.discardForRecall();v101Menu_=UiV101Popup::Kind::None;v101MenuRow_=kRows;}
  if(sampleEditorOpen_)controller_.stopSampleEditPreview();
  sampleEditorOpen_=false;sampleEditorRow_=kRows;sampleEditorDrag_=0;
  pendingEditorRow_=kRows;pendingViewport_=false;pendingMarkerKind_=0;
@@ -881,11 +882,15 @@ bool DrumatorView::applyZoomFromState(double factor) {
 }
 void DrumatorView::refreshFromHost(bool relayout) {
  if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_) {
-   v101_.cancel();
+   // Ordinary controller notifications during a rotary/velocity drag must
+   // not cancel that same gesture. Full structural relayout is different.
+   if(relayout){
+     v101_.cancel();
+     v101Menu_=UiV101Popup::Kind::None;
+     v101MenuRow_=kRows;
+   }
    v101_.reconcile();
    v101_.syncZoomFromHost(editor_.getZoomFactor());
-   v101Menu_=UiV101Popup::Kind::None;
-   v101MenuRow_=kRows;
    if(relayout&&getParentView())(void)adjustEditorHeight();
    else invalid();
    return;
