@@ -418,3 +418,31 @@ The test now recomputes `pages.height()-L::footer` after pagination
 (commit `79b6f884`). Product/UI page code required no change. The native
 pixel screw oracle and release validator for this candidate remain
 unverified until the subsequent full run.
+
+### Compact footer and case-screw QA verified (27 October 2026)
+
+Final batched run [#40591425134](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40591425134)
+is **SUCCESS**:
+
+- Windows native renderer/MSVC compilation PASS.
+- CTest **24/24 PASS**, including the shared 95x25 PREV/NEXT hit regions,
+  no legacy oversized click hotzone, dynamic footer position after a
+  transition from 10 to 6 visible instruments, and both case screws
+  demonstrably visible in the 100% Windows VSTGUI pixel capture.
+- Steinberg Validator **47/47 PASS**.
+- Independent plugin tester **58 PASS / 0 WARNING / 0 FAIL**.
+- Actual rendered images: artifact `125A-Drumator-VSTGUI-Native-Renderings`,
+  run #40591425134, including 100 and 130 percent previews.
+  The bottom-left and bottom-right screws are now completely unobstructed;
+  the page keys align inside the narrower, evenly inset metal footer.
+- CI auto-push was immediately reset to on-demand in workflow-only
+  commit `28539ff`. No merge to V1.0.0 or main.
+
+The prior failed run #40590579238 was caused by the test using the
+**first-page footer height for its click after navigating to a shorter
+second page**, corrected in `79b6f884`; the live pointer/paint code
+did not need an additional fix.
+
+**Design note:** The 100/130% screenshots are real native previews of
+the isolated V1.0.1 layer, not an installed DAW replacement. Owner visual
+approval and production editor integration remain separate milestones.
