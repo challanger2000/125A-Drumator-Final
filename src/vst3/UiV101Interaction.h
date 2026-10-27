@@ -263,6 +263,17 @@ public:
    endGesture(true);return Result::Handled;
  }
  void cancel(){endGesture(false);state_.zoomOpen=false;}
+ // Controller state restore owns rollback. Clear UI-only pointer captures
+ // without calling the old processor or throwing from the no-throw recall hook.
+ void discardForRecall() noexcept {
+   gesture_=Gesture::None;
+   knobIndex_=-1;
+   knobRow_=L::instruments;
+   laneRow_=L::instruments;
+   deferred_={};
+   state_.zoomOpen=false;
+ }
+
 private:
  enum class Gesture { None, RowKnob, HeaderKnob, Velocity };
  Controller& controller_;
