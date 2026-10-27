@@ -35,7 +35,7 @@ struct UiV101SongPainter final {
    const auto first=S::first(page);
    const bool selected=slot>=first&&slot<first+S::perPage&&slot<count;
    char title[48]{};
-   std::snprintf(title,sizeof(title),"SONG CHAIN  %02u–%02u / 64",
+   std::snprintf(title,sizeof(title),"SONG CHAIN  %02u-%02u / 64",
                  static_cast<unsigned>(first+1),
                  static_cast<unsigned>(first+S::perPage));
    P::label(c,title,{27.,169.,307.,195.},12,{223,231,236,255},false);
@@ -114,7 +114,7 @@ struct UiV101SongPainter final {
    key(c,1012.,339.,1110.,365.,"ADD ENTRY");
    key(c,1118.,339.,1239.,365.,"REMOVE LAST",false,9);
    P::label(c,status&&*status?status:
-           "REST and A–H are selectable. Only ADD ENTRY adds positions.",
+           "REST and A-H are selectable. Only ADD ENTRY adds positions.",
            {29.,394.,1222.,419.},10,{44,43,42,255},false);
    P::screw(c,14.,bottom-15.);
    P::screw(c,1266.,bottom-15.);
