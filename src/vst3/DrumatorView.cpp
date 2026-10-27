@@ -1099,62 +1099,28 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
    const double y=rowTopOnPage(i);
    const bool chosen=row==velocityRow_;
    const auto rowH=UiCompactLayout::baseRow+(velocityExpanded_[row]?UiCompactLayout::velocityRow:0.);
-   // Individual graphite instrument trays with subtle selectable blue edge.
-   c->setFillColor(VSTGUI::CColor{3,13,23,255});
-   c->drawRect({8,y+2.,1261,y+rowH-2.},VSTGUI::kDrawFilled);
-   c->setFillColor(chosen?VSTGUI::CColor{36,42,48,255}:VSTGUI::CColor{30,36,42,255});
-   c->drawRect({10,y+4.,1260,y+rowH-5.},VSTGUI::kDrawFilled);
-   // Satin graphite face inside the blue steel carrier. A narrow exposed
-   // perimeter and opposing specular/undercut edges give each row a distinct
-   // hardware tray without altering its size or any clickable rectangle.
-   // Satin faceplate: upper shoulder catches light; lower deck recedes.
-   // Pure paint, with unchanged widget geometry and interaction rectangles.
-   c->setFillColor(chosen?VSTGUI::CColor{37,43,49,255}:
-                            VSTGUI::CColor{34,40,46,255});
-   c->drawRect({12.,y+7.,1258.,y+40.},VSTGUI::kDrawFilled);
-   c->setFillColor(chosen?VSTGUI::CColor{30,36,42,255}:
-                            VSTGUI::CColor{27,33,39,255});
-   c->drawRect({12.,y+40.,1258.,y+rowH-9.},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{91,102,111,255});
+   // V1.0.1: a continuous dark-navy instrument channel, rather than
+   // separate graphite button/rotary trays. Geometry and interactions remain
+   // unchanged in this first visual migration; original steps are retained.
+   c->setFillColor(VSTGUI::CColor{8,19,32,255});
+   c->drawRect({8.,y+2.,1261.,y+rowH-2.},VSTGUI::kDrawFilled);
+   c->setFillColor(chosen?VSTGUI::CColor{22,43,64,255}:
+                            VSTGUI::CColor{17,36,55,255});
+   c->drawRect({11.,y+5.,1259.,y+rowH-6.},VSTGUI::kDrawFilled);
+   // Two low-contrast machining lines emphasize each uninterrupted strip.
+   c->setFillColor(VSTGUI::CColor{64,99,125,255});
    c->drawRect({11.,y+5.,1259.,y+6.},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{56,64,72,255});
-   c->drawRect({11.,y+6.,12.,y+rowH-9.},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{5,17,27,255});
-   c->drawRect({1258.,y+7.,1260.,y+rowH-7.},VSTGUI::kDrawFilled);
-   c->drawRect({11.,y+rowH-9.,1260.,y+rowH-6.},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{53,61,68,255});
-   c->drawRect({12.,y+rowH-10.,1258.,y+rowH-9.},VSTGUI::kDrawFilled);
+   c->setFillColor(VSTGUI::CColor{5,16,27,255});
+   c->drawRect({11.,y+rowH-8.,1259.,y+rowH-6.},VSTGUI::kDrawFilled);
    c->setFrameColor(chosen?accent:rowBlueBorder);
-   c->drawRect({9,y+3.,1261,y+rowH-4.},VSTGUI::kDrawStroked);
-   // Four subdued inset instrument identity rails, tied to absolute row
-   // index (not page position or currently loaded sample). Paint only.
+   c->drawRect({9.,y+3.,1261.,y+rowH-4.},VSTGUI::kDrawStroked);
+   // Restrained identity tick, not a full-height colored module divider.
    constexpr std::array<VSTGUI::CColor,4> rowAccents{{
-     {158,61,65,255},   // muted red
-     {181,114,44,255},  // warm amber
-     {68,139,92,255},   // subdued green
-     {125,91,161,255}   // violet
+     {158,61,65,255},{181,114,44,255},
+     {68,139,92,255},{125,91,161,255}
    }};
-   const auto rail=rowAccents[row%rowAccents.size()];
-   c->setFillColor(VSTGUI::CColor{5,17,25,255});
-   c->drawRect({12.,y+9.,18.,y+rowH-10.},VSTGUI::kDrawFilled);
-   c->setFillColor(rail);
-   c->drawRect({13.,y+11.,17.,y+rowH-12.},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{110,128,139,255});
-   c->drawRect({13.,y+11.,14.,y+rowH-12.},VSTGUI::kDrawFilled);
-   // The top controls and rotaries occupy adjacent zones. No decorative
-   // shelf stripe: it previously crowded the VOL/PAN/PITCH legends.
-   // Readable row functions versus visually separated step sequencer.
-   // Quiet, continuous control deck: the knob mounts already provide
-   // physical separation; no second inset frame around all rotaries.
-   c->setFillColor(VSTGUI::CColor{28,34,40,255});
-   c->drawRect({18.,y+46.,615.,y+120.},VSTGUI::kDrawFilled);
-   drawInset(c,{620,y+28.,1230,y+115.},VSTGUI::CColor{24,30,35,255});
-   // Dark dividing seam and a single silver-blue return: two separate
-   // recessed modules, not a painted line running through the controls.
-   c->setFillColor(VSTGUI::CColor{2,10,18,255});
-   c->drawRect({616.,y+30.,618.,y+115.},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{69,99,116,255});
-   c->drawRect({618.,y+31.,619.,y+113.},VSTGUI::kDrawFilled);
+   c->setFillColor(rowAccents[row%rowAccents.size()]);
+   c->drawRect({13.,y+10.,16.,y+36.},VSTGUI::kDrawFilled);
    // Restore the simple continuous Step well from the earliest GUI.
    // Do not build another 3D trough around the already dimensional keycaps.
    c->setFillColor(stepWellBlue);
