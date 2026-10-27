@@ -990,6 +990,23 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
  const auto width=access->getBitmapWidth(),height=access->getBitmapHeight();
  check(width>=1280&&height>=686&&width<=2400&&height<=1300,
        "V1.0.1 render pixel dimensions wrong");
+ if(mode!=V101CaptureMode::Normal){
+   check(scale==1.&&ui.state().firstRow==1&&
+         ui.state().expandedRow==9&&
+         ui.height()==686.,"V101 expanded native raster wrong viewport/zoom");
+   check(access->setPosition(428,620),
+         "V101 expanded row sample pixel inaccessible");
+   VSTGUI::CColor sample{};access->getColor(sample);
+   if(mode==V101CaptureMode::Velocity){
+     check(sample.red>175&&sample.red>sample.green+55&&
+           sample.red>sample.blue+80,
+           "V101 Velocity screenshot lacks actual bright orange velocity bar");
+   }else{
+     check(sample.red>120&&sample.green>120&&sample.blue>105&&
+           std::abs(static_cast<int>(sample.red)-static_cast<int>(sample.green))<28,
+           "V101 Settings screenshot did not display grey metal COPY ROW button");
+   }
+ }
  unsigned light=0,dark=0,orange=0;
  for(std::uint32_t y=0;y<height;y+=7)
    for(std::uint32_t x=0;x<width;x+=7){
