@@ -157,6 +157,12 @@ public:
    const double footerTop=height()-L::footer;
    // The pointer targets are precisely the painted, smaller 95x25 caps.
    // Outside them, the footer is inert (no old oversized hidden hotspots).
+   if(L::footerAdd.hit(x,y-footerTop))
+     return controller_.visibleRows()>=L::instruments?Result::Ignored:
+            controller_.addRow()?Result::Applied:Result::Failed;
+   if(L::footerRemove.hit(x,y-footerTop))
+     return !controller_.canHideLast()?Result::Ignored:
+            controller_.hideLastEmptyRow()?Result::Applied:Result::Failed;
    if(L::footerPrev.hit(x,y-footerTop))
      return page(-1)?Result::Handled:Result::Ignored;
    if(L::footerNext.hit(x,y-footerTop))
