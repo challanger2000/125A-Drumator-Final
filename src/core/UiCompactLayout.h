@@ -44,7 +44,7 @@ struct UiCompactLayout final {
   static constexpr double controlStart=20.,controlEnd=414.;
   static constexpr double stepStart=420.,stepPitch=19.;
   static constexpr double stepEnd=stepStart+32.*stepPitch; // 1028 px
-  static constexpr std::array<double,3> knobCenters{{1066.,1132.,1198.}};
+  static constexpr std::array<double,3> knobCenters{{1066.,1134.,1202.}};
   static constexpr double knobMountRadius=30.;
   static constexpr double expandLeft=1234.,expandRight=1258.;
   static constexpr double clearance=8.;
