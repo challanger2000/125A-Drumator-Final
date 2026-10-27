@@ -361,8 +361,10 @@ struct UiV101NativePreview final {
                  static_cast<char>('A'+scene.pattern));
    label(c,summary,{31.,total-42.,922.,total-14.},11,
          {66,68,70,255},false);
-   label(c,"REFERENCE LAYOUT - NOT A RELEASE BUILD",
-         {940.,total-42.,1248.,total-14.},10,{92,76,66,255});
+   cap(c,{975.,7.,1095.,38.},total-L::footer,"PREV PAGE",
+         ui.firstRow>0,10);
+   cap(c,{1105.,7.,1235.,38.},total-L::footer,"NEXT PAGE",
+         ui.firstRow+shown<scene.visibleRows,10);
    if(zoomMenuOpen){
      fill(c,{1130.,45.,1252.,155.},{12,20,29,255});
      border(c,{1130.,45.,1252.,155.},{104,115,121,255});
