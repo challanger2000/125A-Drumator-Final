@@ -409,3 +409,12 @@ hit zones, and **both visible screws in the rendered VSTGUI pixels**.
 The earlier centered 125A master SVG is included in this source
 candidate and remains unreleased. **Native Windows CI not yet run** for
 this footer package; evaluate it with one grouped QA/screenshot build.
+
+**First QA attempt [#40590579238](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40590579238):** MSVC build PASS,
+23/24 CTests PASS. The single new pagination interaction test used
+the 10-row page's footer Y after navigating to a 6-row second page.
+That stale test coordinate caused `V101 compact previous page not symmetrical`.
+The test now recomputes `pages.height()-L::footer` after pagination
+(commit `79b6f884`). Product/UI page code required no change. The native
+pixel screw oracle and release validator for this candidate remain
+unverified until the subsequent full run.
