@@ -566,8 +566,12 @@ struct UiV101NativePreview final {
    screw(c,L::footerScrewLeftX,total-15.);
    screw(c,L::footerScrewRightX,total-15.);
    if(zoomMenuOpen){
-     fill(c,{1130.,45.,1252.,155.},{12,20,29,255});
-     border(c,{1130.,45.,1252.,155.},{104,115,121,255});
+     const double left=L::zoomOption(0).x0-4.;
+     const double right=L::zoomOption(0).x1+4.;
+     const double top=L::zoomOption(0).y0-4.;
+     const double bottom=L::zoomOption(L::zoomPresets.size()-1).y1+4.;
+     fill(c,{left,top,right,bottom},{12,20,29,255});
+     border(c,{left,top,right,bottom},{104,115,121,255});
      for(std::size_t i=0;i<L::zoomPresets.size();++i){
        const auto rect=L::zoomOption(i);
        // Menu options use the same physical caps as the other GUI buttons.
