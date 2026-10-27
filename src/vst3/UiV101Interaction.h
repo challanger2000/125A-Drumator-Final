@@ -120,12 +120,12 @@ public:
    }
    if(L::zoomHit(x,y,false)==-2){state_.zoomOpen=true;return Result::Handled;}
    const double footerTop=height()-L::footer;
-   if(y>=footerTop+7.&&y<footerTop+38.){
-     if(L::Rect{975.,footerTop+7.,1095.,footerTop+38.}.hit(x,y))
-       return page(-1)?Result::Handled:Result::Ignored;
-     if(L::Rect{1105.,footerTop+7.,1235.,footerTop+38.}.hit(x,y))
-       return page(1)?Result::Handled:Result::Ignored;
-   }
+   // The pointer targets are precisely the painted, smaller 95x25 caps.
+   // Outside them, the footer is inert (no old oversized hidden hotspots).
+   if(L::footerPrev.hit(x,y-footerTop))
+     return page(-1)?Result::Handled:Result::Ignored;
+   if(L::footerNext.hit(x,y-footerTop))
+     return page(1)?Result::Handled:Result::Ignored;
    if(y>=L::headerButtonY&&
       y<L::headerButtonY+L::headerButtonHeight){
      for(std::size_t i=0;i<8;++i)
