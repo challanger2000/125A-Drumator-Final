@@ -347,3 +347,42 @@ regression contract, not only a successful PNG file presence check.
 **QA status for this new logo candidate: NOT YET RUN.** Do not call the
 live VST3 editor migrated: the native renderer remains isolated, and the
 host-side popups/Studio One interaction acceptance remains future work.
+
+### Futuristic DRUMATOR PNG — Windows verified (27 October 2026)
+
+Native design renderer source `tests/integration/UiV101NativePreview.h` now
+loads the unmodified user asset
+`resource/Futuristisches Metalllogo DRUMATOR.png`. The previously
+painted character-by-character metal title is gone. Original pixel alpha
+and both orange lightbar details are preserved. Alpha-visible bounds are
+measured once per image load; the rendered logo is uniformly scaled and
+centered inside x=192..1118, y=7..76.
+
+**First build #40586611433:** 24/24 CTests and Steinberg Validator 47/47
+passed, but the isolated native screenshot explicitly failed to find the
+logo resource. This exposed an actual CI packaging oversight: the custom
+PowerShell bundle assembly manually copies assets, separately from
+CMake's VSTGUI resource list. The new PNG was absent from this copy.
+
+**Corrected build [#40587499875](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40587499875):
+SUCCESS.** PowerShell now explicitly copies the original-name PNG to
+`Contents/Resources/`, includes it in the exact VST3 tree manifest,
+and enforces nonempty resource size. Test evidence:
+
+- MSVC Windows and native VSTGUI renderer compile PASS.
+- CTest 24/24 PASS, including PNG alpha-transparent corner, non-empty visible
+  pixels, non-overlapping header bounding box and true amber-glow header pixels.
+- Steinberg validator 47/47 PASS.
+- Independent Plugin Tester v0.3.2: 58 PASS, 0 WARNING, 0 FAIL.
+- Native artifact `125A-Drumator-VSTGUI-Native-Renderings` from run
+  #40587499875: personally reviewed the actual 1280×686 header image.
+  The new dark chrome wordmark is sharp; both amber bars fit between the 125A
+  badge and the zoom selector and do not overlap other controls.
+- Manual-only development-branch push policy restored immediately in
+  workflow-only commit `97bacee`.
+
+**Scope:** This is a verified isolated Windows VSTGUI prototype and a
+resource safely packaged into the development VST3 bundle, **not** a claim
+that the shipped V1.0.0 view displays the new asset. The controller-connected
+new V1.0.1 view has not yet been attached to the actual DAW plugin/editor.
+`main` and release branch remain unchanged.
