@@ -797,10 +797,15 @@ void testV101ControllerScene(){
    VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
  check(knob->getWidth()==125.&&knob->getHeight()==12625.,
        "V101 controller pixel test original knob resource decode failed");
+ auto* pngTitle=new VSTGUI::CBitmap(
+   VSTGUI::CResourceDescription("Futuristisches Metalllogo DRUMATOR.png"));
+ const auto titleBounds=drumator::qa::UiV101NativePreview::measureTitle(pngTitle);
+ check(titleBounds.valid()&&titleBounds.width>100.&&titleBounds.height>10.,
+       "V101 native controller scene must load actual new futuristic logo PNG");
  const auto stepPixel=[&](const drumator::qa::UiV101NativePreview::Scene& state){
    auto bmp=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
      [&](VSTGUI::CDrawContext& dc){
-       drumator::qa::UiV101NativePreview::draw(dc,knob,state);
+       drumator::qa::UiV101NativePreview::draw(dc,knob,pngTitle,titleBounds,state);
      });
    check(bmp!=nullptr,"V101 controller pixel test native raster missing");
    auto* a=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
@@ -811,6 +816,7 @@ void testV101ControllerScene(){
  };
  const auto beforePixel=stepPixel(s),afterPixel=stepPixel(updated);
  knob->forget();
+ pngTitle->forget();
  check(beforePixel!=afterPixel&&beforePixel[0]>afterPixel[0]+70,
        "V101 actual Controller -> renderer step pixel did not change");
  evidence("V101 controller-backed GUI model: PCM kit/labels, pattern C, step mutation, gates, actual mix and globals PASS");
@@ -1022,20 +1028,36 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
  const double h=ui.height();
  check(h*1.5<=1080.,
        "V101 expanded-row screenshot would exceed 1080 at 150 percent");
- // The original 125A 101-frame knob is retained. The old metallic
- // DRUMATOR title PNG was dark-skin artwork and is intentionally not loaded:
- // V1.0.1 paints a separate engraved steel title in the native VSTGUI code.
+ // Load the original 125A 101-frame knob filmstrip and the *new*
+ // user-supplied transparent PNG with the filename preserved verbatim.
+ // The old silver engraved per-glyph text is never drawn as a fallback.
  auto* knob=new VSTGUI::CMultiFrameBitmap(
    VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
+ auto* logo=new VSTGUI::CBitmap(
+   VSTGUI::CResourceDescription("Futuristisches Metalllogo DRUMATOR.png"));
  check(knob->getWidth()==125.&&knob->getHeight()==12625.,
        "V1.0.1 preview did not load real V1.0 knob filmstrip");
+ const auto bounds=drumator::qa::UiV101NativePreview::measureTitle(logo);
+ check(bounds.valid()&&bounds.width>100.&&bounds.height>10.,
+       "V1.0.1 logo PNG unreadable or lacks alpha-visible content");
+ auto* logoPixels=VSTGUI::CBitmapPixelAccess::create(logo,false);
+ check(logoPixels!=nullptr&&logoPixels->setPosition(0,0),
+       "V1.0.1 logo source PNG alpha inspection failed");
+ VSTGUI::CColor corner{};logoPixels->getColor(corner);
+ logoPixels->forget();
+ check(corner.alpha<24,
+       "V1.0.1 title has an opaque rectangular backdrop instead of transparent PNG");
+ const auto box=drumator::qa::UiV101NativePreview::titleTarget(bounds);
+ check(box.left>=191.&&box.right<=1119.&&box.top>=6.&&box.bottom<=77.,
+       "V1.0.1 title/lightbars overlap 125A badge, header controls or ZOOM");
  auto bitmap=VSTGUI::renderBitmapOffscreen(
    VSTGUI::CPoint(L::width,h),scale,
-   [knob,&scene,&ui,zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
-     drumator::qa::UiV101NativePreview::draw(context,knob,scene,zoomMenuOpen,
+   [knob,logo,bounds,&scene,&ui,zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
+     drumator::qa::UiV101NativePreview::draw(context,knob,logo,bounds,scene,zoomMenuOpen,
        scale>1.2?std::size_t{2}:std::size_t{0},ui.state());
    });
  knob->forget();
+ logo->forget();
  check(bitmap!=nullptr,"V1.0.1 native VSTGUI prototype render failed");
  auto* access=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
  check(access!=nullptr,"V1.0.1 native pixels unavailable");
@@ -1046,6 +1068,18 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
  // reference has warm steel (R>G>B) and a midnight-navy instrument body,
  // not cool-grey chrome or an almost-black row.
  if(scale==1.&&mode==V101CaptureMode::Normal&&!zoomMenuOpen){
+   // The header must contain visible orange flashes *from the loaded PNG*,
+   // not just the lower orange pattern caps (which start at y=99).
+   std::size_t titleAmber=0;
+   for(std::uint32_t yy=17;yy<70;yy+=2)
+     for(std::uint32_t xx=200;xx<1100;xx+=3){
+       check(access->setPosition(xx,yy),"V101 title alpha-screen coordinate invalid");
+       VSTGUI::CColor light{};access->getColor(light);
+       if(light.red>150&&light.red>light.green+45&&
+          light.green>35&&light.blue<125)++titleAmber;
+     }
+   check(titleAmber>20,
+         "V101 PNG lightbars absent from real native header pixel rendering");
    check(access->setPosition(250,50),
          "V101 hardware palette steel coordinate inaccessible");
    VSTGUI::CColor steel{};access->getColor(steel);
