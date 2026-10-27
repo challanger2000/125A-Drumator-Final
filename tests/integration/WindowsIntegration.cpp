@@ -980,6 +980,13 @@ void testV101Interaction(){
  const auto chokeRequest=ui.takeDeferredRequest();
  check(chokeRequest.kind==UI::DeferredKind::ChokeMenu&&chokeRequest.row==9,
        "V101 CHOKE view request lost exact instrument target");
+ const auto randomRealtime=f.c->rowRandomVelocity(9);
+ check(ui.down(1100.,expandedTop+69.)==UI::Result::Applied&&
+       f.c->rowRandomVelocity(9)==randomRealtime+10,
+       "V101 realtime random increase not connected");
+ check(ui.down(900.,expandedTop+69.)==UI::Result::Applied&&
+       f.c->rowRandomVelocity(9)==randomRealtime,
+       "V101 realtime random decrease not connected");
  check(ui.down(401.,expandedTop+69.)==UI::Result::Applied,
        "V101 SET copy row failed");
  const double row8Top=L::rowTop(ui.state().firstRow,7,ui.expandedRows());
@@ -1027,6 +1034,16 @@ void testV101Interaction(){
  check(pages.down(1070.,secondFooterY+22.)==UI::Result::Handled&&
        pages.state().firstRow==0&&pages.shownRows()==10,
        "V101 compact previous page not symmetrical");
+ Fixture emptyRows;KitState noSamples{};noSamples.visible=9;emptyRows.kit(noSamples);
+ UI countControls(*emptyRows.c);
+ check(countControls.height()==L::editorHeight(0,9,L::Expansions{}),
+       "V101 empty 9-row height contract");
+ check(countControls.down(95.,countControls.height()-L::footer+22.)==
+          UI::Result::Applied&&emptyRows.c->visibleRows()==10,
+       "V101 ADD ROW did not change Controller count");
+ check(countControls.down(195.,countControls.height()-L::footer+22.)==
+          UI::Result::Applied&&emptyRows.c->visibleRows()==9,
+       "V101 REMOVE ROW did not restore Controller count");
  evidence("V101 interactive controller routing: header, patterns, knob drag, VEL rollback, SETTINGS, zoom modal and 16-row paging PASS");
 }
 
@@ -1116,6 +1133,12 @@ void testV101LiveEditor(){
  const auto remove=drumator::UiV101Popup::cell(sampleGeometry,2);
  click(*view,(remove.x0+remove.x1)/2.,(remove.y0+remove.y1)/2.);
  check(!f.c->hasSample(1),"V101 host sample-menu REMOVE targeted wrong row");
+ const auto rowFooterY=view->getViewSize().getHeight()-L::footer;
+ check(f.c->canHideLast(),"V101 host fixture last instrument unexpectedly occupied");
+ click(*view,195.,rowFooterY+22.);
+ check(f.c->visibleRows()==15,"V101 real host REMOVE ROW not connected");
+ click(*view,95.,rowFooterY+22.);
+ check(f.c->visibleRows()==16,"V101 real host ADD ROW not connected");
  // SONG EDIT must remain operable on the legacy SONG page during the
  // transitional paint migration, then return to the V101 main view.
  click(*view,650.,115.);
