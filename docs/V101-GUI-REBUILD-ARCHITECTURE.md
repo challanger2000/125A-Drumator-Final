@@ -165,3 +165,30 @@ interaction with the new view, its popups (SONG EDIT, FILL, OUT/CHOKE, load,
 sample editor), resize negotiations, stateful refresh/reopen and Studio One
 acceptance are **NOT RUN / PENDING**. No merge to main, release, or claim of
 finished V1.0.1 editor is authorized by this run.
+
+### Reference palette correction — hardware material pass (27 October 2026)
+
+The native 100% preview was compared against the owner's original
+`Drumator Rhythmusmaschine im Retro-Design` hardware illustration.
+
+**Measured color discrepancy, not just subjective style:**
+
+| Region | Previous V1.0.1 raster | Hardware reference (sample) | New VSTGUI palette |
+|---|---|---|---|
+| Blank faceplate | RGB 214, 211, 202 | RGB ~199, 191, 181 | RGB 201, 194, 183 |
+| Upper controls panel | RGB 225, 223, 216 | RGB ~202, 195, 185 | RGB 207, 200, 189 |
+| Row well / chassis | RGB 4, 14, 27 | RGB ~27, 40, 54 | RGB 27-30, 41-45, 56-61 |
+| Inactive step face | RGB 41, 53, 69 | RGB ~36, 45, 56 | RGB 36, 51, 70 |
+
+The screenshot has variable lighting; sampled reference numbers are indicative,
+not a requirement of pixel-for-pixel duplication. Main colors are centralized
+under `UiV101NativePreview::Skin`. Adjusted brushed warm steel, satin
+button tops, silver-bevel shadow, deep navy row material, amber-lit keys,
+metal panel separators and badge treatment. Exact original 125A logo vector
+paths and metallic DRUMATOR title PNG remain unchanged. Original 101-frame
+knob graphics, geometry, Controller and DSP are untouched.
+
+The native raster test now asserts warm-steel color ordering at a blank
+faceplate coordinate and navy color ordering at a bare row-chassis coordinate.
+**This paint-only candidate requires one native Windows screenshot review;
+it is not yet a visually accepted or production-integrated V1.0.1 editor.**
