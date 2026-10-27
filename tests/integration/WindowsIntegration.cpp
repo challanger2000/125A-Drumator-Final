@@ -1178,6 +1178,27 @@ void testV101LiveEditor(){
  f.closeLast();
  check(IntegrationAccess::viewCount(*f.c)==0,
        "V101 real host closing editor leaked a Controller view");
+ // Host resize refusal must rollback BOTH the native window and the
+ // processor/Controller instrument count (not just the UI's page state).
+ Fixture refusal;KitState empty{};empty.visible=9;refusal.kit(empty);
+ (void)refusal.openV101();
+ auto* refusedView=IntegrationAccess::view(*refusal.c,0);
+ const double nineRowHeight=L::editorHeight(0,9,L::Expansions{});
+ check(refusedView->getViewSize().getHeight()==nineRowHeight,
+       "V101 native nine-row fixture wrong initial height");
+ refusal.frames[0].accept=false;
+ click(*refusedView,95.,nineRowHeight-L::footer+22.);
+ check(refusal.c->visibleRows()==9&&
+       refusedView->getViewSize().getHeight()==nineRowHeight,
+       "V101 rejected host ADD ROW left changed processor or view state");
+ refusal.frames[0].accept=true;
+ click(*refusedView,95.,nineRowHeight-L::footer+22.);
+ check(refusal.c->visibleRows()==10&&
+       refusedView->getViewSize().getHeight()==686.,
+       "V101 accepted host ADD ROW failed after rollback");
+ refusal.closeLast();
+ check(IntegrationAccess::viewCount(*refusal.c)==0,
+       "V101 rejected-resize fixture leaked editor view");
  evidence("V101 attached native VST3 editor: live raster, Step/Pattern/FILL, OUTPUT/CHOKE, sample menu, SONG return, 16-row paging, zoom, WAV edit request and teardown PASS");
 }
 
