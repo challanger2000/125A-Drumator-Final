@@ -41,7 +41,7 @@ struct UiCompactLayout final {
  // coordinates above remain active until draw and hit testing migrate together.
  struct V101RowPlan final {
   static constexpr double left=16.,right=1260.;
-  static constexpr double controlStart=20.,controlEnd=414.;
+  static constexpr double controlStart=20.,controlEnd=412.;
   static constexpr double stepStart=420.,stepPitch=19.;
   static constexpr double stepEnd=stepStart+32.*stepPitch; // 1028 px
   static constexpr std::array<double,3> knobCenters{{1066.,1134.,1202.}};
