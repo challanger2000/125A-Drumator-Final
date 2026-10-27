@@ -488,6 +488,7 @@ struct UiV101NativePreview final {
      const auto& rowName=live?(data.name.empty()?emptyName:data.name):emptyName;
      label(c,rowName.c_str(),{L::load.x0+5.,y+9.,L::load.x1-2.,y+39.},
            11,live?Color{203,222,235,255}:Color{103,116,127,255},false);
+     cap(c,L::sampleMenu,y,"...",false,10);
      headphone(c,L::preview,y);
      cap(c,L::edit,y,"EDIT",false,11);
      rounded(c,{L::stepWell.x0,y+4.,L::stepWell.x1,y+44.},
