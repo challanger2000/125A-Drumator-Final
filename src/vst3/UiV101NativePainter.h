@@ -61,6 +61,7 @@ struct UiV101NativePreview final {
    bool songEnabled=false,canRemoveRow=false;
    bool clipped=false;
    float meterLeft=0.f,meterRight=0.f;
+   std::string status{};
    unsigned swing=0,humanize=0,master=100;
    std::array<RowData,L::instruments> rows{};
  };
@@ -577,15 +578,18 @@ struct UiV101NativePreview final {
          {180,172,161,255},8);
    border(c,{panel.x0,footerTop+panel.y0,panel.x1,footerTop+panel.y1},
           Skin::panelEdge());
-   char summary[160]{};
+   char summary[100]{};
    std::snprintf(summary,sizeof(summary),
-                 "INSTRUMENTS %zu-%zu / %zu   |   PATTERN %c",
+                 "ROWS %zu-%zu / %zu  |  PATTERN %c",
                  ui.firstRow+1,ui.firstRow+shown,scene.visibleRows,
                  static_cast<char>('A'+scene.pattern));
    cap(c,L::footerAdd,footerTop,"ADD ROW",scene.visibleRows<L::instruments,9);
    cap(c,L::footerRemove,footerTop,"REMOVE ROW",scene.canRemoveRow,9);
-   label(c,summary,{260.,footerTop+9.,922.,footerTop+33.},10,
+   label(c,summary,{260.,footerTop+9.,510.,footerTop+33.},10,
          {66,68,70,255},false);
+   if(!scene.status.empty())
+     label(c,scene.status.c_str(),{520.,footerTop+9.,914.,footerTop+33.},
+           9,{89,68,58,255},false);
    // Both controls are identically sized 95x25 machined metal keys.
    cap(c,L::footerPrev,footerTop,"PREV PAGE",ui.firstRow>0,9);
    cap(c,L::footerNext,footerTop,"NEXT PAGE",
