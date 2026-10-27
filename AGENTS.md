@@ -1,6 +1,6 @@
 # 125A Drumator v1.0.0 — Final repository
 
-**Current release candidate (27.10.2026):** Owner-approved GUI/design, full imported source from verified product commit `a14d9e67470ad0af94a8250baca13fa3a15fb70e` plus documentation-only commit `91afadfd643fd32fa49e3d0fdb4ec9e39c9e106b`. Version updated to 1.0.0; final-repository Windows QA and packaging must be confirmed before public V1-FINAL/Gumroad release. The old development milestones below are historical.
+**Current release candidate (27.10.2026):** Owner-approved GUI/design, full imported source from verified product commit `a14d9e67470ad0af94a8250baca13fa3a15fb70e` plus documentation-only commit `91afadfd643fd32fa49e3d0fdb4ec9e39c9e106b`. Version 1.0.0 has passed Final-repository Windows QA at [run #40430043280](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40430043280): 23/23 CTests, 47/47 Steinberg Validator and 58/0/0 independent Plugin Tester. Public V1-FINAL/Gumroad publication and a customer ZIP are not yet verified. The old development milestones below are historical.
 
 ---
 
