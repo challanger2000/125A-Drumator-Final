@@ -18,6 +18,7 @@
 #include "core/UiRowControls.h"
 #include "core/UiCompactLayout.h"
 #include "core/UiSongLayout.h"
+#include "vst3/UiV101Scene.h"
 #include "UiV101NativePreview.h"
 #include "vst3/UiV101ControllerBridge.h"
 #include "vst3/DrumatorProcessor.h"
@@ -679,29 +680,9 @@ void captureVstgui(DrumatorView& v,const std::string& title,double scale){
 // One-directional V1.0.1 view model: real controller getters only.
 // Does not mutate the released controller, audio or original editor.
 drumator::qa::UiV101NativePreview::Scene captureV101ControllerScene(Controller& c){
- using Scene=drumator::qa::UiV101NativePreview::Scene;
- Scene scene{};
- scene.pattern=c.currentPattern();
- scene.visibleRows=c.visibleRows();
- scene.patternLength=c.patternLength(scene.pattern);
- scene.songEnabled=c.songEnabled();
- scene.swing=c.swingPercent();
- scene.humanize=c.humanizePercent();
- scene.master=c.masterVolume();
- for(std::size_t row=0;row<scene.rows.size();++row){
-   auto& dst=scene.rows[row];
-   dst.name=c.label(row);
-   dst.hasSample=c.hasSample(row);
-   dst.muted=c.isRowMuted(row);
-   dst.solo=c.isRowSolo(row);
-   dst.gain=c.rowGain(row);
-   dst.pan=c.rowPan(row);
-   dst.pitch=c.rowPitch(row);
-   for(std::size_t step=0;step<dst.velocities.size();++step)
-     dst.velocities[step]=c.velocity(scene.pattern,row,step);
- }
- return scene;
+ return drumator::v101::captureControllerScene(c);
 }
+
 // Deterministic actual embedded-kit fixture. All visible labels and parameter
 // readouts flow through real KitCodec -> real Controller -> Scene -> VSTGUI.
 KitState v101PreviewKit(){
