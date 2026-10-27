@@ -11,6 +11,12 @@ struct UiV101Layout final {
   static constexpr std::size_t instruments=16,visibleRows=10,steps=32;
   static constexpr double width=1280.,header=158.,rowHeight=48.,expansionHeight=48.,footer=48.;
   static constexpr double stepX=420.,stepPitch=19.,stepEnd=stepX+steps*stepPitch;
+  // Compact footer: exact same rectangles are used for paint and mouse hits.
+  // The raised page switches stay inside the inset panel, away from the
+  // exposed corner screws and the instrument counter.
+  static constexpr double footerPanelLeft=32.,footerPanelRight=1248.;
+  static constexpr double footerPanelTop=4.,footerPanelBottom=38.;
+
   // Only SONG and SONG EDIT are buttons. The existing SWING, HUMANIZE,
   // MASTER controls are rotary encoders, not further menu buttons.
   static constexpr std::size_t headerGroupCount=2;
@@ -24,6 +30,15 @@ struct UiV101Layout final {
       return x>=x0&&x<x1&&y>=y0&&y<y1;
     }
   };
+  // Relative to the 48px footer origin. Previous keys were 120/130x31
+  // and too large for the recessed strip; now both are 95x25.
+  static constexpr Rect footerPrev{1020.,10.,1115.,35.};
+  static constexpr Rect footerNext{1130.,10.,1225.,35.};
+  static constexpr Rect footerPanel{footerPanelLeft,footerPanelTop,
+                                   footerPanelRight,footerPanelBottom};
+  static constexpr double footerScrewLeftX=14.,footerScrewRightX=width-14.;
+  static constexpr double footerScrewRadius=7.;
+
   // One common vertical contract for every header action. The previous
   // geometry mixed 107..141 Pattern/BARS with 105..135 SONG controls,
   // causing misaligned buttons and clicks at the old low position.
@@ -172,6 +187,18 @@ static_assert(UiV101Layout::zoomPresets[0]==1.0 &&
               UiV101Layout::zoomPresets[3]==1.5);
 static_assert(UiV101Layout::zoomOption(3).y1<=UiV101Layout::header);
 static_assert(UiV101Layout::stepRect(UiV101Layout::steps-1).x1<=UiV101Layout::stepEnd);
+static_assert(UiV101Layout::footerPanelLeft >
+              UiV101Layout::footerScrewLeftX+UiV101Layout::footerScrewRadius);
+static_assert(UiV101Layout::footerPanelRight <
+              UiV101Layout::footerScrewRightX-UiV101Layout::footerScrewRadius);
+static_assert(UiV101Layout::footerPrev.x0>=UiV101Layout::footerPanel.x0+10.&&
+              UiV101Layout::footerNext.x1<=UiV101Layout::footerPanel.x1-10.);
+static_assert(UiV101Layout::footerPrev.x1+10.<=UiV101Layout::footerNext.x0);
+static_assert(UiV101Layout::footerPrev.y0>=UiV101Layout::footerPanel.y0&&
+              UiV101Layout::footerNext.y1<=UiV101Layout::footerPanel.y1);
+static_assert(UiV101Layout::footerPrev.x1-UiV101Layout::footerPrev.x0==95.&&
+              UiV101Layout::footerNext.y1-UiV101Layout::footerNext.y0==25.);
+
 static_assert(UiV101Layout::editorHeight(0,UiV101Layout::visibleRows,
               UiV101Layout::Expansions{})*1.5<=1080.);
 }
