@@ -35,11 +35,14 @@ int main(){
     if(i)CHECK(area.x0>L::headerKnob(i-1).x1+60.);
   }
   CHECK(L::headerKnob(2).x1<1132.);
+  CHECK(L::zoomTrigger.x1-L::zoomTrigger.x0==80.);
+  CHECK(L::zoomTrigger.y1-L::zoomTrigger.y0==28.);
+  CHECK(L::zoomHit(1145.,25.,false)==-1);
   CHECK(L::zoomHit(1200.,25.,false)==-2);
   CHECK(L::zoomHit(1200.,25.,true)==-2);
   for(std::size_t i=0;i<L::zoomPresets.size();++i){
     const auto r=L::zoomOption(i);
-    CHECK(r.x1-r.x0==114.&&r.y1-r.y0==24.);
+    CHECK(r.x1-r.x0==86.&&r.y1-r.y0==24.);
     CHECK(L::zoomHit(r.x0+20.,r.y0+12.,true)==static_cast<int>(i));
     CHECK(L::zoomHit(r.x0+20.,r.y0+12.,false)==-1);
   }
