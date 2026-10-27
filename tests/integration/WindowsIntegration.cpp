@@ -678,12 +678,24 @@ void captureVstgui(DrumatorView& v,const std::string& title,double scale){
 void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false){
  using L=drumator::UiV101Layout;
  const double h=L::editorHeight(0,L::visibleRows,L::Expansions{});
+ // Decode precisely the SAME PNG resources as the installable 1.0.0 VST3.
+ // Fail closed; a substituted procedural knob/title is not valid QA evidence.
+ auto* knob=new VSTGUI::CMultiFrameBitmap(
+   VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
+ auto* titleLogo=new VSTGUI::CBitmap(
+   VSTGUI::CResourceDescription("Metallisches DRUMATOR-Logo.png"));
+ check(knob->getWidth()==125.&&knob->getHeight()==12625.,
+       "V1.0.1 preview did not load real V1.0 knob filmstrip");
+ check(titleLogo->getWidth()>=500.&&titleLogo->getHeight()>=100.,
+       "V1.0.1 preview did not load original metallic DRUMATOR title PNG");
  auto bitmap=VSTGUI::renderBitmapOffscreen(
    VSTGUI::CPoint(L::width,h),scale,
-   [zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
-     drumator::qa::UiV101NativePreview::draw(context,zoomMenuOpen,
+   [knob,titleLogo,zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
+     drumator::qa::UiV101NativePreview::draw(context,knob,titleLogo,zoomMenuOpen,
        scale>1.2?std::size_t{2}:std::size_t{0});
    });
+ knob->forget();
+ titleLogo->forget();
  check(bitmap!=nullptr,"V1.0.1 native VSTGUI prototype render failed");
  auto* access=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
  check(access!=nullptr,"V1.0.1 native pixels unavailable");
