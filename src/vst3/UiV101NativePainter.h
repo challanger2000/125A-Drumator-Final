@@ -561,10 +561,7 @@ struct UiV101NativePreview final {
          char realtimeText[35]{};
          std::snprintf(realtimeText,sizeof(realtimeText),
                        "RT RANDOM  %u%%",data.randomRealtime);
-         label(c,realtimeText,
-               {UiV101Interaction::realtimeValue.x0,y+56.,
-                UiV101Interaction::realtimeValue.x1,y+88.},10,
-               {218,226,234,255},false);
+         cap(c,UiV101Interaction::realtimeValue,y,realtimeText,false,10);
          cap(c,UiV101Interaction::realtimePlus,y,"+",false,13);
        }
      }
