@@ -1127,12 +1127,12 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
    c->drawRect({kGridX-3.,y+64.,kGridRight+4.,y+110.},VSTGUI::kDrawFilled);
    char name[16]{};
    std::snprintf(name,sizeof(name),"%02u",static_cast<unsigned>(row+1));
-   drawControl(c,{16,y+9,74,y+40},name,chosen);
+   drawControl(c,{18,y+70,42,y+105},name,chosen);
    // Sample name remains editable on Shift-click; click opens WAV/FLAC picker.
    const auto& raw=controller_.label(row);
    std::string fitted=raw;
    c->setFont(VSTGUI::kNormalFont,13);
-   const double space=UiCompactLayout::sample.right-UiCompactLayout::sample.left-8.;
+   const double space=UiCompactLayout::sample.right-UiCompactLayout::sample.left-54.;
    if(c->getStringWidth(fitted.c_str())>space) {
      const auto pos=raw.find_last_of('.');
      const auto suffix=(pos!=std::string::npos&&raw.size()-pos<=7)?raw.substr(pos):std::string{};
@@ -1150,65 +1150,49 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
    // a sample exists. Preserve the original load/rename/drop hit region.
    const double glassLeft=UiCompactLayout::sample.left;
    const double glassRight=UiCompactLayout::sample.right;
-   drawInset(c,{glassLeft,y+9,glassRight,y+40},
+   drawInset(c,{glassLeft,y+70,glassRight,y+105},
              VSTGUI::CColor{5,19,30,255});
    c->setFont(VSTGUI::kNormalFont,13);
    c->setFontColor(letters);
-   c->drawString(fitted.c_str(),{glassLeft+5.,y+9.,glassRight-3.,y+40.},VSTGUI::kLeftText);
-   drawControl(c,{275,y+9,301,y+40},"...");
-    drawControl(c,{UiCompactLayout::edit.left,y+9,UiCompactLayout::edit.right,y+40},"EDIT",false,controller_.hasSample(row));
-   drawControl(c,{303,y+9,329,y+40},"<");
-   drawControl(c,{332,y+9,358,y+40},">");
-   drawControl(c,{362,y+9,398,y+40},"PLAY",false,true,10);
-   // FILL is a momentary menu/action, not a persistent per-row active
-   // state; retain its existing neutral appearance.
-   drawControl(c,{403,y+9,452,y+40},"FILL");
-   drawRowStatusButton(c,{457,y+9,491,y+40},"M",controller_.isRowMuted(row),1);
-   drawRowStatusButton(c,{496,y+9,530,y+40},"S",controller_.isRowSolo(row),2);
+   c->drawString(fitted.c_str(),{glassLeft+26.,y+70.,glassRight-26.,y+105.},VSTGUI::kLeftText);
+   // Continuous horizontal row controls: samples, 32 steps and right knobs.
+   drawControl(c,{151,y+70,174,y+105},"<");
+   drawControl(c,{285,y+70,308,y+105},">");
+   drawRowStatusButton(c,{46,y+70,75,y+105},"M",controller_.isRowMuted(row),1);
+   drawRowStatusButton(c,{78,y+70,107,y+105},"S",controller_.isRowSolo(row),2);
+   drawControl(c,{110,y+70,148,y+105},"FILL",false,true,10);
+   drawControl(c,{312,y+70,352,y+105},"PLAY",false,true,9);
+   drawControl(c,{356,y+70,410,y+105},"EDIT",false,controller_.hasSample(row),10);
    const auto out=controller_.rowOutput(row);
-   if(out==0)std::snprintf(name,sizeof(name),"MAIN v");
-   else std::snprintf(name,sizeof(name),"OUT %u v",out+1);
-   drawControl(c,{535,y+9,615,y+40},name,popup_==3&&popupRow_==row,true,11);
+   std::snprintf(name,sizeof(name),out==0?"MAIN":"OUT %u",out+1);
+   drawControl(c,{20,y+9,64,y+40},"ROW",popup_==6&&popupRow_==row,true,10);
+   drawControl(c,{67,y+9,133,y+40},name,popup_==3&&popupRow_==row,true,10);
    std::snprintf(name,sizeof(name),"CH%u",controller_.rowChoke(row));
-   c->setFont(VSTGUI::kNormalFont,11);
-   c->setFontColor(VSTGUI::CColor{164,214,235,255});
-   c->drawString("CHOKE",{570,y+52,615,y+73},VSTGUI::kCenterText);
-   drawControl(c,{570,y+73,615,y+105},"",popup_==4&&popupRow_==row);
-   // Keep the existing CHOKE cap/hit zone. Separate label and arrow to
-   // reserve an explicit right-hand glyph pocket at 100% editor zoom.
-   c->setFont(VSTGUI::kNormalFont,10);
-   c->setFontColor(letters);
-   c->drawString(name,{573.,y+75.,601.,y+102.},VSTGUI::kCenterText);
-   c->drawString("v",{602.,y+75.,612.,y+102.},VSTGUI::kCenterText);
-   drawControl(c,{UiCompactLayout::rowMenu.left,y+73.,UiCompactLayout::rowMenu.right,y+105.},
-               "ROW",popup_==6&&popupRow_==row,true,11);
-   const double centers[]={133.,254.,375.,496.};
+   drawControl(c,{136,y+9,185,y+40},name,popup_==4&&popupRow_==row,true,10);
+   drawControl(c,{188,y+9,225,y+40},"...",popup_==5&&popupRow_==row,true,10);
+   const double centers[]={1066.,1134.,1202.,376.};
    const int values[]={static_cast<int>(controller_.rowGain(row)),controller_.rowPan(row),
                        controller_.rowPitch(row),static_cast<int>(controller_.rowRandomVelocity(row))};
    const char* labels[]={"VOL","PAN","PITCH"};
    for(int k=0;k<3;++k){
      const int lo=UiCompactLayout::minValue(k),hi=UiCompactLayout::maxValue(k);
-     const int v=values[k];
+     const int val=values[k];
      char desc[24]{};
-     if(k==0)std::snprintf(desc,sizeof(desc),"%d%%",v);
-     else if(k==1){
-       if(v==0)std::snprintf(desc,sizeof(desc),"C");
-       else std::snprintf(desc,sizeof(desc),"%c%d",v<0?'L':'R',std::abs(v));
-     }else std::snprintf(desc,sizeof(desc),"%+d st",v);
+     if(k==0)std::snprintf(desc,sizeof(desc),"%d%%",val);
+     else if(k==1) {if(val==0)std::snprintf(desc,sizeof(desc),"C");
+       else std::snprintf(desc,sizeof(desc),"%c%d",val<0?'L':'R',std::abs(val));}
+     else std::snprintf(desc,sizeof(desc),"%+d st",val);
      drawRotary(c,knobBitmap_,centers[k],y+88,
-                static_cast<double>(v-lo)/static_cast<double>(hi-lo),
+                static_cast<double>(val-lo)/static_cast<double>(hi-lo),
                 labels[k],desc,chosen&&activeKnob_==k,true);
    }
-   // Nonzero legacy realtime modulation remains visible and controllable.
    if(controller_.rowRandomVelocity(row)>0){
      char legacy[32]{};
      std::snprintf(legacy,sizeof(legacy),"LEGACY RT %u%%",
                    static_cast<unsigned>(controller_.rowRandomVelocity(row)));
      drawRotary(c,knobBitmap_,centers[3],y+88,controller_.rowRandomVelocity(row)/100.,
                 "RANDOM RT",legacy,chosen&&activeKnob_==3,true);
-   }else{
-     drawControl(c,{448,y+73,544,y+105},"RANDOM VEL",false,true,11);
-   }
+   }else drawControl(c,{230,y+9,310,y+40},"RAND VEL",false,true,10);
    const auto steps=controller_.patternLength(controller_.currentPattern());
    for(std::size_t step=0;step<32;++step) {
      const auto sx=kGridX+step*kCellWidth;
@@ -1228,8 +1212,8 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
    }
    c->setFont(VSTGUI::kNormalFont,11);
    c->setFontColor(VSTGUI::CColor{164,214,235,255});
-   c->drawString("VEL",{1233,y+44,1259,y+62});
-   drawRowStatusButton(c,{1233,y+70,1259,y+105},
+   c->drawString("VEL",{1234,y+44,1258,y+62});
+   drawRowStatusButton(c,{1234,y+70,1258,y+105},
                        velocityExpanded_[row]?"^":"v",velocityExpanded_[row],0);
    if(velocityExpanded_[row]){
      c->setFillColor(velocityWellBlue);
@@ -2224,7 +2208,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    }
    if(!UiCompactLayout::mainHit(y,top))return done;
    if(UiCompactLayout::hit(x,UiCompactLayout::select)&&
-      y>=top+9&&y<top+40) {
+      y>=top+70&&y<top+105) {
      velocityRow_=row;status_="INSTRUMENT SELECTED";
      invalid();return done;
    }
@@ -2233,7 +2217,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
      velocityRow_=row;
      (void)toggleRowVelocity(row);invalid();return done;
    }
-   if(UiCompactLayout::hit(x,UiCompactLayout::edit)&&y>=top+9&&y<top+40){
+   if((x>=356&&x<410)&&y>=top+70&&y<top+105){
       if(controller_.hasSample(row))(void)openSampleEditor(row);
       invalid();return done;
     }
@@ -2241,42 +2225,42 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
       y>=top+9&&y<top+40){
      popup_=5;popupRow_=row;invalid();return done;
    }
-   if(UiCompactLayout::hit(x,UiCompactLayout::sample)&&y>=top+9&&y<top+40){
+   if((x>=174&&x<285)&&y>=top+70&&y<top+105){
      if(buttons&VSTGUI::kShift)editName(row);
      else if(buttons&VSTGUI::kAlt){
        if(!controller_.clearSample(row))status_="SAMPLE NOT REMOVED";
      }else load(row);
      invalid();return done;
    }
-   if(UiCompactLayout::hit(x,UiCompactLayout::previous)&&y>=top+9&&y<top+40){
+   if(UiCompactLayout::hit(x,UiCompactLayout::previous)&&y>=top+70&&y<top+105){
      if(controller_.stepSample(row,-1)!=Controller::LoadStatus::Accepted)
        status_="NO PREVIOUS SAMPLE";
      invalid();return done;
    }
-   if(UiCompactLayout::hit(x,UiCompactLayout::next)&&y>=top+9&&y<top+40){
+   if(UiCompactLayout::hit(x,UiCompactLayout::next)&&y>=top+70&&y<top+105){
      if(controller_.stepSample(row,1)!=Controller::LoadStatus::Accepted)
        status_="NO NEXT SAMPLE";
      invalid();return done;
    }
-   if(UiCompactLayout::hit(x,UiCompactLayout::preview)&&y>=top+9&&y<top+40){
+   if(UiCompactLayout::hit(x,UiCompactLayout::preview)&&y>=top+70&&y<top+105){
      if(!controller_.previewSample(row))status_="SAMPLE PREVIEW FAILED";
      invalid();return done;
    }
-   if(UiCompactLayout::hit(x,UiCompactLayout::fill)&&y>=top+9&&y<top+40){
+   if(UiCompactLayout::hit(x,UiCompactLayout::fill)&&y>=top+70&&y<top+105){
      fillMenuRow_=static_cast<int>(row);invalid();return done;
    }
-   if(UiCompactLayout::hit(x,UiCompactLayout::rowMenu)&&y>=top+73&&y<top+105){
+   if(UiCompactLayout::hit(x,UiCompactLayout::rowMenu)&&y>=top+9&&y<top+40){
      popup_=6;popupRow_=row;invalid();return done;
    }
-   if(UiCompactLayout::hit(x,UiCompactLayout::mute)&&y>=top+9&&y<top+40){
+   if(UiCompactLayout::hit(x,UiCompactLayout::mute)&&y>=top+70&&y<top+105){
      if(!controller_.toggleRowGate(row,false))status_="MUTE NOT APPLIED";
      invalid();return done;
    }
-   if(UiCompactLayout::hit(x,UiCompactLayout::solo)&&y>=top+9&&y<top+40){
+   if(UiCompactLayout::hit(x,UiCompactLayout::solo)&&y>=top+70&&y<top+105){
      if(!controller_.toggleRowGate(row,true))status_="SOLO NOT APPLIED";
      invalid();return done;
    }
-   if(UiCompactLayout::hit(x,UiCompactLayout::choke)&&y>=top+73&&y<top+105){
+   if(UiCompactLayout::hit(x,UiCompactLayout::choke)&&y>=top+9&&y<top+40){
      popup_=4;popupRow_=row;invalid();return done;
    }
    if(UiCompactLayout::hit(x,UiCompactLayout::output)&&y>=top+9&&y<top+40){
@@ -2297,8 +2281,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
        invalid();return done;
      }
    }
-   if(controller_.rowRandomVelocity(row)==0&&x>=448&&x<544&&
-      y>=top+73&&y<top+105){
+   if(controller_.rowRandomVelocity(row)==0&&x>=230&&x<310&&y>=top+9&&y<top+40){
      if(!controller_.randomizeRowVelocity(row))
        status_="RANDOM VELOCITY: NO NOTES OR EDIT REJECTED";
      invalid();return done;
