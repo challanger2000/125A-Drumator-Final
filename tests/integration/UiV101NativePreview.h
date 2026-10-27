@@ -23,16 +23,58 @@ struct UiV101NativePreview final {
    c.setFont(VSTGUI::kNormalFont,font);c.setFontColor(ink);
    c.drawString(value,r,center?VSTGUI::kCenterText:VSTGUI::kLeftText);
  }
+ // Shared machined keycap family. Every action button uses the same
+ // rim, satin-silver/amber lens, highlights, lower bevel, lettering and shadow.
+ // All layers sit strictly inside the common paint/hit rectangle.
  static void cap(VSTGUI::CDrawContext& c,L::Rect r,double y,const char* text,
                  bool active=false,int font=10){
-   const Box rect{r.x0,y+r.y0,r.x1,y+r.y1};
-   fill(c,{rect.left,rect.top+2.,rect.right,rect.bottom+2.},{3,9,15,255});
-   fill(c,rect,active?Color{187,111,43,255}:Color{98,103,111,255});
-   fill(c,{rect.left+1.,rect.top+1.,rect.right-1.,rect.bottom-3.},
-        active?Color{245,163,73,255}:Color{204,206,206,255});
-   border(c,rect,active?Color{255,190,104,255}:Color{44,50,59,255});
-   label(c,text,{rect.left+1.,rect.top+1.,rect.right-1.,rect.bottom-1.},
-         font,active?Color{65,30,14,255}:Color{23,28,34,255});
+   const Box b{r.x0,y+r.y0,r.x1,y+r.y1};
+   const double left=b.left,top=b.top,right=b.right,bottom=b.bottom;
+   const double innerTop=top+3.,innerBottom=bottom-4.;
+   const double mid=innerTop+(innerBottom-innerTop)*.56;
+   // Recessed graphite mounting lip and cast shadow.
+   fill(c,{left,top+2.,right,bottom+2.},{5,10,16,255});
+   fill(c,{left,top,right,bottom-1.},active?
+        Color{89,48,21,255}:Color{25,29,35,255});
+   border(c,{left+.5,top+.5,right-.5,bottom-1.5},
+          active?Color{245,177,79,255}:Color{95,98,100,255});
+   // Satin-aluminium key top, subtle non-flat light direction.
+   fill(c,{left+2.,top+2.,right-2.,bottom-4.},active?
+        Color{210,91,35,255}:Color{175,178,178,255});
+   fill(c,{left+3.,innerTop,right-3.,mid},active?
+        Color{251,177,75,255}:Color{228,229,223,255});
+   fill(c,{left+3.,mid,right-3.,innerBottom},active?
+        Color{234,125,48,255}:Color{193,195,193,255});
+   fill(c,{left+3.,top+3.,right-3.,top+5.},active?
+        Color{255,216,118,255}:Color{246,246,240,255});
+   fill(c,{left+3.,bottom-6.,right-3.,bottom-4.},active?
+        Color{153,60,22,255}:Color{132,137,139,255});
+   fill(c,{left+2.,top+5.,left+3.,bottom-5.},active?
+        Color{253,191,93,255}:Color{238,238,231,255});
+   fill(c,{right-3.,top+5.,right-2.,bottom-5.},active?
+        Color{139,56,26,255}:Color{109,113,117,255});
+   // Center the cap legends without special button-dependent styling.
+   label(c,text,{left+2.,top+2.,right-2.,bottom-2.},font,
+         active?Color{71,31,13,255}:Color{22,28,34,255});
+ }
+ // Dark-blue physical sequencer keycap, with matching bezel and warm
+ // backlit orange state. Keep the same 17px step width / 19px pitch.
+ static void stepCap(VSTGUI::CDrawContext& c,double x,double y,bool active){
+   const double top=y+9.,bottom=y+40.;
+   fill(c,{x,top+1.,x+17.,bottom+1.},{0,6,12,255});
+   fill(c,{x,top,x+17.,bottom-1.},{3,11,20,255});
+   border(c,{x+.5,top+.5,x+16.5,bottom-1.5},active?
+          Color{173,86,35,255}:Color{81,103,120,255});
+   fill(c,{x+2.,top+2.,x+15.,bottom-4.},active?
+        Color{166,53,20,255}:Color{24,44,63,255});
+   fill(c,{x+3.,top+3.,x+14.,bottom-8.},active?
+        Color{255,153,45,255}:Color{36,59,80,255});
+   fill(c,{x+3.,top+3.,x+14.,top+5.},active?
+        Color{255,219,112,255}:Color{76,98,116,255});
+   fill(c,{x+3.,bottom-10.,x+14.,bottom-6.},active?
+        Color{225,91,26,255}:Color{21,37,53,255});
+   fill(c,{x+2.,bottom-4.,x+15.,bottom-2.},active?
+        Color{110,41,21,255}:Color{9,20,32,255});
  }
  // Headphone pictogram replaces the ambiguous play triangle in PREVIEW.
  // All coordinates derive from the preview cap's shared hit/paint rectangle.
@@ -160,6 +202,11 @@ struct UiV101NativePreview final {
      fill(c,{14.,y+3.,1258.,y+4.},{65,85,100,255});
      fill(c,{14.,y+L::rowHeight-5.,1258.,y+L::rowHeight-4.},
           {6,19,31,255});
+     // Slim selection rail: visible without adding another chunky module.
+     fill(c,{L::select.x0,y+L::select.y0,L::select.x1,y+L::select.y1},
+          {5,12,19,255});
+     fill(c,{L::select.x0+3.,y+14.,L::select.x1-3.,y+33.},
+          row==0?Color{246,171,70,255}:Color{76,93,103,255});
      cap(c,L::mute,y,"M",row==0||row==5);
      cap(c,L::solo,y,"S");
      cap(c,L::fill,y,"FILL",row==1||row==7,9);
@@ -176,15 +223,7 @@ struct UiV101NativePreview final {
        const auto r=L::stepRect(step);
        const double sx=r.x0;
        const bool active=lit(static_cast<int>(row),static_cast<int>(step));
-       fill(c,{sx,y+9.,sx+17.,y+40.},{1,7,14,255});
-       fill(c,{sx+1.,y+10.,sx+16.,y+37.},
-            active?Color{178,62,18,255}:Color{31,49,67,255});
-       fill(c,{sx+2.,y+11.,sx+15.,y+33.},
-            active?Color{252,137,31,255}:Color{24,41,57,255});
-       fill(c,{sx+3.,y+11.,sx+14.,y+13.},
-            active?Color{255,204,104,255}:Color{53,75,98,255});
-       fill(c,{sx+2.,y+35.,sx+15.,y+37.},
-            active?Color{142,37,12,255}:Color{9,22,36,255});
+       stepCap(c,sx,y,active);
      }
      for(std::size_t k=0;k<L::knobCenters.size();++k)
        dial(c,L::knobCenters[k],y+24.,static_cast<int>(row),static_cast<int>(k));
@@ -202,13 +241,8 @@ struct UiV101NativePreview final {
      border(c,{1130.,45.,1252.,155.},{104,115,121,255});
      for(std::size_t i=0;i<L::zoomPresets.size();++i){
        const auto rect=L::zoomOption(i);
-       // Preserve a fixed 24px option height at every UI scale.
-       fill(c,{rect.x0,rect.y0,rect.x1,rect.y1},
-            i==selected?Color{210,131,51,255}:Color{61,70,77,255});
-       border(c,{rect.x0,rect.y0,rect.x1,rect.y1},
-              i==selected?Color{250,191,103,255}:Color{98,110,120,255});
-       label(c,zoomNames[i],{rect.x0,rect.y0,rect.x1,rect.y1},11,
-             i==selected?Color{24,29,35,255}:Color{232,235,235,255});
+       // Menu options use the same physical caps as the other GUI buttons.
+       cap(c,rect,0.,zoomNames[i],i==selected,11);
      }
    }
  }
