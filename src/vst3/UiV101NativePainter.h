@@ -59,6 +59,8 @@ struct UiV101NativePreview final {
    std::size_t pattern=0,visibleRows=L::visibleRows;
    std::uint8_t patternLength=32;
    bool songEnabled=false,canRemoveRow=false;
+   bool clipped=false;
+   float meterLeft=0.f,meterRight=0.f;
    unsigned swing=0,humanize=0,master=100;
    std::array<RowData,L::instruments> rows{};
  };
@@ -431,10 +433,27 @@ struct UiV101NativePreview final {
               "HUMANIZE",humanText);
    headerDial(c,knobSprite,L::headerKnobCenters[2],L::headerKnobY,scene.master/200.,
               "MASTER",masterText);
-   fill(c,{1132.,109.,1146.,129.},{20,30,41,255});
-   fill(c,{1151.,105.,1160.,129.},{29,54,65,255});
-   fill(c,{1164.,111.,1174.,129.},{29,62,82,255});
-   label(c,"L / R",{1181.,107.,1240.,126.},11,{49,54,58,255});
+   // Actual 33 ms sampled post-master MAIN L/R levels from the live view,
+   // never decorative LEDs. Clipping is the real Controller meter bitfield.
+   fill(c,{1133.,100.,1246.,132.},Skin::navyWell());
+   border(c,{1133.,100.,1246.,132.},Skin::navyTrim());
+   const auto miniMeter=[&](float value,double top){
+     const auto db=value>0.f?20.*std::log10(static_cast<double>(value)):-120.;
+     for(int index=0;index<12;++index){
+       const double threshold=-54.+5.*index;
+       const double left=1138.+index*5.5;
+       const auto lit=index<8?Color{44,187,125,255}:
+                      index<10?Color{243,183,50,255}:Color{238,76,53,255};
+       fill(c,{left,top,left+4.,top+7.},
+            db>=threshold?lit:Color{34,55,63,255});
+     }
+   };
+   miniMeter(scene.meterLeft,105.);
+   miniMeter(scene.meterRight,118.);
+   label(c,"L",{1207.,102.,1221.,115.},10,{218,227,233,255});
+   label(c,"R",{1207.,117.,1221.,129.},10,{218,227,233,255});
+   fill(c,{1230.,105.,1241.,116.},
+        scene.clipped?Color{251,45,36,255}:Color{75,34,31,255});
    // Column headings remain outside the 48px-high channels.
    fill(c,{12.,142.,1261.,157.},Skin::navyWell());
    fill(c,{12.,142.,1261.,143.},Skin::navyTrim());
