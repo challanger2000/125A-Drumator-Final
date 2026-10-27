@@ -68,6 +68,7 @@ struct UiV101Layout final {
   static constexpr Rect headerGroup(std::size_t i) noexcept{
     return headerGroups[i];
   }
+  static constexpr Rect meterReset{1132.,98.,1248.,134.};
   static constexpr Rect zoomTrigger{1168.,15.,1248.,43.};
   static constexpr Rect zoomOption(std::size_t index) noexcept{
     const double top=49.+26.*static_cast<double>(index);
@@ -185,6 +186,8 @@ static_assert(UiV101Layout::patternButton(7).x1<
 static_assert(UiV101Layout::headerGroups[1].x1+26.<=
               UiV101Layout::headerKnobCenters[0]-UiV101Layout::headerKnobRadius);
 static_assert(UiV101Layout::headerKnobCenters[2]+UiV101Layout::headerKnobRadius<1132.);
+static_assert(UiV101Layout::meterReset.x0>=1132.&&
+              UiV101Layout::meterReset.y0>UiV101Layout::zoomTrigger.y1);
 static_assert(UiV101Layout::zoomPresets[0]==1.0 &&
               UiV101Layout::zoomPresets[1]==1.2 &&
               UiV101Layout::zoomPresets[2]==1.3 &&
