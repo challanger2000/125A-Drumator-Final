@@ -11,8 +11,18 @@ int main(){
   static_assert(L::headerGroupCount==2);
   CHECK(L::headerGroup(0).x1-L::headerGroup(0).x0==83.);
   CHECK(L::headerGroup(1).x1-L::headerGroup(1).x0==98.);
-  CHECK(L::headerGroup(0).y1-L::headerGroup(0).y0==30.);
-  CHECK(L::headerGroup(1).y1-L::headerGroup(1).y0==30.);
+  CHECK(L::headerGroup(0).y1-L::headerGroup(0).y0==L::headerButtonHeight);
+  CHECK(L::headerGroup(1).y1-L::headerGroup(1).y0==L::headerButtonHeight);
+  CHECK(L::headerButtonY==99.&&L::headerButtonHeight==32.);
+  CHECK(L::barsButton.y0==L::headerGroup(0).y0);
+  CHECK(L::barsButton.y1==L::headerGroup(1).y1);
+  CHECK(L::patternMenu.y0==L::headerButtonY);
+  CHECK(L::patternMenu.y1==L::barsButton.y1);
+  for(std::size_t key=0;key<8;++key){
+    const auto r=L::patternButton(key);
+    CHECK(r.y0==L::headerButtonY&&r.y1==L::barsButton.y1);
+    CHECK(r.y0+8.<r.y1-8.);
+  }
   CHECK(L::headerGroup(0).x1+8.==L::headerGroup(1).x0);
   CHECK(L::headerKnobCenters.size()==3);
   CHECK(L::headerKnob(0).x0>L::headerGroup(1).x1+20.);
