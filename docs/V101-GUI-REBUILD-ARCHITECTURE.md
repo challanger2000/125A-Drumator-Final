@@ -22,4 +22,14 @@ Build a **new GUI layer around the existing working controller**, rather than mo
 5. **Host lifecycle and QA**: full existing CTest/independent plugin tester and native 100/120/130/150% images. Extend tests for new positions; **do not weaken or silently edit existing V1.0.0 regression assertions**. Keep a legacy-mode integration suite if migration changes old-coordinate UI fixtures.
 6. **Only then** activate the new view by default. No main merge or release without explicit final approval.
 
-Current state: **Gate 1 in progress**; layout and initial deterministic tests created. The old view remains active. No claims of visible GUI progress until gate 2 generates its first genuine VSTGUI image.
+## Status after isolated native VSTGUI prototype and asset reuse (27 Oct 2026)
+
+- **Gate 1 passed**: standalone geometry / mouse-hit CTest included in the 24/24 successful tests in Windows Actions #40552248030, along with Validator 47/47 and independent plugin tester PASS.
+- **Gate 2 prototype exists**: native VSTGUI offscreen Windows rendering at 100% and raster-scaled 130%, distinct from actual host-side zoom and distinct from the active controller-backed plugin editor.
+- **Real graphic resources now wired into the prototype**: the authoritative 125A SVG paths already present in V1.0.0 (`BrandLogoGeometry.h`), original `Metallisches DRUMATOR-Logo.png` and original `125A_Drumator_Knob.png` with all 101 frames. Step keycaps use the original V1.0 accepted paint colors and geometry adapted to the new 48px row. Original controller/processor sources remain unchanged.
+- **Fail-closed native render**: the integration capture requires the original logo PNG and exactly 125x12625 rotary sprites. It must not quietly substitute painted placeholders for missing assets.
+- **New V1.0.1 hardware buttons**: the silver keycap family is VSTGUI code intended to be carried into the actual V1.0.1 editor, **not** a claimed existing PNG from V1.0.0. Mouse activation is not connected yet.
+- **Pending acceptance**: current sprite-integrated source has **not yet been Windows-built or visually reviewed**. The last validated commit predates the sprite integration. Perform one manually dispatched Actions build after the completed work package and inspect its genuine images and pixel checks before claiming success.
+- **Cost control**: V1.0.1 branch removed from push-triggered full Windows QA in `c2afc3e`; run `core-ci.yml` by `workflow_dispatch` for coherent milestones. `main` and release push checks remain automated.
+
+Current working gate: **2 — integrate authentic GUI assets and inspect native pixels**, while preserving a separate known-working V1.0.0 view. Then proceed to gate 3 in batches.
