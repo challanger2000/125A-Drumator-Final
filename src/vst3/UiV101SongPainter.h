@@ -22,6 +22,11 @@ struct UiV101SongPainter final {
                   std::size_t page,std::size_t slot,
                   const char* status=""){
    constexpr double top=UiV101Layout::header,bottom=432.;
+   // SONG mode has no instrument step ruler; hide the underlying main-grid
+   // captions without changing the shared top-row key hit map.
+   P::fill(c,{7.,138.,1273.,top},P::Skin::navyWell());
+   P::label(c,"SONG EDITOR  /  64-POSITION CHAIN",
+            {28.,139.,627.,156.},10,{169,193,210,255},false);
    P::fill(c,{0.,top,1280.,bottom},{115,109,102,255});
    P::satin(c,{6.,top+2.,1274.,bottom-6.},
             {215,207,196,255},{192,184,173,255},
