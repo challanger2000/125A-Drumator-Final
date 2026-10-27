@@ -870,6 +870,18 @@ void testV101Interaction(){
  UI ui(*f.c);
  check(ui.shownRows()==10&&ui.height()==686.,
        "V101 initial page size/150-percent height incorrect");
+ // Every raised key uses identical physical y-bounds and the old low
+ // positions must not receive invisible clicks under the hardware bezel.
+ check(L::patternButton(0).y0==L::barsButton.y0&&
+       L::patternMenu.y0==L::barsButton.y0&&
+       L::headerGroup(0).y0==L::barsButton.y0&&
+       L::headerGroup(1).y1==L::barsButton.y1&&
+       L::patternButton(7).y1==L::barsButton.y1,
+       "V101 raised PATTERN/BARS/SONG button family misaligned");
+ check(ui.down(40.,135.)==UI::Result::Ignored,
+       "V101 obsolete low header click area remains active");
+ check(ui.down(382.,115.)==UI::Result::DeferredToView,
+       "V101 raised PTNR MENU must defer to a real popup");
  // Real host/controller pattern and song commands, not UI-only highlights.
  check(ui.down(170.,120.)==UI::Result::Applied&&f.c->currentPattern()==3&&
        hostHandler.calls==1&&std::abs(hostHandler.last-3./7.)<.00001,
