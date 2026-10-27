@@ -386,3 +386,26 @@ resource safely packaged into the development VST3 bundle, **not** a claim
 that the shipped V1.0.0 view displays the new asset. The controller-connected
 new V1.0.1 view has not yet been attached to the actual DAW plugin/editor.
 `main` and release branch remain unchanged.
+
+### V1.0.1 footer fastener clearance and compact pagination (27 October 2026)
+
+After owner screenshot review, both lower cabinet screws were obscured by
+the footer paint, and the two page buttons were too large and misaligned.
+The inset footer panel now spans x=32..1248 (instead of 14..1260), with
+original case fasteners at x=14 and x=1266 explicitly painted **after**
+the footer. The existing original screw art is untouched.
+
+The page keys now use identical **95x25** satin hardware caps,
+`UiV101Layout::footerPrev` x=1020..1115 and
+`footerNext` x=1130..1225, both y=10..35 relative to the
+48px footer. `UiV101Interaction` uses precisely the same rectangles;
+the old 120/130x31 invisible click regions are removed. The counter
+is repositioned inside the inset panel without altering any song,
+instrument, DSP or controller data.
+
+Compile-time geometry assertions protect screws and footer clearances;
+native regression tests assert correct page navigation, inactive old
+hit zones, and **both visible screws in the rendered VSTGUI pixels**.
+The earlier centered 125A master SVG is included in this source
+candidate and remains unreleased. **Native Windows CI not yet run** for
+this footer package; evaluate it with one grouped QA/screenshot build.
