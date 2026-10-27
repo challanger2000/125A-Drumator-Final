@@ -148,23 +148,59 @@ struct UiV101NativePreview final {
      path->forget();
    }
  }
- // Light-metallic, engraved header lettering replaces the heavy old
- // black-background-era title artwork. Draw it with native VSTGUI glyphs,
- // not a synthetic static screenshot. It remains visually adjustable until
- // the owner approves the material and font tracking.
- static void engravedTitle(VSTGUI::CDrawContext& c){
-   constexpr char name[]="DRUMATOR";
-   for(int i=0;i<8;++i){
-     const char glyph[2]={name[i],'\0'};
-     const double left=426.+51.*i;
-     // The offset bevel shadows imitate CNC-engraved steel lettering.
-     label(c,glyph,{left-1.,10.,left+48.,71.},44,
-           {245,236,224,255});
-     label(c,glyph,{left+1.,12.,left+50.,73.},44,
-           {93,83,77,255});
-     label(c,glyph,{left,11.,left+49.,72.},44,
-           {52,54,58,255});
-   }
+ // The user-supplied original PNG is the only V1.0.1 title source.
+ // Measure alpha only ONCE when the view loads its image resource, never
+ // when audio-driven editor repaints occur. Trim transparent canvas in the
+ // layout calculation; leave the original user filename and pixels intact.
+ struct TitleBounds final {
+   double left=0.,top=0.,width=0.,height=0.;
+   bool valid()const noexcept{return width>0.&&height>0.;}
+ };
+ static TitleBounds measureTitle(VSTGUI::CBitmap* image){
+   if(!image||image->getWidth()<1.||image->getHeight()<1.)return {};
+   auto* pixels=VSTGUI::CBitmapPixelAccess::create(image,false);
+   if(!pixels)return {};
+   const auto w=pixels->getBitmapWidth(),h=pixels->getBitmapHeight();
+   std::uint32_t xMin=w,yMin=h,xMax=0,yMax=0;
+   bool found=false;
+   for(std::uint32_t y=0;y<h;++y)
+     for(std::uint32_t x=0;x<w;++x){
+       if(!pixels->setPosition(x,y))continue;
+       VSTGUI::CColor rgba{};pixels->getColor(rgba);
+       if(rgba.alpha<8)continue;
+       found=true;
+       xMin=std::min(xMin,x);xMax=std::max(xMax,x);
+       yMin=std::min(yMin,y);yMax=std::max(yMax,y);
+     }
+   pixels->forget();
+   if(!found)return {};
+   return {static_cast<double>(xMin),static_cast<double>(yMin),
+           static_cast<double>(xMax-xMin+1),
+           static_cast<double>(yMax-yMin+1)};
+ }
+ static VSTGUI::CRect titleTarget(TitleBounds bounds){
+   if(!bounds.valid())return {};
+   // Stays between the 125A enamel badge (right edge x=157) and the
+   // existing ZOOM selector on the far right; no flattening/distortion.
+   constexpr double left=192.,right=1118.,top=7.,bottom=76.;
+   const double fit=std::min((right-left)/bounds.width,
+                             (bottom-top)/bounds.height);
+   const double width=bounds.width*fit,height=bounds.height*fit;
+   return {(left+right-width)/2.,(top+bottom-height)/2.,
+           (left+right+width)/2.,(top+bottom+height)/2.};
+ }
+ static void hardwareTitle(VSTGUI::CDrawContext& c,VSTGUI::CBitmap* logo,
+                           TitleBounds bounds){
+   if(!logo||!bounds.valid())return;
+   const auto dest=titleTarget(bounds);
+   const double sf=dest.getWidth()/bounds.width;
+   const double x=dest.left-bounds.left*sf;
+   const double y=dest.top-bounds.top*sf;
+   // As with the original V1.0 sprite, the VSTGUI transform scales the
+   // existing PNG and preserves its original alpha, lightbars and glows.
+   VSTGUI::CDrawContext::Transform tx(c,
+      VSTGUI::CGraphicsTransform().scale(sf,sf).translate(x,y));
+   logo->draw(&c,{0.,0.,logo->getWidth(),logo->getHeight()});
  }
  // Same 125x125, 101-frame JKnobMan image used by V1.0; the actual
  // opaque dial sits inside its transparent frame. Not a painted imitation.
@@ -302,6 +338,7 @@ struct UiV101NativePreview final {
    originalDial(c,sprite,x,y,std::clamp(fraction,0.,1.),50.);
  }
  static void draw(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* knobSprite,
+                  VSTGUI::CBitmap* titlePng,TitleBounds titleBounds,
                   const Scene& scene,
                   bool zoomMenuOpen=false,std::size_t zoomPreset=0,
                   const UiV101Interaction::State& ui={}){
@@ -337,9 +374,9 @@ struct UiV101NativePreview final {
    rounded(c,{30.,14.,153.,71.},{25,27,29,255},4.);
    fill(c,{35.,15.,148.,16.},{141,137,132,255});
    brandLogo(c,32.,12.,55.);
-   // The old dark-fascia PNG is kept only for V1.0.0 compatibility.
-   // V1.0.1 paints its own engraved lettering and does not decode that PNG.
-   engravedTitle(c);
+   // The unchanged user PNG (including both amber lightbars) replaces
+   // the temporary per-character engraving, at native alpha transparency.
+   hardwareTitle(c,titlePng,titleBounds);
    // The percentage and dropdown affordance identify the single zoom control;
    // no redundant "ZOOM" legend or decorative separating line.
    // The menu itself is painted as an
