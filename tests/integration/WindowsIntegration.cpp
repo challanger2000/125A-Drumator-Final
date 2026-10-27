@@ -1192,6 +1192,7 @@ void testV101LiveEditor(){
        view->getViewSize().getHeight()==UiCompactLayout::songEditorHeight,
        "V101 SONG board did not open at its real native height");
  captureVstgui(*view,"v101-song-board-hardware-100",1.0);
+ captureVstgui(*view,"v101-song-board-hardware-130",1.3);
  const auto songCount=f.c->songCount();
  click(*view,181.,352.); // Pattern B for selected entry
  check(f.c->songEntry(0).pattern==1,
@@ -1243,6 +1244,7 @@ void testV101LiveEditor(){
  check(IntegrationAccess::sampleEditorOpen(*view),
        "V101 real Wave editor did not open for rendering verification");
  captureVstgui(*view,"v101-wave-editor-hardware-100",1.0);
+ captureVstgui(*view,"v101-wave-editor-hardware-130",1.3);
  const auto preEdit=IntegrationAccess::sampleEditorDraft(*view);
  click(*view,300.,210.);
  check(IntegrationAccess::sampleEditorDraft(*view).start!=preEdit.start,
