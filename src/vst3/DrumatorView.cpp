@@ -984,6 +984,135 @@ DrumatorView::DrumatorView(const VSTGUI::CRect& size,
  v101TitleBitmap_=new VSTGUI::CBitmap(
      VSTGUI::CResourceDescription("Futuristisches Metalllogo DRUMATOR.png"));
 }
+void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
+ using Painter=v101::UiV101NativePreview;
+ if(!v101TitleMeasured_) {
+   const auto bounds=Painter::measureTitle(v101TitleBitmap_);
+   v101TitleBounds_={{bounds.left,bounds.top,bounds.width,bounds.height}};
+   v101TitleMeasured_=true;
+ }
+ const Painter::TitleBounds title{v101TitleBounds_[0],v101TitleBounds_[1],
+                                  v101TitleBounds_[2],v101TitleBounds_[3]};
+ auto scene=v101::captureControllerScene(controller_);
+ Painter::draw(*c,static_cast<VSTGUI::CMultiFrameBitmap*>(knobBitmap_),
+               v101TitleBitmap_,title,scene,v101_.state().zoomOpen,
+               v101_.state().zoomIndex,v101_.state());
+ drawV101Menu(c);
+}
+void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
+ if(v101Menu_==UiV101Popup::Kind::None)return;
+ using Painter=v101::UiV101NativePreview;
+ const auto first=v101_.state().firstRow;
+ const auto valid=v101MenuRow_>=first&&
+                  v101MenuRow_<first+v101_.shownRows();
+ const double rowY=valid?
+   UiV101Layout::rowTop(first,v101MenuRow_-first,v101_.expandedRows()):
+   UiV101Layout::header;
+ const auto g=UiV101Popup::geometry(v101Menu_,rowY,v101_.height());
+ Painter::fill(*c,{g.x-4.,g.y-4.,g.x+g.width+4.,
+                   g.y+g.rows*g.cellHeight+4.},{17,26,36,255});
+ Painter::border(*c,{g.x-4.,g.y-4.,g.x+g.width+4.,
+                     g.y+g.rows*g.cellHeight+4.},{100,111,120,255});
+ for(int i=0;i<UiV101Popup::count(v101Menu_);++i) {
+   char outputText[24]{};
+   const char* caption=UiV101Popup::label(v101Menu_,i);
+   if(v101Menu_==UiV101Popup::Kind::Output) {
+     std::snprintf(outputText,sizeof(outputText),i==0?"MAIN":"OUT %d",i);
+     caption=outputText;
+   }
+   Painter::cap(*c,UiV101Popup::cell(g,i),0.,caption,false,10);
+ }
+}
+bool DrumatorView::applyV101Menu(int option) {
+ const auto kind=v101Menu_;
+ const auto row=v101MenuRow_;
+ if(option<0||option>=UiV101Popup::count(kind))return true;
+ if(kind!=UiV101Popup::Kind::Pattern&&row>=controller_.visibleRows())return false;
+ switch(kind) {
+   case UiV101Popup::Kind::Pattern:
+     return option==0?controller_.copyCurrentPattern():
+            option==1?controller_.pasteCurrentPattern():
+            option==2?controller_.clearCurrentPattern():
+            option==3?controller_.undoCurrentPattern():
+            option==4?controller_.varyPatternVelocity():
+            option==5?controller_.resetPatternVelocity():
+                      controller_.duplicateCurrentPattern();
+   case UiV101Popup::Kind::Fill: {
+     constexpr RowFill patterns[]{RowFill::Every2,RowFill::Every4,RowFill::Every8,
+         RowFill::Snare24,RowFill::All,RowFill::Offbeat8,
+         RowFill::Gallop,RowFill::SnareGhost};
+     return controller_.fillRow(row,patterns[option]);
+   }
+   case UiV101Popup::Kind::Output:
+     return controller_.setRowOutput(row,static_cast<unsigned>(option));
+   case UiV101Popup::Kind::Choke:
+     return controller_.setRowChoke(row,static_cast<unsigned>(option));
+   case UiV101Popup::Kind::Sample:
+     if(option==0){load(row);return true;}
+     if(option==1){editName(row);return true;}
+     return controller_.clearSample(row);
+   case UiV101Popup::Kind::None:return true;
+ }
+ return false;
+}
+bool DrumatorView::v101MouseDown(double x,double y,bool erase) {
+ if(v101Menu_!=UiV101Popup::Kind::None) {
+   const auto first=v101_.state().firstRow;
+   const bool valid=v101MenuRow_>=first&&
+                    v101MenuRow_<first+v101_.shownRows();
+   const double rowY=valid?
+     UiV101Layout::rowTop(first,v101MenuRow_-first,v101_.expandedRows()):
+     UiV101Layout::header;
+   const auto g=UiV101Popup::geometry(v101Menu_,rowY,v101_.height());
+   const int option=UiV101Popup::hit(v101Menu_,g,x,y);
+   const bool ok=applyV101Menu(option);
+   v101Menu_=UiV101Popup::Kind::None;
+   v101MenuRow_=kRows;
+   if(!ok)status_="MENU ACTION NOT APPLIED";
+   invalid();return true;
+ }
+ const auto previous=v101_.state();
+ const auto previousHeight=v101_.height();
+ const auto result=v101_.down(x,y,erase);
+ using R=UiV101Interaction::Result;
+ using K=UiV101Interaction::DeferredKind;
+ if(result==R::DeferredToView) {
+   const auto request=v101_.takeDeferredRequest();
+   v101MenuRow_=request.row;
+   switch(request.kind) {
+     case K::PatternMenu:v101Menu_=UiV101Popup::Kind::Pattern;break;
+     case K::Fill:v101Menu_=UiV101Popup::Kind::Fill;break;
+     case K::OutputMenu:v101Menu_=UiV101Popup::Kind::Output;break;
+     case K::ChokeMenu:v101Menu_=UiV101Popup::Kind::Choke;break;
+     case K::SampleMenu:v101Menu_=UiV101Popup::Kind::Sample;break;
+     case K::SongEditor:
+       songEditorOpen_=true;(void)adjustEditorHeight();break;
+     case K::SampleEditor:
+       if(!openSampleEditor(request.row))status_="SAMPLE EDITOR UNAVAILABLE";
+       break;
+     case K::LoadSample:load(request.row);break;
+     case K::Zoom: {
+       const auto zoom=v101_.userZoom();
+       const bool ok=static_cast<DrumatorEditor&>(editor_).setZoomChecked(zoom);
+       v101_.confirmZoom(ok);
+       if(ok)controller_.rememberZoom(zoom);
+       else status_="HOST REJECTED ZOOM";
+       break;
+     }
+     case K::None:break;
+   }
+ }
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_&&
+    v101_.height()!=previousHeight&&!adjustEditorHeight()) {
+   v101_.restoreLayout(previous);
+   (void)adjustEditorHeight();
+   status_="HOST REJECTED ROW VIEW RESIZE";
+ }
+ if(result==R::Failed)status_="CONTROL ACTION NOT APPLIED";
+ if(result!=R::Ignored)invalid();
+ return result!=R::Ignored;
+}
+
 void DrumatorView::draw(VSTGUI::CDrawContext* c) {
  if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
    drawV101(c);
