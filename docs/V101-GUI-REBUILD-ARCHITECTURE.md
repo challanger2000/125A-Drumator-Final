@@ -236,3 +236,22 @@ capture oracles are intentionally retained, not weakened.
 
 **QA for this material pass: pending one batched Windows workflow run.
 Visual acceptance pending inspection of its genuine screenshot.**
+
+### Actual screenshot design review and socket correction
+
+The first dimensional-material Windows Actions run **#40574975025**
+completed with Windows/CTest/Validator/native-raster and independent plugin
+tester jobs SUCCESS, but real 100% screenshot review revealed that the
+new rotary mounting sockets (radius 28–30px) were visually oversized:
+row sockets nearly touched across 48px lanes and header sockets obscured
+the SWING/HUMANIZE/MASTER engraving. This is a **real visual regression**,
+not a functional QA failure.
+
+Source fix `e8a01d3`: reduce row socket outer radius to 23px and header
+socket to 22px; suppress overly pronounced steel brush lines. Follow-up
+`a8a2271`: compile-time geometry contracts guarantee the 48px row
+socket cannot overlap its neighbor and header mount stays within its
+designated segment. No GUI hit rectangles or DSP/Controller changes.
+
+**Corrected source not yet Windows-rendered at time of this note**;
+one combined QA/capture pass must verify the actual pixel result.
