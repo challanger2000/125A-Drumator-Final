@@ -1073,7 +1073,7 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
  }
  drawControl(c,{UiCompactLayout::patternTools.left,UiCompactLayout::headerButtonTop,
                UiCompactLayout::patternTools.right,UiCompactLayout::headerButtonBottom},
-             "PATTERN MENU",popup_==2,true,11);
+             "PTNR",popup_==2,true,11);
  drawControl(c,{UiCompactLayout::songToggle.left,UiCompactLayout::headerButtonTop,
                UiCompactLayout::songToggle.right,UiCompactLayout::headerButtonBottom},
              controller_.songEnabled()?"SONG ON":"SONG OFF",
