@@ -157,6 +157,24 @@ struct UiV101NativePreview final {
      VSTGUI::CGraphicsTransform().scale(sf,sf).translate((1280.-w)/2.,-9.));
    logo->draw(&c,{0.,0.,logo->getWidth(),logo->getHeight()});
  }
+ // Light-metallic, engraved header lettering replaces the heavy old
+ // black-background-era title artwork. Draw it with native VSTGUI glyphs,
+ // not a synthetic static screenshot. It remains visually adjustable until
+ // the owner approves the material and font tracking.
+ static void engravedTitle(VSTGUI::CDrawContext& c){
+   constexpr char name[]="DRUMATOR";
+   for(int i=0;i<8;++i){
+     const char glyph[2]={name[i],'\0'};
+     const double left=426.+51.*i;
+     // The offset bevel shadows imitate CNC-engraved steel lettering.
+     label(c,glyph,{left-1.,10.,left+48.,71.},44,
+           {245,236,224,255});
+     label(c,glyph,{left+1.,12.,left+50.,73.},44,
+           {93,83,77,255});
+     label(c,glyph,{left,11.,left+49.,72.},44,
+           {52,54,58,255});
+   }
+ }
  // Same 125x125, 101-frame JKnobMan image used by V1.0; the actual
  // opaque dial sits inside its transparent frame. Not a painted imitation.
  static void originalDial(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* sprite,
@@ -259,7 +277,7 @@ struct UiV101NativePreview final {
                         double cx,double cy,double fraction,
                         const char* title,const char* readout){
    fraction=std::clamp(fraction,0.,1.);
-   label(c,title,{cx-46.,85.,cx+46.,100.},11,{55,56,58,255});
+   label(c,title,{cx-46.,78.,cx+46.,91.},10,{55,56,58,255});
    // Small recessed socket; must not cover SWING/HUMANIZE/MASTER labels.
    c.setFillColor({62,58,53,255});
    c.drawEllipse({cx-kHeaderMountRadius,cy-kHeaderMountRadius,cx+kHeaderMountRadius,cy+kHeaderMountRadius},VSTGUI::kDrawFilled);
@@ -276,8 +294,8 @@ struct UiV101NativePreview final {
      c.setFrameColor({64,66,68,255});
      c.drawLine({cx+dx*22.,cy+dy*22.},{cx+dx*24.,cy+dy*24.});
    }
-   originalDial(c,sprite,cx,cy,fraction,55.);
-   label(c,readout,{cx+26.,108.,cx+54.,133.},10,{45,48,52,255},false);
+   originalDial(c,sprite,cx,cy,fraction,44.);
+   label(c,readout,{cx+24.,101.,cx+54.,126.},10,{45,48,52,255},false);
  }
  static void dial(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* sprite,
                   double x,double y,int value,int index){
@@ -328,7 +346,11 @@ struct UiV101NativePreview final {
    rounded(c,{30.,14.,153.,71.},{25,27,29,255},4.);
    fill(c,{35.,15.,148.,16.},{141,137,132,255});
    brandLogo(c,32.,12.,55.);
-   titleBitmap(c,productTitle);
+   // The earlier metallic PNG was designed for a dark fascia.
+   // Keep its resource parameter for the isolated regression interface,
+   // but replace its rendering with the new engraved silver title.
+   (void)productTitle;
+   engravedTitle(c);
    // The percentage and dropdown affordance identify the single zoom control;
    // no redundant "ZOOM" legend or decorative separating line.
    // The menu itself is painted as an
@@ -339,29 +361,30 @@ struct UiV101NativePreview final {
    std::snprintf(zoomCaption,sizeof(zoomCaption),"%s  v",zoomNames[selected]);
    cap(c,L::zoomTrigger,0.,zoomCaption,zoomMenuOpen,11);
    // Actual Drumator features only. This header is not yet interactive.
-   rounded(c,{21.,82.,1260.,141.},{117,108,99,255},4.);
-   rounded(c,{23.,84.,1258.,138.},Skin::headerWell(),3.);
-   satin(c,{26.,86.,1255.,136.},
+   // Raise the entire control bay and align its LEFT boundary with the
+   // midnight-blue instrument chassis below. Earlier 21px inset was wrong.
+   rounded(c,{12.,78.,1260.,137.},{117,108,99,255},4.);
+   rounded(c,{14.,80.,1258.,135.},Skin::headerWell(),3.);
+   satin(c,{17.,82.,1255.,133.},
          {216,210,199,255},Skin::headerSurface(),
          {186,179,169,255},18);
-   fill(c,{28.,85.,1253.,86.},{237,229,216,255});
-   fill(c,{28.,136.,1253.,137.},{113,105,98,255});
-   border(c,{22.,83.,1259.,139.},Skin::panelEdge());
-   // Engraved panel divisions, painted behind all interactive controls.
+   fill(c,{19.,80.,1253.,81.},{237,229,216,255});
+   fill(c,{19.,134.,1253.,135.},{113,105,98,255});
+   border(c,{13.,79.,1259.,136.},Skin::panelEdge());
    for(const double xx:{350.,521.,729.,1115.}){
-     fill(c,{xx,86.,xx+1.,136.},{151,141,131,255});
-     fill(c,{xx+1.,86.,xx+2.,136.},{227,218,206,255});
+     fill(c,{xx,81.,xx+1.,134.},{151,141,131,255});
+     fill(c,{xx+1.,81.,xx+2.,134.},{227,218,206,255});
    }
-   label(c,"PATTERN",{33.,85.,154.,104.},11,{51,54,57,255},false);
-   for(int i=0;i<8;++i){
+   label(c,"PATTERN",{33.,80.,154.,96.},11,{51,54,57,255},false);
+   for(std::size_t i=0;i<8;++i){
      const char key[2]={static_cast<char>('A'+i),'\0'};
-     L::Rect r{33.+i*39.,29.,68.+i*39.,63.};
-     cap(c,r,78.,key,i==static_cast<int>(scene.pattern),12);
+     cap(c,L::patternButton(i),0.,key,i==scene.pattern,12);
    }
-   label(c,"PTNR",{356.,85.,412.,104.},10,{54,54,54,255});
-   // The two SONG functions are buttons; global tonal controls stay knobs.
-   cap(c,{364.,29.,414.,63.},78.,"MENU");
-   cap(c,{431.,29.,514.,63.},78.,scene.patternLength==32?"2 BARS":"1 BAR");
+   label(c,"PTNR",{356.,80.,412.,96.},10,{54,54,54,255});
+   // One identical 32px machined keycap and vertical baseline for all
+   // header actions: PATTERN, MENU, 1/2 BARS, SONG, SONG EDIT.
+   cap(c,L::patternMenu,0.,"MENU");
+   cap(c,L::barsButton,0.,scene.patternLength==32?"2 BARS":"1 BAR");
    cap(c,L::headerGroup(0),0.,"SONG",scene.songEnabled,11);
    cap(c,L::headerGroup(1),0.,"SONG EDIT",false,10);
    char swingText[18]{},humanText[18]{},masterText[18]{};
