@@ -96,6 +96,40 @@ struct UiV101NativePreview final {
    c.drawLine({cx-9.,cy-1.},{cx-9.,cy+7.});
    c.drawLine({cx+9.,cy-1.},{cx+9.,cy+7.});
  }
+ // Smaller hardware rotary with a steel mounting ring, scale and brushed face.
+ // Used for the three actual global parameters, not painted as buttons.
+ static void headerDial(VSTGUI::CDrawContext& c,double cx,double cy,double fraction,
+                        const char* title,const char* readout){
+   fraction=std::clamp(fraction,0.,1.);
+   label(c,title,{cx-48.,85.,cx+48.,100.},11,{55,56,58,255});
+   c.setFillColor({104,102,99,255});
+   c.drawEllipse({cx-20.,cy-19.,cx+20.,cy+21.},VSTGUI::kDrawFilled);
+   c.setFillColor({22,25,30,255});
+   c.drawEllipse({cx-18.,cy-18.,cx+18.,cy+18.},VSTGUI::kDrawFilled);
+   c.setFrameColor({202,204,201,255});
+   c.setLineWidth(1.);
+   c.drawEllipse({cx-17.,cy-17.,cx+17.,cy+17.},VSTGUI::kDrawStroked);
+   constexpr double kPi=3.14159265358979323846;
+   for(int tick=0;tick<9;++tick){
+     const double angle=(-135.+static_cast<double>(tick)*270./8.)*kPi/180.;
+     const double dx=std::sin(angle),dy=-std::cos(angle);
+     c.setFrameColor({62,63,65,255});
+     c.drawLine({cx+dx*21.,cy+dy*21.},{cx+dx*23.,cy+dy*23.});
+   }
+   c.setFillColor({49,54,60,255});
+   c.drawEllipse({cx-13.,cy-13.,cx+13.,cy+13.},VSTGUI::kDrawFilled);
+   c.setFrameColor({150,155,159,255});
+   c.drawEllipse({cx-12.,cy-12.,cx+12.,cy+12.},VSTGUI::kDrawStroked);
+   c.setFillColor({26,30,35,255});
+   c.drawEllipse({cx-9.,cy-9.,cx+9.,cy+9.},VSTGUI::kDrawFilled);
+   const double a=(-135.+fraction*270.)*kPi/180.;
+   const double dx=std::sin(a),dy=-std::cos(a);
+   c.setFrameColor({238,240,236,255});
+   c.setLineWidth(2.);
+   c.drawLine({cx+dx*3.,cy+dy*3.},{cx+dx*11.,cy+dy*11.});
+   c.setLineWidth(1.);
+   label(c,readout,{cx+24.,107.,cx+51.,132.},10,{47,49,52,255},false);
+ }
  static void dial(VSTGUI::CDrawContext& c,double x,double y,int row,int index){
    const int values[][3]={{60,50,57},{47,50,49},{52,50,50},{49,50,50},
        {57,52,50},{55,45,50},{59,50,54},{47,49,50},{51,50,46},{55,53,50}};
@@ -162,15 +196,14 @@ struct UiV101NativePreview final {
      cap(c,r,78.,key,i==0,12);
    }
    label(c,"PTNR",{356.,85.,412.,104.},10,{54,54,54,255});
-   // Fixed cap family: identical physical size, baselines and spacing.
-   // Values represent existing Drumator feature groups, not added DSP.
-   constexpr std::array<const char*,5> groupNames{{
-     "SONG","KIT","SWING","HUMANIZE","MASTER"
-   }};
+   // The two SONG functions are buttons; global tonal controls stay knobs.
    cap(c,{364.,29.,414.,63.},78.,"MENU");
    cap(c,{431.,29.,514.,63.},78.,"2 BARS");
-   for(std::size_t i=0;i<groupNames.size();++i)
-     cap(c,L::headerGroup(i),0.,groupNames[i],false,11);
+   cap(c,L::headerGroup(0),0.,"SONG",false,11);
+   cap(c,L::headerGroup(1),0.,"SONG EDIT",false,10);
+   headerDial(c,L::headerKnobCenters[0],L::headerKnobY,.30,"SWING","15%");
+   headerDial(c,L::headerKnobCenters[1],L::headerKnobY,.10,"HUMANIZE","10%");
+   headerDial(c,L::headerKnobCenters[2],L::headerKnobY,.50,"MASTER","100%");
    fill(c,{1132.,109.,1146.,129.},{20,30,41,255});
    fill(c,{1151.,105.,1160.,129.},{29,54,65,255});
    fill(c,{1164.,111.,1174.,129.},{29,62,82,255});

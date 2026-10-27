@@ -7,16 +7,23 @@ int main(){
   CHECK(L::zoomPresets.size()==4);
   CHECK(L::zoomPresets[0]==1.&&L::zoomPresets[1]==1.2);
   CHECK(L::zoomPresets[2]==1.3&&L::zoomPresets[3]==1.5);
-  // Label-specific fixed sizes; uniform 34px cap height and 9px spacing.
-  constexpr std::array<double,5> capWidths{{84.,74.,96.,112.,102.}};
-  for(std::size_t i=0;i<L::headerGroupCount;++i){
-    const auto r=L::headerGroup(i);
-    CHECK(r.x1-r.x0==capWidths[i]&&r.y1-r.y0==34.);
-    CHECK(r.hit(r.x0+4.,r.y0+4.));
-    if(i)CHECK(L::headerGroup(i-1).x1+9.==r.x0);
+  // SONG and SONG EDIT are the only buttons in this group.
+  CHECK(L::headerGroupCount==2);
+  CHECK(L::headerGroup(0).x1-L::headerGroup(0).x0==83.);
+  CHECK(L::headerGroup(1).x1-L::headerGroup(1).x0==98.);
+  CHECK(L::headerGroup(0).y1-L::headerGroup(0).y0==30.);
+  CHECK(L::headerGroup(1).y1-L::headerGroup(1).y0==30.);
+  CHECK(L::headerGroup(0).x1+8.==L::headerGroup(1).x0);
+  CHECK(L::headerKnobCenters.size()==3);
+  CHECK(L::headerKnob(0).x0>L::headerGroup(1).x1+20.);
+  for(std::size_t i=0;i<L::headerKnobCenters.size();++i){
+    const auto area=L::headerKnob(i);
+    CHECK(area.x1-area.x0==36.);
+    CHECK(area.y1-area.y0==36.);
+    CHECK(area.hit(L::headerKnobCenters[i],L::headerKnobY));
+    if(i)CHECK(area.x0>L::headerKnob(i-1).x1+60.);
   }
-  CHECK(L::headerGroup(0).x0>514.);
-  CHECK(L::headerGroup(4).x1<1132.);
+  CHECK(L::headerKnob(2).x1<1132.);
   CHECK(L::zoomHit(1200.,25.,false)==-2);
   CHECK(L::zoomHit(1200.,25.,true)==-2);
   for(std::size_t i=0;i<L::zoomPresets.size();++i){

@@ -11,9 +11,9 @@ struct UiV101Layout final {
   static constexpr std::size_t instruments=16,visibleRows=10,steps=32;
   static constexpr double width=1280.,header=158.,rowHeight=48.,expansionHeight=48.,footer=48.;
   static constexpr double stepX=420.,stepPitch=19.,stepEnd=stepX+steps*stepPitch;
-  // Compact fixed-size hardware caps: widths depend on control type, never runtime text.
-  // SONG / KIT / SWING / HUMANIZE / MASTER: identical height and 9px gutters.
-  static constexpr std::size_t headerGroupCount=5;
+  // Only SONG and SONG EDIT are buttons. The existing SWING, HUMANIZE,
+  // MASTER controls are rotary encoders, not further menu buttons.
+  static constexpr std::size_t headerGroupCount=2;
   // Zoom presets are the actual existing Drumator choices, never visual guesses.
   static constexpr auto zoomPresets=UiCompactLayout::userZooms;
   static constexpr double knobRadius=18.;
@@ -25,12 +25,17 @@ struct UiV101Layout final {
     }
   };
   static constexpr std::array<Rect,headerGroupCount> headerGroups{{
-    {529.,107.,613.,141.},  // SONG     84
-    {622.,107.,696.,141.},  // KIT      74
-    {705.,107.,801.,141.},  // SWING    96
-    {810.,107.,922.,141.},  // HUMANIZE 112
-    {931.,107.,1033.,141.}  // MASTER   102
+    {527.,105.,610.,135.}, // SONG ON/OFF
+    {618.,105.,716.,135.}  // SONG EDIT
   }};
+  static constexpr double headerKnobY=119.,headerKnobRadius=18.;
+  static constexpr std::array<double,3> headerKnobCenters{{785.,907.,1029.}};
+  static constexpr Rect headerKnob(std::size_t i) noexcept{
+    return {headerKnobCenters[i]-headerKnobRadius,
+            headerKnobY-headerKnobRadius,
+            headerKnobCenters[i]+headerKnobRadius,
+            headerKnobY+headerKnobRadius};
+  }
   static constexpr Rect headerGroup(std::size_t i) noexcept{
     return headerGroups[i];
   }
@@ -133,7 +138,9 @@ struct UiV101Layout final {
 };
 // MSVC evaluates constexpr function bodies reliably after the class is complete.
 static_assert(UiV101Layout::headerGroups[0].x0>514.);
-static_assert(UiV101Layout::headerGroups[4].x1<1132.);
+static_assert(UiV101Layout::headerGroups[1].x1+26.<=
+              UiV101Layout::headerKnobCenters[0]-UiV101Layout::headerKnobRadius);
+static_assert(UiV101Layout::headerKnobCenters[2]+UiV101Layout::headerKnobRadius<1132.);
 static_assert(UiV101Layout::zoomPresets[0]==1.0 &&
               UiV101Layout::zoomPresets[1]==1.2 &&
               UiV101Layout::zoomPresets[2]==1.3 &&
