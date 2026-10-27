@@ -64,13 +64,12 @@ jobs:
           New-Item -ItemType Directory -Path $binaryDirectory,$resourceDirectory -Force | Out-Null
           Copy-Item $found[0].FullName -Destination (Join-Path $binaryDirectory '125A Drumator.vst3')
           Copy-Item 'resource/Drumator.uidesc' -Destination (Join-Path $resourceDirectory 'Drumator.uidesc')
-          Copy-Item 'resource/abstraktes_blaues_metall_mit_sanftem_glanz.png' -Destination (Join-Path $resourceDirectory 'abstraktes_blaues_metall_mit_sanftem_glanz.png')
           Copy-Item 'resource/125A_Drumator_Knob.png' -Destination (Join-Path $resourceDirectory '125A_Drumator_Knob.png')
           Copy-Item 'resource/125A_Drumator_Screw.png' -Destination (Join-Path $resourceDirectory '125A_Drumator_Screw.png')
           Copy-Item 'resource/125A_Drumator_Faceplate.png' -Destination (Join-Path $resourceDirectory '125A_Drumator_Faceplate.png')
           Copy-Item 'resource/Metallisches DRUMATOR-Logo.png' -Destination (Join-Path $resourceDirectory 'Metallisches DRUMATOR-Logo.png')
           $moduleInfo = Join-Path $resourceDirectory 'moduleinfo.json'
-          & './build/bin/Release/moduleinfotool.exe' -create -version 0.1.0 -path $bundle -output $moduleInfo
+          & './build/bin/Release/moduleinfotool.exe' -create -version 1.0.0 -path $bundle -output $moduleInfo
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $moduleInfo)) {
             throw "Official Steinberg moduleinfotool creation failed"
           }
@@ -81,6 +80,9 @@ jobs:
           $parsedInfo = $normalizedInfo | ConvertFrom-Json
           if ($parsedInfo.Classes[0].Name -ne '125A Drumator') {
             throw 'VST3 factory name is not 125A Drumator'
+          }
+          if ($parsedInfo.Version -cne '1.0.0' -or @($parsedInfo.Classes | Where-Object { $_.Version -cne '1.0.0' }).Count -gt 0) {
+            throw 'VST3 moduleinfo.json version mismatch: package and all classes must be 1.0.0'
           }
           [System.IO.File]::WriteAllText($moduleInfo, $normalizedInfo, [System.Text.UTF8Encoding]::new($false))
           & './build/bin/Release/moduleinfotool.exe' -validate -path $bundle
@@ -104,7 +106,6 @@ jobs:
           $expected = @(
             '125A Drumator.vst3/Contents/x86_64-win/125A Drumator.vst3',
             '125A Drumator.vst3/Contents/Resources/Drumator.uidesc',
-            '125A Drumator.vst3/Contents/Resources/abstraktes_blaues_metall_mit_sanftem_glanz.png',
             '125A Drumator.vst3/Contents/Resources/125A_Drumator_Knob.png',
             '125A Drumator.vst3/Contents/Resources/125A_Drumator_Screw.png',
             '125A Drumator.vst3/Contents/Resources/125A_Drumator_Faceplate.png',
