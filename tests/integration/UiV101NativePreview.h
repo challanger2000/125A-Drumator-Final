@@ -3,6 +3,11 @@
 // Demo step values and sample names are placeholders, not controller state.
 #include "core/UiV101Layout.h"
 #include "vstgui/lib/cdrawcontext.h"
+#include "vstgui/lib/cgraphicspath.h"
+#include "vstgui/lib/cgraphicstransform.h"
+#include "vstgui/lib/cbitmap.h"
+#include "vst3/BrandLogoGeometry.h"
+#include <cstdlib>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -22,6 +27,60 @@ struct UiV101NativePreview final {
                    int font=11,Color ink={191,209,223,255},bool center=true){
    c.setFont(VSTGUI::kNormalFont,font);c.setFontColor(ink);
    c.drawString(value,r,center?VSTGUI::kCenterText:VSTGUI::kLeftText);
+ }
+ // Exactly the V1.0 official 125A master geometry, never a font redraw.
+ // Only its uniform scale and position change to fit the ivory fascia.
+ static void brandLogo(VSTGUI::CDrawContext& c,double left,double top,double targetHeight){
+   const double sf=targetHeight/887.;
+   for(const auto& shape:kBrandLogoPaths){
+     auto* path=c.createGraphicsPath();
+     if(!path)continue;
+     const char* cursor=shape.path;
+     while(*cursor){
+       while(*cursor==' '||*cursor=='\n'||*cursor=='\t')++cursor;
+       if(!*cursor)break;
+       const char command=*cursor++;
+       if(command=='Z'){path->closeSubpath();continue;}
+       if(command!='M'&&command!='L')break;
+       while(*cursor==' ')++cursor;
+       char* end=nullptr;
+       const double x=std::strtod(cursor,&end);
+       if(end==cursor)break;
+       cursor=end;
+       while(*cursor==' ')++cursor;
+       const double y=std::strtod(cursor,&end);
+       if(end==cursor)break;
+       cursor=end;
+       if(command=='M')path->beginSubpath(left+x*sf,top+y*sf);
+       else path->addLine(left+x*sf,top+y*sf);
+     }
+     c.setFillColor(shape.red?Color{215,25,32,255}:Color{56,58,60,255});
+     c.drawGraphicsPath(path,VSTGUI::CDrawContext::kPathFilledEvenOdd);
+     path->forget();
+   }
+ }
+ // Draw the EXACT product-title PNG used by V1.0 at native aspect ratio.
+ static void titleBitmap(VSTGUI::CDrawContext& c,VSTGUI::CBitmap* logo){
+   if(!logo||logo->getWidth()<=0.||logo->getHeight()<=0.)return;
+   constexpr double boxHeight=85.;
+   const double sf=boxHeight/logo->getHeight();
+   const double w=logo->getWidth()*sf;
+   VSTGUI::CDrawContext::Transform tx(c,
+     VSTGUI::CGraphicsTransform().scale(sf,sf).translate((1280.-w)/2.,-9.));
+   logo->draw(&c,{0.,0.,logo->getWidth(),logo->getHeight()});
+ }
+ // Same 125x125, 101-frame JKnobMan image used by V1.0; the actual
+ // opaque dial sits inside its transparent frame. Not a painted imitation.
+ static void originalDial(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* sprite,
+                          double cx,double cy,double fraction,double frameSize){
+   if(!sprite||sprite->getWidth()!=125.||sprite->getHeight()!=12625.)return;
+   const double sf=frameSize/125.;
+   const double left=cx-frameSize/2.,top=cy-frameSize/2.;
+   const auto frame=sprite->normalizedValueToFrameIndex(
+     static_cast<float>(std::clamp(fraction,0.,1.)));
+   VSTGUI::CDrawContext::Transform tx(c,
+     VSTGUI::CGraphicsTransform().scale(sf,sf).translate(left,top));
+   sprite->drawFrame(&c,frame,{0.,0.});
  }
  // Shared machined keycap family. Every action button uses the same
  // rim, satin-silver/amber lens, highlights, lower bevel, lettering and shadow.
@@ -59,22 +118,19 @@ struct UiV101NativePreview final {
  }
  // Dark-blue physical sequencer keycap, with matching bezel and warm
  // backlit orange state. Keep the same 17px step width / 19px pitch.
- static void stepCap(VSTGUI::CDrawContext& c,double x,double y,bool active){
-   const double top=y+9.,bottom=y+40.;
-   fill(c,{x,top+1.,x+17.,bottom+1.},{0,6,12,255});
-   fill(c,{x,top,x+17.,bottom-1.},{3,11,20,255});
-   border(c,{x+.5,top+.5,x+16.5,bottom-1.5},active?
-          Color{173,86,35,255}:Color{81,103,120,255});
-   fill(c,{x+2.,top+2.,x+15.,bottom-4.},active?
-        Color{166,53,20,255}:Color{24,44,63,255});
-   fill(c,{x+3.,top+3.,x+14.,bottom-8.},active?
-        Color{255,153,45,255}:Color{36,59,80,255});
-   fill(c,{x+3.,top+3.,x+14.,top+5.},active?
-        Color{255,219,112,255}:Color{76,98,116,255});
-   fill(c,{x+3.,bottom-10.,x+14.,bottom-6.},active?
-        Color{225,91,26,255}:Color{21,37,53,255});
-   fill(c,{x+2.,bottom-4.,x+15.,bottom-2.},active?
-        Color{110,41,21,255}:Color{9,20,32,255});
+ // Faithful V1.0 drawHardwareStep paint translated into compact 48px row.
+ // Original established dark face, quarter accent and lit amber key lens.
+ static void stepCap(VSTGUI::CDrawContext& c,double sx,double y,bool lit,bool downbeat){
+   const Box outer{sx+1.,y+7.,sx+18.,y+41.};
+   fill(c,outer,{5,17,33,255});
+   border(c,outer,downbeat?Color{91,139,183,255}:Color{38,77,117,255});
+   fill(c,{sx+3.,y+10.,sx+16.,y+38.},
+        lit?Color{234,93,12,255}:Color{41,53,69,255});
+   fill(c,{sx+4.,y+11.,sx+15.,y+19.},
+        lit?Color{255,156,39,255}:Color{79,94,111,255});
+   fill(c,{sx+4.,y+11.,sx+15.,y+13.},
+        lit?Color{255,201,92,255}:Color{103,114,127,255});
+   if(lit)fill(c,{sx+6.,y+31.,sx+13.,y+35.},{255,226,151,255});
  }
  // Headphone pictogram replaces the ambiguous play triangle in PREVIEW.
  // All coordinates derive from the preview cap's shared hit/paint rectangle.
@@ -98,58 +154,38 @@ struct UiV101NativePreview final {
  }
  // Smaller hardware rotary with a steel mounting ring, scale and brushed face.
  // Used for the three actual global parameters, not painted as buttons.
- static void headerDial(VSTGUI::CDrawContext& c,double cx,double cy,double fraction,
+ // Actual 125A knob sprite, reused for the two global musical controls
+ // and master, with legible readouts and small engraved arc ticks.
+ static void headerDial(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* sprite,
+                        double cx,double cy,double fraction,
                         const char* title,const char* readout){
    fraction=std::clamp(fraction,0.,1.);
-   label(c,title,{cx-48.,85.,cx+48.,100.},11,{55,56,58,255});
-   c.setFillColor({104,102,99,255});
-   c.drawEllipse({cx-20.,cy-19.,cx+20.,cy+21.},VSTGUI::kDrawFilled);
+   label(c,title,{cx-46.,85.,cx+46.,100.},11,{55,56,58,255});
    c.setFillColor({22,25,30,255});
-   c.drawEllipse({cx-18.,cy-18.,cx+18.,cy+18.},VSTGUI::kDrawFilled);
-   c.setFrameColor({202,204,201,255});
+   c.drawEllipse({cx-21.,cy-21.,cx+21.,cy+21.},VSTGUI::kDrawFilled);
+   c.setFrameColor({132,136,139,255});
    c.setLineWidth(1.);
-   c.drawEllipse({cx-17.,cy-17.,cx+17.,cy+17.},VSTGUI::kDrawStroked);
-   constexpr double kPi=3.14159265358979323846;
+   c.drawEllipse({cx-20.,cy-20.,cx+20.,cy+20.},VSTGUI::kDrawStroked);
+   constexpr double pi=3.14159265358979323846;
    for(int tick=0;tick<9;++tick){
-     const double angle=(-135.+static_cast<double>(tick)*270./8.)*kPi/180.;
+     const double angle=(-135.+static_cast<double>(tick)*270./8.)*pi/180.;
      const double dx=std::sin(angle),dy=-std::cos(angle);
-     c.setFrameColor({62,63,65,255});
-     c.drawLine({cx+dx*21.,cy+dy*21.},{cx+dx*23.,cy+dy*23.});
+     c.setFrameColor({64,66,68,255});
+     c.drawLine({cx+dx*22.,cy+dy*22.},{cx+dx*24.,cy+dy*24.});
    }
-   c.setFillColor({49,54,60,255});
-   c.drawEllipse({cx-13.,cy-13.,cx+13.,cy+13.},VSTGUI::kDrawFilled);
-   c.setFrameColor({150,155,159,255});
-   c.drawEllipse({cx-12.,cy-12.,cx+12.,cy+12.},VSTGUI::kDrawStroked);
-   c.setFillColor({26,30,35,255});
-   c.drawEllipse({cx-9.,cy-9.,cx+9.,cy+9.},VSTGUI::kDrawFilled);
-   const double a=(-135.+fraction*270.)*kPi/180.;
-   const double dx=std::sin(a),dy=-std::cos(a);
-   c.setFrameColor({238,240,236,255});
-   c.setLineWidth(2.);
-   c.drawLine({cx+dx*3.,cy+dy*3.},{cx+dx*11.,cy+dy*11.});
-   c.setLineWidth(1.);
-   label(c,readout,{cx+24.,107.,cx+51.,132.},10,{47,49,52,255},false);
+   originalDial(c,sprite,cx,cy,fraction,55.);
+   label(c,readout,{cx+26.,108.,cx+54.,133.},10,{45,48,52,255},false);
  }
- static void dial(VSTGUI::CDrawContext& c,double x,double y,int row,int index){
+ static void dial(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* sprite,
+                  double x,double y,int row,int index){
    const int values[][3]={{60,50,57},{47,50,49},{52,50,50},{49,50,50},
-       {57,52,50},{55,45,50},{59,50,54},{47,49,50},{51,50,46},{55,53,50}};
+      {57,52,50},{55,45,50},{59,50,54},{47,49,50},{51,50,46},{55,53,50}};
    const double fraction=values[row][index]/100.;
    c.setFillColor({3,8,14,255});
-   c.drawEllipse({x-18.,y-18.,x+18.,y+18.},VSTGUI::kDrawFilled);
-   c.setFrameColor({99,114,128,255});
-   c.drawEllipse({x-17.,y-17.,x+17.,y+17.},VSTGUI::kDrawStroked);
-   c.setFillColor({21,28,37,255});
-   c.drawEllipse({x-14.,y-14.,x+14.,y+14.},VSTGUI::kDrawFilled);
-   c.setFrameColor({183,185,188,255});
-   c.drawEllipse({x-13.,y-13.,x+13.,y+13.},VSTGUI::kDrawStroked);
-   c.setFillColor({36,40,48,255});
-   c.drawEllipse({x-9.,y-9.,x+9.,y+9.},VSTGUI::kDrawFilled);
-   constexpr double pi=3.141592653589793;
-   const double theta=(-135.+fraction*270.)*pi/180.;
-   const double dx=std::sin(theta),dy=-std::cos(theta);
-   c.setFrameColor({224,225,226,255});c.setLineWidth(2.);
-   c.drawLine({x+dx*3.,y+dy*3.},{x+dx*11.,y+dy*11.});
-   c.setLineWidth(1.);
+   c.drawEllipse({x-19.,y-19.,x+19.,y+19.},VSTGUI::kDrawFilled);
+   c.setFrameColor({91,113,133,255});
+   c.drawEllipse({x-18.,y-18.,x+18.,y+18.},VSTGUI::kDrawStroked);
+   originalDial(c,sprite,x,y,fraction,50.);
  }
  static bool lit(int row,int step){
    if(row==2)return step<16&&step%2==0;
@@ -160,7 +196,9 @@ struct UiV101NativePreview final {
    if(row==7)return step==6||step==14||step==22;
    return step==4||step==20;
  }
- static void draw(VSTGUI::CDrawContext& c,bool zoomMenuOpen=false,std::size_t zoomPreset=0){
+ static void draw(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* knobSprite,
+                  VSTGUI::CBitmap* productTitle,
+                  bool zoomMenuOpen=false,std::size_t zoomPreset=0){
    constexpr Color cream{207,203,193,255};
    const double total=L::editorHeight(0,L::visibleRows,L::Expansions{});
    fill(c,{0.,0.,L::width,total},cream);
@@ -168,13 +206,9 @@ struct UiV101NativePreview final {
    fill(c,{4.,4.,L::width-4.,total-4.},{199,196,189,255});
    fill(c,{6.,6.,L::width-6.,total-6.},{214,211,202,255});
    border(c,{5.,5.,L::width-5.,total-5.},{114,112,106,255});
-   // Authentic instrument chassis treatment (mock controls, real VSTGUI raster).
-   fill(c,{17.,12.,210.,66.},{64,63,62,255});
-   fill(c,{20.,15.,207.,63.},{17,22,29,255});
-   fill(c,{30.,20.,40.,59.},{185,49,43,255});
-   fill(c,{42.,20.,52.,59.},{216,66,55,255});
-   label(c,"125A",{52.,18.,198.,60.},32,{215,218,220,255});
-   label(c,"D R U M A T O R",{335.,10.,945.,63.},34,{51,55,62,255});
+   // Official vector 125A signet and original metallic Drumator PNG.
+   brandLogo(c,32.,12.,55.);
+   titleBitmap(c,productTitle);
    label(c,"V1.0.1  NATIVE GUI LAYOUT PREVIEW",{500.,59.,810.,77.},10,{80,75,68,255});
    // The percentage and dropdown affordance identify the single zoom control;
    // no redundant "ZOOM" legend or decorative separating line.
@@ -201,9 +235,9 @@ struct UiV101NativePreview final {
    cap(c,{431.,29.,514.,63.},78.,"2 BARS");
    cap(c,L::headerGroup(0),0.,"SONG",false,11);
    cap(c,L::headerGroup(1),0.,"SONG EDIT",false,10);
-   headerDial(c,L::headerKnobCenters[0],L::headerKnobY,.30,"SWING","15%");
-   headerDial(c,L::headerKnobCenters[1],L::headerKnobY,.10,"HUMANIZE","10%");
-   headerDial(c,L::headerKnobCenters[2],L::headerKnobY,.50,"MASTER","100%");
+   headerDial(c,knobSprite,L::headerKnobCenters[0],L::headerKnobY,.30,"SWING","15%");
+   headerDial(c,knobSprite,L::headerKnobCenters[1],L::headerKnobY,.10,"HUMANIZE","10%");
+   headerDial(c,knobSprite,L::headerKnobCenters[2],L::headerKnobY,.50,"MASTER","100%");
    fill(c,{1132.,109.,1146.,129.},{20,30,41,255});
    fill(c,{1151.,105.,1160.,129.},{29,54,65,255});
    fill(c,{1164.,111.,1174.,129.},{29,62,82,255});
@@ -256,10 +290,10 @@ struct UiV101NativePreview final {
        const auto r=L::stepRect(step);
        const double sx=r.x0;
        const bool active=lit(static_cast<int>(row),static_cast<int>(step));
-       stepCap(c,sx,y,active);
+       stepCap(c,sx,y,active,step%4==0);
      }
      for(std::size_t k=0;k<L::knobCenters.size();++k)
-       dial(c,L::knobCenters[k],y+24.,static_cast<int>(row),static_cast<int>(k));
+       dial(c,knobSprite,L::knobCenters[k],y+24.,static_cast<int>(row),static_cast<int>(k));
      cap(c,L::velocity,y,"VEL",false,9);
      cap(c,L::settings,y,"SET",false,9);
    }
