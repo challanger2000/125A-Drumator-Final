@@ -279,3 +279,29 @@ an owner-approved final GUI or the active DAW editor. Material direction now
 merits owner design review. The next engineering work remains integration
 into the actual plugin VSTGUI view and completion of deferred native menu
 and editor interactions; no code has been merged to main or released.
+
+### Hardware-header alignment, depth and title revision (27 October 2026)
+
+Owner review identified the PATTERN metal panel beginning at x=21 while the
+navy sequencer began at x=12, plus a control strip that sat visibly too low
+and mismatched hardware buttons in the same row. The isolated V1.0.1 renderer
+now uses the shared 12..1260 chassis silhouette, a raised y=78..137
+machined header recess, and one `UiV101Layout` button strip:
+`headerButtonY=99`, `headerButtonHeight=32`. Pattern A–H, PTNR MENU,
+1/2 BARS, SONG and SONG EDIT are all painted from those same hit rectangles,
+not from unrelated hand-adjusted offsets. Global rotary centers were moved
+from y=119 to y=114 and their sprite face limited to 44px to avoid the
+upper engraving and dark column-header strip.
+
+The old dark-skin `Metallisches DRUMATOR-Logo.png` is **no longer used
+in V1.0.1 native rendering**; an eight-glyph engraved steel DRUMATOR
+heading replaces it. The old asset remains untouched in the shipping
+V1.0.0 VST3 for compatibility. The original 125A emblem and authentic
+101-frame knobs stay unchanged.
+
+`testV101Interaction` now asserts common geometry across every header key,
+rejects clicks in the previous low zone, and marks PTNR MENU as a deferred
+view popup. Original Pattern and SONG Controller behavior remains under
+the existing integration regression. **Status: source committed; Windows
+CI raster and user design approval not yet obtained.** `main` and
+`release/v1.0.0` unchanged.
