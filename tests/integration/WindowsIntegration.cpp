@@ -795,14 +795,12 @@ void testV101ControllerScene(){
  // Checking the Scene struct alone would miss a disconnected paint function.
  auto* knob=new VSTGUI::CMultiFrameBitmap(
    VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
- auto* logo=new VSTGUI::CBitmap(
-   VSTGUI::CResourceDescription("Metallisches DRUMATOR-Logo.png"));
- check(knob->getWidth()==125.&&knob->getHeight()==12625.&&
-       logo->getWidth()>500.,"V101 controller pixel test resource decode failed");
+ check(knob->getWidth()==125.&&knob->getHeight()==12625.,
+       "V101 controller pixel test original knob resource decode failed");
  const auto stepPixel=[&](const drumator::qa::UiV101NativePreview::Scene& state){
    auto bmp=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
      [&](VSTGUI::CDrawContext& dc){
-       drumator::qa::UiV101NativePreview::draw(dc,knob,logo,state);
+       drumator::qa::UiV101NativePreview::draw(dc,knob,state);
      });
    check(bmp!=nullptr,"V101 controller pixel test native raster missing");
    auto* a=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
@@ -812,7 +810,7 @@ void testV101ControllerScene(){
    return std::array<int,3>{{color.red,color.green,color.blue}};
  };
  const auto beforePixel=stepPixel(s),afterPixel=stepPixel(updated);
- knob->forget();logo->forget();
+ knob->forget();
  check(beforePixel!=afterPixel&&beforePixel[0]>afterPixel[0]+70,
        "V101 actual Controller -> renderer step pixel did not change");
  evidence("V101 controller-backed GUI model: PCM kit/labels, pattern C, step mutation, gates, actual mix and globals PASS");
@@ -1024,24 +1022,20 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
  const double h=ui.height();
  check(h*1.5<=1080.,
        "V101 expanded-row screenshot would exceed 1080 at 150 percent");
- // Decode precisely the SAME PNG resources as the installable 1.0.0 VST3.
- // Fail closed; a substituted procedural knob/title is not valid QA evidence.
+ // The original 125A 101-frame knob is retained. The old metallic
+ // DRUMATOR title PNG was dark-skin artwork and is intentionally not loaded:
+ // V1.0.1 paints a separate engraved steel title in the native VSTGUI code.
  auto* knob=new VSTGUI::CMultiFrameBitmap(
    VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
- auto* titleLogo=new VSTGUI::CBitmap(
-   VSTGUI::CResourceDescription("Metallisches DRUMATOR-Logo.png"));
  check(knob->getWidth()==125.&&knob->getHeight()==12625.,
        "V1.0.1 preview did not load real V1.0 knob filmstrip");
- check(titleLogo->getWidth()>=500.&&titleLogo->getHeight()>=100.,
-       "V1.0.1 preview did not load original metallic DRUMATOR title PNG");
  auto bitmap=VSTGUI::renderBitmapOffscreen(
    VSTGUI::CPoint(L::width,h),scale,
-   [knob,titleLogo,&scene,&ui,zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
-     drumator::qa::UiV101NativePreview::draw(context,knob,titleLogo,scene,zoomMenuOpen,
+   [knob,&scene,&ui,zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
+     drumator::qa::UiV101NativePreview::draw(context,knob,scene,zoomMenuOpen,
        scale>1.2?std::size_t{2}:std::size_t{0},ui.state());
    });
  knob->forget();
- titleLogo->forget();
  check(bitmap!=nullptr,"V1.0.1 native VSTGUI prototype render failed");
  auto* access=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
  check(access!=nullptr,"V1.0.1 native pixels unavailable");
