@@ -33,3 +33,27 @@ Build a **new GUI layer around the existing working controller**, rather than mo
 - **Cost control**: V1.0.1 branch removed from push-triggered full Windows QA in `c2afc3e`; run `core-ci.yml` by `workflow_dispatch` for coherent milestones. `main` and release push checks remain automated.
 
 Current working gate: **2 — integrate authentic GUI assets and inspect native pixels**, while preserving a separate known-working V1.0.0 view. Then proceed to gate 3 in batches.
+
+### Controller-backed visual-state bridge (unbuilt candidate)
+
+The separate native painter no longer owns fake drum names, hard-coded lit steps,
+fictional mute/solo states or knob values. The integration fixture now:
+
+1. Creates an actual ten-row embedded PCM kit via `KitCodec` and
+   `Controller::setComponentState`, with selected Pattern C, explicit names,
+   swing, humanize, master, mix, mute, solo and step velocities.
+2. Captures one typed `UiV101NativePreview::Scene` exclusively through real
+   Controller getters (`currentPattern`, `patternLength`, `velocity`,
+   `label`, `hasSample`, `isRowMuted`, `isRowSolo`, row mix and globals).
+3. Draws that scene using original 125A logo/title/knob assets and legacy
+   step-key colors in the native offscreen renderer.
+4. Adds a native integration oracle: the actual Controller toggles one step,
+   the new Scene reflects it, and the VSTGUI key pixel must visibly change
+   between the two renderings.
+
+**Status: committed, not compiled or QA-approved.** The former static
+layout screenshots are superseded, and no screenshot for this code has been
+generated yet. Nothing has been activated in the packaged plugin, and the
+existing 1.0.0 editor/controller/processor production code was not changed.
+The next manually dispatched full QA should validate this entire package
+before any visual acceptance.
