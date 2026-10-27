@@ -24,11 +24,23 @@ struct UiV101Layout final {
       return x>=x0&&x<x1&&y>=y0&&y<y1;
     }
   };
+  // One common vertical contract for every header action. The previous
+  // geometry mixed 107..141 Pattern/BARS with 105..135 SONG controls,
+  // causing misaligned buttons and clicks at the old low position.
+  static constexpr double headerButtonY=99.,headerButtonHeight=32.;
+  static constexpr Rect patternButton(std::size_t i)noexcept{
+    const double x=33.+39.*static_cast<double>(i);
+    return {x,headerButtonY,x+35.,headerButtonY+headerButtonHeight};
+  }
+  static constexpr Rect patternMenu{364.,headerButtonY,414.,
+                                    headerButtonY+headerButtonHeight};
+  static constexpr Rect barsButton{431.,headerButtonY,514.,
+                                   headerButtonY+headerButtonHeight};
   static constexpr std::array<Rect,headerGroupCount> headerGroups{{
-    {527.,105.,610.,135.}, // SONG ON/OFF
-    {618.,105.,716.,135.}  // SONG EDIT
+    {527.,headerButtonY,610.,headerButtonY+headerButtonHeight},
+    {618.,headerButtonY,716.,headerButtonY+headerButtonHeight}
   }};
-  static constexpr double headerKnobY=119.,headerKnobRadius=18.;
+  static constexpr double headerKnobY=114.,headerKnobRadius=18.;
   static constexpr std::array<double,3> headerKnobCenters{{785.,907.,1029.}};
   static constexpr Rect headerKnob(std::size_t i) noexcept{
     return {headerKnobCenters[i]-headerKnobRadius,
@@ -137,7 +149,20 @@ struct UiV101Layout final {
   static_assert(previous.x1==load.x0&&load.x1==next.x0);
 };
 // MSVC evaluates constexpr function bodies reliably after the class is complete.
-static_assert(UiV101Layout::headerGroups[0].x0>514.);
+static_assert(UiV101Layout::headerGroups[0].x0>
+              UiV101Layout::barsButton.x1);
+static_assert(UiV101Layout::headerGroups[0].y0==
+              UiV101Layout::headerButtonY);
+static_assert(UiV101Layout::headerGroups[0].y1==
+              UiV101Layout::headerButtonY+UiV101Layout::headerButtonHeight);
+static_assert(UiV101Layout::patternButton(0).y0==
+              UiV101Layout::barsButton.y0);
+static_assert(UiV101Layout::patternButton(7).y1==
+              UiV101Layout::headerGroups[1].y1);
+static_assert(UiV101Layout::headerButtonY+
+              UiV101Layout::headerButtonHeight<UiV101Layout::header-20.);
+static_assert(UiV101Layout::patternButton(7).x1<
+              UiV101Layout::patternMenu.x0);
 static_assert(UiV101Layout::headerGroups[1].x1+26.<=
               UiV101Layout::headerKnobCenters[0]-UiV101Layout::headerKnobRadius);
 static_assert(UiV101Layout::headerKnobCenters[2]+UiV101Layout::headerKnobRadius<1132.);
