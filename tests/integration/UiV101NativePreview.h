@@ -176,10 +176,10 @@ struct UiV101NativePreview final {
    label(c,"125A",{52.,18.,198.,60.},32,{215,218,220,255});
    label(c,"D R U M A T O R",{335.,10.,945.,63.},34,{51,55,62,255});
    label(c,"V1.0.1  NATIVE GUI LAYOUT PREVIEW",{500.,59.,810.,77.},10,{80,75,68,255});
-   fill(c,{944.,43.,1160.,44.},{121,116,111,255});
-   // Exactly one collapsed Zoom control. The menu itself is painted as an
+   // The percentage and dropdown affordance identify the single zoom control;
+   // no redundant "ZOOM" legend or decorative separating line.
+   // The menu itself is painted as an
    // overlay after all rows, as a real hardware-style popover would be.
-   label(c,"ZOOM",{1086.,15.,1135.,43.},11,{59,57,56,255});
    const char* const zoomNames[]={"100%","120%","130%","150%"};
    const auto selected=zoomPreset<4?zoomPreset:std::size_t{0};
    char zoomCaption[20]{};
