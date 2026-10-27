@@ -715,6 +715,14 @@ bool DrumatorView::changeKnobValue(int slot,std::size_t row,int value) {
  return false;
 }
 bool DrumatorView::sampleDropTargetAt(double x,double y) const noexcept {
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_) {
+   if(v101Menu_!=UiV101Popup::Kind::None||v101_.state().zoomOpen)return false;
+   const auto hit=v101_.rowHit(x,y);
+   return hit.row<controller_.visibleRows()&&
+          UiV101Layout::sample.hit(x,y-
+            UiV101Layout::rowTop(v101_.state().firstRow,
+              hit.row-v101_.state().firstRow,v101_.expandedRows()));
+ }
  if(sampleEditorOpen_||songEditorOpen_||popup_!=0||fillMenuRow_>=0)return false;
  const auto index=UiCompactLayout::rowAt(y,firstRow_,displayedRows(),velocityExpanded_);
  if(index>=displayedRows())return false;
@@ -758,15 +766,20 @@ bool DrumatorView::removed(VSTGUI::CView* parent) {
 }
 void DrumatorView::editName(std::size_t row) {
  if(row>=controller_.visibleRows()||!getFrame())return;
- const double y=rowTopOnPage(row-firstRow_);
+ const bool newMain=v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_;
+ const double y=newMain?
+    UiV101Layout::rowTop(v101_.state().firstRow,row-v101_.state().firstRow,
+                         v101_.expandedRows()):rowTopOnPage(row-firstRow_);
+ const double left=newMain?UiV101Layout::load.x0:UiCompactLayout::sample.left;
+ const double right=newMain?UiV101Layout::load.x1:UiCompactLayout::sample.right;
  if(!nameEdit_){
-   nameEdit_=new VSTGUI::CTextEdit({UiCompactLayout::sample.left,y+4,UiCompactLayout::sample.right,y+33},this,1001,controller_.label(row).c_str());
+   nameEdit_=new VSTGUI::CTextEdit({left,y+4,right,y+33},this,1001,controller_.label(row).c_str());
    nameEdit_->registerTextEditListener(this);
    getFrame()->addView(nameEdit_);
  }
  editingNameRow_=row;
  nameEditGeneration_=controller_.editGeneration();
- nameEdit_->setViewSize({UiCompactLayout::sample.left,y+4,UiCompactLayout::sample.right,y+33});
+ nameEdit_->setViewSize({left,y+4,right,y+33});
  nameEdit_->setText(controller_.customName(row).empty()?controller_.label(row).c_str():
                    controller_.customName(row).c_str());
  nameEdit_->setVisible(true);
@@ -1811,7 +1824,9 @@ bool DrumatorView::acceptFileDrop(VSTGUI::DragEventData data) {
    status_="D&D ERROR: OUTSIDE INSTRUMENT ROWS";
    invalid();return false;
  }
- const auto row=firstRow_+UiCompactLayout::rowAt(position.y,firstRow_,displayedRows(),velocityExpanded_);
+ const auto row=v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_?
+     v101_.rowHit(position.x,position.y).row:
+     firstRow_+UiCompactLayout::rowAt(position.y,firstRow_,displayedRows(),velocityExpanded_);
  if(row>=kRows) {
    status_="D&D ERROR: INVALID ROW";invalid();return false;
  }
