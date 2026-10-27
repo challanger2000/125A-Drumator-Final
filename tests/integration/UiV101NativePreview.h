@@ -148,16 +148,6 @@ struct UiV101NativePreview final {
      path->forget();
    }
  }
- // Draw the EXACT product-title PNG used by V1.0 at native aspect ratio.
- static void titleBitmap(VSTGUI::CDrawContext& c,VSTGUI::CBitmap* logo){
-   if(!logo||logo->getWidth()<=0.||logo->getHeight()<=0.)return;
-   constexpr double boxHeight=85.;
-   const double sf=boxHeight/logo->getHeight();
-   const double w=logo->getWidth()*sf;
-   VSTGUI::CDrawContext::Transform tx(c,
-     VSTGUI::CGraphicsTransform().scale(sf,sf).translate((1280.-w)/2.,-9.));
-   logo->draw(&c,{0.,0.,logo->getWidth(),logo->getHeight()});
- }
  // Light-metallic, engraved header lettering replaces the heavy old
  // black-background-era title artwork. Draw it with native VSTGUI glyphs,
  // not a synthetic static screenshot. It remains visually adjustable until
@@ -312,7 +302,7 @@ struct UiV101NativePreview final {
    originalDial(c,sprite,x,y,std::clamp(fraction,0.,1.),50.);
  }
  static void draw(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* knobSprite,
-                  VSTGUI::CBitmap* productTitle,const Scene& scene,
+                  const Scene& scene,
                   bool zoomMenuOpen=false,std::size_t zoomPreset=0,
                   const UiV101Interaction::State& ui={}){
    const auto cream=Skin::steel();
@@ -347,10 +337,8 @@ struct UiV101NativePreview final {
    rounded(c,{30.,14.,153.,71.},{25,27,29,255},4.);
    fill(c,{35.,15.,148.,16.},{141,137,132,255});
    brandLogo(c,32.,12.,55.);
-   // The earlier metallic PNG was designed for a dark fascia.
-   // Keep its resource parameter for the isolated regression interface,
-   // but replace its rendering with the new engraved silver title.
-   (void)productTitle;
+   // The old dark-fascia PNG is kept only for V1.0.0 compatibility.
+   // V1.0.1 paints its own engraved lettering and does not decode that PNG.
    engravedTitle(c);
    // The percentage and dropdown affordance identify the single zoom control;
    // no redundant "ZOOM" legend or decorative separating line.
