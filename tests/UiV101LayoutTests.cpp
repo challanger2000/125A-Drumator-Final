@@ -49,6 +49,11 @@ int main(){
   CHECK(L::zoomHit(1100.,165.,true)==-1);
   L::Expansions e{};
   const double y=L::header;
+  CHECK(L::footerAdd.x1-L::footerAdd.x0==90.);
+  CHECK(L::footerRemove.x1-L::footerRemove.x0==90.);
+  CHECK(L::footerAdd.y0==L::footerPrev.y0&&
+        L::footerRemove.y1==L::footerNext.y1);
+  CHECK(L::footerRemove.x1<L::footerPrev.x0);
   CHECK(L::editorHeight(0,10,e)==686.);
   CHECK(L::editorHeight(0,10,e)*1.5==1029.);
   const auto action=[&](double x,double yy){return L::hit(x,yy,0,10,e).action;};
