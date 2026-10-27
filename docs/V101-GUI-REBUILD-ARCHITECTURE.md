@@ -128,3 +128,10 @@ Actions run. The development branch intentionally has no automatic push CI.
 Tests, bitmap captures and packaged VST3 acceptance **must not be described
 as PASS until that manual run succeeds**. Even with green CI this remains
 a separate view prototype rather than the installed plugin's live GUI.
+
+### First batched Windows QA attempts (27 October 2026)
+
+- **Actions #40563250423**: production and test compilation PASS; 23 of 24 CTests PASS. The new V101 interaction test FAILed on host-automatable Pattern C→D because the isolated test fixture omitted a VST3 `IComponentHandler`. Other CI stages were skipped, NOT PASS.
+- **Actions #40564564947**: after adding the required test-only `IComponentHandler`, compilation FAILed under `/W4 /WX` on MSVC C4458 (parameter `iid` shadows interface `iid`). The parameter was renamed to `interfaceId` in commit `f1b0b3c`. No DSP, Controller or shipped Editor changes.
+- **Current HEAD**: C4458 source correction committed; **NOT YET BUILT**. No further full Actions run is warranted for the single test-parameter rename. The next manual QA milestone must report its actual result and verify the previously blocked interaction scenarios, real resource loading, VEL/SET screenshots, Steinberg Validator and independent plugin tester. Do not describe the V1.0.1 prototype as QA PASS.
+- The temporary push branch trigger used to initiate each run was reverted immediately; development pushes remain manual-only.
