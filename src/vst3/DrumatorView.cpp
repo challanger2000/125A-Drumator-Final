@@ -1,4 +1,5 @@
 #include "DrumatorView.h"
+#include "vst3/UiV101Scene.h"
 #include "BrandLogoGeometry.h"
 #include "core/UiWaveEditorLayout.h"
 #include "vstgui/lib/cgraphicspath.h"
@@ -727,6 +728,7 @@ DrumatorView::~DrumatorView() {
  if(productLogoBitmap_){productLogoBitmap_->forget();productLogoBitmap_=nullptr;}
  if(knobBitmap_){knobBitmap_->forget();knobBitmap_=nullptr;}
  if(screwBitmap_){screwBitmap_->forget();screwBitmap_=nullptr;}
+ if(v101TitleBitmap_){v101TitleBitmap_->forget();v101TitleBitmap_=nullptr;}
  if(sampleEditorOpen_)controller_.stopSampleEditPreview();
  controller_.unregisterView(this);
 }
@@ -932,6 +934,15 @@ bool DrumatorView::attached(VSTGUI::CView* parent) {
  return result;
 }
 bool DrumatorView::adjustEditorHeight() {
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
+   v101_.reconcile();
+   const auto height=v101_.height();
+   const auto scale=static_cast<const DrumatorEditor&>(editor_).effectiveScale();
+   if(!editor_.requestResize({1280.*scale,height*scale}))return false;
+   if(auto* parent=getParentView())parent->setViewSize({0,0,1280,height});
+   setViewSize({0,0,1280,height});
+   invalid();return true;
+ }
  const auto total=controller_.visibleRows();
  if(firstRow_>=total)firstRow_=total>0?total-1:0;
  const auto page=std::min(UiCompactLayout::perPage,total-firstRow_);
@@ -962,7 +973,7 @@ bool DrumatorView::adjustEditorHeight() {
 }
 DrumatorView::DrumatorView(const VSTGUI::CRect& size,
                            Controller& controller,VSTGUI::VST3Editor& editor)
- : CView(size),controller_(controller),editor_(editor) {
+ : CView(size),controller_(controller),v101_(controller),editor_(editor) {
  setMouseEnabled(true);
  // The view itself owns the drop-target interface, as in Phraseator.
  controller_.registerView(this);
@@ -970,8 +981,15 @@ DrumatorView::DrumatorView(const VSTGUI::CRect& size,
  productLogoBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription("Metallisches DRUMATOR-Logo.png"));
  knobBitmap_=new VSTGUI::CMultiFrameBitmap(VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
  screwBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription("125A_Drumator_Screw.png"));
+ v101TitleBitmap_=new VSTGUI::CBitmap(
+     VSTGUI::CResourceDescription("Futuristisches Metalllogo DRUMATOR.png"));
 }
 void DrumatorView::draw(VSTGUI::CDrawContext* c) {
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
+   drawV101(c);
+   setDirty(false);
+   return;
+ }
  const auto bottom=gridBottom();
  const auto fullHeight=getViewSize().getHeight();
  // Dedicated static blue-steel faceplate under all interactive controls.
@@ -1843,6 +1861,11 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
  const double x=pos.x,y=pos.y;
  if(!(buttons&VSTGUI::kLButton))return VSTGUI::kMouseEventNotHandled;
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
+   if(!v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0))
+     return VSTGUI::kMouseEventNotHandled;
+   return VSTGUI::kMouseEventHandled;
+ }
  const auto done=VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
  if(!sampleEditorOpen_&&x>=UiCompactLayout::meterResetLeft&&
     x<=UiCompactLayout::meterResetRight&&y>=66.&&y<=151.){
@@ -2330,6 +2353,11 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseMoved(
     VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
+   if(buttons&VSTGUI::kLButton)(void)v101_.move(pos.x,pos.y);
+   else (void)v101_.up();
+   invalid();return VSTGUI::kMouseEventHandled;
+ }
  if(draggingScroll_){
    if(buttons&VSTGUI::kLButton)(void)moveScroll(pos.y,scrollGrab_);
    else draggingScroll_=false;
@@ -2385,6 +2413,9 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseMoved(
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
     VSTGUI::CPoint&,const VSTGUI::CButtonState&) {
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
+   (void)v101_.up();invalid();return VSTGUI::kMouseEventHandled;
+ }
  if(draggingScroll_){draggingScroll_=false;return VSTGUI::kMouseEventHandled;}
  if(sampleEditorOpen_){sampleEditorDrag_=0;sampleEditorPressed_=-1;
    invalid();return VSTGUI::kMouseEventHandled;}
@@ -2401,6 +2432,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
  return VSTGUI::kMouseEventHandled;
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseCancel(){
+ if(v101Mode_){v101_.cancel();v101Menu_=UiV101Popup::Kind::None;}
  sampleEditorDrag_=0;sampleEditorPressed_=-1;
  draggingScroll_=false;
  activeKnob_=-1;knobRow_=kRows;
