@@ -138,7 +138,7 @@ public:
    state_.zoomOpen=false;
    return true;
  }
- Result down(double x,double y,bool erase=false){
+ Result down(double x,double y,bool erase=false,bool fine=false){
    deferred_={};
    reconcile();
    if(gesture_!=Gesture::None)endGesture(true);
@@ -176,7 +176,7 @@ public:
    }
    for(std::size_t i=0;i<L::headerKnobCenters.size();++i)
      if(L::headerKnob(i).hit(x,y)){
-       gesture_=Gesture::HeaderKnob;knobIndex_=static_cast<int>(i);
+       gesture_=Gesture::HeaderKnob;fineKnob_=fine;knobIndex_=static_cast<int>(i);
        knobAnchorY_=y;return Result::Handled;
      }
    const auto h=rowHit(x,y);
@@ -198,7 +198,7 @@ public:
    if(h.action==L::Action::Select){state_.selectedRow=h.row;return Result::Handled;}
    if(h.action==L::Action::Volume||h.action==L::Action::Pan||
       h.action==L::Action::Pitch){
-     gesture_=Gesture::RowKnob;knobRow_=h.row;
+     gesture_=Gesture::RowKnob;fineKnob_=fine;knobRow_=h.row;
      knobIndex_=h.action==L::Action::Volume?0:h.action==L::Action::Pan?1:2;
      knobAnchorY_=y;return Result::Handled;
    }
@@ -245,7 +245,8 @@ public:
             Result::Applied:Result::Failed;
    }
    if(gesture_==Gesture::None)return Result::Ignored;
-   const double step=knobIndex_==2&&gesture_==Gesture::RowKnob?6.:4.;
+   const double step=(knobIndex_==2&&gesture_==Gesture::RowKnob?6.:4.)*
+                     (fineKnob_?3.:1.);
    const auto increments=static_cast<int>(std::trunc((knobAnchorY_-y)/step));
    if(increments==0)return Result::Handled;
    const int index=knobIndex_;
@@ -267,6 +268,7 @@ public:
  // without calling the old processor or throwing from the no-throw recall hook.
  void discardForRecall() noexcept {
    gesture_=Gesture::None;
+   fineKnob_=false;
    knobIndex_=-1;
    knobRow_=L::instruments;
    laneRow_=L::instruments;
@@ -289,14 +291,14 @@ private:
  std::size_t knobRow_=L::instruments,laneRow_=L::instruments,lanePattern_=0;
  double knobAnchorY_=0.;
  std::uint64_t laneGeneration_=0;
- bool erase_=false;
+ bool erase_=false,fineKnob_=false;
  void closeExpansion()noexcept {
    state_.expansion=L::Expansion::None;
    state_.expandedRow=L::instruments;
  }
  void endGesture(bool commit){
    if(gesture_==Gesture::Velocity)controller_.endVelocityStroke(commit,this);
-   gesture_=Gesture::None;knobIndex_=-1;knobRow_=L::instruments;
+   gesture_=Gesture::None;fineKnob_=false;knobIndex_=-1;knobRow_=L::instruments;
    laneRow_=L::instruments;
  }
  Result beginLane(std::size_t row,double x,double relativeY,bool erase){
