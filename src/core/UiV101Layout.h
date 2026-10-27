@@ -66,10 +66,10 @@ struct UiV101Layout final {
   static constexpr Rect headerGroup(std::size_t i) noexcept{
     return headerGroups[i];
   }
-  static constexpr Rect zoomTrigger{1140.,14.,1248.,44.};
+  static constexpr Rect zoomTrigger{1168.,15.,1248.,43.};
   static constexpr Rect zoomOption(std::size_t index) noexcept{
     const double top=49.+26.*static_cast<double>(index);
-    return {1134.,top,1248.,top+24.};
+    return {1162.,top,1248.,top+24.};
   }
   // -2 = open/close trigger, 0..3 = zoom preset, -1 = no hit.
   // The menu is modal while open; the renderer draws it over header controls.
