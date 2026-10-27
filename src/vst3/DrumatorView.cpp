@@ -1126,7 +1126,13 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
      case K::ChokeMenu:v101Menu_=UiV101Popup::Kind::Choke;break;
      case K::SampleMenu:v101Menu_=UiV101Popup::Kind::Sample;break;
      case K::SongEditor:
-       songEditorOpen_=true;(void)adjustEditorHeight();break;
+       songEditorOpen_=true;
+       if(!adjustEditorHeight()){
+         songEditorOpen_=false;
+         (void)adjustEditorHeight();
+         status_="HOST REJECTED SONG EDITOR RESIZE";
+       }
+       break;
      case K::SampleEditor:
        if(!openSampleEditor(request.row)&&
           !controller_.sampleEditorRequestPending(request.row,this))
@@ -2217,6 +2223,22 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
  const double x=pos.x,y=pos.y;
  if(!(buttons&VSTGUI::kLButton))return VSTGUI::kMouseEventNotHandled;
+ if(v101Mode_&&songEditorOpen_&&y<UiV101Layout::header){
+   if(UiV101Layout::headerGroup(1).hit(x,y)){
+     songEditorOpen_=false;
+     if(!adjustEditorHeight()){
+       songEditorOpen_=true;
+       (void)adjustEditorHeight();
+       status_="HOST REJECTED MAIN EDITOR RESIZE";
+     }
+     invalid();
+     return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+   }
+   if(v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
+                    (buttons&VSTGUI::kShift)!=0))
+     return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+   return VSTGUI::kMouseEventNotHandled;
+ }
  if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
    // Preserve the V1.0.0 Ctrl/double-click knob-default gesture. Normal
    // pointer drags remain owned by the V1.0.1 interaction model.
