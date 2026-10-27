@@ -8,6 +8,8 @@
 #include <array>
 #include "core/SequencerCore.h"
 #include "core/SampleEdit.h"
+#include "vst3/UiV101Interaction.h"
+#include "vst3/UiV101Popup.h"
 #include "vstgui/lib/cvstguitimer.h"
 #include <cstdint>
 #include <chrono>
@@ -27,6 +29,10 @@ public:
  DrumatorView(const VSTGUI::CRect& size,Controller& controller,
               VSTGUI::VST3Editor& editor);
  void draw(VSTGUI::CDrawContext* context) override;
+ // Explicit candidate view: V1.0.0 production editor remains the default
+ // until the host-side V1.0.1 controls pass migration QA.
+ void enableV101() noexcept {v101Mode_=true;}
+ bool isV101() const noexcept {return v101Mode_;}
  bool attached(VSTGUI::CView* parent) override;
  bool removed(VSTGUI::CView* parent) override;
  void valueChanged(VSTGUI::CControl* control) override;
@@ -56,6 +62,18 @@ private:
  std::uint64_t meterSequenceSeen_{0};
  void pollMeter() noexcept;
  Controller& controller_;
+ UiV101Interaction v101_;
+ bool v101Mode_{false};
+ VSTGUI::CBitmap* v101TitleBitmap_{nullptr};
+ bool v101TitleMeasured_{false};
+ std::array<double,4> v101TitleBounds_{};
+ UiV101Popup::Kind v101Menu_{UiV101Popup::Kind::None};
+ std::size_t v101MenuRow_{kRows};
+ void drawV101(VSTGUI::CDrawContext* c);
+ bool v101MouseDown(double x,double y,bool erase);
+ void drawV101Menu(VSTGUI::CDrawContext* c);
+ bool applyV101Menu(int item);
+
  VSTGUI::CBitmap* backgroundBitmap_{nullptr};
  VSTGUI::CBitmap* productLogoBitmap_{nullptr};
  VSTGUI::CBitmap* knobBitmap_{nullptr};
