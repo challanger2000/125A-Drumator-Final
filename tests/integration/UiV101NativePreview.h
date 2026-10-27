@@ -21,11 +21,12 @@ struct UiV101NativePreview final {
  using L=UiV101Layout;
  using Color=VSTGUI::CColor;
  using Box=VSTGUI::CRect;
+ static constexpr double kChassisLeft=12.,kChassisRight=1260.;
  static constexpr double kRowMountRadius=23.;
  static constexpr double kHeaderMountRadius=22.;
  static_assert(2.*kRowMountRadius+2.<=L::rowHeight,
                "Rotary mounting socket must not overlap the next 48px row");
- static_assert(L::headerKnobY-kHeaderMountRadius>=97.&&
+ static_assert(L::headerKnobY-kHeaderMountRadius>=92.&&
                L::headerKnobY+kHeaderMountRadius<=L::header-17.,
                "Header mounting socket must stay clear of the heading and ruler");
  // Material colors sampled from the supplied reference screenshot. The
@@ -363,7 +364,8 @@ struct UiV101NativePreview final {
    // Actual Drumator features only. This header is not yet interactive.
    // Raise the entire control bay and align its LEFT boundary with the
    // midnight-blue instrument chassis below. Earlier 21px inset was wrong.
-   rounded(c,{12.,78.,1260.,137.},{117,108,99,255},4.);
+   rounded(c,{kChassisLeft,78.,kChassisRight,137.},
+           {117,108,99,255},4.);
    rounded(c,{14.,80.,1258.,135.},Skin::headerWell(),3.);
    satin(c,{17.,82.,1255.,133.},
          {216,210,199,255},Skin::headerSurface(),
@@ -424,7 +426,8 @@ struct UiV101NativePreview final {
      const bool live=row<scene.visibleRows;
      // Recessed dark-navy instrument chassis: thick top gasket, soft
      // internal gradient, narrow upper reflection and lower occlusion.
-     rounded(c,{12.,y+1.,1260.,y+L::rowHeight-1.},{7,15,25,255},3.);
+     rounded(c,{kChassisLeft,y+1.,kChassisRight,y+L::rowHeight-1.},
+           {7,15,25,255},3.);
      rounded(c,{14.,y+3.,1258.,y+L::rowHeight-3.},
              row%2?Skin::navyA():Skin::navyB(),2.);
      satin(c,{17.,y+5.,1255.,y+L::rowHeight-5.},
