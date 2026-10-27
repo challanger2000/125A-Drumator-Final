@@ -20,6 +20,7 @@ public:
  // The view consumes this once to open a popup/dialog; never infer it from
  // a subsequent mouse position or a potentially changed selected row.
  enum class DeferredKind { None, PatternMenu, SongEditor, Fill, LoadSample,
+                           SampleMenu,
                            SampleEditor, OutputMenu, ChokeMenu, Zoom };
  struct DeferredRequest {
    DeferredKind kind=DeferredKind::None;
@@ -201,6 +202,7 @@ public:
    if(out==UiV101ControllerBridge::Route::DeferredToView){
      if(h.action==L::Action::Fill)return defer(DeferredKind::Fill,h.row);
      if(h.action==L::Action::Load)return defer(DeferredKind::LoadSample,h.row);
+     if(h.action==L::Action::SampleMenu)return defer(DeferredKind::SampleMenu,h.row);
      if(h.action==L::Action::Edit)return defer(DeferredKind::SampleEditor,h.row);
    }
    return out==UiV101ControllerBridge::Route::Applied?Result::Applied:
