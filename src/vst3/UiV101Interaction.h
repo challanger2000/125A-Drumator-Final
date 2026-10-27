@@ -126,13 +126,13 @@ public:
      if(L::Rect{1105.,footerTop+7.,1235.,footerTop+38.}.hit(x,y))
        return page(1)?Result::Handled:Result::Ignored;
    }
-   if(y>=107.&&y<141.){
-     for(std::size_t i=0;i<8;++i){
-       const L::Rect key{33.+39.*i,107.,68.+39.*i,141.};
-       if(key.hit(x,y))
+   if(y>=L::headerButtonY&&
+      y<L::headerButtonY+L::headerButtonHeight){
+     for(std::size_t i=0;i<8;++i)
+       if(L::patternButton(i).hit(x,y))
          return controller_.changePattern(i)?Result::Applied:Result::Failed;
-     }
-     if(L::Rect{431.,107.,514.,141.}.hit(x,y))
+     if(L::patternMenu.hit(x,y))return Result::DeferredToView;
+     if(L::barsButton.hit(x,y))
        return controller_.togglePatternLength(controller_.currentPattern())?
               Result::Applied:Result::Failed;
      if(L::headerGroup(0).hit(x,y))
