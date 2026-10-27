@@ -70,6 +70,8 @@ private:
  UiV101Popup::Kind v101Menu_{UiV101Popup::Kind::None};
  std::size_t v101MenuRow_{kRows};
  void drawV101(VSTGUI::CDrawContext* c);
+ void drawV101Song(VSTGUI::CDrawContext* c);
+ void drawV101Wave(VSTGUI::CDrawContext* c);
  bool v101MouseDown(double x,double y,bool erase,bool fine);
  void drawV101Menu(VSTGUI::CDrawContext* c);
  bool applyV101Menu(int item);
