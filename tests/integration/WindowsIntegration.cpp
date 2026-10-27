@@ -818,6 +818,130 @@ void testV101ControllerScene(){
  evidence("V101 controller-backed GUI model: PCM kit/labels, pattern C, step mutation, gates, actual mix and globals PASS");
 }
 
+void testV101Interaction(){
+ using L=drumator::UiV101Layout;
+ using UI=drumator::UiV101Interaction;
+ Fixture f;f.kit(v101PreviewKit());
+ UI ui(*f.c);
+ check(ui.shownRows()==10&&ui.height()==686.,
+       "V101 initial page size/150-percent height incorrect");
+ // Real host/controller pattern and song commands, not UI-only highlights.
+ check(ui.down(170.,120.)==UI::Result::Applied&&f.c->currentPattern()==3,
+       "V101 header pattern D did not select real controller pattern");
+ check(ui.down(130.,120.)==UI::Result::Applied&&f.c->currentPattern()==2,
+       "V101 header pattern C restore failed");
+ check(ui.down(460.,120.)==UI::Result::Applied&&f.c->patternLength(2)==16,
+       "V101 one-bar header button did not reach controller");
+ const auto protectedNote=f.c->velocity(2,0,16);
+ check(ui.down(L::stepX+16*L::stepPitch+8.,L::header+20.)==
+          UI::Result::Ignored&&f.c->velocity(2,0,16)==protectedNote,
+       "V101 Step beyond 1-bar length must be inert");
+ check(ui.down(460.,120.)==UI::Result::Applied&&f.c->patternLength(2)==32,
+       "V101 two-bar restore failed");
+ const auto song=f.c->songEnabled();
+ check(ui.down(560.,120.)==UI::Result::Applied&&f.c->songEnabled()!=song,
+       "V101 SONG button not routed to Controller");
+ check(ui.down(650.,120.)==UI::Result::DeferredToView,
+       "V101 SONG EDIT must defer to actual editor");
+ const auto beforeStep=f.c->velocity(2,0,0);
+ check(ui.down(428.,L::header+20.)==UI::Result::Applied&&
+       f.c->velocity(2,0,0)!=(beforeStep),
+       "V101 Step from physical hit not applied");
+ check(ui.down(30.,L::header+5*L::rowHeight+20.)==UI::Result::Applied&&
+       !f.c->isRowMuted(5),"V101 physical Mute hit failed");
+ check(ui.down(60.,L::header+8*L::rowHeight+20.)==UI::Result::Applied&&
+       !f.c->isRowSolo(8),"V101 physical Solo hit failed");
+ // Pointer captures real hardware rotaries; mouse down must not change value.
+ const auto oldSwing=f.c->swingPercent();
+ check(ui.down(L::headerKnobCenters[0],L::headerKnobY)==UI::Result::Handled&&
+       f.c->swingPercent()==oldSwing,"V101 knob down changed value");
+ check(ui.move(L::headerKnobCenters[0],L::headerKnobY-8.)==UI::Result::Applied&&
+       f.c->swingPercent()==oldSwing+2,"V101 SWING drag wrong");
+ check(ui.up()==UI::Result::Handled,"V101 knob release not handled");
+ const auto oldGain=f.c->rowGain(0);
+ check(ui.down(L::knobCenters[0],L::header+24.)==UI::Result::Handled,
+       "V101 row volume capture failed");
+ check(ui.move(L::knobCenters[0],L::header+8.)==UI::Result::Applied&&
+       f.c->rowGain(0)==oldGain+4,"V101 volume gesture didn't reach Controller");
+ (void)ui.up();
+ const auto oldPan=f.c->rowPan(1);
+ check(ui.down(L::knobCenters[1],L::header+L::rowHeight+24.)==UI::Result::Handled,
+       "V101 row pan capture failed");
+ check(ui.move(L::knobCenters[1],L::header+L::rowHeight+16.)==UI::Result::Applied&&
+       f.c->rowPan(1)==oldPan+2,"V101 PAN drag wrong");
+ (void)ui.up();
+ const auto oldPitch=f.c->rowPitch(2);
+ check(ui.down(L::knobCenters[2],L::header+2*L::rowHeight+24.)==UI::Result::Handled,
+       "V101 row pitch capture failed");
+ check(ui.move(L::knobCenters[2],L::header+2*L::rowHeight+18.)==UI::Result::Applied&&
+       f.c->rowPitch(2)==oldPitch+1,"V101 PITCH drag wrong");
+ (void)ui.up();
+ // Expand the tenth row: viewport scrolls one row to stay <=1080 at 150%.
+ check(ui.down(1230.,L::header+9*L::rowHeight+12.)==UI::Result::Handled,
+       "V101 VEL open failed");
+ check(ui.state().expandedRow==9&&ui.state().firstRow==1&&
+       ui.shownRows()==9&&ui.height()==686.,
+       "V101 expanded last row hidden or exceeds 150-percent ceiling");
+ const double expandedTop=L::rowTop(ui.state().firstRow,8,ui.expandedRows());
+ const auto initialVel=f.c->velocity(2,9,0);
+ check(initialVel>0&&f.c->velocity(2,9,1)==0,
+       "V101 expected source notes for velocity gesture absent");
+ check(ui.down(L::stepX+8.,expandedTop+72.)==UI::Result::Applied&&
+       f.c->velocity(2,9,0)!=initialVel,
+       "V101 Velocity lane did not change occupied step");
+ ui.cancel();
+ check(f.c->velocity(2,9,0)==initialVel,
+       "V101 cancel must rollback entire velocity gesture");
+ check(ui.down(L::stepX+L::stepPitch+8.,expandedTop+72.)==
+       UI::Result::Ignored&&f.c->velocity(2,9,1)==0,
+       "V101 lane activated empty note");
+ check(ui.down(L::stepX+8.,expandedTop+72.)==UI::Result::Applied,
+       "V101 second velocity begin failed");
+ check(ui.up()==UI::Result::Handled&&f.c->velocity(2,9,0)==64,
+       "V101 velocity commit did not retain edited value");
+ // Exactly one VEL/SET expansion; view actions do not invent menus.
+ check(ui.down(1230.,expandedTop+36.)==UI::Result::Handled&&
+       ui.state().expansion==L::Expansion::Settings,
+       "V101 VEL/SET exclusion failed");
+ const unsigned outBefore=f.c->rowOutput(9);
+ check(ui.down(151.,expandedTop+69.)==UI::Result::DeferredToView&&
+       f.c->rowOutput(9)==outBefore,
+       "V101 OUTPUT selector silently mutated Controller");
+ check(ui.down(401.,expandedTop+69.)==UI::Result::Applied,
+       "V101 SET copy row failed");
+ const double row8Top=L::rowTop(ui.state().firstRow,7,ui.expandedRows());
+ check(ui.down(1230.,row8Top+36.)==UI::Result::Handled&&
+       ui.state().expandedRow==8,"V101 settings switch row failed");
+ check(ui.down(540.,row8Top+69.)==UI::Result::Applied&&
+       f.c->velocity(2,8,0)==64,
+       "V101 SET paste row did not modify pattern");
+ check(ui.down(652.,row8Top+69.)==UI::Result::Applied&&
+       f.c->velocity(2,8,0)==0,"V101 SET clear row failed");
+ // Modal zoom selection cannot click through; host rejection rolls back.
+ check(ui.down(1200.,24.)==UI::Result::Handled&&ui.state().zoomOpen,
+       "V101 zoom menu did not open");
+ check(ui.down(1200.,139.)==UI::Result::DeferredToView&&
+       ui.userZoom()==1.5,"V101 150 percent selection not proposed");
+ ui.confirmZoom(false);
+ check(ui.userZoom()==1.0,"V101 host-rejected zoom did not rollback");
+ check(ui.down(1200.,24.)==UI::Result::Handled,
+       "V101 zoom menu didn't reopen");
+ check(ui.down(1200.,139.)==UI::Result::DeferredToView,
+       "V101 zoom option not routed");
+ ui.confirmZoom(true);
+ check(ui.userZoom()==1.5,"V101 host-approved zoom not retained");
+ // Page navigation across all 16 rows must return to the original first page.
+ Fixture all;auto kit=v101PreviewKit();kit.visible=16;all.kit(kit);
+ UI pages(*all.c);
+ check(pages.down(1150.,pages.height()-22.)==UI::Result::Handled&&
+       pages.state().firstRow==10&&pages.shownRows()==6,
+       "V101 page next did not reveal final six rows");
+ check(pages.down(1020.,pages.height()-22.)==UI::Result::Handled&&
+       pages.state().firstRow==0&&pages.shownRows()==10,
+       "V101 page previous not symmetrical");
+ evidence("V101 interactive controller routing: header, patterns, knob drag, VEL rollback, SETTINGS, zoom modal and 16-row paging PASS");
+}
+
 void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false){
  using L=drumator::UiV101Layout;
  Fixture fixture;
@@ -3824,6 +3948,7 @@ int main(int argc,char** argv){
  run("Z02 native attached views",testZoom);
  run("VSTGUI precision controls",testPrecisionPanel);
  run("V101 actual Controller to native visual scene",testV101ControllerScene);
+ run("V101 native interactive controller, lane and zoom actions",testV101Interaction);
  run("VSTGUI native pixel render set",testVisualRender);
  run("GUI49 musical four-sample native 130pct capture",testGui49MusicalFourSampleCapture);
  run("GUI 11I centered PATTERN and meter header geometry",test11IHeaderPatternCentered);
