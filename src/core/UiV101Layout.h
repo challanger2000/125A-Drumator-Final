@@ -32,6 +32,8 @@ struct UiV101Layout final {
   };
   // Relative to the 48px footer origin. Previous keys were 120/130x31
   // and too large for the recessed strip; now both are 95x25.
+  static constexpr Rect footerAdd{50.,10.,140.,35.};
+  static constexpr Rect footerRemove{151.,10.,241.,35.};
   static constexpr Rect footerPrev{1020.,10.,1115.,35.};
   static constexpr Rect footerNext{1130.,10.,1225.,35.};
   static constexpr Rect footerPanel{footerPanelLeft,footerPanelTop,
@@ -195,6 +197,11 @@ static_assert(UiV101Layout::footerPanelRight <
               UiV101Layout::footerScrewRightX-UiV101Layout::footerScrewRadius);
 static_assert(UiV101Layout::footerPrev.x0>=UiV101Layout::footerPanel.x0+10.&&
               UiV101Layout::footerNext.x1<=UiV101Layout::footerPanel.x1-10.);
+static_assert(UiV101Layout::footerAdd.x0>=UiV101Layout::footerPanel.x0+10.&&
+              UiV101Layout::footerRemove.x1<UiV101Layout::footerPrev.x0);
+static_assert(UiV101Layout::footerAdd.x1+10.<=UiV101Layout::footerRemove.x0);
+static_assert(UiV101Layout::footerAdd.y0==UiV101Layout::footerPrev.y0&&
+              UiV101Layout::footerRemove.y1==UiV101Layout::footerNext.y1);
 static_assert(UiV101Layout::footerPrev.x1+10.<=UiV101Layout::footerNext.x0);
 static_assert(UiV101Layout::footerPrev.y0>=UiV101Layout::footerPanel.y0&&
               UiV101Layout::footerNext.y1<=UiV101Layout::footerPanel.y1);
