@@ -741,6 +741,7 @@ DrumatorView::~DrumatorView() {
  controller_.unregisterView(this);
 }
 bool DrumatorView::removed(VSTGUI::CView* parent) {
+ if(v101Mode_){v101_.cancel();v101Menu_=UiV101Popup::Kind::None;}
  controller_.cancelSampleEditorRequestsForView(this);
  pendingEditorRow_=kRows;pendingViewport_=false;pendingMarkerKind_=0;
  draggingScroll_=false;
@@ -874,10 +875,21 @@ bool DrumatorView::applyZoomFromState(double factor) {
  // The checked SDK zoom already negotiates the host's frame resize. A
  // second adjustEditorHeight() request caused an unrollbackable partial zoom.
  if(!editor.setZoomChecked(factor))return false;
+ if(v101Mode_)v101_.syncZoomFromHost(factor);
  invalid();
  return zoomMatches(factor);
 }
 void DrumatorView::refreshFromHost(bool relayout) {
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_) {
+   v101_.cancel();
+   v101_.reconcile();
+   v101_.syncZoomFromHost(editor_.getZoomFactor());
+   v101Menu_=UiV101Popup::Kind::None;
+   v101MenuRow_=kRows;
+   if(relayout&&getParentView())(void)adjustEditorHeight();
+   else invalid();
+   return;
+ }
  if(controller_.visibleRows()>0)
    velocityRow_=std::min(velocityRow_,controller_.visibleRows()-1);
  if(controller_.visibleRows()>0&&firstRow_>=controller_.visibleRows())firstRow_=0;
@@ -938,6 +950,7 @@ void DrumatorView::pollMeter() noexcept {
  invalid();
 }
 bool DrumatorView::attached(VSTGUI::CView* parent) {
+ if(v101Mode_)v101_.syncZoomFromHost(editor_.getZoomFactor());
  const auto result=CView::attached(parent);
  if(result){
    adjustEditorHeight();
