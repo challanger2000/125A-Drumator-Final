@@ -21,6 +21,13 @@ struct UiV101NativePreview final {
  using L=UiV101Layout;
  using Color=VSTGUI::CColor;
  using Box=VSTGUI::CRect;
+ static constexpr double kRowMountRadius=23.;
+ static constexpr double kHeaderMountRadius=22.;
+ static_assert(2.*kRowMountRadius+2.<=L::rowHeight,
+               "Rotary mounting socket must not overlap the next 48px row");
+ static_assert(L::headerKnobY-kHeaderMountRadius>=97.&&
+               L::headerKnobY+kHeaderMountRadius<=L::header-17.,
+               "Header mounting socket must stay clear of the heading and ruler");
  // Material colors sampled from the supplied reference screenshot. The
  // original light steel is warm (R>G>B), and the sequencer is dark navy,
  // deliberately NOT Windows grey or near-black.
@@ -255,7 +262,7 @@ struct UiV101NativePreview final {
    label(c,title,{cx-46.,85.,cx+46.,100.},11,{55,56,58,255});
    // Small recessed socket; must not cover SWING/HUMANIZE/MASTER labels.
    c.setFillColor({62,58,53,255});
-   c.drawEllipse({cx-22.,cy-22.,cx+22.,cy+22.},VSTGUI::kDrawFilled);
+   c.drawEllipse({cx-kHeaderMountRadius,cy-kHeaderMountRadius,cx+kHeaderMountRadius,cy+kHeaderMountRadius},VSTGUI::kDrawFilled);
    c.setFrameColor({238,230,214,255});c.setLineWidth(1.);
    c.drawEllipse({cx-21.,cy-21.,cx+21.,cy+21.},VSTGUI::kDrawStroked);
    c.setFillColor({12,15,20,255});
@@ -278,7 +285,7 @@ struct UiV101NativePreview final {
                          (value+24.)/48.;
    // Radius < 24px: mounting rings never touch adjacent 48px rows.
    c.setFillColor({8,16,24,255});
-   c.drawEllipse({x-23.,y-23.,x+23.,y+23.},VSTGUI::kDrawFilled);
+   c.drawEllipse({x-kRowMountRadius,y-kRowMountRadius,x+kRowMountRadius,y+kRowMountRadius},VSTGUI::kDrawFilled);
    c.setFrameColor({92,100,108,255});c.setLineWidth(1.);
    c.drawEllipse({x-22.,y-22.,x+22.,y+22.},VSTGUI::kDrawStroked);
    c.setFillColor({7,11,17,255});
