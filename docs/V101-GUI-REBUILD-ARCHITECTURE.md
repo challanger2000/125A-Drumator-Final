@@ -137,3 +137,31 @@ a separate view prototype rather than the installed plugin's live GUI.
 - The temporary push branch trigger used to initiate each run was reverted immediately; development pushes remain manual-only.
 
 - **Actions #40566872805**: Windows compilation PASS; 23/24 CTests PASS. V101 interactive regression passed the previously blocked host Pattern D change, song/mute/solo, SWING, VOL and PAN checks but stopped at `V101 PITCH drag wrong`. Proven cause from `DrumatorProcessor.cpp`: `Drumator.RowPitch` requires `outputRate_>0` for `PreparedSample::fromWav`, whereas VOL/PAN can run with inactive audio. The test fixture did not call `prepareAudio(*f.p)`; this was corrected in commit `d72b081` with no shipping-code change. Remaining interactive and screenshot tests are **NOT YET VERIFIED**.
+
+### Batched native GUI milestone — verified success (27 October 2026)
+
+**Windows Actions #40568273913** on source/workflow trigger commit
+`7cfbf4815dc23e0e8e5137326b78756758209526`: overall **SUCCESS**.
+The development branch's auto-push trigger was immediately restored to
+manual-only in `95313e2`; that follow-up changes only CI trigger policy,
+not the tested plugin/UI implementation.
+
+- MSVC x64, C++ / VST3 compilation: **PASS**.
+- CTest: **24/24 PASS**, including Controller → native pixel scene and the
+  complete new `testV101Interaction` with real VST3 host handler, prepared
+  sample-rate PITCH drag, velocity undo/commit and zoom/pagination contracts.
+- Official Steinberg Validator: **47/47 PASS**.
+- Packaged host VSTGUI resource and native prototype screenshot QA: **PASS**.
+  Captures include 100%, 130% raster, zoom popup, live VEL lane, SET lane;
+  artifacts `125A-Drumator-VSTGUI-Native-Renderings` on this exact run.
+- Independent pinned 125A Plugin Tester v0.3.2: **58 PASS / 0 WARNING /
+  0 FAIL**, `RELEASE: PASS` *for the tested packaged V1.0.0-compatible
+  plugin and its existing live GUI*, not the unintegrated V1.0.1 UI.
+
+**Scope boundary**: this verifies the *isolated V1.0.1 native design renderer,
+its Controller-bound scene and standalone pointer-action test*. The active
+shipped VST3 editor is still the original V1.0.0 view. Therefore real host
+interaction with the new view, its popups (SONG EDIT, FILL, OUT/CHOKE, load,
+sample editor), resize negotiations, stateful refresh/reopen and Studio One
+acceptance are **NOT RUN / PENDING**. No merge to main, release, or claim of
+finished V1.0.1 editor is authorized by this run.
