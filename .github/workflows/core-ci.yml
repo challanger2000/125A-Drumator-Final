@@ -181,6 +181,13 @@ jobs:
             throw 'Missing expanded native V1.0.1 four-option zoom screenshot'
           }
           Copy-Item -LiteralPath $zoomPopup -Destination 'build/gui-shots/v101-layout-native-zoom-menu-100.bmp' -Force
+          foreach ($kind in @('velocity', 'settings')) {
+            $lane = Join-Path $PWD "gui-shots/v101-controller-$kind-lane-100.bmp"
+            if (!(Test-Path -LiteralPath $lane)) {
+              throw "Missing real-controller V1.0.1 $kind expanded-lane native screenshot"
+            }
+            Copy-Item -LiteralPath $lane -Destination "build/gui-shots/v101-controller-$kind-lane-100.bmp" -Force
+          }
           $bundleFiles | Select-Object FullName,Length | Format-Table
       - name: Archive native VSTGUI pixel renderings
         uses: actions/upload-artifact@v4
