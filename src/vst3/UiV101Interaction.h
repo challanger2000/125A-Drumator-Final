@@ -16,6 +16,20 @@ public:
  using L=UiV101Layout;
  enum class Result { Ignored, Handled, Applied, DeferredToView, Failed };
  enum class SettingsAction { None, Output, Choke, Copy, Paste, Clear, RandomVelocity };
+ // A DeferredToView result must carry its exact host-side action and target.
+ // The view consumes this once to open a popup/dialog; never infer it from
+ // a subsequent mouse position or a potentially changed selected row.
+ enum class DeferredKind { None, PatternMenu, SongEditor, Fill, LoadSample,
+                           SampleEditor, OutputMenu, ChokeMenu, Zoom };
+ struct DeferredRequest {
+   DeferredKind kind=DeferredKind::None;
+   std::size_t row=L::instruments;
+ };
+ DeferredRequest takeDeferredRequest() noexcept {
+   const auto request=deferred_;
+   deferred_={};
+   return request;
+ }
  struct State {
    std::size_t firstRow=0,selectedRow=0,expandedRow=L::instruments;
    L::Expansion expansion=L::Expansion::None;
@@ -77,6 +91,7 @@ public:
  void reset() {
    endGesture(false);
    state_=State{};
+   deferred_={};
  }
  void reconcile(){
    const auto total=controller_.visibleRows();
@@ -105,6 +120,7 @@ public:
    return true;
  }
  Result down(double x,double y,bool erase=false){
+   deferred_={};
    reconcile();
    if(gesture_!=Gesture::None)endGesture(true);
    if(state_.zoomOpen){
@@ -114,7 +130,7 @@ public:
      if(selected>=0){
        priorZoomIndex_=state_.zoomIndex;
        state_.zoomIndex=static_cast<std::size_t>(selected);
-       return Result::DeferredToView; // host/editor must negotiate actual resize
+       return defer(DeferredKind::Zoom); // host/editor must negotiate actual resize
      }
      return Result::Handled; // modal menu blocks click-through
    }
@@ -131,13 +147,13 @@ public:
      for(std::size_t i=0;i<8;++i)
        if(L::patternButton(i).hit(x,y))
          return controller_.changePattern(i)?Result::Applied:Result::Failed;
-     if(L::patternMenu.hit(x,y))return Result::DeferredToView;
+     if(L::patternMenu.hit(x,y))return defer(DeferredKind::PatternMenu);
      if(L::barsButton.hit(x,y))
        return controller_.togglePatternLength(controller_.currentPattern())?
               Result::Applied:Result::Failed;
      if(L::headerGroup(0).hit(x,y))
        return controller_.toggleSongMode()?Result::Applied:Result::Failed;
-     if(L::headerGroup(1).hit(x,y))return Result::DeferredToView;
+     if(L::headerGroup(1).hit(x,y))return defer(DeferredKind::SongEditor);
    }
    for(std::size_t i=0;i<L::headerKnobCenters.size();++i)
      if(L::headerKnob(i).hit(x,y)){
@@ -182,6 +198,11 @@ public:
      return settingsAction(h.row,settingsAt(x,relativeY));
    }
    const auto out=UiV101ControllerBridge::apply(controller_,h);
+   if(out==UiV101ControllerBridge::Route::DeferredToView){
+     if(h.action==L::Action::Fill)return defer(DeferredKind::Fill,h.row);
+     if(h.action==L::Action::Load)return defer(DeferredKind::LoadSample,h.row);
+     if(h.action==L::Action::Edit)return defer(DeferredKind::SampleEditor,h.row);
+   }
    return out==UiV101ControllerBridge::Route::Applied?Result::Applied:
           out==UiV101ControllerBridge::Route::Failed?Result::Failed:
           out==UiV101ControllerBridge::Route::DeferredToView?
@@ -226,6 +247,11 @@ private:
  enum class Gesture { None, RowKnob, HeaderKnob, Velocity };
  Controller& controller_;
  State state_{};
+ DeferredRequest deferred_{};
+ Result defer(DeferredKind kind,std::size_t row=L::instruments) noexcept {
+   deferred_={kind,row};
+   return Result::DeferredToView;
+ }
  std::size_t priorZoomIndex_=0;
  Gesture gesture_=Gesture::None;
  int knobIndex_=-1;
@@ -262,8 +288,8 @@ private:
    bool ok=false;
    switch(action){
      case SettingsAction::None:return Result::Ignored;
-     case SettingsAction::Output:
-     case SettingsAction::Choke:return Result::DeferredToView;
+     case SettingsAction::Output:return defer(DeferredKind::OutputMenu,row);
+     case SettingsAction::Choke:return defer(DeferredKind::ChokeMenu,row);
      case SettingsAction::Copy:ok=controller_.copyRow(row);break;
      case SettingsAction::Paste:
        if(!controller_.canPasteRow())return Result::Ignored;
