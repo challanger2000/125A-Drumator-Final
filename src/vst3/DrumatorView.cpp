@@ -2236,7 +2236,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    }
    if(v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
                     (buttons&VSTGUI::kShift)!=0))
-     return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+     return VSTGUI::kMouseEventHandled;
    return VSTGUI::kMouseEventNotHandled;
  }
  if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
@@ -2753,6 +2753,11 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseMoved(
     VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
+ if(v101Mode_&&songEditorOpen_){
+   if(buttons&VSTGUI::kLButton)(void)v101_.move(pos.x,pos.y);
+   else (void)v101_.up();
+   invalid();return VSTGUI::kMouseEventHandled;
+ }
  if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
    if(buttons&VSTGUI::kLButton)(void)v101_.move(pos.x,pos.y);
    else (void)v101_.up();
@@ -2813,6 +2818,9 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseMoved(
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
     VSTGUI::CPoint&,const VSTGUI::CButtonState&) {
+ if(v101Mode_&&songEditorOpen_){
+   (void)v101_.up();invalid();return VSTGUI::kMouseEventHandled;
+ }
  if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
    (void)v101_.up();invalid();return VSTGUI::kMouseEventHandled;
  }
