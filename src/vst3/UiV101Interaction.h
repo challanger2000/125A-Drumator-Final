@@ -66,6 +66,17 @@ public:
    return L::editorHeight(state_.firstRow,shownRows(),expandedRows());
  }
  double userZoom()const noexcept{return L::zoomPresets[state_.zoomIndex];}
+ // A reopened DAW editor must show the actual recalled zoom, not always 100%.
+ void syncZoomFromHost(double value) noexcept {
+   if(!std::isfinite(value))return;
+   for(std::size_t i=0;i<L::zoomPresets.size();++i)
+     if(std::abs(value-L::zoomPresets[i])<0.0001){
+       state_.zoomIndex=i;
+       priorZoomIndex_=i;
+       return;
+     }
+ }
+
  // Called by the real editor only after setZoomChecked + host resize negotiation.
  // A failed resize must not leave the visible menu out of sync with the host.
  void confirmZoom(bool accepted)noexcept {
