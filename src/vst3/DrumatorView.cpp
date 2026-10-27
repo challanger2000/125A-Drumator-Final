@@ -1,5 +1,6 @@
 #include "DrumatorView.h"
 #include "vst3/UiV101Scene.h"
+#include "vst3/UiV101SongPainter.h"
 #include "BrandLogoGeometry.h"
 #include "core/UiWaveEditorLayout.h"
 #include "vstgui/lib/cgraphicspath.h"
@@ -1157,9 +1158,23 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
  return result!=R::Ignored;
 }
 
+void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
+ drawV101(c);
+ v101::UiV101SongPainter::draw(*c,controller_,songPage_,songSlot_,
+                              status_.c_str());
+ // The top-row SONG EDIT key stays visibly latched while its board is open.
+ v101::UiV101NativePreview::cap(*c,UiV101Layout::headerGroup(1),
+                                 0.,"SONG EDIT",true,10);
+}
 void DrumatorView::draw(VSTGUI::CDrawContext* c) {
- if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
-   drawV101(c);
+ if(v101Mode_&&!sampleEditorOpen_){
+   if(songEditorOpen_)drawV101Song(c);
+   else drawV101(c);
+   setDirty(false);
+   return;
+ }
+ if(v101Mode_&&sampleEditorOpen_){
+   drawV101Wave(c);
    setDirty(false);
    return;
  }
