@@ -1,7 +1,7 @@
 name: Drumator Windows Core and VST3 Integration
 on:
   push:
-    branches: [main, release/v1.0.0, develop/v1.0.1-gui-redesign]
+    branches: [main, release/v1.0.0]
     paths:
       - 'src/core/**'
       - 'src/vst3/**'
