@@ -163,6 +163,19 @@ jobs:
             throw 'Packaged Resources GUI screenshot file missing'
           }
           Copy-Item -LiteralPath $packagedRender -Destination 'build/gui-shots/packaged-vst3-resources-silver-100.bmp' -Force
+          # Isolated V1.0.1 prototype: same native VSTGUI backend, no edits
+          # to the currently shipped controller/view or their input hit map.
+          & $nativeIntegration[0].FullName $resourceDirectory '--v101-preview-render'
+          if ($LASTEXITCODE -ne 0) {
+            throw 'V1.0.1 native preview raster or pixel oracle FAILED'
+          }
+          foreach ($zoom in @('100', '130')) {
+            $preview = Join-Path $PWD "gui-shots/v101-layout-native-prototype-$zoom.bmp"
+            if (!(Test-Path -LiteralPath $preview)) {
+              throw "Missing native V1.0.1 design preview at $zoom percent"
+            }
+            Copy-Item -LiteralPath $preview -Destination "build/gui-shots/v101-layout-native-prototype-$zoom.bmp" -Force
+          }
           $bundleFiles | Select-Object FullName,Length | Format-Table
       - name: Archive native VSTGUI pixel renderings
         uses: actions/upload-artifact@v4
