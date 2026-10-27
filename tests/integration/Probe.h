@@ -1,0 +1,31 @@
+#pragma once
+#include <cstddef>
+#include <atomic>
+namespace drumator::qa {
+extern thread_local bool legacyTriggerOrdering; // regression negative, test EXE only
+enum class AuditMutation { none, suppressZeroStop, staleDuration, skipPeerCommit,
+ basenameOnly, delayMidiOne, dropMidi, doubleMidi, zeroPrefix,
+ skipImport, muteImportedProcessor, delayImportedProcessor,
+ rejectPreviewStop, rejectPreviewStopOnce, patternQueryOOM, patternReplyOOM,
+ oldFadeRenderer, oldKnobDrawCenters, loadRepaintOOM, refreshViewsOOM, disableWaveCache, bypassWaveRangeIndex, suppressMissingContextCarry,
+ skipCycleSplit, skipCycleVelocityMap, skipCycleModulo,
+ suppressCycleClockCache, freezeCycleTempo,
+ keepCycleOnPartialDisable, ignorePartialTempo, repeatSongSnapshots,
+ ignoreValidPartialPpq, keepComponentFirstOriginArmed };
+extern std::atomic<AuditMutation> auditMutation;
+// QA-only two-pass raster oracle: paint with and without actual knob faces.
+extern std::atomic<bool> suppressRotaryFace;
+extern std::atomic<unsigned> auditSongScheduleCalls;
+extern std::atomic<unsigned> auditSongPatternSnapshots;
+extern std::atomic<unsigned> auditViewRefreshFaultHits;
+extern std::atomic<unsigned> auditWaveDecodeMisses,auditWaveFullReplies;
+extern std::atomic<unsigned> auditWaveIndexedCalls;
+extern std::atomic<const void*> auditImportTarget;
+extern std::atomic<unsigned> auditImportCalls,auditDelayCalls;
+enum Point { none, patternMidWrite, patternReadStarted, restoreSnapshot,
+             restoreMidCommit, restoreBeforeSelection, songMidPublish,
+             auditAfterLengthRead, auditAfterAuditionAdopt, auditAfterAuditionStartTaken,
+             auditAfterAuditionAssetPublished };
+// Inserted only in generated test translation units, never the shipped VST3.
+void probe(Point point) noexcept;
+}

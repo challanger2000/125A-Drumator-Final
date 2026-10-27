@@ -1,0 +1,406 @@
+{
+  "name": "125A Drumator – VSTGUI UX V2 slot contract",
+  "date": "2026-10-20",
+  "version": "UX V2 functional development candidate; owner Studio One acceptance required",
+  "artworkStatus": "Actual functional Windows VSTGUI custom-drawn rotaries and menus. Final approved knob-filmstrip skin not integrated.",
+  "sourceOfTruth": [
+    "src/core/UiCompactLayout.h",
+    "src/vst3/DrumatorView.cpp",
+    "src/vst3/DrumatorView.h",
+    "src/vst3/DrumatorController.cpp",
+    "tests/integration/WindowsIntegration.cpp",
+    "src/core/UiSongLayout.h",
+    "docs/RV01-RANDOM-VELOCITY-ONE-SHOT-HANDOFF.md",
+    "docs/SO01-STUDIO-ONE-MULTIOUT-2026-10-20.md"
+  ],
+  "geometry": {
+    "width": 1280,
+    "headerHeight": 108,
+    "baseRowHeight": 94,
+    "optionalVelocityPerRowHeight": 30,
+    "footerHeight": 54,
+    "rowCountPerPage": 4,
+    "maxTotalInstruments": 16,
+    "stepColumns": 32,
+    "stepGrid": {
+      "x": 622,
+      "width": 608,
+      "cellWidth": 19
+    },
+    "firstRow": "pageIndex*4",
+    "rowY": "108+SUM(i=firstRow..row-1){94+(velocityExpanded[i]?30:0)}",
+    "windowHeight": "songEditorOpen ? 370 : max(370, UiCompactLayout::editorHeight(firstRow, displayedRows, expandedVelocities))",
+    "velocityToggle": {
+      "rect": "[1233,rowY+45,1266,rowY+79]",
+      "label": "VELO / arrow (single row only)"
+    },
+    "zoom": [
+      100,
+      120,
+      130,
+      150
+    ],
+    "zoomUnit": "percent",
+    "hostContentScaleFactor": "separate",
+    "minimumHitTargetNote": "Most visible small controls >=24x29 logical pixels. Row-knob drag hit approx 36x34 logical pixels."
+  },
+  "controlGroups": {
+    "header": {
+      "brandArea": "[16,5,304,35]",
+      "patternStrip": {
+        "x": 330,
+        "y": 52,
+        "width": 49,
+        "spacing": 55,
+        "items": "A-H; C++ kPatternX"
+      },
+      "patternActions": {
+        "rect": [
+          782,
+          52,
+          901,
+          82
+        ],
+        "menu": [
+          "KOPIEREN",
+          "EINFUEGEN",
+          "LOESCHEN",
+          "RUECKGAENGIG",
+          "VELO VARIIEREN",
+          "VELO 100"
+        ]
+      },
+      "songOnOff": {
+        "rect": [
+          910,
+          52,
+          991,
+          82
+        ]
+      },
+      "songEdit": {
+        "rect": [
+          998,
+          52,
+          1098,
+          82
+        ]
+      },
+      "zoomMenu": {
+        "rect": [
+          1120,
+          7,
+          1250,
+          35
+        ],
+        "popup": {
+          "rect": "[1098,39+30*i,1229,68+30*i]",
+          "options": [
+            "100%",
+            "120%",
+            "130%",
+            "150%"
+          ]
+        }
+      },
+      "rotary": [
+        {
+          "id": "swing",
+          "center": [
+            80,
+            76
+          ],
+          "range": [
+            0,
+            50
+          ],
+          "default": 0,
+          "unit": "%"
+        },
+        {
+          "id": "humanize",
+          "center": [
+            178,
+            76
+          ],
+          "range": [
+            0,
+            100
+          ],
+          "default": 0,
+          "unit": "%"
+        },
+        {
+          "id": "master",
+          "center": [
+            1178,
+            76
+          ],
+          "range": [
+            0,
+            200
+          ],
+          "default": 100,
+          "unit": "%"
+        }
+      ],
+      "patternLengthButtons": {
+        "1TAKT": [
+          460,
+          8,
+          526,
+          34
+        ],
+        "2TAKTE": [
+          533,
+          8,
+          608,
+          34
+        ],
+        "note": "direct buttons; changes current pattern's loop length, not per-song-entry duration"
+      }
+    },
+    "instrument": {
+      "row": {
+        "rect": "[9,rowY,1270,rowY+94+(expanded?30:0)-2]",
+        "selected": "highlight border"
+      },
+      "select": {
+        "rect": "[16,rowY+5,74,rowY+35]",
+        "meaning": "only select row; must not load sample/change notes"
+      },
+      "sample": {
+        "rect": "[78,rowY+5,272,rowY+35]",
+        "meaning": "click load WAV/FLAC; Shift rename; Alt clear (optional shortcuts)"
+      },
+      "sampleActions": {
+        "rect": "[275,rowY+5,301,rowY+35]",
+        "items": [
+          "SAMPLE LADEN",
+          "INSTRUMENT UMBENENNEN",
+          "SAMPLE ENTFERNEN"
+        ],
+        "popup": "[78,popupTop+30*i,304,popupTop+30*i+29]",
+        "popupTop": "clamp(rowY+36,108,max(108,windowHeight-100))"
+      },
+      "samplePrevious": {
+        "rect": "[303,rowY+5,329,rowY+35]"
+      },
+      "sampleNext": {
+        "rect": "[332,rowY+5,358,rowY+35]"
+      },
+      "samplePreview": {
+        "rect": "[362,rowY+5,398,rowY+35]",
+        "label": "PLAY"
+      },
+      "fill": {
+        "rect": "[403,rowY+5,452,rowY+35]",
+        "options": [
+          "FILL 2",
+          "FILL 4",
+          "FILL 8",
+          "SNARE 2+4",
+          "FILL ALL",
+          "CLEAR",
+          "OFFBEAT HAT",
+          "GALOPP",
+          "SNARE + GHOST"
+        ]
+      },
+      "mute": {
+        "rect": "[457,rowY+5,491,rowY+35]"
+      },
+      "solo": {
+        "rect": "[496,rowY+5,530,rowY+35]"
+      },
+      "output": {
+        "rect": "[535,rowY+5,615,rowY+35]",
+        "options": "MAIN, OUT 2..16",
+        "popup": "two columns 8 each, starting [413,popupTop]"
+      },
+      "choke": {
+        "labelRect": "[570,rowY+37,615,rowY+52]",
+        "rect": "[570,rowY+54,615,rowY+86]",
+        "options": "CHOKE 0..4"
+      },
+      "rotary": [
+        {
+          "id": "volume",
+          "centerX": 133,
+          "centerY": "rowY+68",
+          "range": [
+            0,
+            200
+          ],
+          "default": 100,
+          "unit": "%"
+        },
+        {
+          "id": "pan",
+          "centerX": 254,
+          "centerY": "rowY+68",
+          "range": [
+            -100,
+            100
+          ],
+          "default": 0,
+          "unit": "L / C / R"
+        },
+        {
+          "id": "pitch",
+          "centerX": 375,
+          "centerY": "rowY+68",
+          "range": [
+            -24,
+            24
+          ],
+          "default": 0,
+          "unit": "st"
+        },
+        {
+          "id": "randomVelocity",
+          "centerX": 496,
+          "centerY": "rowY+68",
+          "range": [
+            0,
+            100
+          ],
+          "default": 0,
+          "unit": "%"
+        }
+      ],
+      "velocity": {
+        "perInstrument": true,
+        "expandedHeight": 30,
+        "stepBars": "[622+19*i+2,rowY+97,622+19*i+17,rowY+120]",
+        "validValues": "0=off, 1..127 active",
+        "edit": "click/drag edits occupied note bars only (0 means note OFF); clicking blank bars must not add notes; Ctrl erases; one undoable stroke; current row's STEP n: value /127 appears at x195..390"
+      },
+      "legacyRandomVelocityKnob": {
+        "currentRuntime": true,
+        "status": "DEPRECATED FOR TARGET GUI, REMOVE BEFORE RELEASE",
+        "centerX": 496,
+        "centerY": "rowY+68",
+        "range": [
+          0,
+          100
+        ],
+        "migrationGate": "Legacy realtime randomVelocity_ >0 in saved kit continues altering audio after button replaces knob; decide explicit migration before release"
+      },
+      "targetRandomVelocityAction": {
+        "type": "per-instrument button (NOT rotary)",
+        "caption": "RANDOM VEL",
+        "controllerCall": "Controller::randomizeRowVelocity(row)",
+        "effect": "One-shot edits stored velocities on occupied 1T/2T steps in selected pattern, single Undo; zero steps remain zero",
+        "hitRect": "TO BE DEFINED by new GUI chat; previous knob circle is not an approved button hitbox",
+        "status": "backend implemented; visual mapping pending"
+      }
+    },
+    "footer": {
+      "y": "gridBottom()",
+      "add": {
+        "rect": "[16,y+5,110,y+34]"
+      },
+      "removeLastEmpty": {
+        "rect": "[116,y+5,210,y+34]"
+      },
+      "pageLeft": {
+        "rect": "[1068,y+5,1145,y+34]"
+      },
+      "pageRight": {
+        "rect": "[1152,y+5,1229,y+34]"
+      },
+      "status": {
+        "rect": "[414,y+5,1016,y+34]"
+      },
+      "removedFromV1": [
+        "global VELOCITY AUSBLENDEN",
+        "separate row selection buttons",
+        "master +/-",
+        "swing +/-",
+        "humanize +/-",
+        "row Volume/Pan/Pitch +/-",
+        "five-item full-width precision panel",
+        "four separate zoom buttons",
+        "standalone footer COPY/PASTE/CLEAR/UNDO/VELO VARIATE"
+      ],
+      "note": "When host denies resize, page arrows are visible whenever totalRows>displayedRows(), even with <=4 total"
+    },
+    "songEditor": {
+      "mode": "own overlay",
+      "slots": 64,
+      "pattern": "A-H",
+      "length": [
+        "1/2 TAKT",
+        "1 TAKT",
+        "2 TAKTE"
+      ],
+      "origin": [
+        0,
+        101
+      ],
+      "drawOrder": "draw song panel before contextual menu popups",
+      "coverage": "Full logical width 0..1280 including right edge; test captures pixel 1260,140 to reject leaks.",
+      "slotsPerPage": 16,
+      "columns": 8,
+      "rows": 2,
+      "pageCount": 4,
+      "pageTop": 145,
+      "cellSize": [
+        150,
+        45
+      ],
+      "columnPitch": 154,
+      "rowPitch": 52,
+      "pageNav": {
+        "prev": [
+          988,
+          104,
+          1102,
+          134
+        ],
+        "next": [
+          1110,
+          104,
+          1244,
+          134
+        ]
+      },
+      "windowHeight": 370,
+      "missingSlotPolicy": "Only existing entries and immediate next +EINTRAG are clickable; Pattern and Length disabled if page contains no selected existing entry"
+    }
+  },
+  "gestures": {
+    "rotary": "legacy rotary code: slot pitch/swing 2.5 logical px/step; other knobs 1.5 px/step; Shift latched at mouse-down => x4 fine movement; Ctrl+click/double-click resets actual default. Target GUI must delete legacy RANDOM VEL rotary",
+    "popup": "click opens visible menu, outside closes without acting on underlying controls; menu row hit bounds match rendered rectangles",
+    "zoom": "DZM1 100/150 state backward-compatible, DZM2 120/130; actual host resize may refuse",
+    "sampleDragAndDrop": "accept only file-path on sample field, not steps, Velocity rows, menus or song board"
+  },
+  "visualGates": {
+    "priorVerifiedWindowsRun": "39464692526 (22/22 CTests, Steinberg 47/47, SO01 16 kMain stereo output metadata, RV01 controller PASS; native Studio One not yet run)",
+    "currentVisualReview": "Runtime UI includes previous randomVelocity rotary and must not be considered final UX; see targetRandomVelocityAction",
+    "requiredViews": [
+      "four rows at 100/120/130/150",
+      "one/two independent Velocity rows",
+      "sample/load/rename/remove menu",
+      "output menu",
+      "choke menu",
+      "fill menu",
+      "pattern action menu",
+      "zoom menu",
+      "song board",
+      "16 instruments paged to last page"
+    ],
+    "ownerStudioOneQA": "NOT RUN; mandatory",
+    "nativeVisualOracles": [
+      "Song overlay fully covers x>=1252, including old VELO controls",
+      "Zoom popup stops at x=1229 before VELO label at x=1233"
+    ],
+    "releaseBlockers": [
+      "Replace legacy RANDOM VEL rotary with one-shot button and decide legacy realtime-value migration",
+      "Owner native Studio One multiout activation after SO01 kMain patch",
+      "Final skin and 100/120/130/150 owner viewport acceptance",
+      "4-/8-bar concepts versus 32-Step cap require explicit design decision"
+    ]
+  }
+}

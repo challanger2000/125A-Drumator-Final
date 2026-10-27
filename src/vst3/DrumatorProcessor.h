@@ -1,0 +1,169 @@
+#pragma once
+#include "core/SequencerCore.h"
+#include "core/AtomicPatternBank.h"
+#include "core/VisibleRows.h"
+#include "core/KitState.h"
+#include "core/SampleVoiceEngine.h"
+#include "core/SampleExchange.h"
+#include "core/TriggerBatch.h"
+#include "core/KitRestoreGate.h"
+#include "core/AtomicPatternSelection.h"
+#include "core/PatternEventTimeline.h"
+#include "core/MasterGainRamp.h"
+#include "core/OutputMeter.h"
+#include "core/AtomicRowMix.h"
+#include "public.sdk/source/vst/vstaudioeffect.h"
+#include <array>
+#include <atomic>
+#include <cstdint>
+#include <vector>
+#include <mutex>
+#include <memory>
+namespace drumator {
+// Atomic, versioned transfer; only the control thread writes. The audio thread
+// reads bounded snapshots and keeps its last valid chain on contention.
+class SongMailbox final {
+ std::atomic<std::uint32_t> sequence_{0};
+ std::atomic<std::uint8_t> enabled_{0};
+ std::atomic<std::uint8_t> count_{8};
+ std::array<std::atomic<std::uint8_t>,SongChain::kCapacity> pattern_{};
+ std::array<std::atomic<std::uint8_t>,SongChain::kCapacity> length_{};
+ std::atomic<std::uint16_t> startBar_{1};
+public:
+ SongMailbox() noexcept {
+  for(std::size_t i=0;i<SongChain::kCapacity;++i){
+   pattern_[i].store(static_cast<std::uint8_t>(i<kPatterns?i:0));
+   length_[i].store(32);
+  }
+ }
+ void publish(const SongChain& chain,bool enabled,std::uint16_t startBar=1) noexcept {
+  sequence_.fetch_add(1,std::memory_order_acq_rel);
+  enabled_.store(enabled?1:0,std::memory_order_relaxed);
+  startBar_.store(startBar,std::memory_order_relaxed);
+  count_.store(static_cast<std::uint8_t>(chain.count()),std::memory_order_relaxed);
+  for(std::size_t i=0;i<SongChain::kCapacity;++i){
+   const auto e=chain.entry(i);
+   pattern_[i].store(e.pattern,std::memory_order_relaxed);
+   length_[i].store(e.steps,std::memory_order_relaxed);
+  }
+  sequence_.fetch_add(1,std::memory_order_release);
+ }
+ bool snapshot(SongChain& chain,bool& enabled,std::uint16_t* startBar=nullptr) const noexcept {
+  const auto first=sequence_.load(std::memory_order_acquire);
+  if(first&1u)return false;
+  const auto count=count_.load(std::memory_order_relaxed);
+  const auto state=enabled_.load(std::memory_order_relaxed);
+  const auto bar=startBar_.load(std::memory_order_relaxed);
+  SongChain candidate;
+  if(!candidate.setCount(count)||state>1||bar<1||bar>9999)return false;
+  for(std::size_t i=0;i<count;++i)
+   if(!candidate.configure(i,pattern_[i].load(std::memory_order_relaxed),
+                              length_[i].load(std::memory_order_relaxed)))return false;
+  const auto last=sequence_.load(std::memory_order_acquire);
+  if(first!=last||last&1u)return false;
+  chain=candidate;enabled=state!=0;
+  if(startBar)*startBar=bar;
+  return true;
+ }
+ // Gate-denied callbacks must not read the non-atomic audio cache while
+ // the control actor installs a kit. MIDI eligibility needs only this bit.
+ bool midiPatternSuppressed() const noexcept {
+  return enabled_.load(std::memory_order_acquire)!=0;
+ }
+};
+class Processor final:public Steinberg::Vst::AudioEffect {
+public:
+ Processor();
+ ~Processor() override;
+ Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint*) SMTG_OVERRIDE;
+ static Steinberg::FUnknown* createInstance(void*) {
+   return static_cast<Steinberg::Vst::IAudioProcessor*>(new Processor());
+ }
+ Steinberg::tresult PLUGIN_API initialize(Steinberg::FUnknown*) SMTG_OVERRIDE;
+ Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool) SMTG_OVERRIDE;
+ Steinberg::tresult PLUGIN_API setProcessing(Steinberg::TBool) SMTG_OVERRIDE;
+ Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage*) SMTG_OVERRIDE;
+ Steinberg::tresult PLUGIN_API setupProcessing(Steinberg::Vst::ProcessSetup&) SMTG_OVERRIDE;
+ Steinberg::tresult PLUGIN_API setBusArrangements(Steinberg::Vst::SpeakerArrangement*,
+     Steinberg::int32,Steinberg::Vst::SpeakerArrangement*,Steinberg::int32) SMTG_OVERRIDE;
+ Steinberg::tresult PLUGIN_API activateBus(Steinberg::Vst::MediaType,
+     Steinberg::Vst::BusDirection,Steinberg::int32,Steinberg::TBool) SMTG_OVERRIDE;
+ Steinberg::tresult PLUGIN_API canProcessSampleSize(Steinberg::int32) SMTG_OVERRIDE;
+ Steinberg::tresult PLUGIN_API process(Steinberg::Vst::ProcessData&) SMTG_OVERRIDE;
+ Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream*) SMTG_OVERRIDE;
+ Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream*) SMTG_OVERRIDE;
+ Steinberg::uint32 PLUGIN_API getTailSamples() SMTG_OVERRIDE;
+private:
+ std::uint64_t meterId_{0};
+ std::shared_ptr<OutputMeter> meter_{};
+ bool publishRestoredKit(const KitState& state,double rate); // control only
+ std::mutex kitMutex_{};
+ // Restore barrier: no audio callback may consume a partially installed kit.
+ // The audio callback never waits; only control-side setState waits for a block.
+ KitRestoreGate restoreGate_{};
+ std::atomic<std::uint32_t> kitRevision_{0};
+ // Version and selected program share one atomic CAS arbitration word.
+ std::uint32_t lastAudioKitRevision_{0}; // audio-thread only
+ KitState kit_{};
+ // Control-thread-only per-row source/edit generation (never serialized).
+ std::array<std::uint32_t,kRows> editorRevisions_{};
+ SongMailbox songMailbox_{};
+ SongChain audioSongChain_{};
+ bool audioSongEnabled_{false};
+ std::uint16_t audioSongStartBar_{1};
+ AtomicPatternBank patterns_;
+ // Last coherent patterns, read/written only in the audio callback.
+ std::array<std::array<std::uint8_t,kRows*kSteps>,kPatterns> audioPatternCache_{};
+ std::array<std::uint8_t,kPatterns> audioPatternLengthCache_{};
+ std::array<bool,kPatterns> audioPatternValid_{};
+ SampleVoiceEngine voices_;
+
+ SampleExchange exchange_{};
+ SampleExchange auditionExchange_{};
+ SampleVoiceEngine auditionVoices_{};
+ std::atomic<bool> auditionStart_{false},auditionStop_{false};
+ std::atomic<std::uint64_t> auditionStopGeneration_{0};
+ // Latest Preview/STOP command is published as one atomic transaction.
+ std::atomic<std::uint64_t> auditionCommand_{0};
+ // Even = completed sample/START transaction; odd = publishing sample.
+ // Audio checks the sequence before and after adoption to protect identity.
+ std::atomic<std::uint64_t> auditionPublishSequence_{0};
+ std::uint64_t lastAudioAuditionCommand_{0};
+ std::vector<float> auditionLeft_{},auditionRight_{};
+ TriggerBatch triggers_{};
+ PatternEventTimeline patternTimeline_{};
+ // One-shot previews from GUI; one pending request per row, not persisted.
+ std::atomic<std::uint32_t> previewPending_{0};
+ std::atomic<double> outputRate_{0.0};
+ bool wasPlaying_{false};
+ std::int64_t phaseOriginStep_{0};
+ double expectedNextPpq_{0.0};
+ bool haveExpectedPpq_{false};
+ double lastClockTempo_{0.0}; // audio-owner fallback for optional context
+ // Last genuinely supplied host Cycle bounds, audio-thread-owned only.
+ // Used solely when optional transport-clock data disappear transiently.
+ double lastCycleStartMusic_{0.0};
+ double lastCycleEndMusic_{0.0};
+ bool haveCycleBounds_{false};
+ AtomicPatternSelection selected_{};
+ std::atomic<std::uint8_t> visibleRows_{kDefaultVisibleRows};
+ std::atomic<std::uint32_t> muteMask_{0};
+ std::atomic<std::uint32_t> soloMask_{0};
+ std::array<AtomicRowMix,kRows> rowMix_{};
+ std::array<std::atomic<std::uint8_t>,kRows> rowChoke_{};
+ std::array<std::atomic<std::uint8_t>,kRows> rowOutput_{};
+ std::atomic<std::uint8_t> swingPercent_{0};
+ std::atomic<std::uint8_t> humanizePercent_{0};
+ std::array<std::atomic<std::uint8_t>,kRows> randomVelocity_{};
+ std::array<std::atomic<std::uint8_t>,kPatterns> patternLengths_{};
+ // Monotonic, lock-free diagnostics; never logs or allocates in process().
+ std::atomic<std::uint64_t> droppedTriggers_{0};
+ std::atomic<std::uint64_t> inspectedHostEvents_{0};
+ std::atomic<std::uint64_t> validHostNotes_{0};
+ std::atomic<std::uint64_t> uninspectedHostEvents_{0};
+ std::atomic<std::uint8_t> masterVolume_{100};
+ MasterGainRamp masterRamp_{}; // reset only at setup/guarded recall
+ std::atomic<std::uint32_t> activeStemMask_{0};
+ bool prepared_{false};
+};
+}
