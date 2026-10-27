@@ -1033,9 +1033,9 @@ void testV101Interaction(){
 // frame. The earlier V101 tests cover only a detached interaction object.
 void testV101LiveEditor(){
  using L=drumator::UiV101Layout;
+ V101PatternEditHost automation;
  Fixture f;auto kit=v101PreviewKit();kit.visible=16;f.kit(kit);
  prepareAudio(*f.p);
- V101PatternEditHost automation;
  check(f.c->setComponentHandler(&automation)==kResultOk,
        "V101 host test cannot install automatable Pattern callback");
  auto& hostEditor=f.openV101();
