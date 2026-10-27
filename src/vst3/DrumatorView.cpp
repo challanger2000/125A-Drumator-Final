@@ -1119,7 +1119,9 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase) {
      case K::SongEditor:
        songEditorOpen_=true;(void)adjustEditorHeight();break;
      case K::SampleEditor:
-       if(!openSampleEditor(request.row))status_="SAMPLE EDITOR UNAVAILABLE";
+       if(!openSampleEditor(request.row)&&
+          !controller_.sampleEditorRequestPending(request.row,this))
+         status_="SAMPLE EDITOR UNAVAILABLE";
        break;
      case K::LoadSample:load(request.row);break;
      case K::Zoom: {
