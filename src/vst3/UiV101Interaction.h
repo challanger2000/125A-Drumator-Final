@@ -15,7 +15,8 @@ class UiV101Interaction final {
 public:
  using L=UiV101Layout;
  enum class Result { Ignored, Handled, Applied, DeferredToView, Failed };
- enum class SettingsAction { None, Output, Choke, Copy, Paste, Clear, RandomVelocity };
+ enum class SettingsAction { None, Output, Choke, Copy, Paste, Clear,
+                             RandomVelocity, RandomRealtimeDown, RandomRealtimeUp };
  // A DeferredToView result must carry its exact host-side action and target.
  // The view consumes this once to open a popup/dialog; never infer it from
  // a subsequent mouse position or a potentially changed selected row.
@@ -90,11 +91,16 @@ public:
    const double left=x[index];
    return {left,56.,left+112.,88.}; // relative to expanded ROW TOP
  }
+ static constexpr L::Rect realtimeMinus{882.,56.,928.,88.};
+ static constexpr L::Rect realtimeValue{938.,56.,1080.,88.};
+ static constexpr L::Rect realtimePlus{1090.,56.,1136.,88.};
  static constexpr SettingsAction settingsAt(double x,double relativeY)noexcept{
    if(relativeY<48.||relativeY>=96.)return SettingsAction::None;
    for(std::size_t i=0;i<6;++i)
      if(settingsRect(i).hit(x,relativeY))
        return static_cast<SettingsAction>(static_cast<int>(i)+1);
+   if(realtimeMinus.hit(x,relativeY))return SettingsAction::RandomRealtimeDown;
+   if(realtimePlus.hit(x,relativeY))return SettingsAction::RandomRealtimeUp;
    return SettingsAction::None;
  }
  // Real 32-step lane uses the same x/pitch as the main Step grid.
@@ -336,6 +342,10 @@ private:
      case SettingsAction::Clear:ok=controller_.clearRow(row);break;
      case SettingsAction::RandomVelocity:
        ok=controller_.randomizeRowVelocity(row);break;
+     case SettingsAction::RandomRealtimeDown:
+       ok=controller_.adjustRandomVelocity(row,-10);break;
+     case SettingsAction::RandomRealtimeUp:
+       ok=controller_.adjustRandomVelocity(row,10);break;
    }
    return ok?Result::Applied:Result::Failed;
  }
