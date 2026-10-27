@@ -29,7 +29,7 @@ jobs:
           test "$(git -C "$src" diff --name-only "$VERIFIED_PRODUCT_SHA" "$SOURCE_SHA")" = "docs/V1-GUI-SONG-ROW-CORRECTIONS-20261027.md"
           test "$(git -C "$src" ls-files | wc -l)" -eq 166
           # Retain only final-repository Git metadata, not the temporary importer.
-          rsync -a --delete --exclude='/.git/' "$src/" ./
+          rsync -a --delete --exclude='/.git/' --exclude='/.github/workflows/' "$src/" ./
           python3 - <<'PY'
           from pathlib import Path
           import hashlib, subprocess
@@ -38,8 +38,6 @@ jobs:
             'CMakeLists.txt':[('project(Drumator VERSION 0.1.0 LANGUAGES CXX)','project(Drumator VERSION 1.0.0 LANGUAGES CXX)')],
             'src/vst3/PluginIDs.h':[('kPluginVersion="0.1.0"','kPluginVersion="1.0.0"')],
             'src/vst3/Factory.cpp':[('https://github.com/challanger2000/125A-Drumator"','https://github.com/challanger2000/125A-Drumator-Final"')],
-            '.github/workflows/core-ci.yml':[('branches: [develop/v1.0.0, fix/studio-one-acceptance-20261022, gui/ppg-blue-background-20261024]','branches: [main, release/v1.0.0]')],
-            '.github/workflows/125a-plugin-tester-qa.yml':[('repos/challanger2000/125A-Drumator/actions/','repos/challanger2000/125A-Drumator-Final/actions/')],
           }
           for path, edits in replacements.items():
             p=Path(path); old=p.read_text(encoding='utf-8'); new=old
@@ -77,17 +75,17 @@ jobs:
           if len(source_files)!=166: raise RuntimeError('Source track count changed')
           allowed=set(replacements)|{'README.md','AGENTS.md'}
           for rel in source_files:
-            if rel in allowed: continue
+            if rel in allowed or rel.startswith('.github/workflows/'): continue
             a=(src/rel).read_bytes()
             b=Path(rel).read_bytes()
             if hashlib.sha256(a).digest()!=hashlib.sha256(b).digest():
               raise RuntimeError('Source byte mismatch: '+rel)
           actual={str(p) for p in Path('.').rglob('*') if p.is_file() and '.git' not in p.parts}
-          expected=set(source_files)|{'CURRENT.md'}
+          expected={p for p in source_files if not p.startswith('.github/workflows/')}|{'CURRENT.md','.github/workflows/125a-import-once.yml'}
           if actual!=expected: raise RuntimeError('Unexpected/missing files: '+str(sorted(actual^expected)[:20]))
           assert 'VERSION 1.0.0' in Path('CMakeLists.txt').read_text()
           assert 'kPluginVersion="1.0.0"' in Path('src/vst3/PluginIDs.h').read_text()
-          print(f'Verified source migration: {len(source_files)} source files, {len(expected)} final files, 0 mismatched unchanged blobs, 0 submodules')
+          print(f'Verified source migration: {len(source_files)} source files audited; normal files staged {len(expected)} including importer; 0 mismatched unchanged blobs, 0 submodules. Workflow files require separate installation')
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
