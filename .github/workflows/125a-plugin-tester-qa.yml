@@ -1,0 +1,135 @@
+name: Drumator 125A Plugin Tester - verified Windows artifact
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  tester:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Verify current successful build and exact artifact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; 'X-GitHub-Api-Version' = '2022-11-28' }
+          $runId = $env:GITHUB_RUN_ID
+          $sha = $env:GITHUB_SHA
+          $run = Invoke-RestMethod -Uri "https://api.github.com/repos/challanger2000/125A-Drumator-Final/actions/runs/$runId" -Headers $headers
+          if ($run.head_sha -cne $sha -or $run.status -ne 'in_progress') {
+            throw "Unexpected caller run/source: $($run.head_sha), status $($run.status)"
+          }
+          $artifacts = Invoke-RestMethod -Uri "https://api.github.com/repos/challanger2000/125A-Drumator-Final/actions/runs/$runId/artifacts" -Headers $headers
+          $matching = @($artifacts.artifacts | Where-Object { $_.name -ceq '125A-Drumator-M11-Full-Kit-Stress-QA' -and -not $_.expired })
+          if ($matching.Count -ne 1 -or $matching[0].workflow_run.head_sha -cne $sha) {
+            throw "No unique current Windows artifact for $sha"
+          }
+          Write-Output "Source=$sha; run=$runId; artifact=$($matching[0].id); archive digest=$($matching[0].digest)"
+      - name: Download the current job's packaged VST3
+        uses: actions/download-artifact@v4
+        with:
+          name: 125A-Drumator-M11-Full-Kit-Stress-QA
+          path: artifact
+
+      - name: Download exact pinned 125A Plugin Tester v0.3.2
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = gh api 'repos/challanger2000/125A-Plugin-Tester-Final/actions/runs/39823684764' | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or
+              $source.head_sha -cne '91c975536a45190085304dcc28a43d93ff56ca88' -or
+              $source.status -ne 'completed' -or $source.conclusion -ne 'success') {
+            throw "Tester v0.3.2 run provenance invalid: $($source.head_sha)"
+          }
+          New-Item -ItemType Directory -Force -Path 'tester-bin' | Out-Null
+          gh run download 39823684764 --repo challanger2000/125A-Plugin-Tester-Final --name '125A-Plugin-Tester-v0.3.2-Windows-x64' --dir 'tester-bin'
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Unable to download exact Tester v0.3.2 workflow artifact; test NOT RUN'
+          }
+          $tester = Join-Path $PWD 'tester-bin/125A_Plugin_Tester_v0.3.2.exe'
+          if (!(Test-Path -LiteralPath $tester)) { throw 'Tester v0.3.2 EXE missing' }
+          $hash = (Get-FileHash -LiteralPath $tester -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -cne 'a091ae1b46a7983b5b498ed021d19dd2f744c2667bedaf3da9bb3d665f3f4e9c') {
+            throw "Tester v0.3.2 EXE hash mismatch: $hash"
+          }
+          $version = (Get-Item $tester).VersionInfo
+          if ($version.FileVersion -notmatch '0[.]3[.]2' -and
+              $version.ProductVersion -notmatch '0[.]3[.]2') {
+            throw "Tester binary metadata is not V0.3.2: $($version.FileVersion) $($version.ProductVersion)"
+          }
+          Write-Output 'Pinned and verified 125A Tester v0.3.2 actual Windows EXE'
+
+      - name: Run pinned independent 125A Plugin Tester v0.3.2
+        shell: pwsh
+        timeout-minutes: 26
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bundle = Join-Path $PWD 'artifact/125A Drumator.vst3'
+          $binary = Join-Path $bundle 'Contents/x86_64-win/125A Drumator.vst3'
+          $moduleInfo = Join-Path $bundle 'Contents/Resources/moduleinfo.json'
+          if (!(Test-Path -LiteralPath $binary) -or !(Test-Path -LiteralPath $moduleInfo)) {
+            throw 'Pinned Windows Drumator VST3 artifact is incomplete'
+          }
+          $info = Get-Content -LiteralPath $moduleInfo -Raw | ConvertFrom-Json
+          if ($info.Classes[0].Name -cne '125A Drumator') { throw 'Unexpected plugin identity' }
+          $tester = Join-Path $PWD 'tester-bin/125A_Plugin_Tester_v0.3.2.exe'
+          $dllHash = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant()
+          $testerHash = (Get-FileHash -LiteralPath $tester -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($testerHash -cne 'a091ae1b46a7983b5b498ed021d19dd2f744c2667bedaf3da9bb3d665f3f4e9c') {
+            throw 'Unexpected tester hash during execution'
+          }
+          if ($dllHash.Length -ne 64) { throw 'Invalid candidate DLL SHA256' }
+          Write-Output "CURRENT VST3 source=$env:GITHUB_SHA run=$env:GITHUB_RUN_ID SHA256=$dllHash"
+          $reports = Join-Path $PWD '125A-QA-Reports'
+          New-Item -ItemType Directory -Force -Path $reports | Out-Null
+          [Environment]::SetEnvironmentVariable('125A_PLUGIN_TESTER_REPORT_DIR', $reports, 'Process')
+          Write-Output 'Running 125A Plugin Tester v0.3.2 --portable-test against the exact packaged VST3'
+          $exitCode = 127
+          try {
+            $process = Start-Process -FilePath $tester -ArgumentList @('--portable-test', ('"' + $bundle + '"')) -PassThru -Wait -NoNewWindow
+            $exitCode = $process.ExitCode
+          } finally {
+            Get-ChildItem -LiteralPath $reports -File -ErrorAction SilentlyContinue | ForEach-Object {
+              Write-Output "Tester report: $($_.Name), bytes=$($_.Length)"
+              if ($_.Name -like '*_125A_QA_Report.txt') { Get-Content -LiteralPath $_.FullName | Write-Output }
+            }
+          }
+          $qa = @(Get-ChildItem -LiteralPath $reports -Filter '*_125A_QA_Report.txt' -File)
+          $jsonFiles = @(Get-ChildItem -LiteralPath $reports -Filter '*_125A_QA_Report.json' -File)
+          if ($qa.Count -ne 1 -or $jsonFiles.Count -ne 1) {
+            throw "Expected one TXT and JSON result; found $($qa.Count) TXT and $($jsonFiles.Count) JSON"
+          }
+          $report = Get-Content -LiteralPath $qa[0].FullName -Raw
+          if ($report -notmatch '(?m)^RESULT:\s*(\d+) PASS / (\d+) WARNING / (\d+) FAIL\s*$') {
+            throw '125A Tester report has no complete result summary'
+          }
+          $passCount = [int]$Matches[1]
+          $warnCount = [int]$Matches[2]
+          $failCount = [int]$Matches[3]
+          $json = Get-Content -LiteralPath $jsonFiles[0].FullName -Raw | ConvertFrom-Json
+          if ($json.testerVersion -ne '0.3.2') {
+            throw "Tester report not v0.3.2: $($json.testerVersion)"
+          }
+          Write-Output "125A Tester v0.3.2 exit $exitCode, TXT: $passCount PASS / $warnCount WARNING / $failCount FAIL; JSON status $($json.status)"
+          if ($exitCode -ne 0 -or $failCount -gt 0 -or $warnCount -gt 0 -or $json.status -ne 'PASS') {
+            throw '125A Plugin Tester is not a clean PASS; inspect the archived detailed report'
+          }
+          $metadata = [ordered]@{ candidateCommit=$env:GITHUB_SHA; buildRun=$env:GITHUB_RUN_ID; candidateDllSha256=$dllHash; testerVersion='0.3.2'; testerExeSha256=$testerHash; pass=$passCount; warning=$warnCount; fail=$failCount; exitCode=$exitCode }
+          ($metadata | ConvertTo-Json) | Set-Content -LiteralPath (Join-Path $reports 'candidate-provenance.json') -Encoding utf8
+          Write-Output "[PASS] 125A Plugin Tester v0.3.2 on current $env:GITHUB_SHA, DLL $dllHash"
+
+      - name: Archive independent tester evidence (also on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 125A-Drumator-Independent-Plugin-Tester-v0.3.2
+          path: 125A-QA-Reports/
+          if-no-files-found: warn
