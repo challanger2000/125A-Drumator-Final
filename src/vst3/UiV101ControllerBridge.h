@@ -39,6 +39,7 @@ struct UiV101ControllerBridge final {
      case L::Action::Select:
      case L::Action::Fill:
      case L::Action::Load:
+     case L::Action::SampleMenu:
      case L::Action::Edit:
      case L::Action::Volume:
      case L::Action::Pan:
