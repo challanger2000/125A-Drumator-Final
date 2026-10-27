@@ -1086,7 +1086,7 @@ bool DrumatorView::applyV101Menu(int option) {
  }
  return false;
 }
-bool DrumatorView::v101MouseDown(double x,double y,bool erase) {
+bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
  if(v101Menu_!=UiV101Popup::Kind::None) {
    const auto first=v101_.state().firstRow;
    const bool valid=v101MenuRow_>=first&&
@@ -1104,7 +1104,7 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase) {
  }
  const auto previous=v101_.state();
  const auto previousHeight=v101_.height();
- const auto result=v101_.down(x,y,erase);
+ const auto result=v101_.down(x,y,erase,fine);
  using R=UiV101Interaction::Result;
  using K=UiV101Interaction::DeferredKind;
  if(result==R::DeferredToView) {
@@ -2047,7 +2047,8 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
        invalid();return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
      }
    }
-   if(!v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0))
+   if(!v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
+                     (buttons&VSTGUI::kShift)!=0))
      return VSTGUI::kMouseEventNotHandled;
    return VSTGUI::kMouseEventHandled;
  }
