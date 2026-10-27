@@ -1028,6 +1028,7 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  scene.meterLeft=mainMeterL_;
  scene.meterRight=mainMeterR_;
  scene.clipped=controller_.meterState().clip!=0;
+ scene.status=status_;
  Painter::draw(*c,static_cast<VSTGUI::CMultiFrameBitmap*>(knobBitmap_),
                v101TitleBitmap_,title,scene,v101_.state().zoomOpen,
                v101_.state().zoomIndex,v101_.state());
