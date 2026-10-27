@@ -373,7 +373,13 @@ struct UiV101NativePreview final {
    rounded(c,{28.,12.,155.,73.},{124,115,103,255},4.);
    rounded(c,{30.,14.,153.,71.},{25,27,29,255},4.);
    fill(c,{35.,15.,148.,16.},{141,137,132,255});
-   brandLogo(c,32.,12.,55.);
+   // Center the *visible* master SVG, not its untrimmed coordinate origin.
+   // kBrandLogoPaths visible bounds in master units: x=163..1609, y=103..806.
+   // This corrects the previous ~4.6px left / 2.8px up optical offset.
+   constexpr double badgeMidX=(26.+157.)/2.,badgeMidY=(10.+76.)/2.;
+   constexpr double logoScale=55./887.;
+   brandLogo(c,badgeMidX-(163.+1609.)*.5*logoScale,
+               badgeMidY-(103.+806.)*.5*logoScale,55.);
    // The unchanged user PNG (including both amber lightbars) replaces
    // the temporary per-character engraving, at native alpha transparency.
    hardwareTitle(c,titlePng,titleBounds);
