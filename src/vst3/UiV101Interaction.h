@@ -43,6 +43,13 @@ public:
  UiV101Interaction& operator=(const UiV101Interaction&)=delete;
 
  const State& state()const noexcept{return state_;}
+ // Revert a layout change when the real host refuses an editor resize.
+ void restoreLayout(const State& prior) noexcept {
+   endGesture(false);
+   state_=prior;
+   deferred_={};
+ }
+
  // One expanded row max. With 9 visible + 1 expansion, 150% <=1080 px.
  std::size_t shownRows()const noexcept {
    const auto n=controller_.visibleRows();
