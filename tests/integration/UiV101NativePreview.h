@@ -34,6 +34,26 @@ struct UiV101NativePreview final {
    label(c,text,{rect.left+1.,rect.top+1.,rect.right-1.,rect.bottom-1.},
          font,active?Color{65,30,14,255}:Color{23,28,34,255});
  }
+ // Headphone pictogram replaces the ambiguous play triangle in PREVIEW.
+ // All coordinates derive from the preview cap's shared hit/paint rectangle.
+ static void headphone(VSTGUI::CDrawContext& c,L::Rect r,double y){
+   cap(c,r,y,"");
+   const double cx=(r.x0+r.x1)/2.,cy=y+(r.y0+r.y1)/2.;
+   c.setFrameColor({30,35,43,255});c.setLineWidth(2.5);
+   // Rounded headband arc, mirrored for even balance at 100% zoom.
+   constexpr std::array<double,9> arc{{-1.,-.96,-.80,-.52,0.,.52,.80,.96,1.}};
+   for(std::size_t i=1;i<arc.size();++i){
+     const auto px=[&](double t){return cx+10.*t;};
+     const auto py=[&](double t){return cy-1.-10.*std::sqrt(1.-t*t);};
+     c.drawLine({px(arc[i-1]),py(arc[i-1])},{px(arc[i]),py(arc[i])});
+   }
+   c.setFillColor({28,35,43,255});
+   c.drawRect({cx-12.,cy-2.,cx-8.,cy+9.},VSTGUI::kDrawFilled);
+   c.drawRect({cx+8.,cy-2.,cx+12.,cy+9.},VSTGUI::kDrawFilled);
+   c.setFrameColor({105,110,115,255});c.setLineWidth(1.);
+   c.drawLine({cx-9.,cy-1.},{cx-9.,cy+7.});
+   c.drawLine({cx+9.,cy-1.},{cx+9.,cy+7.});
+ }
  static void dial(VSTGUI::CDrawContext& c,double x,double y,int row,int index){
    const int values[][3]={{60,50,57},{47,50,49},{52,50,50},{49,50,50},
        {57,52,50},{55,45,50},{59,50,54},{47,49,50},{51,50,46},{55,53,50}};
@@ -93,13 +113,18 @@ struct UiV101NativePreview final {
      cap(c,r,78.,key,i==0,12);
    }
    label(c,"PTNR",{356.,85.,412.,104.},10,{54,54,54,255});
+   // Fixed cap family: identical physical size, baselines and spacing.
+   // Values represent existing Drumator feature groups, not added DSP.
+   constexpr std::array<const char*,5> groupNames{{
+     "SONG","KIT","SWING","HUMANIZE","MASTER"
+   }};
    cap(c,{364.,29.,414.,63.},78.,"MENU");
    cap(c,{431.,29.,514.,63.},78.,"2 BARS");
-   cap(c,{532.,29.,621.,63.},78.,"SONG");
-   cap(c,{635.,29.,749.,63.},78.,"KIT");
-   cap(c,{766.,29.,870.,63.},78.,"SWING");
-   cap(c,{885.,29.,997.,63.},78.,"HUMANIZE");
-   cap(c,{1011.,29.,1112.,63.},78.,"MASTER");
+   constexpr double first=529.,buttonWidth=108.,buttonGap=9.;
+   for(std::size_t i=0;i<groupNames.size();++i){
+     const double left=first+i*(buttonWidth+buttonGap);
+     cap(c,{left,29.,left+buttonWidth,63.},78.,groupNames[i],false,11);
+   }
    fill(c,{1132.,109.,1146.,129.},{20,30,41,255});
    fill(c,{1151.,105.,1160.,129.},{29,54,65,255});
    fill(c,{1164.,111.,1174.,129.},{29,62,82,255});
@@ -140,7 +165,7 @@ struct UiV101NativePreview final {
      cap(c,L::next,y,">",false,12);
      label(c,names[row],{L::load.x0+5.,y+9.,L::load.x1-2.,y+39.},12,
            {203,222,235,255},false);
-     cap(c,L::preview,y,">",false,12);
+     headphone(c,L::preview,y);
      cap(c,L::edit,y,"EDIT",false,11);
      fill(c,{L::stepWell.x0,y+4.,L::stepWell.x1,y+44.},{4,14,27,255});
      for(std::size_t step=0;step<L::steps;++step){
