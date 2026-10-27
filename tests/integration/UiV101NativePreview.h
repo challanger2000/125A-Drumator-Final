@@ -209,7 +209,6 @@ struct UiV101NativePreview final {
    // Official vector 125A signet and original metallic Drumator PNG.
    brandLogo(c,32.,12.,55.);
    titleBitmap(c,productTitle);
-   label(c,"V1.0.1  NATIVE GUI LAYOUT PREVIEW",{500.,59.,810.,77.},10,{80,75,68,255});
    // The percentage and dropdown affordance identify the single zoom control;
    // no redundant "ZOOM" legend or decorative separating line.
    // The menu itself is painted as an
