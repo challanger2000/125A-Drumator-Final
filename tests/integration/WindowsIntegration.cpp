@@ -758,6 +758,30 @@ void testV101ControllerScene(){
  const auto updated=captureV101ControllerScene(*f.c);
  check(updated.rows[0].velocities[0]==0&&s.rows[0].velocities[0]==95,
        "V101 scene stale or mutates previous snapshot");
+ // A genuine VSTGUI pixel must change when a real controller Step flips.
+ // Checking the Scene struct alone would miss a disconnected paint function.
+ auto* knob=new VSTGUI::CMultiFrameBitmap(
+   VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
+ auto* logo=new VSTGUI::CBitmap(
+   VSTGUI::CResourceDescription("Metallisches DRUMATOR-Logo.png"));
+ check(knob->getWidth()==125.&&knob->getHeight()==12625.&&
+       logo->getWidth()>500.,"V101 controller pixel test resource decode failed");
+ const auto stepPixel=[&](const drumator::qa::UiV101NativePreview::Scene& state){
+   auto bmp=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+     [&](VSTGUI::CDrawContext& dc){
+       drumator::qa::UiV101NativePreview::draw(dc,knob,logo,state);
+     });
+   check(bmp!=nullptr,"V101 controller pixel test native raster missing");
+   auto* a=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
+   check(a!=nullptr&&a->setPosition(428,178),
+         "V101 controller pixel test key pixel missing");
+   VSTGUI::CColor color{};a->getColor(color);a->forget();
+   return std::array<int,3>{{color.red,color.green,color.blue}};
+ };
+ const auto beforePixel=stepPixel(s),afterPixel=stepPixel(updated);
+ knob->forget();logo->forget();
+ check(beforePixel!=afterPixel&&beforePixel[0]>afterPixel[0]+70,
+       "V101 actual Controller -> renderer step pixel did not change");
  evidence("V101 controller-backed GUI model: PCM kit/labels, pattern C, step mutation, gates, actual mix and globals PASS");
 }
 
