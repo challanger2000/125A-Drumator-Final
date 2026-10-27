@@ -11,12 +11,29 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <string>
+#include <algorithm>
+#include <cstdint>
 
 namespace drumator::qa {
 struct UiV101NativePreview final {
  using L=UiV101Layout;
  using Color=VSTGUI::CColor;
  using Box=VSTGUI::CRect;
+ struct RowData final {
+   std::string name;
+   bool hasSample=false,muted=false,solo=false;
+   unsigned gain=100;
+   int pan=0,pitch=0;
+   std::array<std::uint8_t,L::steps> velocities{};
+ };
+ struct Scene final {
+   std::size_t pattern=0,visibleRows=L::visibleRows;
+   std::uint8_t patternLength=32;
+   bool songEnabled=false;
+   unsigned swing=0,humanize=0,master=100;
+   std::array<RowData,L::instruments> rows{};
+ };
  static void fill(VSTGUI::CDrawContext& c,Box r,Color color){
    c.setFillColor(color);c.drawRect(r,VSTGUI::kDrawFilled);
  }
@@ -177,27 +194,17 @@ struct UiV101NativePreview final {
    label(c,readout,{cx+26.,108.,cx+54.,133.},10,{45,48,52,255},false);
  }
  static void dial(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* sprite,
-                  double x,double y,int row,int index){
-   const int values[][3]={{60,50,57},{47,50,49},{52,50,50},{49,50,50},
-      {57,52,50},{55,45,50},{59,50,54},{47,49,50},{51,50,46},{55,53,50}};
-   const double fraction=values[row][index]/100.;
+                  double x,double y,int value,int index){
+   const double fraction=index==0?value/200.:index==1?(value+100.)/200.:
+                         (value+24.)/48.;
    c.setFillColor({3,8,14,255});
    c.drawEllipse({x-19.,y-19.,x+19.,y+19.},VSTGUI::kDrawFilled);
    c.setFrameColor({91,113,133,255});
    c.drawEllipse({x-18.,y-18.,x+18.,y+18.},VSTGUI::kDrawStroked);
-   originalDial(c,sprite,x,y,fraction,50.);
- }
- static bool lit(int row,int step){
-   if(row==2)return step<16&&step%2==0;
-   if(row==0||row==4||row==8)return step%4==0;
-   if(row==1||row==5||row==9)return step%4==2;
-   if(row==3)return step==2||step==6||step==10||step==14;
-   if(row==6)return step==7||step==15||step==23||step==31;
-   if(row==7)return step==6||step==14||step==22;
-   return step==4||step==20;
+   originalDial(c,sprite,x,y,std::clamp(fraction,0.,1.),50.);
  }
  static void draw(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* knobSprite,
-                  VSTGUI::CBitmap* productTitle,
+                  VSTGUI::CBitmap* productTitle,const Scene& scene,
                   bool zoomMenuOpen=false,std::size_t zoomPreset=0){
    constexpr Color cream{207,203,193,255};
    const double total=L::editorHeight(0,L::visibleRows,L::Expansions{});
@@ -226,17 +233,24 @@ struct UiV101NativePreview final {
    for(int i=0;i<8;++i){
      const char key[2]={static_cast<char>('A'+i),'\0'};
      L::Rect r{33.+i*39.,29.,68.+i*39.,63.};
-     cap(c,r,78.,key,i==0,12);
+     cap(c,r,78.,key,i==static_cast<int>(scene.pattern),12);
    }
    label(c,"PTNR",{356.,85.,412.,104.},10,{54,54,54,255});
    // The two SONG functions are buttons; global tonal controls stay knobs.
    cap(c,{364.,29.,414.,63.},78.,"MENU");
-   cap(c,{431.,29.,514.,63.},78.,"2 BARS");
-   cap(c,L::headerGroup(0),0.,"SONG",false,11);
+   cap(c,{431.,29.,514.,63.},78.,scene.patternLength==32?"2 BARS":"1 BAR");
+   cap(c,L::headerGroup(0),0.,"SONG",scene.songEnabled,11);
    cap(c,L::headerGroup(1),0.,"SONG EDIT",false,10);
-   headerDial(c,knobSprite,L::headerKnobCenters[0],L::headerKnobY,.30,"SWING","15%");
-   headerDial(c,knobSprite,L::headerKnobCenters[1],L::headerKnobY,.10,"HUMANIZE","10%");
-   headerDial(c,knobSprite,L::headerKnobCenters[2],L::headerKnobY,.50,"MASTER","100%");
+   char swingText[18]{},humanText[18]{},masterText[18]{};
+   std::snprintf(swingText,sizeof(swingText),"%u%%",scene.swing);
+   std::snprintf(humanText,sizeof(humanText),"%u%%",scene.humanize);
+   std::snprintf(masterText,sizeof(masterText),"%u%%",scene.master);
+   headerDial(c,knobSprite,L::headerKnobCenters[0],L::headerKnobY,scene.swing/50.,
+              "SWING",swingText);
+   headerDial(c,knobSprite,L::headerKnobCenters[1],L::headerKnobY,scene.humanize/100.,
+              "HUMANIZE",humanText);
+   headerDial(c,knobSprite,L::headerKnobCenters[2],L::headerKnobY,scene.master/200.,
+              "MASTER",masterText);
    fill(c,{1132.,109.,1146.,129.},{20,30,41,255});
    fill(c,{1151.,105.,1160.,129.},{29,54,65,255});
    fill(c,{1164.,111.,1174.,129.},{29,62,82,255});
@@ -256,12 +270,10 @@ struct UiV101NativePreview final {
    label(c,"VOL",{1037.,140.,1087.,157.},10);
    label(c,"PAN",{1097.,140.,1147.,157.},10);
    label(c,"PITCH",{1153.,140.,1214.,157.},10);
-   constexpr std::array<const char*,10> names{{
-     "Kick 01","Snare 01","HiHat Closed","HiHat Open","Tom Low",
-     "Tom Mid","Tom High","Clap 01","Rim 01","Perc 01"
-   }};
    for(std::size_t row=0;row<L::visibleRows;++row){
      const double y=L::header+row*L::rowHeight;
+     const auto& data=scene.rows[row];
+     const bool live=row<scene.visibleRows;
      fill(c,{12.,y+1.,1260.,y+L::rowHeight-1.},{4,14,25,255});
      fill(c,{14.,y+3.,1258.,y+L::rowHeight-3.},
           row%2?Color{17,37,54,255}:Color{20,43,61,255});
@@ -272,33 +284,37 @@ struct UiV101NativePreview final {
      fill(c,{L::select.x0,y+L::select.y0,L::select.x1,y+L::select.y1},
           {5,12,19,255});
      fill(c,{L::select.x0+3.,y+14.,L::select.x1-3.,y+33.},
-          row==0?Color{246,171,70,255}:Color{76,93,103,255});
-     cap(c,L::mute,y,"M",row==0||row==5);
-     cap(c,L::solo,y,"S");
-     cap(c,L::fill,y,"FILL",row==1||row==7,9);
+          live&&data.hasSample?Color{246,171,70,255}:Color{76,93,103,255});
+     cap(c,L::mute,y,"M",live&&data.muted);
+     cap(c,L::solo,y,"S",live&&data.solo);
+     cap(c,L::fill,y,"FILL",false,9);
      fill(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},{5,13,22,255});
      border(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},{80,101,115,255});
      cap(c,L::previous,y,"<",false,12);
      cap(c,L::next,y,">",false,12);
-     label(c,names[row],{L::load.x0+5.,y+9.,L::load.x1-2.,y+39.},12,
-           {203,222,235,255},false);
+     const std::string emptyName="(EMPTY)";
+     const auto& rowName=live?(data.name.empty()?emptyName:data.name):emptyName;
+     label(c,rowName.c_str(),{L::load.x0+5.,y+9.,L::load.x1-2.,y+39.},
+           11,live?Color{203,222,235,255}:Color{103,116,127,255},false);
      headphone(c,L::preview,y);
      cap(c,L::edit,y,"EDIT",false,11);
      fill(c,{L::stepWell.x0,y+4.,L::stepWell.x1,y+44.},{4,14,27,255});
      for(std::size_t step=0;step<L::steps;++step){
        const auto r=L::stepRect(step);
        const double sx=r.x0;
-       const bool active=lit(static_cast<int>(row),static_cast<int>(step));
+       const bool active=live&&step<scene.patternLength&&data.velocities[step]>0;
        stepCap(c,sx,y,active,step%4==0);
      }
      for(std::size_t k=0;k<L::knobCenters.size();++k)
-       dial(c,knobSprite,L::knobCenters[k],y+24.,static_cast<int>(row),static_cast<int>(k));
+       dial(c,knobSprite,L::knobCenters[k],y+24.,
+            k==0?static_cast<int>(data.gain):k==1?data.pan:data.pitch,
+            static_cast<int>(k));
      cap(c,L::velocity,y,"VEL",false,9);
      cap(c,L::settings,y,"SET",false,9);
    }
    fill(c,{14.,total-44.,1260.,total-12.},{207,204,197,255});
    border(c,{14.,total-44.,1260.,total-12.},{157,152,145,255});
-   label(c,"PAGE 1 / 2   |   10 OF 16 INSTRUMENTS   |   UNCONNECTED GUI PROTOTYPE",
+   label(c,"PAGE 1 / 2   |   CONTROLLER STATE (NATIVE TEST FIXTURE)",
          {31.,total-42.,922.,total-14.},11,{66,68,70,255},false);
    label(c,"REFERENCE LAYOUT - NOT A RELEASE BUILD",
          {940.,total-42.,1248.,total-14.},10,{92,76,66,255});
