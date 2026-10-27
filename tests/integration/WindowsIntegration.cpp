@@ -1036,6 +1036,23 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
  const auto width=access->getBitmapWidth(),height=access->getBitmapHeight();
  check(width>=1280&&height>=686&&width<=2400&&height<=1300,
        "V1.0.1 render pixel dimensions wrong");
+ // Reference-material contract at native 100%. The supplied hardware
+ // reference has warm steel (R>G>B) and a midnight-navy instrument body,
+ // not cool-grey chrome or an almost-black row.
+ if(scale==1.&&mode==V101CaptureMode::Normal&&!zoomMenuOpen){
+   check(access->setPosition(250,50),
+         "V101 hardware palette steel coordinate inaccessible");
+   VSTGUI::CColor steel{};access->getColor(steel);
+   check(steel.red>=185&&steel.red<=220&&
+         steel.red>=steel.green+5&&steel.green>=steel.blue+6,
+         "V101 hardware palette: faceplate lost reference warm-steel hue");
+   check(access->setPosition(410,189),
+         "V101 hardware palette navy coordinate inaccessible");
+   VSTGUI::CColor navy{};access->getColor(navy);
+   check(navy.red>=15&&navy.red<=45&&
+         navy.green>=navy.red+9&&navy.blue>=navy.green+9,
+         "V101 hardware palette: instrument chassis lost deep-blue hue");
+ }
  if(mode!=V101CaptureMode::Normal){
    check(scale==1.&&ui.state().firstRow==1&&
          ui.state().expandedRow==9&&
