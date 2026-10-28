@@ -169,3 +169,135 @@ void testV101MenuMatrixAndGeometry(){
        "GUI audit REMOVE SAMPLE damaged the wrong instrument");
  evidence("V101 all-menu matrix: Pattern 7/7, Fill 8/8 exact 32-step masks, Output 16/16, Choke 5/5, Sample REMOVE, A-H 8/8, live popup geometry, modal dismissal PASS");
 }
+
+void testV101SongAndWaveFullControlMatrix(){
+ using L=drumator::UiV101Layout;
+ using S=drumator::UiSongLayout;
+ using W=drumator::UiV101WaveLayout;
+ const auto mid=[](double lo,double hi){return (lo+hi)*.5;};
+ {
+   Fixture f;auto kit=v101PreviewKit();f.kit(kit);prepareAudio(*f.p);
+   f.openV101();auto* view=IntegrationAccess::view(*f.c,0);
+   const auto editButton=L::headerGroup(1);
+   click(*view,mid(editButton.x0,editButton.x1),
+        mid(editButton.y0,editButton.y1));
+   check(IntegrationAccess::songEditorOpen(*view),
+         "GUI audit SONG EDIT failed to open real native mode");
+   for(int pattern=0;pattern<=static_cast<int>(drumator::SongChain::kRest);++pattern){
+     const double x=pattern<8?S::patternLeft+pattern*S::patternPitch+
+         S::patternWidth*.5:mid(S::restLeft,S::restRight);
+     click(*view,x,mid(S::choiceTop,S::choiceBottom));
+     check(f.c->songEntry(0).pattern==pattern,
+           "GUI audit SONG Pattern A-H/REST selection routed incorrectly");
+   }
+   for(int length=0;length<3;++length){
+     click(*view,678.+length*106.+50.,mid(S::choiceTop,S::choiceBottom));
+     const std::uint8_t expected[]={8,16,32};
+     check(f.c->songEntry(0).steps==expected[length],
+           "GUI audit SONG length 1/2,1,2 bars not routed correctly");
+   }
+   const auto beforeStart=f.c->songStartBar();
+   click(*view,mid(S::startPlusLeft,S::startPlusRight),181.);
+   check(f.c->songStartBar()==beforeStart+1,
+         "GUI audit SONG START plus control disconnected");
+   click(*view,mid(S::startMinusLeft,S::startMinusRight),181.);
+   check(f.c->songStartBar()==beforeStart,
+         "GUI audit SONG START minus control disconnected");
+   click(*view,mid(S::startPlusLeft,S::startPlusRight),181.);
+   click(*view,mid(S::startResetLeft,S::startResetRight),181.);
+   check(f.c->songStartBar()==1,
+         "GUI audit SONG START RESET did not reset to bar 1");
+   const auto count=f.c->songCount();
+   check(count==8,"GUI audit initial chain changed unexpectedly");
+   for(int i=0;i<9;++i)
+     click(*view,mid(S::addLeft,S::addRight),352.);
+   check(f.c->songCount()==count+9&&
+         IntegrationAccess::songPage(*view)==1&&
+         IntegrationAccess::songSlot(*view)==16,
+         "GUI audit SONG ADD or page-2 auto-navigation incorrect");
+   click(*view,mid(S::previousLeft,S::previousRight),181.);
+   check(IntegrationAccess::songPage(*view)==0&&
+         IntegrationAccess::songSlot(*view)==0,
+         "GUI audit SONG PREVIOUS page navigation failed");
+   click(*view,mid(S::nextLeft,S::nextRight),181.);
+   check(IntegrationAccess::songPage(*view)==1&&
+         IntegrationAccess::songSlot(*view)==16,
+         "GUI audit SONG NEXT page navigation failed");
+   click(*view,mid(S::removeLeft,S::removeRight),352.);
+   check(f.c->songCount()==16&&IntegrationAccess::songPage(*view)==0,
+         "GUI audit SONG REMOVE LAST did not clamp page at 16");
+   click(*view,mid(editButton.x0,editButton.x1),
+        mid(editButton.y0,editButton.y1));
+   check(!IntegrationAccess::songEditorOpen(*view)&&view->isV101(),
+         "GUI audit SONG EDIT did not restore default hardware editor");
+ }
+ {
+   Fixture f;auto kit=v101PreviewKit();f.kit(kit);prepareAudio(*f.p);
+   f.openV101();auto* view=IntegrationAccess::view(*f.c,0);
+   check(IntegrationAccess::openSampleEditorForCapture(*view,0)&&
+         IntegrationAccess::sampleEditorOpen(*view),
+         "GUI audit Wave editor failed to open real sample");
+   const auto frames=IntegrationAccess::editorFrameCount(*view);
+   check(frames>1,"GUI audit Wave fixture not decoded");
+   const auto press=[&](std::size_t key){
+     check(key<W::toolbar.size(),"GUI audit invalid Wave button index");
+     const auto& box=W::toolbar[key];
+     const double x=mid(box.left,box.right),y=mid(box.top,box.bottom);
+     check(W::buttonAt(x,y)==static_cast<int>(key),
+           "GUI audit Wave draw/hit mismatch");
+     click(*view,x,y);
+   };
+   // All eight toolbar functions, including audio audition commands,
+   // waveform navigation, RESET, APPLY and CANCEL.
+   const auto initial=IntegrationAccess::editorViewport(*view);
+   press(0); // ZOOM +
+   const auto zoomed=IntegrationAccess::editorViewport(*view);
+   check(zoomed.second-zoomed.first<
+         initial.second-initial.first,
+         "GUI audit Wave ZOOM + did not reduce source-frame viewport");
+   press(1); // ZOOM -
+   const auto out=IntegrationAccess::editorViewport(*view);
+   check(out.second-out.first>=zoomed.second-zoomed.first,
+         "GUI audit Wave ZOOM - did not enlarge viewport");
+   press(2); // FIT
+   const auto fit=IntegrationAccess::editorViewport(*view);
+   check(fit.first==0&&fit.second==frames,
+         "GUI audit Wave FIT did not restore complete source");
+   press(3); // PREVIEW
+   check(IntegrationAccess::sampleEditorStatus(*view)=="PREVIEW STARTED",
+         "GUI audit Wave PREVIEW did not start actual audition");
+   press(4); // STOP
+   check(IntegrationAccess::sampleEditorStatus(*view)=="PREVIEW STOPPED",
+         "GUI audit Wave STOP did not stop actual audition");
+   click(*view,330.,210.);
+   check(IntegrationAccess::sampleEditorDraft(*view).start>0,
+         "GUI audit Wave START marker could not be moved before reset");
+   press(5); // RESET
+   const auto reset=IntegrationAccess::sampleEditorDraft(*view);
+   check(reset.start==0&&reset.end==frames&&reset.fadeIn==0&&
+         reset.fadeOut==0&&std::abs(reset.gain-1.f)<1.e-6f,
+         "GUI audit Wave RESET did not restore complete source/default gain");
+   click(*view,340.,210.);
+   const auto edit=IntegrationAccess::sampleEditorDraft(*view);
+   check(edit.start>0,"GUI audit Wave marker failed before APPLY");
+   press(7); // APPLY
+   check(!IntegrationAccess::sampleEditorOpen(*view),
+         "GUI audit Wave APPLY failed to close after committing");
+   check(IntegrationAccess::openSampleEditorForCapture(*view,0),
+         "GUI audit Wave commit did not permit reopening saved sample");
+   const auto recalled=IntegrationAccess::sampleEditorDraft(*view);
+   check(recalled.start==edit.start&&recalled.end==edit.end,
+         "GUI audit Wave APPLY did not persist actual trim markers");
+   click(*view,360.,210.);
+   press(6); // CANCEL
+   check(!IntegrationAccess::sampleEditorOpen(*view),
+         "GUI audit Wave CANCEL failed to close without committing");
+   check(IntegrationAccess::openSampleEditorForCapture(*view,0),
+         "GUI audit Wave CANCEL broke subsequent editor reopen");
+   const auto afterCancel=IntegrationAccess::sampleEditorDraft(*view);
+   check(afterCancel.start==edit.start&&afterCancel.end==edit.end,
+         "GUI audit Wave CANCEL changed committed source trim");
+   press(6);
+ }
+ evidence("V101 SONG/Wave full native controls: A-H/REST, 3 lengths, 64-entry navigation, start +/-/RESET, all 8 Wave keys, preview/stop, zoom, reset, apply/recall, cancel/rollback PASS");
+}
