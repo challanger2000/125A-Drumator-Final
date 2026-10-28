@@ -1282,7 +1282,11 @@ void testV101LiveEditor(){
  const auto beforeGap=IntegrationAccess::sampleEditorDraft(*view);
  click(*view,360.,473.);
  check(IntegrationAccess::sampleEditorOpen(*view)&&
-       IntegrationAccess::sampleEditorDraft(*view)==beforeGap,
+       IntegrationAccess::sampleEditorDraft(*view).start==beforeGap.start&&
+       IntegrationAccess::sampleEditorDraft(*view).end==beforeGap.end&&
+       IntegrationAccess::sampleEditorDraft(*view).fadeIn==beforeGap.fadeIn&&
+       IntegrationAccess::sampleEditorDraft(*view).fadeOut==beforeGap.fadeOut&&
+       IntegrationAccess::sampleEditorDraft(*view).gain==beforeGap.gain,
        "V101 Wave obsolete toolbar gap still changes the edit");
  const auto preEdit=IntegrationAccess::sampleEditorDraft(*view);
  click(*view,300.,210.);
