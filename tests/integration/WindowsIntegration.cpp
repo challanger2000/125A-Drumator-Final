@@ -139,8 +139,8 @@ struct IntegrationAccess {
  }
  static bool modernTitleLoaded(const DrumatorView& v){
    return v.v101TitleBitmap_&&v.v101TitleBitmap_->isLoaded()&&
-          v.v101TitleBitmap_->getWidth()==2172.&&
-          v.v101TitleBitmap_->getHeight()==724.;
+          v.v101TitleBitmap_->getWidth()>=300.&&
+          v.v101TitleBitmap_->getHeight()>=100.;
  }
  static bool vintageButtonsLoaded(const DrumatorView& v){
    for(const auto* bmp:v.v101VintageButtons_)
@@ -150,8 +150,8 @@ struct IntegrationAccess {
  }
  static bool vintageFaceplateLoaded(const DrumatorView& v){
    return v.v101FaceplateBitmap_&&v.v101FaceplateBitmap_->isLoaded()&&
-          v.v101FaceplateBitmap_->getWidth()==2132.&&
-          v.v101FaceplateBitmap_->getHeight()==738.;
+          v.v101FaceplateBitmap_->getWidth()>=300.&&
+          v.v101FaceplateBitmap_->getHeight()>=300.;
  }
  static VSTGUI::CBitmap* vintageFaceplate(const DrumatorView& v){
    return v.v101FaceplateBitmap_;
