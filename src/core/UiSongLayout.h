@@ -16,7 +16,9 @@ struct UiSongLayout final {
                nextRight-nextLeft==100.);
  static_assert(nextLeft-previousRight==8.&&navBottom-navTop==26.);
  // Shared rendering/hit geometry for the global SONG START header cluster.
- static constexpr double startTop=169.,startBottom=194.;
+ static constexpr double startTop=168.,startBottom=194.;
+ static_assert(startBottom-startTop==navBottom-navTop);
+ static_assert(choiceBottom-choiceTop==navBottom-navTop);
  static constexpr double startMinusLeft=438.,startMinusRight=472.;
  static constexpr double startBarLeft=479.,startBarRight=584.;
  static constexpr double startPlusLeft=591.,startPlusRight=625.;
