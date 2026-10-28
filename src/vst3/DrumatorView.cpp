@@ -1,6 +1,7 @@
 #include "DrumatorView.h"
 #include "vst3/UiV101Scene.h"
 #include "vst3/UiV101SongPainter.h"
+#include "vst3/UiV101WaveLayout.h"
 #include "BrandLogoGeometry.h"
 #include "core/UiWaveEditorLayout.h"
 #include "vstgui/lib/cgraphicspath.h"
@@ -1277,37 +1278,38 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
      sampleEditorEdit_.end*msPerFrame,sampleEditorEdit_.fadeIn*msPerFrame,
      sampleEditorEdit_.fadeOut*msPerFrame,
      std::round(sampleEditorEdit_.gain*100.f)};
-   c->setFont(VSTGUI::kNormalFont,12);c->setFontColor(letters);
    for(std::size_t i=0;i<5;++i){
-     const double left=268.+i*153.;
+     const auto r=UiV101WaveLayout::readout(i);
+     P::rounded(*c,{r.left,r.top,r.right,r.bottom},
+                P::Skin::navyWell(),3.);
+     P::border(*c,{r.left,r.top,r.right,r.bottom},
+               P::Skin::navyTrim());
+     P::fill(*c,{r.left+4.,r.top+3.,r.right-4.,r.top+4.},
+             {69,91,105,255});
      char value[48]{};
      if(i==4)std::snprintf(value,sizeof(value),"%.0f %%",positions[i]);
      else if(sampleEditorRate_)std::snprintf(value,sizeof(value),"%.2f ms",positions[i]);
      else std::snprintf(value,sizeof(value),"-- ms");
-     c->drawString(labels[i],{left,497,left+140.,515});
-     c->drawString(value,{left,519,left+140.,539});
+     // Equal-weight hardware readouts, not five floating text fragments.
+     P::label(*c,labels[i],{r.left+4.,r.top+5.,r.right-4.,r.top+21.},
+              10,{167,190,206,255});
+     P::label(*c,value,{r.left+4.,r.top+22.,r.right-4.,r.bottom-3.},
+              12,{224,233,239,255});
    }
-   // All eight controls use the same rect for paint, hit-test and press.
-   // Eight identical satin-metal keycaps with the original click areas.
-   const auto waveKey=[&](const UiWaveEditorLayout::Rect& r,
-                          const char* name,bool active=false) {
-     P::cap(*c,{r.left,r.top,r.right,r.bottom},0.,name,active,10);
-   };
-   waveKey(UiWaveEditorLayout::zoomIn,"ZOOM +");
-   waveKey(UiWaveEditorLayout::zoomOut,"ZOOM -");
-   waveKey(UiWaveEditorLayout::fit,"FIT");
-   waveKey(UiWaveEditorLayout::preview,"PREVIEW");
-   waveKey(UiWaveEditorLayout::stop,"STOP");
-   waveKey(UiWaveEditorLayout::reset,"RESET");
-   c->setFrameColor(accent);
-   c->drawRect(editorRect(UiWaveEditorLayout::previewGroup),VSTGUI::kDrawStroked);
-   waveKey(UiWaveEditorLayout::cancel,"CANCEL");
-   waveKey(UiWaveEditorLayout::apply,"APPLY");
+   // Eight precisely equal 86x32 hardware keys, 8px gutters. The
+   // V1.0.1-specific click map is shared with the actual pointer handler.
+   constexpr const char* captions[]={
+      "ZOOM +","ZOOM -","FIT","PREVIEW","STOP","RESET","CANCEL","APPLY"};
+   for(std::size_t i=0;i<UiV101WaveLayout::toolbar.size();++i){
+     const auto& r=UiV101WaveLayout::toolbar[i];
+     P::cap(*c,{r.left,r.top,r.right,r.bottom},0.,captions[i],false,10);
+   }
    if(sampleEditorPressed_>=0&&
-      sampleEditorPressed_<static_cast<int>(UiWaveEditorLayout::toolbar.size())){
+      sampleEditorPressed_<static_cast<int>(UiV101WaveLayout::toolbar.size())){
+     const auto& r=UiV101WaveLayout::toolbar[
+         static_cast<std::size_t>(sampleEditorPressed_)];
      c->setFrameColor(on);c->setLineWidth(2.);
-     c->drawRect(editorRect(UiWaveEditorLayout::toolbar[
-       static_cast<std::size_t>(sampleEditorPressed_)]),VSTGUI::kDrawStroked);
+     c->drawRect({r.left,r.top,r.right,r.bottom},VSTGUI::kDrawStroked);
      c->setLineWidth(1.);
    }
    // Machined buttons change their paint font to dark ink; restore the
@@ -2323,7 +2325,8 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
      return VSTGUI::kMouseEventHandled;
    }
    if(y>=UiWaveEditorLayout::zoomIn.top&&y<=UiWaveEditorLayout::zoomIn.bottom){
-     const int action=UiWaveEditorLayout::buttonAt(x,y);
+     const int action=v101Mode_?UiV101WaveLayout::buttonAt(x,y):
+                                UiWaveEditorLayout::buttonAt(x,y);
      sampleEditorPressed_=action;
      switch(action){
        case 0: (void)zoomSampleEditor(true);break;
