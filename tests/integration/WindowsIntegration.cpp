@@ -133,6 +133,11 @@ struct IntegrationAccess {
    const auto* bmp=view.knobBitmap_;
    return {bmp&&bmp->isLoaded()?1.:0.,bmp?bmp->getWidth():-1.,bmp?bmp->getHeight():-1.};
  }
+ static bool vintageFaceplateLoaded(const DrumatorView& v){
+   return v.v101FaceplateBitmap_&&v.v101FaceplateBitmap_->isLoaded()&&
+          v.v101FaceplateBitmap_->getWidth()==1713.&&
+          v.v101FaceplateBitmap_->getHeight()==918.;
+ }
  static bool bundledBrandingLoaded(const DrumatorView& v){
    return v.productLogoBitmap_&&v.productLogoBitmap_->isLoaded()&&
           v.productLogoBitmap_->getWidth()==2172.&&
@@ -1116,6 +1121,8 @@ void testV101LiveEditor(){
        "V101 native host did not register exactly one Controller view");
  auto* view=IntegrationAccess::view(*f.c,0);
  check(view->isV101(),"V101 host loaded legacy painter instead of candidate");
+ check(IntegrationAccess::vintageFaceplateLoaded(*view),
+       "V101 aged user PNG was not actually loaded in native editor");
  // Read genuine raster pixels from the attached native VSTGUI editor.
  // This checks optical state changes, not merely constants in the painter.
  const auto viewPixel=[&](std::uint32_t x,std::uint32_t y){
@@ -1134,6 +1141,12 @@ void testV101LiveEditor(){
  check(view->getViewSize().getWidth()==1280.&&
        view->getViewSize().getHeight()==686.,
        "V101 native host has wrong initial editor bounds");
+ const auto vintageEnamel=viewPixel(1200,53);
+ check(vintageEnamel[0]>215&&vintageEnamel[1]>180&&
+       vintageEnamel[0]>vintageEnamel[1]&&
+       vintageEnamel[1]>vintageEnamel[2],
+       "V101 actual raster lacks uploaded ivory faceplate at 100%");
+ const auto fullFooterPixel=viewPixel(17,658);
  check(view->sampleDropTargetAt(200.,L::header+22.),
        "V101 real view did not expose sample field for WAV/FLAC drop");
  check(!view->sampleDropTargetAt(420.,L::header+22.),
@@ -1326,6 +1339,12 @@ void testV101LiveEditor(){
  check(view->getViewSize().getHeight()==
            L::editorHeight(10,6,L::Expansions{}),
        "V101 attached host NEXT PAGE did not resize to six rows");
+ captureVstgui(*view,"v101-vintage-faceplate-six-row-100",1.0);
+ const auto shortFooterPixel=viewPixel(17,
+      static_cast<std::uint32_t>(view->getViewSize().getHeight()-28.));
+ for(std::size_t component=0;component<3;++component)
+   check(std::abs(fullFooterPixel[component]-shortFooterPixel[component])<=8,
+         "V101 image-backed fixed-size footer warped after paging");
  click(*view,1070.,view->getViewSize().getHeight()-L::footer+22.);
  check(view->getViewSize().getHeight()==686.,
        "V101 attached host PREV PAGE did not return to ten rows");

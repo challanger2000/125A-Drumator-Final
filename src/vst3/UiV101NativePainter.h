@@ -92,6 +92,36 @@ struct UiV101NativePreview final {
      fill(c,{r.left,top,r.right,bottom},ink);
    }
  }
+ // The uploaded 1713x918 bitmap belongs beneath the real controller UI.
+ // Slice vertically so its head and foot stay the same height as rows/page
+ // count changes. At 100%, 130% and 150%, host scaling uses native VSTGUI.
+ static bool drawVintageFaceplate(VSTGUI::CDrawContext& c,
+                                  VSTGUI::CBitmap* plate,double height){
+   if(!plate||!plate->isLoaded()||plate->getWidth()<=0.||
+      plate->getHeight()<=0.||height<L::header+L::footer)return false;
+   const double sourceWidth=plate->getWidth(),sourceHeight=plate->getHeight();
+   const double sx=L::width/sourceWidth;
+   constexpr double originalHeight=L::header+10.*L::rowHeight+L::footer;
+   const double sourceHeader=sourceHeight*L::header/originalHeight;
+   const double sourceFooter=sourceHeight*(originalHeight-L::footer)/originalHeight;
+   const auto slice=[&](double sy0,double sy1,double dy0,double dy1){
+     if(sy1<=sy0||dy1<=dy0)return;
+     const double yScale=(dy1-dy0)/(sy1-sy0);
+     c.saveGlobalState();
+     c.setClipRect({0.,dy0,L::width,dy1});
+     {
+       VSTGUI::CDrawContext::Transform tx(c,
+         VSTGUI::CGraphicsTransform().scale(sx,yScale)
+           .translate(0.,dy0-sy0*yScale));
+       plate->draw(&c,{0.,0.,sourceWidth,sourceHeight});
+     }
+     c.restoreGlobalState();
+   };
+   slice(0.,sourceHeader,0.,L::header);
+   slice(sourceHeader,sourceFooter,L::header,height-L::footer);
+   slice(sourceFooter,sourceHeight,height-L::footer,height);
+   return true;
+ }
  // Square buttons were the main Windows-98 cue. These tiny inset corner
  // cuts mimic a physical rounded metal key, without changing mouse hits.
  static void rounded(VSTGUI::CDrawContext& c,Box r,Color color,double corner=3.){
@@ -358,7 +388,8 @@ struct UiV101NativePreview final {
                   VSTGUI::CBitmap* titlePng,TitleBounds titleBounds,
                   const Scene& scene,
                   bool zoomMenuOpen=false,std::size_t zoomPreset=0,
-                  const UiV101Interaction::State& ui={}){
+                  const UiV101Interaction::State& ui={},
+                  VSTGUI::CBitmap* faceplatePng=nullptr){
    const auto cream=Skin::steel();
    auto expanded=L::Expansions{};
    if(ui.expandedRow<L::instruments)expanded[ui.expandedRow]=ui.expansion;
@@ -367,22 +398,26 @@ struct UiV101NativePreview final {
    const auto shown=ui.firstRow<scene.visibleRows?
                     std::min(limit,scene.visibleRows-ui.firstRow):std::size_t{0};
    const double total=L::editorHeight(ui.firstRow,shown,expanded);
-   fill(c,{0.,0.,L::width,total},{105,98,91,255});
-   rounded(c,{2.,2.,L::width-2.,total-2.},{165,157,148,255},3.);
-   satin(c,{5.,5.,L::width-5.,total-5.},
-         {214,208,200,255},cream,{184,177,167,255},72);
-   border(c,{5.,5.,L::width-5.,total-5.},Skin::panelEdge());
-   // Subpixel-style horizontal brushing is deliberately faint (alpha ~22).
-   // Highlights change with vertical position; no generated bitmap needed.
-   c.setLineWidth(1.);
-   for(int yy=14;yy<static_cast<int>(total)-13;yy+=5){
-     c.setFrameColor({241,235,226,9});
-     c.drawLine({12.,static_cast<double>(yy)},
-                {L::width-12.,static_cast<double>(yy)});
+   const bool hasVintageFaceplate=drawVintageFaceplate(c,faceplatePng,total);
+   if(!hasVintageFaceplate){
+     // Proven procedural fallback for missing/corrupt packaged image.
+     fill(c,{0.,0.,L::width,total},{105,98,91,255});
+     rounded(c,{2.,2.,L::width-2.,total-2.},{165,157,148,255},3.);
+     satin(c,{5.,5.,L::width-5.,total-5.},
+           {214,208,200,255},cream,{184,177,167,255},72);
+     border(c,{5.,5.,L::width-5.,total-5.},Skin::panelEdge());
+     // Subpixel-style horizontal brushing is deliberately faint (alpha ~22).
+     // Highlights change with vertical position; no generated bitmap needed.
+     c.setLineWidth(1.);
+     for(int yy=14;yy<static_cast<int>(total)-13;yy+=5){
+       c.setFrameColor({241,235,226,9});
+       c.drawLine({12.,static_cast<double>(yy)},
+                  {L::width-12.,static_cast<double>(yy)});
+     }
+     fill(c,{7.,7.,L::width-7.,9.},Skin::steelHighlight());
+     fill(c,{7.,total-9.,L::width-7.,total-7.},{157,148,139,255});
+     screw(c,14.,15.);screw(c,L::width-14.,15.);
    }
-   fill(c,{7.,7.,L::width-7.,9.},Skin::steelHighlight());
-   fill(c,{7.,total-9.,L::width-7.,total-7.},{157,148,139,255});
-   screw(c,14.,15.);screw(c,L::width-14.,15.);
    // Bottom fasteners draw AFTER the inset footer so their metal edges
    // cannot be masked by the solid footer background.
    // Original 125A SVG geometry on a dark enamel badge, like the supplied
@@ -632,8 +667,11 @@ struct UiV101NativePreview final {
    // Both controls are identically sized 95x25 machined metal keys.
    cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10);
    cap(c,L::footerNext,footerTop,"NEXT PAGE",false,10);
-   screw(c,L::footerScrewLeftX,total-15.);
-   screw(c,L::footerScrewRightX,total-15.);
+   // The user PNG already contains physical screws in its own perimeter.
+   if(!hasVintageFaceplate){
+     screw(c,L::footerScrewLeftX,total-15.);
+     screw(c,L::footerScrewRightX,total-15.);
+   }
    if(zoomMenuOpen)zoomPopup(c,selected);
  }
 };

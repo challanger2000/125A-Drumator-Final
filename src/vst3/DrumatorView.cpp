@@ -739,6 +739,7 @@ DrumatorView::~DrumatorView() {
  if(knobBitmap_){knobBitmap_->forget();knobBitmap_=nullptr;}
  if(screwBitmap_){screwBitmap_->forget();screwBitmap_=nullptr;}
  if(v101TitleBitmap_){v101TitleBitmap_->forget();v101TitleBitmap_=nullptr;}
+ if(v101FaceplateBitmap_){v101FaceplateBitmap_->forget();v101FaceplateBitmap_=nullptr;}
  if(sampleEditorOpen_)controller_.stopSampleEditPreview();
  controller_.unregisterView(this);
 }
@@ -1018,6 +1019,8 @@ DrumatorView::DrumatorView(const VSTGUI::CRect& size,
  screwBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription("125A_Drumator_Screw.png"));
  v101TitleBitmap_=new VSTGUI::CBitmap(
      VSTGUI::CResourceDescription("Futuristisches Metalllogo DRUMATOR.png"));
+ v101FaceplateBitmap_=new VSTGUI::CBitmap(
+     VSTGUI::CResourceDescription("Abgenutzte industrielle Metallfrontplatte.png"));
 }
 void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  using Painter=v101::UiV101NativePreview;
@@ -1041,7 +1044,7 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
      if(controller_.hasSample(row)){scene.status.clear();break;}
  Painter::draw(*c,static_cast<VSTGUI::CMultiFrameBitmap*>(knobBitmap_),
                v101TitleBitmap_,title,scene,v101_.state().zoomOpen,
-               v101_.state().zoomIndex,v101_.state());
+               v101_.state().zoomIndex,v101_.state(),v101FaceplateBitmap_);
  drawV101Menu(c);
 }
 void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {

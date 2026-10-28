@@ -65,6 +65,8 @@ private:
  UiV101Interaction v101_;
  bool v101Mode_{false};
  VSTGUI::CBitmap* v101TitleBitmap_{nullptr};
+ // Separate image-backed V1.0.1 chassis; original V1.0.0 faceplate retained.
+ VSTGUI::CBitmap* v101FaceplateBitmap_{nullptr};
  bool v101TitleMeasured_{false};
  std::array<double,4> v101TitleBounds_{};
  UiV101Popup::Kind v101Menu_{UiV101Popup::Kind::None};

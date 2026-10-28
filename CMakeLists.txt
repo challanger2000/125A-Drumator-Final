@@ -260,6 +260,7 @@ if(DRUMATOR_BUILD_VST3)
   smtg_target_add_plugin_resources(Drumator
       RESOURCES resource/Drumator.uidesc
                 resource/125A_Drumator_Faceplate.png
+                "resource/Abgenutzte industrielle Metallfrontplatte.png"
                 resource/125A_Drumator_Knob.png
                 resource/125A_Drumator_Screw.png
                 "resource/Metallisches DRUMATOR-Logo.png"
