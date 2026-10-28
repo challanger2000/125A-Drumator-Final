@@ -1200,9 +1200,18 @@ void testV101LiveEditor(){
  click(*view,716.,352.); // 1/2 BAR for same entry
  check(f.c->songEntry(0).steps==8,
        "V101 SONG 1/2 BAR hardware button disconnected");
+ check(UiSongLayout::addRight-UiSongLayout::addLeft==98.&&
+       UiSongLayout::removeRight-UiSongLayout::removeLeft==98.,
+       "V101 SONG action keys have unequal widths");
+ check(UiSongLayout::removeLastHit(1175.,352.)&&
+       !UiSongLayout::removeLastHit(1220.,352.),
+       "V101 SONG REMOVE LAST retained its old oversized hit zone");
  click(*view,1050.,352.);
  check(f.c->songCount()==songCount+1,
        "V101 SONG ADD ENTRY lost count or layout");
+ click(*view,1220.,352.);
+ check(f.c->songCount()==songCount+1,
+       "V101 SONG REMOVE LAST obsolete wide hot zone still removes an entry");
  click(*view,1175.,352.);
  check(f.c->songCount()==songCount,
        "V101 SONG REMOVE LAST failed to undo added position");
