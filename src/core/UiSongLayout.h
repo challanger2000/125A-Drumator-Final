@@ -18,6 +18,11 @@ struct UiSongLayout final {
  static constexpr double startBarLeft=479.,startBarRight=584.;
  static constexpr double startPlusLeft=591.,startPlusRight=625.;
  static constexpr double startResetLeft=632.,startResetRight=717.;
+ // Match the two SONG action keys: one hardware width, one hitbox width.
+ static constexpr double addLeft=1012.,addRight=1110.;
+ static constexpr double removeLeft=1118.,removeRight=1216.;
+ static_assert(addRight-addLeft==removeRight-removeLeft);
+ static_assert(removeLeft-addRight==8.);
  // A-H and REST form one row; REST is a sentinel, not a pattern.
  static constexpr double choiceTop=339.,choiceBottom=365.;
  static constexpr double patternLeft=115.,patternPitch=46.,patternWidth=42.;
@@ -68,10 +73,10 @@ struct UiSongLayout final {
    return first(page)+row*columns+column;
  }
  static constexpr bool addHit(double x,double y) noexcept {
-   return x>=1012.&&x<1110.&&y>=choiceTop&&y<choiceBottom;
+   return x>=addLeft&&x<addRight&&y>=choiceTop&&y<choiceBottom;
  }
  static constexpr bool removeLastHit(double x,double y) noexcept {
-   return x>=1118.&&x<1239.&&y>=choiceTop&&y<choiceBottom;
+   return x>=removeLeft&&x<removeRight&&y>=choiceTop&&y<choiceBottom;
  }
  static constexpr bool canNext(std::size_t page,std::size_t count) noexcept {
    return page+1<pages&&count>first(page+1);
