@@ -408,7 +408,7 @@ struct UiV101NativePreview final {
    fill(c,{19.,80.,1253.,81.},{237,229,216,255});
    fill(c,{19.,134.,1253.,135.},{113,105,98,255});
    border(c,{13.,79.,1259.,136.},Skin::panelEdge());
-   for(const double xx:{350.,521.,729.,1115.}){
+   for(const double xx:{350.,542.,729.,1115.}){
      fill(c,{xx,81.,xx+1.,134.},{151,141,131,255});
      fill(c,{xx+1.,81.,xx+2.,134.},{227,218,206,255});
    }
@@ -417,7 +417,7 @@ struct UiV101NativePreview final {
      const char key[2]={static_cast<char>('A'+i),'\0'};
      cap(c,L::patternButton(i),0.,key,i==scene.pattern,12);
    }
-   label(c,"PTNR",{356.,80.,412.,96.},10,{54,54,54,255});
+   label(c,"PTNR",{364.,80.,447.,96.},10,{54,54,54,255});
    // One identical 32px machined keycap and vertical baseline for all
    // header actions: PATTERN, MENU, 1/2 BARS, SONG, SONG EDIT.
    cap(c,L::patternMenu,0.,"MENU");
