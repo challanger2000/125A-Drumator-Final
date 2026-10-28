@@ -107,8 +107,10 @@ int main(){
  EXPECT(UiSongLayout::slotAt(18.,253.,0)==drumator::SongChain::kCapacity);
  EXPECT(UiSongLayout::slotAt(18.,311.,0)==drumator::SongChain::kCapacity);
  EXPECT(UiSongLayout::slotAt(18.,222.,4)==drumator::SongChain::kCapacity);
- EXPECT(UiSongLayout::previousHit(1000.,181.));
- EXPECT(UiSongLayout::nextHit(1130.,181.));
+ EXPECT(UiSongLayout::previousHit(1086.,181.));
+ EXPECT(!UiSongLayout::previousHit(1000.,181.));
+ EXPECT(UiSongLayout::nextHit(1194.,181.));
+ EXPECT(!UiSongLayout::nextHit(1130.,181.));
  EXPECT(!UiSongLayout::nextHit(1105.,181.));
  EXPECT(!UiSongLayout::canNext(0,15));
  EXPECT(!UiSongLayout::canNext(0,16));
