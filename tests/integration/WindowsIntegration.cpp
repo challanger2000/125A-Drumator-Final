@@ -137,6 +137,11 @@ struct IntegrationAccess {
  static VSTGUI::CBitmap* vintageButton(const DrumatorView& v,std::size_t index){
    return index<v.v101VintageButtons_.size()?v.v101VintageButtons_[index]:nullptr;
  }
+ static bool modernTitleLoaded(const DrumatorView& v){
+   return v.v101TitleBitmap_&&v.v101TitleBitmap_->isLoaded()&&
+          v.v101TitleBitmap_->getWidth()==2172.&&
+          v.v101TitleBitmap_->getHeight()==724.;
+ }
  static bool vintageButtonsLoaded(const DrumatorView& v){
    for(const auto* bmp:v.v101VintageButtons_)
      if(!bmp||!bmp->isLoaded()||bmp->getWidth()!=332.||
@@ -145,8 +150,8 @@ struct IntegrationAccess {
  }
  static bool vintageFaceplateLoaded(const DrumatorView& v){
    return v.v101FaceplateBitmap_&&v.v101FaceplateBitmap_->isLoaded()&&
-          v.v101FaceplateBitmap_->getWidth()==1713.&&
-          v.v101FaceplateBitmap_->getHeight()==918.;
+          v.v101FaceplateBitmap_->getWidth()==2132.&&
+          v.v101FaceplateBitmap_->getHeight()==738.;
  }
  static VSTGUI::CBitmap* vintageFaceplate(const DrumatorView& v){
    return v.v101FaceplateBitmap_;
@@ -1143,9 +1148,11 @@ void testV101LiveEditor(){
  auto* view=IntegrationAccess::view(*f.c,0);
  check(view->isV101(),"V101 host loaded legacy painter instead of candidate");
  check(IntegrationAccess::vintageFaceplateLoaded(*view),
-       "V101 aged user PNG was not actually loaded in native editor");
+       "V101 dark user PNG was not actually loaded in native editor");
  check(IntegrationAccess::vintageButtonsLoaded(*view),
-       "V101 4x PNG button states missing, corrupt or wrong dimensions");
+       "V101 4x dark button states missing, corrupt or wrong dimensions");
+ check(IntegrationAccess::modernTitleLoaded(*view),
+       "V101 new DRUMATOR-only logo not packaged or wrong dimensions");
  // The bitmap-backed cap must visibly differ from the procedural fallback
  // while remaining an 83x32 overlay with the original live text.
  const auto verifyVintageCap=[&](VSTGUI::CBitmap* sprite,
@@ -1287,11 +1294,11 @@ void testV101LiveEditor(){
          "V101 header is still overpainted by artificial VSTGUI control panel");
  }
  faceplatePixels->forget();
- const auto vintageEnamel=viewPixel(1200,53);
- check(vintageEnamel[0]>215&&vintageEnamel[1]>180&&
-       vintageEnamel[0]>vintageEnamel[1]&&
-       vintageEnamel[1]>vintageEnamel[2],
-       "V101 actual raster lacks uploaded ivory faceplate at 100%");
+ const auto graphiteMetal=viewPixel(1200,53);
+ check(graphiteMetal[0]<145&&graphiteMetal[1]<155&&
+       graphiteMetal[2]<175&&
+       graphiteMetal[2]>=graphiteMetal[0],
+       "V101 actual raster still uses the vintage ivory faceplate");
  // The input photo has larger corner screws. The 12 paint bands must
  // contract them to the existing ~14px GUI fasteners, including at 150%.
  const auto upperScrew=viewPixel(14,15);
@@ -1300,8 +1307,8 @@ void testV101LiveEditor(){
  check(upperScrew[0]<145&&lowerScrew[0]<145&&rightScrew[0]<145,
        "V101 image-scaled chassis corners do not land on actual screw centres");
  const auto screwClearance=viewPixel(1255,35);
- check(screwClearance[0]>190&&screwClearance[1]>170,
-       "V101 corner screw remains magnified into the top-right chassis");
+ check(screwClearance[0]<155&&screwClearance[1]<165,
+       "V101 corner screw clearance retained light vintage panel or oversized bezel");
  const auto fullFooterPixel=viewPixel(17,658);
  check(view->sampleDropTargetAt(200.,L::header+22.),
        "V101 real view did not expose sample field for WAV/FLAC drop");

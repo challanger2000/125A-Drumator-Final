@@ -1021,17 +1021,17 @@ DrumatorView::DrumatorView(const VSTGUI::CRect& size,
  knobBitmap_=new VSTGUI::CMultiFrameBitmap(VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
  screwBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription("125A_Drumator_Screw.png"));
  v101TitleBitmap_=new VSTGUI::CBitmap(
-     VSTGUI::CResourceDescription("Futuristisches Metalllogo DRUMATOR.png"));
+     VSTGUI::CResourceDescription("Metallisches DRUMATOR-Logo.png"));
  v101FaceplateBitmap_=new VSTGUI::CBitmap(
-     VSTGUI::CResourceDescription("Abgenutzte industrielle Metallfrontplatte.png"));
+     VSTGUI::CResourceDescription("Industrielle Metallplatte mit Eckschrauben.png"));
  v101VintageButtons_[0]=new VSTGUI::CBitmap(
-     VSTGUI::CResourceDescription("125A_Vintage_Button_83x32_Normal_4x.png"));
+     VSTGUI::CResourceDescription("125A_Dark_Button_83x32_Normal_4x.png"));
  v101VintageButtons_[1]=new VSTGUI::CBitmap(
-     VSTGUI::CResourceDescription("125A_Vintage_Button_83x32_Aktiv_4x.png"));
+     VSTGUI::CResourceDescription("125A_Dark_Button_83x32_Aktiv_4x.png"));
  v101VintageButtons_[2]=new VSTGUI::CBitmap(
-     VSTGUI::CResourceDescription("125A_Vintage_Button_83x32_Gedrueckt_4x.png"));
+     VSTGUI::CResourceDescription("125A_Dark_Button_83x32_Gedrueckt_4x.png"));
  v101VintageButtons_[3]=new VSTGUI::CBitmap(
-     VSTGUI::CResourceDescription("125A_Vintage_Button_83x32_Deaktiviert_4x.png"));
+     VSTGUI::CResourceDescription("125A_Dark_Button_83x32_Deaktiviert_4x.png"));
 }
 void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  using Painter=v101::UiV101NativePreview;

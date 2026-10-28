@@ -260,10 +260,9 @@ struct UiV101NativePreview final {
      VSTGUI::CGraphicsTransform().scale(sf,sf).translate(left,top));
    sprite->drawFrame(&c,frame,{0.,0.});
  }
- // Approved generated 83x32 vintage hardware key textures (332x128 @4x).
- // The 35x32 Pattern A-H keys reuse the exact artwork through three native
- // bitmap strips. The left/right bevels remain at 1:1 scale; only the wide
- // centre portion is cropped, never squeezed or stretched into a square.
+ // Owner-approved dark modern 83x32 high-resolution glossy button sprites
+ // (332x128 @4x). For Pattern A-H the bezel uses undistorted edge strips;
+ // for all other dimensions a nine-slice preserves bezel corner geometry.
  // Paint and hit rectangles are shared with UiV101Layout.
  struct ButtonSprites {
    VSTGUI::CBitmap* normal{};
@@ -334,8 +333,8 @@ struct UiV101NativePreview final {
    if(sprite&&drawVintageButton(c,b,sprite)){
      // Keep all labels native, crisp and dynamically localized/stateful.
      label(c,text,{b.left+2.,b.top+2.,b.right-2.,b.bottom-2.},
-           font,disabled?Color{89,81,73,255}:
-           active?Color{56,29,17,255}:Color{28,27,26,255});
+           font,disabled?Color{130,142,153,255}:
+           active?Color{255,193,74,255}:Color{229,236,243,255});
      return;
    }
    const double l=b.left,t=b.top,rr=b.right,bt=b.bottom;
@@ -414,7 +413,7 @@ struct UiV101NativePreview final {
                        const ButtonSprites* vintage=nullptr){
    cap(c,r,y,"",false,10,vintage);
    const double cx=(r.x0+r.x1)/2.,cy=y+(r.y0+r.y1)/2.;
-   c.setFrameColor({30,35,43,255});c.setLineWidth(2.5);
+   c.setFrameColor({218,228,238,255});c.setLineWidth(2.5);
    // Rounded headband arc, mirrored for even balance at 100% zoom.
    constexpr std::array<double,9> arc{{-1.,-.96,-.80,-.52,0.,.52,.80,.96,1.}};
    for(std::size_t i=1;i<arc.size();++i){
@@ -422,10 +421,10 @@ struct UiV101NativePreview final {
      const auto py=[&](double t){return cy-1.-10.*std::sqrt(1.-t*t);};
      c.drawLine({px(arc[i-1]),py(arc[i-1])},{px(arc[i]),py(arc[i])});
    }
-   c.setFillColor({28,35,43,255});
+   c.setFillColor({216,227,236,255});
    c.drawRect({cx-12.,cy-2.,cx-8.,cy+9.},VSTGUI::kDrawFilled);
    c.drawRect({cx+8.,cy-2.,cx+12.,cy+9.},VSTGUI::kDrawFilled);
-   c.setFrameColor({105,110,115,255});c.setLineWidth(1.);
+   c.setFrameColor({155,181,200,255});c.setLineWidth(1.);
    c.drawLine({cx-9.,cy-1.},{cx-9.,cy+7.});
    c.drawLine({cx+9.,cy-1.},{cx+9.,cy+7.});
  }
@@ -437,7 +436,7 @@ struct UiV101NativePreview final {
                         double cx,double cy,double fraction,
                         const char* title,const char* readout){
    fraction=std::clamp(fraction,0.,1.);
-   label(c,title,{cx-46.,78.,cx+46.,91.},11,{55,56,58,255});
+   label(c,title,{cx-46.,78.,cx+46.,91.},11,{207,218,229,255});
    // Small recessed socket; must not cover SWING/HUMANIZE/MASTER labels.
    c.setFillColor({62,58,53,255});
    c.drawEllipse({cx-kHeaderMountRadius,cy-kHeaderMountRadius,cx+kHeaderMountRadius,cy+kHeaderMountRadius},VSTGUI::kDrawFilled);
@@ -451,11 +450,11 @@ struct UiV101NativePreview final {
    for(int tick=0;tick<9;++tick){
      const double angle=(-135.+static_cast<double>(tick)*270./8.)*pi/180.;
      const double dx=std::sin(angle),dy=-std::cos(angle);
-     c.setFrameColor({64,66,68,255});
+     c.setFrameColor({135,147,158,255});
      c.drawLine({cx+dx*22.,cy+dy*22.},{cx+dx*24.,cy+dy*24.});
    }
    originalDial(c,sprite,cx,cy,fraction,44.);
-   label(c,readout,{cx+24.,101.,cx+54.,126.},11,{45,48,52,255},false);
+   label(c,readout,{cx+24.,101.,cx+54.,126.},11,{221,231,239,255},false);
  }
  static void dial(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* sprite,
                   double x,double y,int value,int index){
@@ -513,10 +512,10 @@ struct UiV101NativePreview final {
    // cannot be masked by the solid footer background.
    // Original 125A SVG geometry on a dark enamel badge, like the supplied
    // hardware reference. Only badge treatment / SVG fill change, not paths.
-   rounded(c,{26.,10.,157.,76.},{34,31,30,255},5.);
-   rounded(c,{28.,12.,155.,73.},{124,115,103,255},4.);
-   rounded(c,{30.,14.,153.,71.},{25,27,29,255},4.);
-   fill(c,{35.,15.,148.,16.},{141,137,132,255});
+   rounded(c,{26.,10.,157.,76.},{12,18,25,255},5.);
+   rounded(c,{28.,12.,155.,73.},{78,96,112,255},4.);
+   rounded(c,{30.,14.,153.,71.},{19,29,40,255},4.);
+   fill(c,{35.,15.,148.,16.},{130,153,173,255});
    // Center the *visible* master SVG, not its untrimmed coordinate origin.
    // kBrandLogoPaths visible bounds in master units: x=163..1609, y=103..806.
    // This corrects the previous ~4.6px left / 2.8px up optical offset.
@@ -524,8 +523,8 @@ struct UiV101NativePreview final {
    constexpr double logoScale=55./887.;
    brandLogo(c,badgeMidX-(163.+1609.)*.5*logoScale,
                badgeMidY-(103.+806.)*.5*logoScale,55.);
-   // The unchanged user PNG (including both amber lightbars) replaces
-   // the temporary per-character engraving, at native alpha transparency.
+   // The standalone owner-approved DRUMATOR wordmark is alpha-composited
+   // on the new faceplate without the former ornamental amber lightbars.
    hardwareTitle(c,titlePng,titleBounds);
    // The percentage and dropdown affordance identify the single zoom control;
    // no redundant "ZOOM" legend or decorative separating line.
@@ -536,17 +535,17 @@ struct UiV101NativePreview final {
    char zoomCaption[20]{};
    std::snprintf(zoomCaption,sizeof(zoomCaption),"%s  v",zoomNames[selected]);
    cap(c,L::zoomTrigger,0.,zoomCaption,zoomMenuOpen,11,vintageButtons);
-   // The uploaded aged Faceplate PNG is the ONLY upper control background.
+   // The uploaded graphite Faceplate PNG is the ONLY upper control background.
    // No synthetic bright strip, borders, dividers, brushed gradients or
    // inset pockets from y=78..137: buttons, rotaries, real labels and the
    // meter render directly on the original hardware photo. This applies to
    // both MAIN and SONG because they share this native painter.
-   label(c,"PATTERN",{33.,80.,154.,96.},11,{51,54,57,255},false);
+   label(c,"PATTERN",{33.,80.,154.,96.},11,{218,226,235,255},false);
    for(std::size_t i=0;i<8;++i){
      const char key[2]={static_cast<char>('A'+i),'\0'};
      cap(c,L::patternButton(i),0.,key,i==scene.pattern,12,vintageButtons);
    }
-   label(c,"PTNR",{364.,80.,447.,96.},11,{54,54,54,255});
+   label(c,"PTNR",{364.,80.,447.,96.},11,{210,223,231,255});
    // One identical 32px machined keycap and vertical baseline for all
    // header actions: PATTERN, MENU, 1/2 BARS, SONG, SONG EDIT.
    cap(c,L::patternMenu,0.,"MENU",false,10,vintageButtons);

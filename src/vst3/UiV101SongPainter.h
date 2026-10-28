@@ -143,7 +143,7 @@ struct UiV101SongPainter final {
        "REMOVE LAST",false,9,count<=1);
    P::label(c,status&&*status?status:
            "REST and A-H are selectable. Only ADD ENTRY adds positions.",
-           {29.,394.,1222.,419.},11,{44,43,42,255},false);
+           {29.,394.,1222.,419.},11,{200,211,221,255},false);
    P::screw(c,14.,bottom-15.);
    P::screw(c,1266.,bottom-15.);
  }

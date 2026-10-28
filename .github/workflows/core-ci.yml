@@ -68,6 +68,15 @@ jobs:
           Copy-Item 'resource/125A_Drumator_Screw.png' -Destination (Join-Path $resourceDirectory '125A_Drumator_Screw.png')
           Copy-Item 'resource/125A_Drumator_Faceplate.png' -Destination (Join-Path $resourceDirectory '125A_Drumator_Faceplate.png')
           Copy-Item -LiteralPath 'resource/Abgenutzte industrielle Metallfrontplatte.png' -Destination (Join-Path $resourceDirectory 'Abgenutzte industrielle Metallfrontplatte.png')
+          Copy-Item -LiteralPath 'resource/Industrielle Metallplatte mit Eckschrauben.png' -Destination (Join-Path $resourceDirectory 'Industrielle Metallplatte mit Eckschrauben.png')
+          Copy-Item 'resource/125A_Dark_Button_83x32_Normal_1x.png' -Destination (Join-Path $resourceDirectory '125A_Dark_Button_83x32_Normal_1x.png')
+          Copy-Item 'resource/125A_Dark_Button_83x32_Normal_4x.png' -Destination (Join-Path $resourceDirectory '125A_Dark_Button_83x32_Normal_4x.png')
+          Copy-Item 'resource/125A_Dark_Button_83x32_Aktiv_1x.png' -Destination (Join-Path $resourceDirectory '125A_Dark_Button_83x32_Aktiv_1x.png')
+          Copy-Item 'resource/125A_Dark_Button_83x32_Aktiv_4x.png' -Destination (Join-Path $resourceDirectory '125A_Dark_Button_83x32_Aktiv_4x.png')
+          Copy-Item 'resource/125A_Dark_Button_83x32_Gedrueckt_1x.png' -Destination (Join-Path $resourceDirectory '125A_Dark_Button_83x32_Gedrueckt_1x.png')
+          Copy-Item 'resource/125A_Dark_Button_83x32_Gedrueckt_4x.png' -Destination (Join-Path $resourceDirectory '125A_Dark_Button_83x32_Gedrueckt_4x.png')
+          Copy-Item 'resource/125A_Dark_Button_83x32_Deaktiviert_1x.png' -Destination (Join-Path $resourceDirectory '125A_Dark_Button_83x32_Deaktiviert_1x.png')
+          Copy-Item 'resource/125A_Dark_Button_83x32_Deaktiviert_4x.png' -Destination (Join-Path $resourceDirectory '125A_Dark_Button_83x32_Deaktiviert_4x.png')
           Copy-Item 'resource/125A_Vintage_Button_83x32_Normal_1x.png' -Destination (Join-Path $resourceDirectory '125A_Vintage_Button_83x32_Normal_1x.png')
           Copy-Item 'resource/125A_Vintage_Button_83x32_Normal_4x.png' -Destination (Join-Path $resourceDirectory '125A_Vintage_Button_83x32_Normal_4x.png')
           Copy-Item 'resource/125A_Vintage_Button_83x32_Aktiv_1x.png' -Destination (Join-Path $resourceDirectory '125A_Vintage_Button_83x32_Aktiv_1x.png')
@@ -126,6 +135,15 @@ jobs:
             '125A Drumator.vst3/Contents/Resources/125A_Drumator_Screw.png',
             '125A Drumator.vst3/Contents/Resources/125A_Drumator_Faceplate.png',
             '125A Drumator.vst3/Contents/Resources/Abgenutzte industrielle Metallfrontplatte.png',
+            '125A Drumator.vst3/Contents/Resources/Industrielle Metallplatte mit Eckschrauben.png',
+            '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Normal_1x.png',
+            '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Normal_4x.png',
+            '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Aktiv_1x.png',
+            '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Aktiv_4x.png',
+            '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Gedrueckt_1x.png',
+            '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Gedrueckt_4x.png',
+            '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Deaktiviert_1x.png',
+            '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Deaktiviert_4x.png',
             '125A Drumator.vst3/Contents/Resources/125A_Vintage_Button_83x32_Normal_1x.png',
             '125A Drumator.vst3/Contents/Resources/125A_Vintage_Button_83x32_Normal_4x.png',
             '125A Drumator.vst3/Contents/Resources/125A_Vintage_Button_83x32_Aktiv_1x.png',
@@ -141,7 +159,7 @@ jobs:
           $actual = @($bundleFiles | ForEach-Object {
             [System.IO.Path]::GetRelativePath($artifactRoot, $_.FullName).Replace('\','/')
           }) | Sort-Object
-          foreach ($requiredImage in @('125A_Drumator_Faceplate.png', 'Abgenutzte industrielle Metallfrontplatte.png', 'Metallisches DRUMATOR-Logo.png', 'Futuristisches Metalllogo DRUMATOR.png', '125A_Vintage_Button_83x32_Normal_1x.png', '125A_Vintage_Button_83x32_Normal_4x.png', '125A_Vintage_Button_83x32_Aktiv_1x.png', '125A_Vintage_Button_83x32_Aktiv_4x.png', '125A_Vintage_Button_83x32_Gedrueckt_1x.png', '125A_Vintage_Button_83x32_Gedrueckt_4x.png', '125A_Vintage_Button_83x32_Deaktiviert_1x.png', '125A_Vintage_Button_83x32_Deaktiviert_4x.png')) {
+          foreach ($requiredImage in @('125A_Drumator_Faceplate.png', 'Abgenutzte industrielle Metallfrontplatte.png', 'Industrielle Metallplatte mit Eckschrauben.png', '125A_Dark_Button_83x32_Normal_1x.png', '125A_Dark_Button_83x32_Normal_4x.png', '125A_Dark_Button_83x32_Aktiv_1x.png', '125A_Dark_Button_83x32_Aktiv_4x.png', '125A_Dark_Button_83x32_Gedrueckt_1x.png', '125A_Dark_Button_83x32_Gedrueckt_4x.png', '125A_Dark_Button_83x32_Deaktiviert_1x.png', '125A_Dark_Button_83x32_Deaktiviert_4x.png', 'Metallisches DRUMATOR-Logo.png', 'Futuristisches Metalllogo DRUMATOR.png', '125A_Vintage_Button_83x32_Normal_1x.png', '125A_Vintage_Button_83x32_Normal_4x.png', '125A_Vintage_Button_83x32_Aktiv_1x.png', '125A_Vintage_Button_83x32_Aktiv_4x.png', '125A_Vintage_Button_83x32_Gedrueckt_1x.png', '125A_Vintage_Button_83x32_Gedrueckt_4x.png', '125A_Vintage_Button_83x32_Deaktiviert_1x.png', '125A_Vintage_Button_83x32_Deaktiviert_4x.png')) {
             $imagePath = Join-Path $resourceDirectory $requiredImage
             if (!(Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 1024) {
               throw "Missing or empty mandatory visual resource: $requiredImage"
