@@ -31,13 +31,12 @@ struct UiV101SongPainter final {
    P::fill(c,{7.,138.,1273.,top},P::Skin::navyWell());
    P::label(c,"SONG EDITOR  /  64-POSITION CHAIN",
             {28.,139.,627.,156.},10,{169,193,210,255},false);
-   // Cover only SONG body and footer with the same uploaded ivory PNG.
-   // All chain/control trays remain above the image and retain their click map.
+   // Shared industrial graphite artwork with MAIN; separate SONG hit map.
    if(!P::drawVintageFaceplate(c,agedFaceplate,bottom,true)){
-     P::fill(c,{0.,top,1280.,bottom},{115,109,102,255});
+     P::fill(c,{0.,top,1280.,bottom},{27,35,44,255});
      P::satin(c,{6.,top+2.,1274.,bottom-6.},
-              {215,207,196,255},{192,184,173,255},
-              {168,160,150,255},32);
+              {51,60,69,255},{35,44,54,255},
+              {22,30,40,255},32);
    }
    P::border(c,{6.,top+2.,1274.,bottom-6.},P::Skin::panelEdge());
    // One recessed SONG-CHAIN rail, continuing the main GUI's navy enamel.
