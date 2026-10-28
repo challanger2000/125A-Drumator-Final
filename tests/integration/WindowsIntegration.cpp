@@ -669,17 +669,40 @@ void captureVstgui(DrumatorView& v,const std::string& title,double scale){
  const auto width=access->getBitmapWidth(),height=access->getBitmapHeight();
  check(width>0&&height>0&&width<=4096&&height<=4096,"invalid VSTGUI screenshot pixel dimensions");
  if(title=="packaged-vst3-resources-silver-100"){
-    unsigned bright=0,dark=0;
-    for(std::uint32_t y=0;y<std::min(height,80u);++y)
-      for(std::uint32_t x=450;x<std::min(width,825u);++x){
-        check(access->setPosition(x,y),"packaged silver pixel out of bounds");
-        VSTGUI::CColor p{};access->getColor(p);
-        if(p.red>140&&p.green>140&&p.blue>140&&
-           std::abs(int(p.red)-int(p.green))<45)++bright;
-        if(int(p.red)+int(p.green)+int(p.blue)<270)++dark;
-      }
-    check(bright>500&&dark>4000,
-          "real packaged resource VSTGUI image lacks dark header/silver logo");
+   // Historical screenshot filename retained. The current packaged editor
+   // has a dark graphite plate and an alpha-composited DRUMATOR title.
+   // Compare actual native title pixels to an unadorned plate. This will
+   // fail if the logo disappears or the packaged V1.0.1 panel is too bright.
+   using P=drumator::v101::UiV101NativePreview;
+   const auto rawPlate=VSTGUI::renderBitmapOffscreen(
+     {1280.,static_cast<double>(height)},1.,
+     [&](VSTGUI::CDrawContext& dc){
+       check(P::drawVintageFaceplate(dc,
+         IntegrationAccess::vintageFaceplate(v),
+         static_cast<double>(height)),
+         "packaged graphite faceplate failed to render");
+     });
+   check(rawPlate!=nullptr,"packaged plate reference capture failed");
+   auto* platePixels=VSTGUI::CBitmapPixelAccess::create(rawPlate.get(),false);
+   check(platePixels!=nullptr,"packaged plate reference pixels unavailable");
+   unsigned dark=0,wordmarkVisible=0;
+   for(std::uint32_t y=12;y<76;y+=2)
+     for(std::uint32_t x=240;x<1118;x+=2){
+       check(access->setPosition(x,y)&&platePixels->setPosition(x,y),
+             "packaged logo pixel compare outside header");
+       VSTGUI::CColor actual{},background{};
+       access->getColor(actual);platePixels->getColor(background);
+       if(int(background.red)+int(background.green)+int(background.blue)<300)
+         ++dark;
+       const int difference=
+         std::abs(int(actual.red)-int(background.red))+
+         std::abs(int(actual.green)-int(background.green))+
+         std::abs(int(actual.blue)-int(background.blue));
+       if(difference>36)++wordmarkVisible;
+     }
+   platePixels->forget();
+   check(dark>6000&&wordmarkVisible>160,
+         "packaged V1.0.1 lacks dark graphite faceplate or DRUMATOR text overlay");
  }
  if(title=="v2-song-board"){
    // Regression: the Song overlay must erase the entire row UI, INCLUDING
@@ -4666,12 +4689,16 @@ int main(int argc,char** argv){
    if(std::strcmp(argv[2],"--packaged-logo-render")==0){
      int result=0;
      try {
-       Fixture f;f.open();
+       Fixture f;f.openV101();
        auto* view=IntegrationAccess::view(*f.c,0);
-       check(view&&IntegrationAccess::bundledBrandingLoaded(*view),
-             "packaged PNGs were not decoded into native VSTGUI bitmaps");
+       check(view&&view->isV101()&&
+             IntegrationAccess::bundledBrandingLoaded(*view)&&
+             IntegrationAccess::vintageFaceplateLoaded(*view)&&
+             IntegrationAccess::vintageButtonsLoaded(*view)&&
+             IntegrationAccess::modernTitleLoaded(*view),
+             "packaged V1.0.1 graphite photo, title or buttons absent");
        captureVstgui(*view,"packaged-vst3-resources-silver-100",1.0);
-       evidence("Packaged VST3 Resources: exact metallic logo and faceplate decoded; native Windows VSTGUI offscreen pixels show silver logo PASS");
+       evidence("Packaged VST3: V1.0.1 dark graphite metal, transparent DRUMATOR title and black 4x button states rendered PASS");
      }catch(const std::exception& ex){
        std::cerr<<"Packaged resource native render FAIL: "<<ex.what()<<'\n';
        result=3;
