@@ -1296,6 +1296,18 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
      P::label(*c,value,{r.left+4.,r.top+22.,r.right-4.,r.bottom-3.},
               12,{224,233,239,255});
    }
+   // All four functional groups use the same recessed midnight-blue
+   // mounting bezel and blue rim. Previously only PREVIEW/STOP had a frame
+   // in the legacy editor; here the other tools receive exactly the same.
+   // Bezel rectangles are strictly decorative, leaving hit geometry intact.
+   for(const auto& g:UiV101WaveLayout::toolbarGroups){
+     P::rounded(*c,{g.left,g.top,g.right,g.bottom},
+                {13,27,43,255},3.);
+     P::border(*c,{g.left,g.top,g.right,g.bottom},
+               {47,109,154,255});
+     P::fill(*c,{g.left+4.,g.top+2.,g.right-4.,g.top+3.},
+             {90,135,163,255});
+   }
    // Eight precisely equal 86x32 hardware keys, 8px gutters. The
    // V1.0.1-specific click map is shared with the actual pointer handler.
    constexpr const char* captions[]={
