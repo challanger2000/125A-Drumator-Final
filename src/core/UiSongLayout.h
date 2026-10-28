@@ -9,9 +9,12 @@ struct UiSongLayout final {
  static constexpr std::size_t columns=8, perPage=16, pages=SongChain::kCapacity/perPage;
  static constexpr double left=16., top=207., columnPitch=154., rowPitch=52.;
  static constexpr double cellWidth=150.,cellHeight=45.;
- static constexpr double navTop=166.,navBottom=196.;
- static constexpr double previousLeft=988.,previousRight=1102.;
- static constexpr double nextLeft=1110.,nextRight=1244.;
+ static constexpr double navTop=167.,navBottom=195.;
+ static constexpr double previousLeft=1036.,previousRight=1136.;
+ static constexpr double nextLeft=1144.,nextRight=1244.;
+ static_assert(previousRight-previousLeft==100.&&
+               nextRight-nextLeft==100.);
+ static_assert(nextLeft-previousRight==8.&&navBottom-navTop==28.);
  // Shared rendering/hit geometry for the global SONG START header cluster.
  static constexpr double startTop=169.,startBottom=194.;
  static constexpr double startMinusLeft=438.,startMinusRight=472.;
