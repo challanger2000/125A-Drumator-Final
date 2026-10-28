@@ -72,7 +72,10 @@ struct UiV101Layout final {
     return headerGroups[i];
   }
   static constexpr Rect meterReset{1132.,98.,1248.,134.};
-  static constexpr Rect zoomTrigger{1168.,15.,1248.,43.};
+  // Exact same 83x32 hardware cap as MENU/BARS/SONG/SONG EDIT.
+  // Keep right edge and optical center (near 1208,29) unchanged; the 4px
+  // gap before the existing zoom option popup is retained.
+  static constexpr Rect zoomTrigger{1165.,13.,1248.,45.};
   static constexpr Rect zoomOption(std::size_t index) noexcept{
     const double top=49.+26.*static_cast<double>(index);
     return {1162.,top,1248.,top+24.};
@@ -205,6 +208,14 @@ static_assert(UiV101Layout::headerGroups[1].x1+26.<=
 static_assert(UiV101Layout::headerKnobCenters[2]+UiV101Layout::headerKnobRadius<1132.);
 static_assert(UiV101Layout::meterReset.x0>=1132.&&
               UiV101Layout::meterReset.y0>UiV101Layout::zoomTrigger.y1);
+static_assert(UiV101Layout::zoomTrigger.x1-UiV101Layout::zoomTrigger.x0==
+              UiV101Layout::headerActionWidth&&
+              UiV101Layout::zoomTrigger.y1-UiV101Layout::zoomTrigger.y0==
+              UiV101Layout::headerButtonHeight,
+              "ZOOM must match the existing 83x32 vintage hardware buttons");
+static_assert(UiV101Layout::zoomTrigger.x1<=UiV101Layout::width-30.&&
+              UiV101Layout::zoomTrigger.y1<UiV101Layout::zoomOption(0).y0,
+              "ZOOM cap must preserve right chassis clearance and popup gap");
 static_assert(UiV101Layout::zoomPresets[0]==1.0 &&
               UiV101Layout::zoomPresets[1]==1.2 &&
               UiV101Layout::zoomPresets[2]==1.3 &&

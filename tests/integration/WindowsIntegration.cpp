@@ -117,6 +117,7 @@ struct IntegrationAccess {
  static bool sampleEditorOpen(const DrumatorView& view){return view.sampleEditorOpen_;}
  static bool songEditorOpen(const DrumatorView& view){return view.songEditorOpen_;}
  static std::size_t v101SelectedRow(const DrumatorView& view){return view.v101_.state().selectedRow;}
+ static bool v101ZoomPopupOpen(const DrumatorView& view){return view.v101_.state().zoomOpen;}
  static UiV101Popup::Kind v101Popup(const DrumatorView& view){return view.v101Menu_;}
  static std::string sampleEditorStatus(const DrumatorView& v){return v.status_;}
  static bool openSampleEditorForCapture(DrumatorView& view,std::size_t row){return view.openSampleEditor(row);}
@@ -1187,6 +1188,16 @@ void testV101LiveEditor(){
  check(view->getViewSize().getWidth()==1280.&&
        view->getViewSize().getHeight()==686.,
        "V101 native host has wrong initial editor bounds");
+ // Edge pixel outside the old 80x28 cap must activate the new 83x32 ZOOM
+ // hit rectangle. Use the actual attached view, not only a constexpr check.
+ check(!IntegrationAccess::v101ZoomPopupOpen(*view),
+       "V101 ZOOM popup unexpectedly open at start");
+ click(*view,1166.,14.);
+ check(IntegrationAccess::v101ZoomPopupOpen(*view),
+       "V101 ZOOM enlarged 83x32 edge did not open its real popup");
+ click(*view,1166.,14.);
+ check(!IntegrationAccess::v101ZoomPopupOpen(*view),
+       "V101 ZOOM enlarged edge did not close popup symmetrically");
  const auto vintageEnamel=viewPixel(1200,53);
  check(vintageEnamel[0]>215&&vintageEnamel[1]>180&&
        vintageEnamel[0]>vintageEnamel[1]&&

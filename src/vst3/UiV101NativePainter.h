@@ -491,7 +491,7 @@ struct UiV101NativePreview final {
    const auto selected=zoomPreset<4?zoomPreset:std::size_t{0};
    char zoomCaption[20]{};
    std::snprintf(zoomCaption,sizeof(zoomCaption),"%s  v",zoomNames[selected]);
-   cap(c,L::zoomTrigger,0.,zoomCaption,zoomMenuOpen,11);
+   cap(c,L::zoomTrigger,0.,zoomCaption,zoomMenuOpen,11,vintageButtons);
    // Actual Drumator features only. This header is not yet interactive.
    // Raise the entire control bay and align its LEFT boundary with the
    // midnight-blue instrument chassis below. Earlier 21px inset was wrong.
