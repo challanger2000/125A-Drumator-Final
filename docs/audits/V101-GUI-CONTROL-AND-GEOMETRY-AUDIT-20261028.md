@@ -45,7 +45,7 @@
 |---|---|---|---|
 | PATTERN A–H (8) | jede Taste verändert `currentPattern`, Automationshost empfängt `performEdit` | tote Gaps, nicht aktive Steps nach 1 Bar | **CI ausstehend für neue Vollmatrix** |
 | PATTERN MENU (7) | COPY/PASTE, CLEAR/UNDO, RANDOM VELOCITY, VELOCITY 100 und DUPLICATE prüfen alle tatsächliche Notes/Werte | Undo-/Clipboard-Zustand und Blockierung bei offenem Menü | **CI ausstehend** |
-| FILL (8) | sämtliche Menüindizes mit der verbindlichen mathematischen \`filledRow(RowFill)\`-32-Step-Referenz verglichen, inklusive Ghost-Notenwerten | nur Zielreihe; 1-Bar-Inaktivität separat geprüft | **CI ausstehend** |
+| FILL (8) | sämtliche 8 Menüindizes mit einer unabhängig programmierten 32-Step-Musikreferenz (127/95/84 bei Gallop, 127/42 bei Ghost-Noten) verglichen, inklusive Ghost-Notenwerten | nur Zielreihe; 1-Bar-Inaktivität separat geprüft | **CI ausstehend** |
 | Output (16) | sämtliche Werte MAIN, OUT 1..15 durch echte Menüauswahl und `rowOutput` | Rechtecke in beiden Paginierungshöhen | **CI ausstehend** |
 | Choke (5) | OFF und 1–4 über echte Menüauswahl und `rowChoke` | korrekte Zielzeile | **CI ausstehend** |
 | SAMPLE MENU (3) | REMOVE auf korrekter Zeile, RENAME öffnet echtes `CTextEdit`; LOAD ruft den VSTGUI-Dateidialog | OS-Dateidialog wird nicht blind automatisiert; vorhandene direkte WAV/FLAC-Importtests | **LOAD-Dialog: NOT RUN**, andere Optionen **CI ausstehend** |
@@ -58,7 +58,7 @@
 | Wave (8) | ZOOM+/–, FIT, PREVIEW, STOP, RESET, CANCEL, APPLY mit echter Wave-/Edit-State und Recall | Handle-Fade, Marker-Drag, Source-PCM-Fade, Zoom, Cancel-Rollback und Stop-vor-Apply | **CI ausstehend für neue Matrix** |
 | File drop/import | normale WAV/FLAC-Decoder, PCM-Peaks, Namen, Fehler- und Datei-Swap-Fälle | defekte/trunkierte FLAC, fehlende Dateien, Portabilität/State | **bestehende Windows-CI PASS** |
 
-**Anbindungskette:** VSTGUI-CView / native Mausklickkoordinate → `UiV101Layout/UiSongLayout/UiV101WaveLayout` → `UiV101Interaction` bzw. Modalkontext → `DrumatorView::v101MouseDown/applyV101Menu` → `Controller` → `Processor` (VST3 ConnectionPoint/Messages) → MIDI/Audio/Projektzustand. Die neue Menü-Testmatrix prüft konkrete Zielzustände und exakte Steps statt nur zurückgegebene Erfolgswerte.
+**Anbindungskette:** VSTGUI-CView / native Mausklickkoordinate → `UiV101Layout/UiSongLayout/UiV101WaveLayout` → `UiV101Interaction` bzw. Modalkontext → `DrumatorView::v101MouseDown/applyV101Menu` → `Controller` → `Processor` (VST3 ConnectionPoint/Messages) → MIDI/Audio/Projektzustand. Die neue Menü-Testmatrix prüft konkrete Zielzustände und exakte Steps statt nur zurückgegebene Erfolgswerte. Die 8 FILL-Modi werden gegen **unabhängig implementierte** Sollrhythmen und Velocity-Werte geprüft, nicht gegen dieselbe \`filledRow\`-Routine wie die Produktimplementierung.
 
 ## 4. Fehlerfund und Korrekturen während dieses Audits
 
