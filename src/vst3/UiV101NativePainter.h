@@ -252,6 +252,20 @@ struct UiV101NativePreview final {
    label(c,text,{l+2.,t+2.,rr-2.,bt-2.},font,
          active?Color{65,32,16,255}:Color{24,27,30,255});
  }
+ // Modal zoom is a topmost shared overlay in MAIN and SONG. Painting
+ // it only inside the main sequencer would let the SONG heading hide the
+ // fourth (150%) option while pointer capture was still active.
+ static void zoomPopup(VSTGUI::CDrawContext& c,std::size_t selected){
+   constexpr const char* names[]={"100%","120%","130%","150%"};
+   const double left=L::zoomOption(0).x0-4.;
+   const double right=L::zoomOption(0).x1+4.;
+   const double top=L::zoomOption(0).y0-4.;
+   const double bottom=L::zoomOption(L::zoomPresets.size()-1).y1+4.;
+   fill(c,{left,top,right,bottom},{12,20,29,255});
+   border(c,{left,top,right,bottom},{104,115,121,255});
+   for(std::size_t i=0;i<L::zoomPresets.size();++i)
+     cap(c,L::zoomOption(i),0.,names[i],i==selected,11);
+ }
  // Dark-blue physical sequencer keycap, with matching bezel and warm
  // backlit orange state. Keep the same 17px step width / 19px pitch.
  // Faithful V1.0 drawHardwareStep paint translated into compact 48px row.
@@ -595,19 +609,7 @@ struct UiV101NativePreview final {
    cap(c,L::footerNext,footerTop,"NEXT PAGE",false,9);
    screw(c,L::footerScrewLeftX,total-15.);
    screw(c,L::footerScrewRightX,total-15.);
-   if(zoomMenuOpen){
-     const double left=L::zoomOption(0).x0-4.;
-     const double right=L::zoomOption(0).x1+4.;
-     const double top=L::zoomOption(0).y0-4.;
-     const double bottom=L::zoomOption(L::zoomPresets.size()-1).y1+4.;
-     fill(c,{left,top,right,bottom},{12,20,29,255});
-     border(c,{left,top,right,bottom},{104,115,121,255});
-     for(std::size_t i=0;i<L::zoomPresets.size();++i){
-       const auto rect=L::zoomOption(i);
-       // Menu options use the same physical caps as the other GUI buttons.
-       cap(c,rect,0.,zoomNames[i],i==selected,11);
-     }
-   }
+   if(zoomMenuOpen)zoomPopup(c,selected);
  }
 };
 }
