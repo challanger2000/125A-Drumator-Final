@@ -2248,6 +2248,18 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
  const double x=pos.x,y=pos.y;
  if(!(buttons&VSTGUI::kLButton))return VSTGUI::kMouseEventNotHandled;
  if(v101Mode_&&songEditorOpen_&&y<UiV101Layout::header){
+   // The global hardware knobs remain active above SONG. Their default
+   // reset must use exactly the same Ctrl/double-click gesture as MAIN.
+   if((buttons&VSTGUI::kControl)||(buttons&VSTGUI::kDoubleClick)){
+     for(int i=0;i<3;++i){
+       if(UiV101Layout::headerKnob(static_cast<std::size_t>(i)).hit(x,y)){
+         if(!changeKnobValue(i+4,0,UiCompactLayout::defaultValue(i+4)))
+           status_="GLOBAL KNOB RESET NOT APPLIED";
+         invalid();
+         return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+       }
+     }
+   }
    if(UiV101Layout::headerGroup(1).hit(x,y)){
      songEditorOpen_=false;
      if(!adjustEditorHeight()){
