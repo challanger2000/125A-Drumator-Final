@@ -1200,6 +1200,14 @@ void testV101LiveEditor(){
  click(*view,716.,352.); // 1/2 BAR for same entry
  check(f.c->songEntry(0).steps==8,
        "V101 SONG 1/2 BAR hardware button disconnected");
+ check(UiSongLayout::previousRight-UiSongLayout::previousLeft==100.&&
+       UiSongLayout::nextRight-UiSongLayout::nextLeft==100.&&
+       UiSongLayout::navBottom-UiSongLayout::navTop==26.,
+       "V101 SONG PREVIOUS/NEXT must both be 100x26");
+ check(!UiSongLayout::previousHit(1032.,181.)&&
+       UiSongLayout::previousHit(1086.,181.)&&
+       UiSongLayout::nextHit(1194.,181.),
+       "V101 SONG navigation mouse zones are not aligned with narrow keys");
  check(UiSongLayout::addRight-UiSongLayout::addLeft==98.&&
        UiSongLayout::removeRight-UiSongLayout::removeLeft==98.,
        "V101 SONG action keys have unequal widths");
@@ -3364,7 +3372,8 @@ void testPagedSongEditor(){
        "UX empty SONG tile appended despite ADD ENTRY-only policy");
  click(*v,167.,222.);
  check(IntegrationAccess::snapshot(*f.c)==snapshot,"UX SONG tile gutter not inert");
- click(*v,1032.,181.);
+ click(*v,(UiSongLayout::previousLeft+UiSongLayout::previousRight)/2.,
+        (UiSongLayout::navTop+UiSongLayout::navBottom)/2.);
  check(IntegrationAccess::songPage(*v)==0&&IntegrationAccess::songSlot(*v)==0,
        "UX SONG previous page must select first valid entry");
  click(*v,1170.,222.);
