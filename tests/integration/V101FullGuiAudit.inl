@@ -178,7 +178,8 @@ void testV101MenuMatrixAndGeometry(){
  check(f.c->velocity(current,1,4)==0,
        "GUI audit SET CLEAR ROW did not erase target note");
  // Return expansion to row 0 for the existing sample popup target test.
- click(*view,1230.,row1Top+36.);
+ click(*view,1230.,row1Top+36.); // close row-1 expansion
+ click(*view,1230.,L::header+36.); // restore row-0 SET expansion
  // SAMPLE: the destructive third choice must affect exactly the clicked
  // instrument, not the instrument that owns the expanded SET panel.
  L::Expansions expanded{};expanded[0]=L::Expansion::Settings;
