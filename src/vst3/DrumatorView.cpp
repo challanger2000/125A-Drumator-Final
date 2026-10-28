@@ -1197,15 +1197,15 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
    // Identical UiWaveEditorLayout geometry; only the V1.0.1 materials
    // and paint primitives change. All source-frame marker math is preserved.
    using P=v101::UiV101NativePreview;
-   P::satin(*c,{225.,96.,1055.,610.},{222,214,203,255},
-            {192,184,174,255},{155,146,135,255},22);
+   P::satin(*c,{225.,96.,1055.,610.},{67,76,85,255},
+            {42,51,61,255},{25,34,44,255},22);
    P::border(*c,{225.,96.,1055.,610.},P::Skin::panelEdge());
    c->setFillColor(P::Skin::graphite());
    c->drawRect({230,100,1050,605},VSTGUI::kDrawFilled);
    // Narrow metallic title shoulder; restrained lower bevel.
    c->setFillColor(VSTGUI::CColor{27,41,56,255});
    c->drawRect({234,104,1046,151},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{157,151,143,255});
+   c->setFillColor(VSTGUI::CColor{96,109,122,255});
    c->drawRect({234,104,1046,106},VSTGUI::kDrawFilled);
    c->setFillColor(VSTGUI::CColor{53,61,68,255});
    c->drawRect({234,149,1046,151},VSTGUI::kDrawFilled);
