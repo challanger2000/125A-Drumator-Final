@@ -1202,8 +1202,10 @@ void testV101LiveEditor(){
        "V101 SONG 1/2 BAR hardware button disconnected");
  check(UiSongLayout::previousRight-UiSongLayout::previousLeft==100.&&
        UiSongLayout::nextRight-UiSongLayout::nextLeft==100.&&
-       UiSongLayout::navBottom-UiSongLayout::navTop==26.,
-       "V101 SONG PREVIOUS/NEXT must both be 100x26");
+       UiSongLayout::navBottom-UiSongLayout::navTop==26.&&
+       UiSongLayout::startBottom-UiSongLayout::startTop==26.&&
+       UiSongLayout::choiceBottom-UiSongLayout::choiceTop==26.,
+       "V101 SONG keys must share 26px height and equal nav widths");
  check(!UiSongLayout::previousHit(1032.,181.)&&
        UiSongLayout::previousHit(1086.,181.)&&
        UiSongLayout::nextHit(1194.,181.),
