@@ -1258,6 +1258,8 @@ void testV101LiveEditor(){
  variableCap(27.,32.,"M",false,false);
  variableCap(34.,26.,"+",false,false);
  variableCap(42.,26.,"A",false,false);
+ variableCap(37.,20.,"VEL",false,false);
+ variableCap(37.,20.,"SET",true,false);
  variableCap(86.,32.,"PREVIEW",true,false);
  variableCap(90.,25.,"ADD ROW",false,false);
  variableCap(95.,25.,"PREV PAGE",false,true);

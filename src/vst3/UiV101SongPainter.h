@@ -108,11 +108,12 @@ struct UiV101SongPainter final {
      P::label(c,length,{x+80.,y+6.,x+145.,y+40.},10,
               {226,232,236,255},true);
    }
-   // Dark recessed vintage mounting strip, without changing the hit map.
-   P::rounded(c,{15.,313.,1256.,390.},{78,70,62,255},3.);
-   P::satin(c,{18.,316.,1253.,388.},{72,67,61,255},
-            {45,44,43,255},{28,29,31,255},12);
-   P::border(c,{15.,313.,1256.,390.},{125,113,97,255});
+   // Dark graphite tray shared with the MAIN header and footer. This
+   // changes material color only, never UiSongLayout hit rectangles.
+   P::rounded(c,{15.,313.,1256.,390.},{36,49,63,255},3.);
+   P::satin(c,{18.,316.,1253.,388.},{47,60,73,255},
+            {30,42,55,255},{20,31,45,255},12);
+   P::border(c,{15.,313.,1256.,390.},{77,99,120,255});
    char selection[72]{};
    if(selected)std::snprintf(selection,sizeof(selection),
        "POSITION %02u SELECTED",static_cast<unsigned>(slot+1));

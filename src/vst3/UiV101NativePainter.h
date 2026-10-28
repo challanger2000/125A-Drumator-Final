@@ -295,8 +295,10 @@ struct UiV101NativePreview final {
    // Nine-slice for remaining size families: preserve physical cap corners
    // and edge wear. Stretch only the broad unlettered center of the approved
    // high-resolution image. Do not alter paint/hit rectangles.
+   // VEL and SET are genuine 37x20 function buttons; use the same dark
+   // nine-slice (6px top/bottom bezels with 8px center), not silver fallback.
    if(b.getWidth()<22.||b.getWidth()>220.||
-      b.getHeight()<22.||b.getHeight()>48.)return false;
+      b.getHeight()<18.||b.getHeight()>48.)return false;
    constexpr std::array<double,4> sx{{0.,40.,292.,332.}};
    constexpr std::array<double,4> sy{{0.,24.,104.,128.}};
    const std::array<double,4> dx{{b.left,b.left+10.,b.right-10.,b.right}};
@@ -742,12 +744,12 @@ struct UiV101NativePreview final {
    const double footerTop=total-L::footer;
    const auto panel=L::footerPanel;
    rounded(c,{panel.x0,footerTop+panel.y0,panel.x1,footerTop+panel.y1},
-           {80,72,63,255},3.);
+           {36,49,63,255},3.);
    satin(c,{panel.x0+2.,footerTop+panel.y0+2.,
             panel.x1-2.,footerTop+panel.y1-2.},
-         {69,65,59,255},{43,43,42,255},{29,30,32,255},8);
+         {44,56,68,255},{30,42,55,255},{18,30,44,255},8);
    border(c,{panel.x0,footerTop+panel.y0,panel.x1,footerTop+panel.y1},
-          {119,108,94,255});
+          {79,101,122,255});
    char summary[100]{};
    std::snprintf(summary,sizeof(summary),
                  "ROWS %zu-%zu / %zu  |  PATTERN %c",
