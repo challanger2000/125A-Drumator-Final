@@ -158,6 +158,27 @@ void testV101MenuMatrixAndGeometry(){
    check(f.c->rowChoke(0)==static_cast<unsigned>(group),
          "GUI audit CHOKE menu index did not set matching group");
  }
+ // Every SET row-edit action must alter the real controller, not only
+ // return Applied from a detached interaction unit test.
+ const auto row0Old=f.c->velocity(current,0,4);
+ check(row0Old>0,"GUI audit SET Random Velocity needs an occupied note");
+ click(*view,804.,L::header+69.); // SET RANDOM VELOCITY
+ check(f.c->velocity(current,0,4)!=row0Old,
+       "GUI audit SET RANDOM VELOCITY did not change occupied note");
+ click(*view,438.,L::header+69.); // SET COPY ROW
+ const auto copied=f.c->velocity(current,0,4);
+ L::Expansions setFirst{};setFirst[0]=L::Expansion::Settings;
+ const auto row1ExpandedTop=L::rowTop(0,1,setFirst);
+ click(*view,1230.,row1ExpandedTop+36.); // SET for row 1
+ const auto row1Top=L::rowTop(0,1,L::Expansions{});
+ click(*view,560.,row1Top+69.); // SET PASTE ROW
+ check(f.c->velocity(current,1,4)==copied,
+       "GUI audit SET PASTE ROW did not copy pattern to target");
+ click(*view,680.,row1Top+69.); // SET CLEAR ROW
+ check(f.c->velocity(current,1,4)==0,
+       "GUI audit SET CLEAR ROW did not erase target note");
+ // Return expansion to row 0 for the existing sample popup target test.
+ click(*view,1230.,row1Top+36.);
  // SAMPLE: the destructive third choice must affect exactly the clicked
  // instrument, not the instrument that owns the expanded SET panel.
  L::Expansions expanded{};expanded[0]=L::Expansion::Settings;
@@ -167,6 +188,10 @@ void testV101MenuMatrixAndGeometry(){
  popupClick(Kind::Sample,2,267.,secondRow+20.,secondRow);
  check(!f.c->hasSample(1)&&f.c->hasSample(0),
        "GUI audit REMOVE SAMPLE damaged the wrong instrument");
+ // The second sample menu item must really enter inline name editing.
+ popupClick(Kind::Sample,1,267.,secondRow+20.,secondRow);
+ check(IntegrationAccess::edit(*view)!=nullptr,
+       "GUI audit SAMPLE RENAME did not open native VSTGUI CTextEdit");
  evidence("V101 all-menu matrix: Pattern 7/7, Fill 8/8 exact 32-step masks, Output 16/16, Choke 5/5, Sample REMOVE, A-H 8/8, live popup geometry, modal dismissal PASS");
 }
 
