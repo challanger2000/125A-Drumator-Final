@@ -62,6 +62,15 @@ void testV101MenuMatrixAndGeometry(){
      }
    }
  }
+ // PLAY is the headphone audition action, not a previous-sample
+ // navigation key. Its real VST3 message must queue exactly this sample.
+ check((IntegrationAccess::queuedPreviewBits(*f.p)&1u)==0,
+       "GUI audit preview queue unexpectedly set before input");
+ const auto previewBox=L::preview;
+ click(*view,(previewBox.x0+previewBox.x1)*.5,
+      L::header+(previewBox.y0+previewBox.y1)*.5);
+ check((IntegrationAccess::queuedPreviewBits(*f.p)&1u)!=0,
+       "GUI audit main PLAY button never queued audible sample preview");
  // Main GUI: every A-H selection must reach the actual host automation,
  // and all four full-width header groups must be mutually disjoint.
  for(std::size_t i=0;i<8;++i){
