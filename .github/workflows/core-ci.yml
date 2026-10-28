@@ -73,7 +73,7 @@ jobs:
           # Use the CMake project version for package metadata; verify that
           # the compiled processor/controller factory classes agree below.
           $projectVersionText = [System.IO.File]::ReadAllText('CMakeLists.txt')
-          $versionMatch = [regex]::Match($projectVersionText, '(?m)^project\(Drumator VERSION ([0-9]+\.[0-9]+\.[0-9]+) LANGUAGES CXX\)$')
+          $versionMatch = [regex]::Match($projectVersionText, '(?m)^project\(Drumator VERSION ([0-9]+\.[0-9]+\.[0-9]+) LANGUAGES CXX\)\r?$')
           if (-not $versionMatch.Success) { throw 'Cannot read Drumator version from CMakeLists.txt' }
           $expectedVersion = $versionMatch.Groups[1].Value
           & './build/bin/Release/moduleinfotool.exe' -create -version $expectedVersion -path $bundle -output $moduleInfo
