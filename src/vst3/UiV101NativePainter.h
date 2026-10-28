@@ -520,8 +520,33 @@ struct UiV101NativePreview final {
      cap(c,L::next,y,">",false,12);
      const std::string emptyName="(EMPTY)";
      const auto& rowName=live?(data.name.empty()?emptyName:data.name):emptyName;
-     label(c,rowName.c_str(),{L::load.x0+5.,y+9.,L::load.x1-2.,y+39.},
-           11,live?Color{203,222,235,255}:Color{103,116,127,255},false);
+     const Box nameRect{L::load.x0+5.,y+9.,L::load.x1-2.,y+39.};
+     // VSTGUI::drawString does not clip to its text rectangle. Measure with
+     // the actual platform font and abbreviate on UTF-8 codepoint boundaries.
+     // A final clip prevents long names from painting over sample-menu,
+     // previous/next, preview or EDIT buttons.
+     c.setFont(VSTGUI::kNormalFont,11);
+     const char* displayedName=rowName.c_str();
+     std::string shortenedName;
+     if(c.getStringWidth(displayedName)>nameRect.getWidth()-2.){
+       shortenedName=rowName;
+       while(!shortenedName.empty()&&
+             c.getStringWidth((shortenedName+"...").c_str())>
+               nameRect.getWidth()-2.){
+         std::size_t cut=shortenedName.size()-1;
+         while(cut>0&&
+               (static_cast<unsigned char>(shortenedName[cut])&0xc0u)==0x80u)
+           --cut;
+         shortenedName.erase(cut);
+       }
+       shortenedName+="...";
+       displayedName=shortenedName.c_str();
+     }
+     c.saveGlobalState();
+     c.setClipRect(nameRect);
+     label(c,displayedName,nameRect,11,
+           live?Color{203,222,235,255}:Color{103,116,127,255},false);
+     c.restoreGlobalState();
      cap(c,L::sampleMenu,y,"...",false,10);
      headphone(c,L::preview,y);
      cap(c,L::edit,y,"EDIT",false,11);

@@ -1296,10 +1296,15 @@ void testV101LiveEditor(){
  const std::string longRowLabel=
      "Kick Industrial Distorted Underground Layer Twenty Four";
  const auto originalStatus=IntegrationAccess::sampleEditorStatus(*view);
+ const auto beforeLongNameMenu=viewPixel(273,181);
+ const auto beforeLongNamePreview=viewPixel(308,181);
  check(f.c->renameRow(0,longRowLabel),
        "V101 long-name visual stress could not rename sample row");
  check(f.c->label(0)==longRowLabel,
        "V101 long-name visual stress was not reflected in Controller");
+ check(viewPixel(273,181)==beforeLongNameMenu&&
+       viewPixel(308,181)==beforeLongNamePreview,
+       "V101 long sample name overpaints adjacent hardware controls");
  IntegrationAccess::setStatusText(*view,
      "SAMPLE IMPORT FAILED: INVALID OR UNSUPPORTED AUDIO FILE");
  captureVstgui(*view,"v101-main-long-label-and-status-100",1.0);
