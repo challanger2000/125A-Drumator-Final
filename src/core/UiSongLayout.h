@@ -18,7 +18,6 @@ struct UiSongLayout final {
  // Shared rendering/hit geometry for the global SONG START header cluster.
  static constexpr double startTop=168.,startBottom=194.;
  static_assert(startBottom-startTop==navBottom-navTop);
- static_assert(choiceBottom-choiceTop==navBottom-navTop);
  static constexpr double startMinusLeft=438.,startMinusRight=472.;
  static constexpr double startBarLeft=479.,startBarRight=584.;
  static constexpr double startPlusLeft=591.,startPlusRight=625.;
@@ -30,6 +29,7 @@ struct UiSongLayout final {
  static_assert(removeLeft-addRight==8.);
  // A-H and REST form one row; REST is a sentinel, not a pattern.
  static constexpr double choiceTop=339.,choiceBottom=365.;
+ static_assert(choiceBottom-choiceTop==navBottom-navTop);
  static constexpr double patternLeft=115.,patternPitch=46.,patternWidth=42.;
  static constexpr double restLeft=484.,restRight=568.;
  static constexpr double lengthTitleLeft=582.,lengthTitleRight=673.;
