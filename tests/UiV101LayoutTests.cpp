@@ -62,9 +62,12 @@ int main(){
     CHECK(r.width()==140.&&r.bottom-r.top==46.);
     if(i)CHECK(r.left-W::readout(i-1).right==13.);
   }
-  CHECK(L::zoomTrigger.x1-L::zoomTrigger.x0==80.);
-  CHECK(L::zoomTrigger.y1-L::zoomTrigger.y0==28.);
+  // ZOOM now shares the exact 83x32 vintage face with all large keys.
+  CHECK(L::zoomTrigger.x1-L::zoomTrigger.x0==L::headerActionWidth);
+  CHECK(L::zoomTrigger.y1-L::zoomTrigger.y0==L::headerButtonHeight);
   CHECK(L::zoomHit(1145.,25.,false)==-1);
+  CHECK(L::zoomHit(1166.,14.,false)==-2); // newly added top-left edge
+  CHECK(L::zoomHit(1164.,14.,false)==-1); // outside bezel
   CHECK(L::zoomHit(1200.,25.,false)==-2);
   CHECK(L::zoomHit(1200.,25.,true)==-2);
   for(std::size_t i=0;i<L::zoomPresets.size();++i){
