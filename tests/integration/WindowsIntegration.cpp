@@ -1116,6 +1116,21 @@ void testV101LiveEditor(){
        "V101 native host did not register exactly one Controller view");
  auto* view=IntegrationAccess::view(*f.c,0);
  check(view->isV101(),"V101 host loaded legacy painter instead of candidate");
+ // Read genuine raster pixels from the attached native VSTGUI editor.
+ // This checks optical state changes, not merely constants in the painter.
+ const viewPixel=[&](std::uint32_t x,std::uint32_t y){
+   const auto rect=view->getViewSize();
+   auto bitmap=VSTGUI::renderBitmapOffscreen(
+       VSTGUI::CPoint(rect.getWidth(),rect.getHeight()),1.,
+       [&](VSTGUI::CDrawContext& ctx){view->draw(&ctx);});
+   check(bitmap!=nullptr,"V101 design audit raster unavailable");
+   auto* pixels=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
+   check(pixels!=nullptr&&pixels->setPosition(x,y),
+         "V101 design audit pixel outside host bounds");
+   VSTGUI::CColor color{};
+   pixels->getColor(color);pixels->forget();
+   return std::array<int,3>{{color.red,color.green,color.blue}};
+ };
  check(view->getViewSize().getWidth()==1280.&&
        view->getViewSize().getHeight()==686.,
        "V101 native host has wrong initial editor bounds");
@@ -1209,6 +1224,14 @@ void testV101LiveEditor(){
        std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
        "V101 SONG 100 percent screenshot has different actual host zoom");
  captureVstgui(*view,"v101-song-board-hardware-100",1.0);
+ // An unoccupied Song cell must be visibly less prominent than an entry.
+ // The fixture starts with 8 real entries; both samples avoid title glyphs.
+ check(f.c->songCount()==8,"V101 inactive-slot pixel fixture changed");
+ const auto populatedSongPixel=viewPixel(153,226);
+ const auto vacantSongPixel=viewPixel(153,278);
+ check(vacantSongPixel[0]>populatedSongPixel[0]+25&&
+       vacantSongPixel[1]>populatedSongPixel[1]+25,
+       "V101 empty Song cell is not visibly de-emphasized");
  click(*view,1200.,25.);click(*view,1200.,113.); // real 130% popup
  check(view->zoomMatches(1.3)&&
        std::abs(hostEditor.getZoomFactor()-1.3)<.0001,
@@ -1297,6 +1320,7 @@ void testV101LiveEditor(){
        "V101 Wave capture entered with stale 150 percent host zoom");
  // Wave editor: a direct EDIT click must request the correct real sample,
  // either immediately or through the existing async snapshot pipeline.
+ const auto normalBackgroundPixel=viewPixel(96,173);
  click(*view,380.,L::header+24.);
  check(IntegrationAccess::sampleEditorOpen(*view)||
        f.c->sampleEditorRequestPending(0,view),
@@ -1310,6 +1334,13 @@ void testV101LiveEditor(){
        std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
        "V101 Wave 100 percent raster did not use real 100 percent zoom");
  captureVstgui(*view,"v101-wave-editor-hardware-100",1.0);
+ // Assert that the modal scrim actually darkens a control outside the dialog.
+ const auto modalBackgroundPixel=viewPixel(96,173);
+ const auto rgbTotal=[](const std::array<int,3>& rgb){
+   return rgb[0]+rgb[1]+rgb[2];
+ };
+ check(rgbTotal(modalBackgroundPixel)+60<rgbTotal(normalBackgroundPixel),
+       "V101 Wave modal background is not visibly dimmed");
  check(hostEditor.setZoomChecked(1.3),
        "V101 host rejected Wave-editor zoom change to 130 percent");
  view->refreshFromHost(false);
