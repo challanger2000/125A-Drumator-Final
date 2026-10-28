@@ -116,6 +116,7 @@ namespace drumator {
 struct IntegrationAccess {
  static bool sampleEditorOpen(const DrumatorView& view){return view.sampleEditorOpen_;}
  static bool songEditorOpen(const DrumatorView& view){return view.songEditorOpen_;}
+ static std::size_t v101SelectedRow(const DrumatorView& view){return view.v101_.state().selectedRow;}
  static UiV101Popup::Kind v101Popup(const DrumatorView& view){return view.v101Menu_;}
  static std::string sampleEditorStatus(const DrumatorView& v){return v.status_;}
  static bool openSampleEditorForCapture(DrumatorView& view,std::size_t row){return view.openSampleEditor(row);}
@@ -4474,6 +4475,7 @@ int main(int argc,char** argv){
  run("V101 real VST3 editor attach, mouse dispatch, dialogs and zoom",testV101LiveEditor);
  run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
  run("V101 SONG and Wave full native button matrix",testV101SongAndWaveFullControlMatrix);
+ run("V101 16-row pointer isolation and real WAV sample browse",testV101AllRowMouseIsolationAndSampleBrowse);
  run("VSTGUI native pixel render set",testVisualRender);
  run("GUI49 musical four-sample native 130pct capture",testGui49MusicalFourSampleCapture);
  run("GUI 11I centered PATTERN and meter header geometry",test11IHeaderPatternCentered);
