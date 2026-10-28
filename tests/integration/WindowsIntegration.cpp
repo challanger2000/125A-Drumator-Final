@@ -4022,6 +4022,7 @@ void testTransportJumpRetiresOldVoices(){
 }
 #include "ReauditCases.inl"
 #include "FinalAudit20261023.inl"
+#include "V101FullGuiAudit.inl"
 
 struct A01SerializedConnection final:Steinberg::Vst::IConnectionPoint {
  IConnectionPoint* target;
@@ -4445,6 +4446,7 @@ int main(int argc,char** argv){
  run("V101 actual Controller to native visual scene",testV101ControllerScene);
  run("V101 native interactive controller, lane and zoom actions",testV101Interaction);
  run("V101 real VST3 editor attach, mouse dispatch, dialogs and zoom",testV101LiveEditor);
+ run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
  run("VSTGUI native pixel render set",testVisualRender);
  run("GUI49 musical four-sample native 130pct capture",testGui49MusicalFourSampleCapture);
  run("GUI 11I centered PATTERN and meter header geometry",test11IHeaderPatternCentered);
