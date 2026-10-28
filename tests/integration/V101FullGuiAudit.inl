@@ -209,6 +209,17 @@ void testV101SongAndWaveFullControlMatrix(){
         mid(editButton.y0,editButton.y1));
    check(IntegrationAccess::songEditorOpen(*view),
          "GUI audit SONG EDIT failed to open real native mode");
+   // Header controls are still physically visible in SONG: all three
+   // Ctrl-click defaults must work there, not just in the main sequencer.
+   check(f.c->swingPercent()==15&&f.c->humanizePercent()==10&&
+         f.c->masterVolume()==105,
+         "GUI audit SONG header fixture missing nondefault knob values");
+   for(std::size_t k=0;k<L::headerKnobCenters.size();++k)
+     click(*view,L::headerKnobCenters[k],L::headerKnobY,
+           VSTGUI::kLButton|VSTGUI::kControl);
+   check(f.c->swingPercent()==0&&f.c->humanizePercent()==0&&
+         f.c->masterVolume()==100,
+         "GUI audit SONG Ctrl-click did not reset all global knobs");
    for(int pattern=0;pattern<=static_cast<int>(drumator::SongChain::kRest);++pattern){
      const double x=pattern<8?S::patternLeft+pattern*S::patternPitch+
          S::patternWidth*.5:mid(S::restLeft,S::restRight);
@@ -223,6 +234,10 @@ void testV101SongAndWaveFullControlMatrix(){
            "GUI audit SONG length 1/2,1,2 bars not routed correctly");
    }
    const auto beforeStart=f.c->songStartBar();
+   click(*view,mid(S::startBarLeft,S::startBarRight),
+        mid(S::startTop,S::startBottom));
+   check(f.c->songStartBar()==beforeStart,
+         "GUI audit SONG START value readout acted like a button");
    click(*view,mid(S::startPlusLeft,S::startPlusRight),181.);
    check(f.c->songStartBar()==beforeStart+1,
          "GUI audit SONG START plus control disconnected");
