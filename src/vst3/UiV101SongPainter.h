@@ -20,17 +20,22 @@ struct UiV101SongPainter final {
  }
  static void draw(VSTGUI::CDrawContext& c,const Controller& controller,
                   std::size_t page,std::size_t slot,
-                  const char* status=""){
+                  const char* status="",
+                  VSTGUI::CBitmap* agedFaceplate=nullptr){
    constexpr double top=UiV101Layout::header,bottom=432.;
    // SONG mode has no instrument step ruler; hide the underlying main-grid
    // captions without changing the shared top-row key hit map.
    P::fill(c,{7.,138.,1273.,top},P::Skin::navyWell());
    P::label(c,"SONG EDITOR  /  64-POSITION CHAIN",
             {28.,139.,627.,156.},10,{169,193,210,255},false);
-   P::fill(c,{0.,top,1280.,bottom},{115,109,102,255});
-   P::satin(c,{6.,top+2.,1274.,bottom-6.},
-            {215,207,196,255},{192,184,173,255},
-            {168,160,150,255},32);
+   // Cover only SONG body and footer with the same uploaded ivory PNG.
+   // All chain/control trays remain above the image and retain their click map.
+   if(!P::drawVintageFaceplate(c,agedFaceplate,bottom,true)){
+     P::fill(c,{0.,top,1280.,bottom},{115,109,102,255});
+     P::satin(c,{6.,top+2.,1274.,bottom-6.},
+              {215,207,196,255},{192,184,173,255},
+              {168,160,150,255},32);
+   }
    P::border(c,{6.,top+2.,1274.,bottom-6.},P::Skin::panelEdge());
    // One recessed SONG-CHAIN rail, continuing the main GUI's navy enamel.
    P::rounded(c,{15.,162.,1256.,201.},P::Skin::graphite(),4.);

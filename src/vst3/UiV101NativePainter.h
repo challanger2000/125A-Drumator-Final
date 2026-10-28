@@ -96,7 +96,7 @@ struct UiV101NativePreview final {
  // Slice vertically so its head and foot stay the same height as rows/page
  // count changes. At 100%, 130% and 150%, host scaling uses native VSTGUI.
  static bool drawVintageFaceplate(VSTGUI::CDrawContext& c,
-                                  VSTGUI::CBitmap* plate,double height){
+                                  VSTGUI::CBitmap* plate,double height,bool omitHeader=false){
    if(!plate||!plate->isLoaded()||plate->getWidth()<=0.||
       plate->getHeight()<=0.||height<L::header+L::footer)return false;
    const double sourceWidth=plate->getWidth(),sourceHeight=plate->getHeight();
@@ -117,7 +117,7 @@ struct UiV101NativePreview final {
      }
      c.restoreGlobalState();
    };
-   slice(0.,sourceHeader,0.,L::header);
+   if(!omitHeader)slice(0.,sourceHeader,0.,L::header);
    slice(sourceHeader,sourceFooter,L::header,height-L::footer);
    slice(sourceFooter,sourceHeight,height-L::footer,height);
    return true;
@@ -416,8 +416,11 @@ struct UiV101NativePreview final {
      }
      fill(c,{7.,7.,L::width-7.,9.},Skin::steelHighlight());
      fill(c,{7.,total-9.,L::width-7.,total-7.},{157,148,139,255});
-     screw(c,14.,15.);screw(c,L::width-14.,15.);
    }
+   // On the supplied image, the upper corner fasteners lie beneath the
+   // existing 125A badge and zoom key. Preserve the precisely positioned
+   // original hardware screws at the visible outer corners instead.
+   screw(c,14.,15.);screw(c,L::width-14.,15.);
    // Bottom fasteners draw AFTER the inset footer so their metal edges
    // cannot be masked by the solid footer background.
    // Original 125A SVG geometry on a dark enamel badge, like the supplied
@@ -667,11 +670,10 @@ struct UiV101NativePreview final {
    // Both controls are identically sized 95x25 machined metal keys.
    cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10);
    cap(c,L::footerNext,footerTop,"NEXT PAGE",false,10);
-   // The user PNG already contains physical screws in its own perimeter.
-   if(!hasVintageFaceplate){
-     screw(c,L::footerScrewLeftX,total-15.);
-     screw(c,L::footerScrewRightX,total-15.);
-   }
+   // Source screws are obscured by the footer control bay. Draw the two
+   // existing accurately positioned case fasteners above that bay.
+   screw(c,L::footerScrewLeftX,total-15.);
+   screw(c,L::footerScrewRightX,total-15.);
    if(zoomMenuOpen)zoomPopup(c,selected);
  }
 };

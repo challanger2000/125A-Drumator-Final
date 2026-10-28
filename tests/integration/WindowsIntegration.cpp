@@ -1146,6 +1146,10 @@ void testV101LiveEditor(){
        vintageEnamel[0]>vintageEnamel[1]&&
        vintageEnamel[1]>vintageEnamel[2],
        "V101 actual raster lacks uploaded ivory faceplate at 100%");
+ const auto upperScrew=viewPixel(14,15);
+ const auto lowerScrew=viewPixel(14,671);
+ check(upperScrew[0]<145&&lowerScrew[0]<145,
+       "V101 vintage hardware perimeter screws are concealed");
  const auto fullFooterPixel=viewPixel(17,658);
  check(view->sampleDropTargetAt(200.,L::header+22.),
        "V101 real view did not expose sample field for WAV/FLAC drop");

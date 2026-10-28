@@ -1368,7 +1368,8 @@ void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
  for(std::size_t row=0;row<controller_.visibleRows();++row)
    if(controller_.hasSample(row)){kitHasSamples=true;break;}
  const char* notice=emptyNotice&&kitHasSamples?"":status_.c_str();
- v101::UiV101SongPainter::draw(*c,controller_,songPage_,songSlot_,notice);
+ v101::UiV101SongPainter::draw(*c,controller_,songPage_,songSlot_,
+                                notice,v101FaceplateBitmap_);
  // The top-row SONG EDIT key stays visibly latched while its board is open.
  v101::UiV101NativePreview::cap(*c,UiV101Layout::headerGroup(1),
                                  0.,"SONG EDIT",true,10);
