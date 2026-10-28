@@ -2254,6 +2254,15 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
  const double x=pos.x,y=pos.y;
  if(!(buttons&VSTGUI::kLButton))return VSTGUI::kMouseEventNotHandled;
+ // A Pattern/Zoom popup originating in the shared header can extend into
+ // the SONG board. Give it first refusal on ALL Y, never route its cells to
+ // the underlying SONG Pattern A-H or entry editor.
+ if(v101Mode_&&songEditorOpen_&&
+    (v101Menu_!=UiV101Popup::Kind::None||v101_.state().zoomOpen)){
+   (void)v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
+                       (buttons&VSTGUI::kShift)!=0);
+   return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+ }
  if(v101Mode_&&songEditorOpen_&&y<UiV101Layout::header){
    // The global hardware knobs remain active above SONG. Their default
    // reset must use exactly the same Ctrl/double-click gesture as MAIN.
