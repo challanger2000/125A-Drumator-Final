@@ -27,12 +27,13 @@ struct UiV101SongPainter final {
    P::fill(c,{7.,138.,1273.,top},P::Skin::navyWell());
    P::label(c,"SONG EDITOR  /  64-POSITION CHAIN",
             {28.,139.,627.,156.},10,{169,193,210,255},false);
-   P::fill(c,{0.,top,1280.,bottom},{115,109,102,255});
-   P::satin(c,{6.,top+2.,1274.,bottom-6.},
-            {215,207,196,255},{192,184,173,255},
-            {168,160,150,255},32);
+   // Same powder-coated ivory steel as MAIN, with precise machined rim.
+   P::fill(c,{0.,top,1280.,bottom},{98,92,83,255});
+   P::rounded(c,{6.,top+2.,1274.,bottom-6.},P::Skin::steel(),3.);
    P::border(c,{6.,top+2.,1274.,bottom-6.},P::Skin::panelEdge());
-   // One recessed SONG-CHAIN rail, continuing the main GUI's navy enamel.
+   P::fill(c,{8.,top+4.,1272.,top+6.},P::Skin::steelHighlight());
+   P::fill(c,{8.,bottom-11.,1272.,bottom-9.},P::Skin::steelShadow());
+      // One recessed SONG-CHAIN rail, continuing the main GUI's navy enamel.
    P::rounded(c,{15.,162.,1256.,201.},P::Skin::graphite(),4.);
    P::fill(c,{18.,166.,1253.,198.},P::Skin::navyWell());
    P::border(c,{18.,166.,1253.,198.},P::Skin::navyTrim());
@@ -100,10 +101,10 @@ struct UiV101SongPainter final {
    }
    // Machined silver editor strip. Its live click map is UiSongLayout,
    // deliberately identical to V1.0.0 for pattern/length/ADD/REMOVE.
-   P::rounded(c,{15.,313.,1256.,390.},{131,122,112,255},3.);
-   P::satin(c,{18.,316.,1253.,388.},{224,216,204,255},
-            {199,190,178,255},{170,160,148,255},12);
-   P::border(c,{15.,313.,1256.,390.},P::Skin::panelEdge());
+   P::rounded(c,{15.,313.,1256.,390.},{149,141,127,255},3.);
+   P::satin(c,{18.,316.,1253.,388.},{236,228,211,255},
+            P::Skin::headerSurface(),{202,194,179,255},12);
+      P::border(c,{15.,313.,1256.,390.},P::Skin::panelEdge());
    char selection[72]{};
    if(selected)std::snprintf(selection,sizeof(selection),
        "POSITION %02u SELECTED",static_cast<unsigned>(slot+1));
