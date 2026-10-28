@@ -919,6 +919,16 @@ void testV101Interaction(){
  check(ui.takeDeferredRequest().kind==UI::DeferredKind::PatternMenu&&
        ui.takeDeferredRequest().kind==UI::DeferredKind::None,
        "V101 pattern popup request must be precise and consume once");
+ // The four large actions now have one 83px family with 8px gutters.
+ // The wider MENU must activate at the new far-right position; the
+ // obsolete irregular spacing must not leave invisible hot zones.
+ check(ui.down(440.,115.)==UI::Result::DeferredToView &&
+       ui.takeDeferredRequest().kind==UI::DeferredKind::PatternMenu,
+       "V101 83px MENU right edge does not open real popup");
+ check(ui.down(451.,115.)==UI::Result::Ignored &&
+       ui.down(542.,115.)==UI::Result::Ignored &&
+       ui.down(633.,115.)==UI::Result::Ignored,
+       "V101 8px uniform header key gaps remain clickable");
  // Real host/controller pattern and song commands, not UI-only highlights.
  check(ui.down(170.,120.)==UI::Result::Applied&&f.c->currentPattern()==3&&
        hostHandler.calls==1&&std::abs(hostHandler.last-3./7.)<.00001,
