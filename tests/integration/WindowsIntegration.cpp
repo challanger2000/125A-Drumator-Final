@@ -208,6 +208,7 @@ struct IntegrationAccess {
  static std::uint64_t hostValid(const Processor& p){return p.validHostNotes_.load(std::memory_order_acquire);}
  static std::uint64_t hostUninspected(const Processor& p){return p.uninspectedHostEvents_.load(std::memory_order_acquire);}
  static void pendingPreview(Processor& p,unsigned row){p.previewPending_.fetch_or(1u<<row,std::memory_order_release);}
+ static std::uint32_t queuedPreviewBits(const Processor& p){return p.previewPending_.load(std::memory_order_acquire);}
  static bool waveCacheEmpty(const Controller& c){return c.editorWaveRow_==kRows;}
  static std::size_t cachedWaveRow(const Controller& c){return c.editorWaveRow_;}
 };
