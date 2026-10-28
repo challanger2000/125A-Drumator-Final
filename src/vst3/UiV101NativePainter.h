@@ -33,15 +33,14 @@ struct UiV101NativePreview final {
  // original light steel is warm (R>G>B), and the sequencer is dark navy,
  // deliberately NOT Windows grey or near-black.
  struct Skin {
-   // Warm ivory powder-coated steel, controlled reflectivity, no grain.
-   static Color steel(){return {221,213,197,255};}
-   static Color steelHighlight(){return {241,234,217,255};}
-   static Color steelShadow(){return {160,153,139,255};}
-   static Color headerWell(){return {210,203,189,255};}
-   static Color headerSurface(){return {224,216,200,255};}
+   static Color steel(){return {201,194,183,255};}
+   static Color steelHighlight(){return {217,209,197,255};}
+   static Color steelShadow(){return {171,164,155,255};}
+   static Color headerWell(){return {197,190,179,255};}
+   static Color headerSurface(){return {207,200,189,255};}
    static Color graphite(){return {29,32,36,255};}
-   static Color panelEdge(){return {109,103,94,255};}
-      static Color navyWell(){return {15,27,40,255};}
+   static Color panelEdge(){return {101,93,86,255};}
+   static Color navyWell(){return {15,27,40,255};}
    static Color navyA(){return {27,41,56,255};}
    static Color navyB(){return {30,45,61,255};}
    static Color navyTrim(){return {63,78,92,255};}
@@ -368,20 +367,22 @@ struct UiV101NativePreview final {
    const auto shown=ui.firstRow<scene.visibleRows?
                     std::min(limit,scene.visibleRows-ui.firstRow):std::size_t{0};
    const double total=L::editorHeight(ui.firstRow,shown,expanded);
-   // Uniform baked-enamel faceplate and narrow, crisp steel bevels.
-   // Avoid horizontal brush lines and full-panel color gradients: they
-   // make the powder coat resemble cardboard at 150% host scaling.
-   fill(c,{0.,0.,L::width,total},{96,90,82,255});
-   rounded(c,{2.,2.,L::width-2.,total-2.},Skin::steelShadow(),3.);
-   rounded(c,{5.,5.,L::width-5.,total-5.},cream,3.);
+   fill(c,{0.,0.,L::width,total},{105,98,91,255});
+   rounded(c,{2.,2.,L::width-2.,total-2.},{165,157,148,255},3.);
+   satin(c,{5.,5.,L::width-5.,total-5.},
+         {214,208,200,255},cream,{184,177,167,255},72);
    border(c,{5.,5.,L::width-5.,total-5.},Skin::panelEdge());
+   // Subpixel-style horizontal brushing is deliberately faint (alpha ~22).
+   // Highlights change with vertical position; no generated bitmap needed.
+   c.setLineWidth(1.);
+   for(int yy=14;yy<static_cast<int>(total)-13;yy+=5){
+     c.setFrameColor({241,235,226,9});
+     c.drawLine({12.,static_cast<double>(yy)},
+                {L::width-12.,static_cast<double>(yy)});
+   }
    fill(c,{7.,7.,L::width-7.,9.},Skin::steelHighlight());
-   fill(c,{7.,9.,L::width-7.,10.},{232,225,209,255});
-   fill(c,{7.,10.,9.,total-10.},{238,231,215,255});
-   fill(c,{L::width-10.,10.,L::width-8.,total-10.},
-        {159,151,138,255});
-   fill(c,{7.,total-10.,L::width-7.,total-8.},Skin::steelShadow());
-      screw(c,14.,15.);screw(c,L::width-14.,15.);
+   fill(c,{7.,total-9.,L::width-7.,total-7.},{157,148,139,255});
+   screw(c,14.,15.);screw(c,L::width-14.,15.);
    // Bottom fasteners draw AFTER the inset footer so their metal edges
    // cannot be masked by the solid footer background.
    // Original 125A SVG geometry on a dark enamel badge, like the supplied
@@ -413,14 +414,14 @@ struct UiV101NativePreview final {
    // Raise the entire control bay and align its LEFT boundary with the
    // midnight-blue instrument chassis below. Earlier 21px inset was wrong.
    rounded(c,{kChassisLeft,78.,kChassisRight,137.},
-           {121,113,102,255},4.);
+           {117,108,99,255},4.);
    rounded(c,{14.,80.,1258.,135.},Skin::headerWell(),3.);
    satin(c,{17.,82.,1255.,133.},
-         {232,224,208,255},Skin::headerSurface(),
-         {211,203,188,255},18);
-   fill(c,{19.,80.,1253.,81.},{244,237,221,255});
-   fill(c,{19.,134.,1253.,135.},{136,128,115,255});
-      border(c,{13.,79.,1259.,136.},Skin::panelEdge());
+         {216,210,199,255},Skin::headerSurface(),
+         {186,179,169,255},18);
+   fill(c,{19.,80.,1253.,81.},{237,229,216,255});
+   fill(c,{19.,134.,1253.,135.},{113,105,98,255});
+   border(c,{13.,79.,1259.,136.},Skin::panelEdge());
    for(const double xx:{350.,542.,729.,1115.}){
      fill(c,{xx,81.,xx+1.,134.},{151,141,131,255});
      fill(c,{xx+1.,81.,xx+2.,134.},{227,218,206,255});
@@ -609,12 +610,12 @@ struct UiV101NativePreview final {
    const double footerTop=total-L::footer;
    const auto panel=L::footerPanel;
    rounded(c,{panel.x0,footerTop+panel.y0,panel.x1,footerTop+panel.y1},
-           {139,131,118,255},3.);
+           {123,114,105,255},3.);
    satin(c,{panel.x0+2.,footerTop+panel.y0+2.,
             panel.x1-2.,footerTop+panel.y1-2.},
-         {235,227,211,255},Skin::headerSurface(),
-         {205,196,181,255},8);
-      border(c,{panel.x0,footerTop+panel.y0,panel.x1,footerTop+panel.y1},
+         {218,210,199,255},Skin::headerSurface(),
+         {180,172,161,255},8);
+   border(c,{panel.x0,footerTop+panel.y0,panel.x1,footerTop+panel.y1},
           Skin::panelEdge());
    char summary[100]{};
    std::snprintf(summary,sizeof(summary),
