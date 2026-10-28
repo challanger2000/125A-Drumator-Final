@@ -1203,8 +1203,19 @@ void testV101LiveEditor(){
  check(IntegrationAccess::songEditorOpen(*view)&&
        view->getViewSize().getHeight()==UiCompactLayout::songEditorHeight,
        "V101 SONG board did not open at its real native height");
+ check(view->zoomMatches(1.0)&&
+       std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
+       "V101 SONG 100 percent screenshot has different actual host zoom");
  captureVstgui(*view,"v101-song-board-hardware-100",1.0);
+ click(*view,1200.,25.);click(*view,1200.,113.); // real 130% popup
+ check(view->zoomMatches(1.3)&&
+       std::abs(hostEditor.getZoomFactor()-1.3)<.0001,
+       "V101 SONG 130 percent screenshot does not use actual 130 percent host zoom");
  captureVstgui(*view,"v101-song-board-hardware-130",1.3);
+ click(*view,1200.,25.);click(*view,1200.,61.); // restore 100%
+ check(view->zoomMatches(1.0)&&
+       std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
+       "V101 SONG zoom restore from 130 to 100 failed");
  const auto songCount=f.c->songCount();
  click(*view,181.,352.); // Pattern B for selected entry
  check(f.c->songEntry(0).pattern==1,
@@ -1263,6 +1274,10 @@ void testV101LiveEditor(){
  check(std::abs(hostEditor.getZoomFactor()-1.5)<0.0001,
        "V101 host zoom selector did not apply the 150 percent zoom");
  check(f.frames[0].calls>0,"V101 native host did not receive any resize calls");
+ click(*view,1200.,25.);click(*view,1200.,61.); // actual 100% before Wave
+ check(view->zoomMatches(1.0)&&
+       std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
+       "V101 Wave capture entered with stale 150 percent host zoom");
  // Wave editor: a direct EDIT click must request the correct real sample,
  // either immediately or through the existing async snapshot pipeline.
  click(*view,380.,L::header+24.);
@@ -1274,7 +1289,16 @@ void testV101LiveEditor(){
          "V101 WAV editor source not ready for native rendering verification");
  check(IntegrationAccess::sampleEditorOpen(*view),
        "V101 real Wave editor did not open for rendering verification");
+ check(view->zoomMatches(1.0)&&
+       std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
+       "V101 Wave 100 percent raster did not use real 100 percent zoom");
  captureVstgui(*view,"v101-wave-editor-hardware-100",1.0);
+ check(hostEditor.setZoomChecked(1.3),
+       "V101 host rejected Wave-editor zoom change to 130 percent");
+ view->refreshFromHost(false);
+ check(view->zoomMatches(1.3)&&
+       std::abs(hostEditor.getZoomFactor()-1.3)<.0001,
+       "V101 Wave 130 percent raster did not update the actual editor zoom state");
  captureVstgui(*view,"v101-wave-editor-hardware-130",1.3);
  // Mounting groups are a unified paint-only 41px-deep navy family;
  // zoom/fit, preview/stop, reset and cancel/apply share one blue border.
