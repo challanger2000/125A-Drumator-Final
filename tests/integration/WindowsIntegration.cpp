@@ -1118,7 +1118,7 @@ void testV101LiveEditor(){
  check(view->isV101(),"V101 host loaded legacy painter instead of candidate");
  // Read genuine raster pixels from the attached native VSTGUI editor.
  // This checks optical state changes, not merely constants in the painter.
- const viewPixel=[&](std::uint32_t x,std::uint32_t y){
+ const auto viewPixel=[&](std::uint32_t x,std::uint32_t y){
    const auto rect=view->getViewSize();
    auto bitmap=VSTGUI::renderBitmapOffscreen(
        VSTGUI::CPoint(rect.getWidth(),rect.getHeight()),1.,
