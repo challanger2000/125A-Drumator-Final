@@ -1291,6 +1291,21 @@ void testV101LiveEditor(){
  check(!IntegrationAccess::songEditorOpen(*view)&&view->isV101()&&
        view->getViewSize().getHeight()==686.,
        "V101 SONG close did not return to native main GUI and height");
+ // Real VST3/Controller long-label visual stress, not manually drawn text.
+ // Restore the fixture before the remaining main/wave interaction tests.
+ const std::string longRowLabel=
+     "Kick Industrial Distorted Underground Layer Twenty Four";
+ const auto originalStatus=IntegrationAccess::sampleEditorStatus(*view);
+ check(f.c->renameRow(0,longRowLabel),
+       "V101 long-name visual stress could not rename sample row");
+ check(f.c->label(0)==longRowLabel,
+       "V101 long-name visual stress was not reflected in Controller");
+ IntegrationAccess::setStatusText(*view,
+     "SAMPLE IMPORT FAILED: INVALID OR UNSUPPORTED AUDIO FILE");
+ captureVstgui(*view,"v101-main-long-label-and-status-100",1.0);
+ IntegrationAccess::setStatusText(*view,originalStatus);
+ check(f.c->renameRow(0,"Kick 01"),
+       "V101 long-name visual stress did not restore original sample name");
  click(*view,1200.,25.);click(*view,1200.,87.);
  check(view->zoomMatches(1.2),"V101 MAIN 120% host zoom mismatch");
  captureVstgui(*view,"v101-layout-native-main-120",1.2);
