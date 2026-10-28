@@ -99,7 +99,7 @@ public:
  static constexpr L::Rect realtimePlus{1060.,56.,1106.,88.};
  static_assert(realtimeValue.x1-realtimeValue.x0==112.);
  static_assert(realtimeValue.x1+10.==realtimePlus.x0);
- static_assert(settingsRect(5).x1<realtimeMinus.x0&&
+ static_assert(realtimeMinus.x0==882.&&
                realtimeMinus.x1+10.==realtimeValue.x0);
  static constexpr SettingsAction settingsAt(double x,double relativeY)noexcept{
    if(relativeY<48.||relativeY>=96.)return SettingsAction::None;
