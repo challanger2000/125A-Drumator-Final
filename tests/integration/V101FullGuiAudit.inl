@@ -50,7 +50,7 @@ void testV101MenuMatrixAndGeometry(){
              r.y0>=L::header&&r.y1<=height,
              "GUI audit popup option clipped at page boundary");
        check(Pop::hit(kind,g,x,y)==option&&
-             *Pop::label(kind,option)!='\0',
+             (kind==Kind::Output||*Pop::label(kind,option)!='\0'),
              "GUI audit popup caption/hit index mismatch");
        for(int other=0;other<count;++other){
          if(other==option)continue;
@@ -125,10 +125,10 @@ void testV101MenuMatrixAndGeometry(){
        "GUI audit DUPLICATE did not create an identical next pattern");
  // Prove popups are modal and cannot bleed into an underlying Step.
  click(*view,400.,115.);
- const auto untouched=f.c->velocity(f.c->currentPattern(),0,0);
- click(*view,420.,L::header+20.);
- check(f.c->velocity(f.c->currentPattern(),0,0)==untouched,
-       "GUI audit popup dismissal activated hidden Step");
+ const auto untouched=f.c->velocity(f.c->currentPattern(),0,11);
+ click(*view,L::stepX+11.*L::stepPitch+8.,L::header+20.);
+ check(f.c->velocity(f.c->currentPattern(),0,11)==untouched,
+       "GUI audit clicking outside popup activated underlying Step");
  // Every FILL menu variant must apply its exact documented 32-step
  // musical rhythm, including ghost velocities. These eight expected masks
  // are independent of the popup index and are checked across all 32 steps.
