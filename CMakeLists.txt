@@ -262,6 +262,8 @@ if(DRUMATOR_BUILD_VST3)
                 resource/125A_Drumator_Faceplate.png
                 "resource/Abgenutzte industrielle Metallfrontplatte.png"
                 "resource/Industrielle Metallplatte mit Eckschrauben.png"
+                "resource/Futuristische industrielle Metalloberfläche.png"
+                "resource/Industrielles Metalllogo DRUMATOR.png"
                 resource/125A_Dark_Button_83x32_Normal_1x.png
                 resource/125A_Dark_Button_83x32_Normal_4x.png
                 resource/125A_Dark_Button_83x32_Aktiv_1x.png
