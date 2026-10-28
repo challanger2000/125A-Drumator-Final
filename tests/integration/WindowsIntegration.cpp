@@ -1275,6 +1275,29 @@ void testV101LiveEditor(){
        "V101 real Wave editor did not open for rendering verification");
  captureVstgui(*view,"v101-wave-editor-hardware-100",1.0);
  captureVstgui(*view,"v101-wave-editor-hardware-130",1.3);
+ // Mounting groups are a unified paint-only 41px-deep navy family;
+ // zoom/fit, preview/stop, reset and cancel/apply share one blue border.
+ const auto& bezelGroups=drumator::UiV101WaveLayout::toolbarGroups;
+ check(bezelGroups.size()==4,
+       "V101 Wave toolbar must have four logical mounting bezels");
+ for(std::size_t k=0;k<bezelGroups.size();++k){
+   const auto& rect=bezelGroups[k];
+   check(rect.bottom-rect.top==41.&&rect.top==453.&&
+         rect.bottom<drumator::UiV101WaveLayout::readout(0).top,
+         "V101 Wave group bezel overlaps value displays");
+   if(k)
+     check(rect.left-bezelGroups[k-1].right==2.,
+           "V101 Wave blue group bezels must have identical separation");
+ }
+ // Every original key is still in exactly one display bezel.
+ for(std::size_t k=0;k<drumator::UiV101WaveLayout::toolbar.size();++k){
+   const auto& key=drumator::UiV101WaveLayout::toolbar[k];
+   const std::size_t group=k<3?0:k<5?1:k==5?2:3;
+   const auto& border=bezelGroups[group];
+   check(border.left<key.left&&border.right>key.right&&
+         border.top<key.top&&border.bottom>key.bottom,
+         "V101 Wave button has no matching blue mounting bezel");
+ }
  // On the real native editor, every new Wave key must agree with its
  // exact hitbox; clicks in the eight-pixel gutters must be inert.
  check(drumator::UiV101WaveLayout::buttonAt(360.,473.)==-1&&
