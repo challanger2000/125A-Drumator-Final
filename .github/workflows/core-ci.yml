@@ -70,7 +70,13 @@ jobs:
           Copy-Item 'resource/Metallisches DRUMATOR-Logo.png' -Destination (Join-Path $resourceDirectory 'Metallisches DRUMATOR-Logo.png')
           Copy-Item -LiteralPath 'resource/Futuristisches Metalllogo DRUMATOR.png' -Destination (Join-Path $resourceDirectory 'Futuristisches Metalllogo DRUMATOR.png')
           $moduleInfo = Join-Path $resourceDirectory 'moduleinfo.json'
-          & './build/bin/Release/moduleinfotool.exe' -create -version 1.0.0 -path $bundle -output $moduleInfo
+          # Use the CMake project version for package metadata; verify that
+          # the compiled processor/controller factory classes agree below.
+          $projectVersionText = [System.IO.File]::ReadAllText('CMakeLists.txt')
+          $versionMatch = [regex]::Match($projectVersionText, '(?m)^project\(Drumator VERSION ([0-9]+\.[0-9]+\.[0-9]+) LANGUAGES CXX\)$')
+          if (-not $versionMatch.Success) { throw 'Cannot read Drumator version from CMakeLists.txt' }
+          $expectedVersion = $versionMatch.Groups[1].Value
+          & './build/bin/Release/moduleinfotool.exe' -create -version $expectedVersion -path $bundle -output $moduleInfo
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $moduleInfo)) {
             throw "Official Steinberg moduleinfotool creation failed"
           }
@@ -82,8 +88,8 @@ jobs:
           if ($parsedInfo.Classes[0].Name -ne '125A Drumator') {
             throw 'VST3 factory name is not 125A Drumator'
           }
-          if ($parsedInfo.Version -cne '1.0.0' -or @($parsedInfo.Classes | Where-Object { $_.Version -cne '1.0.0' }).Count -gt 0) {
-            throw 'VST3 moduleinfo.json version mismatch: package and all classes must be 1.0.0'
+          if ($parsedInfo.Version -cne $expectedVersion -or @($parsedInfo.Classes | Where-Object { $_.Version -cne $expectedVersion }).Count -gt 0) {
+            throw "VST3 moduleinfo.json version mismatch: package and all classes must be $expectedVersion"
           }
           [System.IO.File]::WriteAllText($moduleInfo, $normalizedInfo, [System.Text.UTF8Encoding]::new($false))
           & './build/bin/Release/moduleinfotool.exe' -validate -path $bundle

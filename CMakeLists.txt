@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(Drumator VERSION 1.0.0 LANGUAGES CXX)
+project(Drumator VERSION 1.0.1 LANGUAGES CXX)
 # Milestone 1: host-independent timing core. SDK integration is separate.
 add_library(drumator_core INTERFACE)
 target_compile_features(drumator_core INTERFACE cxx_std_23)
