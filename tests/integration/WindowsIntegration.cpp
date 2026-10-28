@@ -4447,6 +4447,7 @@ int main(int argc,char** argv){
  run("V101 native interactive controller, lane and zoom actions",testV101Interaction);
  run("V101 real VST3 editor attach, mouse dispatch, dialogs and zoom",testV101LiveEditor);
  run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
+ run("V101 SONG and Wave full native button matrix",testV101SongAndWaveFullControlMatrix);
  run("VSTGUI native pixel render set",testVisualRender);
  run("GUI49 musical four-sample native 130pct capture",testGui49MusicalFourSampleCapture);
  run("GUI 11I centered PATTERN and meter header geometry",test11IHeaderPatternCentered);
