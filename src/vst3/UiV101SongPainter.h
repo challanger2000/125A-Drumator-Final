@@ -49,7 +49,15 @@ struct UiV101SongPainter final {
    char bar[24]{};
    std::snprintf(bar,sizeof(bar),"BAR %u",static_cast<unsigned>(startBar));
    key(c,S::startMinusLeft,S::startTop,S::startMinusRight,S::startBottom,"-",false,12);
-   key(c,S::startBarLeft,S::startTop,S::startBarRight,S::startBottom,bar,false,10);
+   // SONG START value is a readout, not a clickable key. The old
+   // raised silver keycap falsely suggested a fifth Start action.
+   P::rounded(c,{S::startBarLeft,S::startTop,S::startBarRight,S::startBottom},
+              P::Skin::navyWell(),3.);
+   P::border(c,{S::startBarLeft,S::startTop,S::startBarRight,S::startBottom},
+             P::Skin::navyTrim());
+   P::label(c,bar,{S::startBarLeft+3.,S::startTop+2.,
+                   S::startBarRight-3.,S::startBottom-2.},11,
+             {224,233,239,255});
    key(c,S::startPlusLeft,S::startTop,S::startPlusRight,S::startBottom,"+",false,12);
    key(c,S::startResetLeft,S::startTop,S::startResetRight,S::startBottom,"RESET");
    key(c,S::previousLeft,S::navTop,S::previousRight,S::navBottom,"PREVIOUS");
