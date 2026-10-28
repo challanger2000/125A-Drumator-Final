@@ -10,8 +10,17 @@ int main(){
   CHECK(L::zoomPresets[2]==1.3&&L::zoomPresets[3]==1.5);
   // SONG and SONG EDIT are the only buttons in this group.
   static_assert(L::headerGroupCount==2);
+  CHECK(L::patternMenu.x1-L::patternMenu.x0==83.);
+  CHECK(L::barsButton.x1-L::barsButton.x0==83.);
   CHECK(L::headerGroup(0).x1-L::headerGroup(0).x0==83.);
-  CHECK(L::headerGroup(1).x1-L::headerGroup(1).x0==98.);
+  CHECK(L::headerGroup(1).x1-L::headerGroup(1).x0==83.);
+  CHECK(L::barsButton.x0-L::patternMenu.x1==8.);
+  CHECK(L::headerGroup(0).x0-L::barsButton.x1==8.);
+  CHECK(L::headerGroup(1).x0-L::headerGroup(0).x1==8.);
+  CHECK(!L::patternMenu.hit(451.,115.));
+  CHECK(!L::barsButton.hit(542.,115.));
+  CHECK(!L::headerGroup(0).hit(634.,115.));
+  CHECK(L::patternMenu.hit(440.,115.));
   static_assert(L::headerGroup(0).y1-L::headerGroup(0).y0==L::headerButtonHeight);
   static_assert(L::headerGroup(1).y1-L::headerGroup(1).y0==L::headerButtonHeight);
   static_assert(L::headerButtonY==99.&&L::headerButtonHeight==32.);
