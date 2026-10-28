@@ -58,7 +58,7 @@
 | Wave (8) | ZOOM+/–, FIT, PREVIEW, STOP, RESET, CANCEL, APPLY mit echter Wave-/Edit-State und Recall | Handle-Fade, Marker-Drag, Source-PCM-Fade, Zoom, Cancel-Rollback und Stop-vor-Apply | **PASS Windows #40614712495** |
 | File drop/import | normale WAV/FLAC-Decoder, PCM-Peaks, Namen, Fehler- und Datei-Swap-Fälle | defekte/trunkierte FLAC, fehlende Dateien, Portabilität/State | **bestehende Windows-CI PASS** |
 
-**Anbindungskette:** VSTGUI-CView / native Mausklickkoordinate → `UiV101Layout/UiSongLayout/UiV101WaveLayout` → `UiV101Interaction` bzw. Modalkontext → `DrumatorView::v101MouseDown/applyV101Menu` → `Controller` → `Processor` (VST3 ConnectionPoint/Messages) → MIDI/Audio/Projektzustand. Die neue Menü-Testmatrix prüft konkrete Zielzustände und exakte Steps statt nur zurückgegebene Erfolgswerte. Die 8 FILL-Modi werden gegen **unabhängig implementierte** Sollrhythmen und Velocity-Werte geprüft, nicht gegen dieselbe \`filledRow\`-Routine wie die Produktimplementierung.
+**Anbindungskette:** VSTGUI-CView / native Mausklickkoordinate → `UiV101Layout/UiSongLayout/UiV101WaveLayout` → `UiV101Interaction` bzw. Modalkontext → `DrumatorView::v101MouseDown/applyV101Menu` → `Controller` → `Processor` (VST3 ConnectionPoint/Messages) → MIDI/Audio/Projektzustand. Die neue Menü-Testmatrix prüft konkrete Zielzustände und exakte Steps statt nur zurückgegebene Erfolgswerte. Die 8 FILL-Modi werden gegen **unabhängig implementierte** Sollrhythmen und Velocity-Werte geprüft, nicht gegen dieselbe `filledRow`-Routine wie die Produktimplementierung.
 
 ## 4. Fehlerfund und Korrekturen während dieses Audits
 
@@ -86,7 +86,8 @@ Die letzte Studio-One-Abnahme und ein owner-reviewed Screenshot sind **keine** a
 ## 6. Durchlauf- und Commit-Evidenz
 
 - Vorheriger geprüfter GUI-Stand: [Windows Actions #40610557293](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40610557293), **24/24 CTests, 47/47 Validator, 58 PASS / 0 WARN / 0 FAIL**. Dieser Run enthält **nicht** die nachfolgenden Audit-Fixes.
-- Vollmatrix-Test: [Windows Actions #40612433257](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40612433257), **SUCCESS** — 24/24 CTests, 47/47 Steinberg Validator, unabhängiger 125A Plugin Tester **58 PASS / 0 WARNING / 0 FAIL**. Die zwei neuen nativen Fälle \`V101 total menu matrix and per-key geometry PASS\` und \`V101 SONG and Wave full native button matrix PASS\` sind in den echten Windows-Integrationslogs bestätigt. Dieser Run enthält noch nicht die spätere SONG-Popup-Korrektur.\n- Finaler Korrektur-Audit: [Windows Actions #40613295263](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40613295263), Trigger-Commit \`500d8fef98\`, **PENDING** bis sämtliche Jobs abgeschlossen sind. Produktseitige Folge-Commits nach dem Trigger: keine; Workflow wurde anschließend nur auf manuelles Auslösen zurückgesetzt.
+- Vollmatrix-Test: [Windows Actions #40612433257](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40612433257), **SUCCESS** — 24/24 CTests, 47/47 Steinberg Validator, unabhängiger 125A Plugin Tester **58 PASS / 0 WARNING / 0 FAIL**. Die zwei neuen nativen Fälle `V101 total menu matrix and per-key geometry PASS` und `V101 SONG and Wave full native button matrix PASS` sind in den echten Windows-Integrationslogs bestätigt. Dieser Run enthält noch nicht die spätere SONG-Popup-Korrektur.
+- Finaler Korrektur-Audit: [Windows Actions #40613295263](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40613295263), Trigger-Commit `500d8fef98`, **PENDING** bis sämtliche Jobs abgeschlossen sind. Produktseitige Folge-Commits nach dem Trigger: keine; Workflow wurde anschließend nur auf manuelles Auslösen zurückgesetzt.
 - Quell-/Testdateien: `src/vst3/UiV101NativePainter.h`, `src/vst3/UiV101SongPainter.h`, `src/vst3/DrumatorView.cpp`, `tests/integration/V101FullGuiAudit.inl`, `tests/integration/WindowsIntegration.cpp`.
 - Version bleibt **V1.0.1 Development**. **Keine** Freigabe, kein Merge, keine Änderung von V1.0.0.
 
@@ -98,7 +99,7 @@ die ursprüngliche Menü-/SONG-/Wave-Matrix, soweit ein späteres erfolgreichere
 CI-Ergebnis genannt ist.
 
 **Bestätigter vollständiger Windows-Run:** [#40614712495](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40614712495),
-Source-HEAD \`a0002e65b5fd\`, alle Jobs **SUCCESS**.
+Source-HEAD `a0002e65b5fd`, alle Jobs **SUCCESS**.
 - **24/24 CTests**; darunter tatsächliche CView-/Win32-Host-Interaktionspfade,
   die vollständige Menü-Matrix und der native SONG-/Wave-Button-Audit.
 - **47/47 Steinberg Validator**.
@@ -118,7 +119,7 @@ Source-HEAD \`a0002e65b5fd\`, alle Jobs **SUCCESS**.
   Ein Owner-Designreview wurde damit **nicht** automatisch ersetzt.
 
 **Zusätzlicher selbstständiger Test nach #406147:**
-\`testV101AllRowMouseIsolationAndSampleBrowse()\` prüft jede der 16
+`testV101AllRowMouseIsolationAndSampleBrowse()` prüft jede der 16
 Instrumentenzeilen einzeln auf physische SELECT-/MUTE-/SOLO-/STEP-Klicks,
 unveränderte Nachbarzeilen, korrekte erste/zweite Seite und inaktive
 Step-Leerräume. Darüber hinaus importiert er echte WAVs per VST3,
@@ -134,6 +135,6 @@ niemals stillschweigend PASS durch ältere grüne Runs.
 **Nicht durch Windows-CI beweisbar:** Auswahl/Abbruch des nativen OS-Dateidialogs
 in der echten Ziel-DAW, Audio-/MIDI-Recall mit dem konkreten Studio-One-Projekt,
 Eigentümer-Sichtabnahme aller Zoomstufen 100/120/130/150 und macOS-Test.
-Diese Gates bleiben **NOT RUN**. Auch \`project(Drumator VERSION 1.0.0)\` und
-\`kPluginVersion="1.0.0"\` müssen vor einer erst später autorisierten
+Diese Gates bleiben **NOT RUN**. Auch `project(Drumator VERSION 1.0.0)` und
+`kPluginVersion="1.0.0"` müssen vor einer erst später autorisierten
 V1.0.1-Binary-Freigabe konsistent umgestellt und geprüft werden.
