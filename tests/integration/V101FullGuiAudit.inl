@@ -212,7 +212,8 @@ void testV101SongAndWaveFullControlMatrix(){
  const auto mid=[](double lo,double hi){return (lo+hi)*.5;};
  {
    Fixture f;auto kit=v101PreviewKit();f.kit(kit);prepareAudio(*f.p);
-   f.openV101();auto* view=IntegrationAccess::view(*f.c,0);
+   auto& nativeEditor=f.openV101();
+   auto* view=IntegrationAccess::view(*f.c,0);
    const auto editButton=L::headerGroup(1);
    click(*view,mid(editButton.x0,editButton.x1),
         mid(editButton.y0,editButton.y1));
@@ -229,6 +230,45 @@ void testV101SongAndWaveFullControlMatrix(){
    check(f.c->swingPercent()==0&&f.c->humanizePercent()==0&&
          f.c->masterVolume()==100,
          "GUI audit SONG Ctrl-click did not reset all global knobs");
+   // Critical layered-modal regression. The SONG board overlaps the
+   // lower section of the header's Pattern and Zoom popups. Verify both
+   // native raster visibility AND that click dispatch cannot leak through.
+   const auto pixelAt=[&](int x,int y){
+     const auto bitmap=VSTGUI::renderBitmapOffscreen(
+       {1280.,view->getViewSize().getHeight()},1.,
+       [&](VSTGUI::CDrawContext& dc){view->draw(&dc);});
+     check(bitmap!=nullptr,"GUI audit SONG popup raster could not render");
+     auto* pixels=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
+     check(pixels&&pixels->setPosition(static_cast<std::uint32_t>(x),
+                                      static_cast<std::uint32_t>(y)),
+           "GUI audit SONG popup pixel is outside host");
+     VSTGUI::CColor rgba{};pixels->getColor(rgba);pixels->forget();
+     return rgba;
+   };
+   click(*view,mid(S::startPlusLeft,S::startPlusRight),181.);
+   check(f.c->songStartBar()==2,"GUI audit cannot prime SONG popup click-through");
+   click(*view,400.,115.); // Main Pattern MENU while SONG board is open
+   const auto popup=drumator::UiV101Popup::geometry(
+       drumator::UiV101Popup::Kind::Pattern,L::header,
+       view->getViewSize().getHeight());
+   const auto first=drumator::UiV101Popup::cell(popup,0);
+   const double menuX=mid(first.x0,first.x1),menuY=mid(first.y0,first.y1);
+   check(pixelAt(static_cast<int>(menuX),static_cast<int>(menuY)).red>125,
+         "GUI audit SONG board visually hides Pattern popup option");
+   click(*view,menuX,menuY); // overlaps SONG START minus underneath
+   check(f.c->songStartBar()==2,
+         "GUI audit Pattern popup click leaked to SONG START minus");
+   click(*view,mid(S::startResetLeft,S::startResetRight),181.);
+   check(f.c->songStartBar()==1,"GUI audit SONG START not restored");
+   click(*view,1200.,25.); // Zoom popup while SONG is open
+   const auto lastZoom=L::zoomOption(3);
+   const double zx=mid(lastZoom.x0,lastZoom.x1);
+   const double zy=mid(lastZoom.y0,lastZoom.y1);
+   check(pixelAt(static_cast<int>(zx),static_cast<int>(zy)).red>125,
+         "GUI audit SONG header hides the 150-percent zoom key");
+   click(*view,zx,zy);
+   check(std::abs(nativeEditor.getZoomFactor()-1.5)<0.0001,
+         "GUI audit SONG zoom key did not apply through actual host");
    for(int pattern=0;pattern<=static_cast<int>(drumator::SongChain::kRest);++pattern){
      const double x=pattern<8?S::patternLeft+pattern*S::patternPitch+
          S::patternWidth*.5:mid(S::restLeft,S::restRight);
