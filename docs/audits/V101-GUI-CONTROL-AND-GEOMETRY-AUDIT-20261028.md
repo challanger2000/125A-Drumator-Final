@@ -3,7 +3,7 @@
 **Datum:** 28.10.2026  
 **Repository:** `challanger2000/125A-Drumator-Final`  
 **Branch:** `develop/v1.0.1-gui-redesign`  
-**Status:** Technischer GUI-Abnahmekandidat — **keine V1.0.1-Veröffentlichung**. Die endgültigen Ergebnisse der neuen Menü-Vollmatrix und der letzten GUI-Korrekturen sind erst nach dem zugehörigen Windows-CI-Run einzutragen.
+**Status:** Technischer GUI-Abnahmekandidat — **keine V1.0.1-Veröffentlichung**. Die vollständige native Menü-/SONG-/Wave-Vollmatrix hat den ersten Windows-CI-Lauf bestanden; die danach entdeckten SONG-Popup-/Ctrl-Reset-Korrekturen werden separat im abschließenden Windows-CI-Lauf validiert.
 
 ## 1. Verbindliche Quelle und Grenzen
 
@@ -45,7 +45,7 @@
 |---|---|---|---|
 | PATTERN A–H (8) | jede Taste verändert `currentPattern`, Automationshost empfängt `performEdit` | tote Gaps, nicht aktive Steps nach 1 Bar | **CI ausstehend für neue Vollmatrix** |
 | PATTERN MENU (7) | COPY/PASTE, CLEAR/UNDO, RANDOM VELOCITY, VELOCITY 100 und DUPLICATE prüfen alle tatsächliche Notes/Werte | Undo-/Clipboard-Zustand und Blockierung bei offenem Menü | **CI ausstehend** |
-| FILL (8) | sämtliche Modi mit unabhängig erstellter 32-Step-Sollbelegung verglichen, inklusive Ghost-Notenwerten | nur Zielreihe; 1-Bar-Inaktivität separat geprüft | **CI ausstehend** |
+| FILL (8) | sämtliche Menüindizes mit der verbindlichen mathematischen \`filledRow(RowFill)\`-32-Step-Referenz verglichen, inklusive Ghost-Notenwerten | nur Zielreihe; 1-Bar-Inaktivität separat geprüft | **CI ausstehend** |
 | Output (16) | sämtliche Werte MAIN, OUT 1..15 durch echte Menüauswahl und `rowOutput` | Rechtecke in beiden Paginierungshöhen | **CI ausstehend** |
 | Choke (5) | OFF und 1–4 über echte Menüauswahl und `rowChoke` | korrekte Zielzeile | **CI ausstehend** |
 | SAMPLE MENU (3) | REMOVE auf korrekter Zeile, RENAME öffnet echtes `CTextEdit`; LOAD ruft den VSTGUI-Dateidialog | OS-Dateidialog wird nicht blind automatisiert; vorhandene direkte WAV/FLAC-Importtests | **LOAD-Dialog: NOT RUN**, andere Optionen **CI ausstehend** |
@@ -65,14 +65,14 @@
 1. **Falsch beschriftete Sample-Vorschau:** Über dem Kopfhörersymbol stand `PREV`, als wäre es „vorheriges Sample“. Korrigiert zu **PLAY**, passend zur tatsächlichen Audition-Funktion; jetzt zusätzlich überprüfbare Queue im realen Processor.
 2. **Ctrl-/Doppelklick-Reset im SONG-Modus:** Die globalen Kopfregler waren sichtbar, aber der SONG-spezifische MouseDown-Pfad umging den Default-Reset. Korrigiert; neue Regression für alle drei Knöpfe.
 3. **Scheinbarer SONG-START-Button:** Die Taktanzeige war wie eine aktive Silber-Taste gezeichnet, obwohl ihre Fläche nicht klickbar ist. Als dunkelblaue passive Zahlenanzeige gekennzeichnet; neue Negativkontrolle.
-4. **Bisher unzureichende Menü-Tiefe:** Vor der erweiterten Matrix wurden insbesondere viele Pattern-, Fill-, Output- und Choke-Optionen nicht einzeln im neuen CView getestet. Regressionen ergänzt. Ergebnisse nur nach CI als PASS bewerten.
+4. **Verdeckte Header-Popups im SONG-Editor:** Die SONG-Faceplate übermalte die bereits gezeichneten Pattern-/Zoom-Popups, insbesondere die letzte Zoom-Option; außerdem wurden Menüauswahl-Klicks bei y≥158 an die darunterliegenden SONG-Bedienelemente geleitet. Die Popups werden jetzt nach der SONG-Faceplate **zuoberst neu gezeichnet**, und ein aktiver Popup-Zustand bekommt beim Maus-Dispatch **Vorrang vor dem SONG-Editor**. Ein echter Windows-VSTGUI-Pixeltest und ein Negativtest auf Klickdurchgriff wurden ergänzt.\n5. **Bisher unzureichende Menü-Tiefe:** Vor der erweiterten Matrix wurden insbesondere viele Pattern-, Fill-, Output- und Choke-Optionen nicht einzeln im neuen CView getestet. Regressionen ergänzt. Ergebnisse nur nach CI als PASS bewerten.
 
 ## 5. Ausstehende externe Freigabeprüfungen
 
 | Prüfung | Ort | Status |
 |---|---|---|
-| Komplette GUI-Menümatrix am tatsächlich gebauten Windows-VST3 | GitHub Actions Windows | **PENDING** |
-| Unabhängiger 125A Plugin Tester und Steinberg Validator des gleichen Kommits | GitHub Actions Windows | **PENDING** |
+| Komplette GUI-Menümatrix am tatsächlich gebauten Windows-VST3 | GitHub Actions Windows | **PASS #40612433257**, erweiterte SONG-Popup-Sonderfälle **PENDING #40613295263** |
+| Unabhängiger 125A Plugin Tester und Steinberg Validator des gleichen Kommits | GitHub Actions Windows | **PASS #40612433257**, abschließender Commit **PENDING #40613295263** |
 | Echte VSTGUI-Pixelbilder bei 100/130% mit anschließendem Eigentümer-Designreview | Windows-Offscreen und menschliche Sichtprüfung | **PENDING** |
 | Studio One 8: laden, schließen, wieder öffnen, 100/120/130/150% Zoom, echte Dialoge, Maus-D&D und Projekt speichern/laden | Eigentümer-PC / DAW | **NOT RUN in CI** |
 | Native Windows-Dateiauswahl: Datei wählen und Dialog abbrechen | Echtbetrieb | **NOT RUN in automatisierter Menümatrix** |
@@ -83,6 +83,6 @@ Die letzte Studio-One-Abnahme und ein owner-reviewed Screenshot sind **keine** a
 ## 6. Durchlauf- und Commit-Evidenz
 
 - Vorheriger geprüfter GUI-Stand: [Windows Actions #40610557293](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40610557293), **24/24 CTests, 47/47 Validator, 58 PASS / 0 WARN / 0 FAIL**. Dieser Run enthält **nicht** die nachfolgenden Audit-Fixes.
-- Neuer Vollmatrix-Test: [Windows Actions #40612433257](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40612433257), ausstehende/gesondert zu prüfende Ausführung. Spätere Folgekorrekturen werden erst durch einen eigenen abschließenden Run verifiziert.
+- Vollmatrix-Test: [Windows Actions #40612433257](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40612433257), **SUCCESS** — 24/24 CTests, 47/47 Steinberg Validator, unabhängiger 125A Plugin Tester **58 PASS / 0 WARNING / 0 FAIL**. Die zwei neuen nativen Fälle \`V101 total menu matrix and per-key geometry PASS\` und \`V101 SONG and Wave full native button matrix PASS\` sind in den echten Windows-Integrationslogs bestätigt. Dieser Run enthält noch nicht die spätere SONG-Popup-Korrektur.\n- Finaler Korrektur-Audit: [Windows Actions #40613295263](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40613295263), Trigger-Commit \`500d8fef98\`, **PENDING** bis sämtliche Jobs abgeschlossen sind. Produktseitige Folge-Commits nach dem Trigger: keine; Workflow wurde anschließend nur auf manuelles Auslösen zurückgesetzt.
 - Quell-/Testdateien: `src/vst3/UiV101NativePainter.h`, `src/vst3/UiV101SongPainter.h`, `src/vst3/DrumatorView.cpp`, `tests/integration/V101FullGuiAudit.inl`, `tests/integration/WindowsIntegration.cpp`.
 - Version bleibt **V1.0.1 Development**. **Keine** Freigabe, kein Merge, keine Änderung von V1.0.0.
