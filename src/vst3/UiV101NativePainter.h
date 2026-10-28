@@ -92,34 +92,46 @@ struct UiV101NativePreview final {
      fill(c,{r.left,top,r.right,bottom},ink);
    }
  }
- // The uploaded 1713x918 bitmap belongs beneath the real controller UI.
- // Slice vertically so its head and foot stay the same height as rows/page
- // count changes. At 100%, 130% and 150%, host scaling uses native VSTGUI.
+ // The supplied 1713x918 artwork has much larger photo screw heads and
+ // edge details than the final 1280px hardware layout. Simple stretch makes
+ // the case look magnified, even though interactive controls are correct.
+ // A 3-column x 4-row nine-slice variant contracts all FOUR image corners
+ // to the actual 14px screw centres while retaining full-size midsections.
+ // Vertical bands reserve the 158px header and preserve the bottom edge on
+ // 6-row, expanded and normal editor heights. No clip or hit rect changes.
  static bool drawVintageFaceplate(VSTGUI::CDrawContext& c,
                                   VSTGUI::CBitmap* plate,double height,bool omitHeader=false){
-   if(!plate||!plate->isLoaded()||plate->getWidth()<=0.||
-      plate->getHeight()<=0.||height<L::header+L::footer)return false;
-   const double sourceWidth=plate->getWidth(),sourceHeight=plate->getHeight();
-   const double sx=L::width/sourceWidth;
-   constexpr double originalHeight=L::header+10.*L::rowHeight+L::footer;
-   const double sourceHeader=sourceHeight*L::header/originalHeight;
-   const double sourceFooter=sourceHeight*(originalHeight-L::footer)/originalHeight;
-   const auto slice=[&](double sy0,double sy1,double dy0,double dy1){
-     if(sy1<=sy0||dy1<=dy0)return;
-     const double yScale=(dy1-dy0)/(sy1-sy0);
-     c.saveGlobalState();
-     c.setClipRect({0.,dy0,L::width,dy1});
-     {
-       VSTGUI::CDrawContext::Transform tx(c,
-         VSTGUI::CGraphicsTransform().scale(sx,yScale)
-           .translate(0.,dy0-sy0*yScale));
-       plate->draw(&c,{0.,0.,sourceWidth,sourceHeight});
+   if(!plate||!plate->isLoaded()||plate->getWidth()<300.||
+      plate->getHeight()<300.||height<L::header+L::footer)return false;
+   const double w=plate->getWidth(),h=plate->getHeight();
+   constexpr double cornerX=100.,cornerY=100.;
+   const std::array<double,4> sourceX{{0.,cornerX,w-cornerX,w}};
+   const std::array<double,4> destX{{0.,28.,L::width-28.,L::width}};
+   const std::array<double,5> sourceY{{0.,cornerY,h*L::header/686.,h-cornerY,h}};
+   const std::array<double,5> destY{{0.,28.,L::header,height-28.,height}};
+   if(!(sourceY[1]<sourceY[2]&&sourceY[2]<sourceY[3]&&
+        destY[2]<destY[3]))return false;
+   // Clip a transformed copy of the unchanged source PNG to each band.
+   // The transformed source origin is anchored at both band boundaries.
+   for(std::size_t row=omitHeader?2u:0u;row<4u;++row)
+     for(std::size_t col=0;col<3u;++col){
+       const double sourceW=sourceX[col+1]-sourceX[col];
+       const double sourceH=sourceY[row+1]-sourceY[row];
+       const double destW=destX[col+1]-destX[col];
+       const double destH=destY[row+1]-destY[row];
+       const double sx=destW/sourceW,sy=destH/sourceH;
+       c.saveGlobalState();
+       c.setClipRect({destX[col],destY[row],
+                      destX[col+1],destY[row+1]});
+       {
+         VSTGUI::CDrawContext::Transform tx(c,
+           VSTGUI::CGraphicsTransform().scale(sx,sy)
+              .translate(destX[col]-sourceX[col]*sx,
+                         destY[row]-sourceY[row]*sy));
+         plate->draw(&c,{0.,0.,w,h});
+       }
+       c.restoreGlobalState();
      }
-     c.restoreGlobalState();
-   };
-   if(!omitHeader)slice(0.,sourceHeader,0.,L::header);
-   slice(sourceHeader,sourceFooter,L::header,height-L::footer);
-   slice(sourceFooter,sourceHeight,height-L::footer,height);
    return true;
  }
  // Square buttons were the main Windows-98 cue. These tiny inset corner
@@ -417,10 +429,11 @@ struct UiV101NativePreview final {
      fill(c,{7.,7.,L::width-7.,9.},Skin::steelHighlight());
      fill(c,{7.,total-9.,L::width-7.,total-7.},{157,148,139,255});
    }
-   // On the supplied image, the upper corner fasteners lie beneath the
-   // existing 125A badge and zoom key. Preserve the precisely positioned
-   // original hardware screws at the visible outer corners instead.
-   screw(c,14.,15.);screw(c,L::width-14.,15.);
+   // The source corner screws are now correctly sized and positioned by
+   // the nine-slice. Do not overpaint them in the image-backed mode.
+   if(!hasVintageFaceplate){
+     screw(c,14.,15.);screw(c,L::width-14.,15.);
+   }
    // Bottom fasteners draw AFTER the inset footer so their metal edges
    // cannot be masked by the solid footer background.
    // Original 125A SVG geometry on a dark enamel badge, like the supplied
@@ -670,10 +683,12 @@ struct UiV101NativePreview final {
    // Both controls are identically sized 95x25 machined metal keys.
    cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10);
    cap(c,L::footerNext,footerTop,"NEXT PAGE",false,10);
-   // Source screws are obscured by the footer control bay. Draw the two
-   // existing accurately positioned case fasteners above that bay.
-   screw(c,L::footerScrewLeftX,total-15.);
-   screw(c,L::footerScrewRightX,total-15.);
+   // The fixed-size bitmap's footer corners also carry their own screws.
+   // Keep the old painted fasteners only in the fallback path.
+   if(!hasVintageFaceplate){
+     screw(c,L::footerScrewLeftX,total-15.);
+     screw(c,L::footerScrewRightX,total-15.);
+   }
    if(zoomMenuOpen)zoomPopup(c,selected);
  }
 };

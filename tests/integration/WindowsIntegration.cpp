@@ -1146,10 +1146,16 @@ void testV101LiveEditor(){
        vintageEnamel[0]>vintageEnamel[1]&&
        vintageEnamel[1]>vintageEnamel[2],
        "V101 actual raster lacks uploaded ivory faceplate at 100%");
+ // The input photo has larger corner screws. The 12 paint bands must
+ // contract them to the existing ~14px GUI fasteners, including at 150%.
  const auto upperScrew=viewPixel(14,15);
  const auto lowerScrew=viewPixel(14,671);
- check(upperScrew[0]<145&&lowerScrew[0]<145,
-       "V101 vintage hardware perimeter screws are concealed");
+ const auto rightScrew=viewPixel(1266,15);
+ check(upperScrew[0]<145&&lowerScrew[0]<145&&rightScrew[0]<145,
+       "V101 image-scaled chassis corners do not land on actual screw centres");
+ const auto screwClearance=viewPixel(1255,35);
+ check(screwClearance[0]>190&&screwClearance[1]>170,
+       "V101 corner screw remains magnified into the top-right chassis");
  const auto fullFooterPixel=viewPixel(17,658);
  check(view->sampleDropTargetAt(200.,L::header+22.),
        "V101 real view did not expose sample field for WAV/FLAC drop");
