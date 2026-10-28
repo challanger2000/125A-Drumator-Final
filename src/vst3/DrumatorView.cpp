@@ -1359,6 +1359,13 @@ void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
  // The top-row SONG EDIT key stays visibly latched while its board is open.
  v101::UiV101NativePreview::cap(*c,UiV101Layout::headerGroup(1),
                                  0.,"SONG EDIT",true,10);
+ // Modal overlays must sit ABOVE the SONG fascia. The main painter already
+ // drew them, but the editor board covers y>=138 and would hide both the
+ // Pattern MENU and the last zoom option. This is not merely decorative:
+ // the hit handler also gives these popups priority while they are open.
+ drawV101Menu(c);
+ if(v101_.state().zoomOpen)
+   v101::UiV101NativePreview::zoomPopup(*c,v101_.state().zoomIndex);
 }
 void DrumatorView::draw(VSTGUI::CDrawContext* c) {
  if(v101Mode_&&!sampleEditorOpen_){
