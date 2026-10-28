@@ -1341,9 +1341,15 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
    // V1.0.1-specific click map is shared with the actual pointer handler.
    constexpr const char* captions[]={
       "ZOOM +","ZOOM -","FIT","PREVIEW","STOP","RESET","CANCEL","APPLY"};
+   const P::ButtonSprites waveButtons{
+     v101VintageButtons_[0],v101VintageButtons_[1],
+     v101VintageButtons_[2],v101VintageButtons_[3]
+   };
    for(std::size_t i=0;i<UiV101WaveLayout::toolbar.size();++i){
      const auto& r=UiV101WaveLayout::toolbar[i];
-     P::cap(*c,{r.left,r.top,r.right,r.bottom},0.,captions[i],false,10);
+     P::cap(*c,{r.left,r.top,r.right,r.bottom},0.,captions[i],
+            false,10,&waveButtons,false,
+            sampleEditorPressed_==static_cast<int>(i));
    }
    if(sampleEditorPressed_>=0&&
       sampleEditorPressed_<static_cast<int>(UiV101WaveLayout::toolbar.size())){
@@ -1384,13 +1390,13 @@ void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
  for(std::size_t row=0;row<controller_.visibleRows();++row)
    if(controller_.hasSample(row)){kitHasSamples=true;break;}
  const char* notice=emptyNotice&&kitHasSamples?"":status_.c_str();
- v101::UiV101SongPainter::draw(*c,controller_,songPage_,songSlot_,
-                                notice,v101FaceplateBitmap_);
- // The top-row SONG EDIT key stays visibly latched while its board is open.
  const v101::UiV101NativePreview::ButtonSprites songButtonSprites{
    v101VintageButtons_[0],v101VintageButtons_[1],
    v101VintageButtons_[2],v101VintageButtons_[3]
  };
+ v101::UiV101SongPainter::draw(*c,controller_,songPage_,songSlot_,
+                               notice,v101FaceplateBitmap_,&songButtonSprites);
+ // The top-row SONG EDIT key stays visibly latched while its board is open.
  v101::UiV101NativePreview::cap(*c,UiV101Layout::headerGroup(1),
                                  0.,"SONG EDIT",true,10,&songButtonSprites);
  // Modal overlays must sit ABOVE the SONG fascia. The main painter already
@@ -1399,7 +1405,7 @@ void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
  // the hit handler also gives these popups priority while they are open.
  drawV101Menu(c);
  if(v101_.state().zoomOpen)
-   v101::UiV101NativePreview::zoomPopup(*c,v101_.state().zoomIndex);
+   v101::UiV101NativePreview::zoomPopup(*c,v101_.state().zoomIndex,&songButtonSprites);
 }
 void DrumatorView::draw(VSTGUI::CDrawContext* c) {
  if(v101Mode_&&!sampleEditorOpen_){

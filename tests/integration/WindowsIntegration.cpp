@@ -1175,6 +1175,53 @@ void testV101LiveEditor(){
  // preserved. This rejects accidentally falling back to the old squares.
  verifyVintageCap(IntegrationAccess::vintageButton(*view,0),35.,"A");
  verifyVintageCap(IntegrationAccess::vintageButton(*view,1),35.,"A");
+ // Verify representative small/large footprint and actual pressed/disabled
+ // image. The old procedural renderer would be visibly different.
+ const auto variableCap=[&](double width,double height,const char* caption,
+                            bool pressed,bool disabled){
+   using P=drumator::v101::UiV101NativePreview;
+   const auto render=[&](bool vintage){
+     return VSTGUI::renderBitmapOffscreen({width,height},1.,
+       [&](VSTGUI::CDrawContext& ctx){
+         P::fill(ctx,{0.,0.,width,height},{42,43,44,255});
+         const P::ButtonSprites sprites{
+           IntegrationAccess::vintageButton(*view,0),
+           IntegrationAccess::vintageButton(*view,1),
+           IntegrationAccess::vintageButton(*view,2),
+           IntegrationAccess::vintageButton(*view,3)};
+         P::cap(ctx,{0.,0.,width,height},0.,caption,false,10,
+                vintage?&sprites:nullptr,disabled,pressed);
+       });
+   };
+   auto a=render(false),b=render(true);
+   check(a&&b,"V101 button family bitmap capture not available");
+   auto* pa=VSTGUI::CBitmapPixelAccess::create(a.get(),false);
+   auto* pb=VSTGUI::CBitmapPixelAccess::create(b.get(),false);
+   check(pa&&pb,"V101 button family actual pixel access failed");
+   unsigned different=0;
+   for(std::uint32_t yy=0;yy<static_cast<std::uint32_t>(height);yy+=2)
+     for(std::uint32_t xx=0;xx<static_cast<std::uint32_t>(width);xx+=2){
+       check(pa->setPosition(xx,yy)&&pb->setPosition(xx,yy),
+             "V101 button family pixel outside geometry");
+       VSTGUI::CColor oldColor{},newColor{};
+       pa->getColor(oldColor);pb->getColor(newColor);
+       if(std::abs(int(oldColor.red)-int(newColor.red))+
+          std::abs(int(oldColor.green)-int(newColor.green))+
+          std::abs(int(oldColor.blue)-int(newColor.blue))>18)++different;
+     }
+   pa->forget();pb->forget();
+   check(different>static_cast<unsigned>(width*.30),
+         "V101 custom button size fell back to old flat hardware paint");
+ };
+ variableCap(23.,32.,"<",false,false);
+ variableCap(27.,32.,"M",false,false);
+ variableCap(34.,26.,"+",false,false);
+ variableCap(42.,26.,"A",false,false);
+ variableCap(86.,32.,"PREVIEW",true,false);
+ variableCap(90.,25.,"ADD ROW",false,false);
+ variableCap(95.,25.,"PREV PAGE",false,true);
+ variableCap(98.,26.,"ADD ENTRY",false,false);
+ variableCap(100.,26.,"NEXT",false,false);
  // Read genuine raster pixels from the attached native VSTGUI editor.
  // This checks optical state changes, not merely constants in the painter.
  const auto viewPixel=[&](std::uint32_t x,std::uint32_t y){

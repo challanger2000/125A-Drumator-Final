@@ -276,18 +276,15 @@ struct UiV101NativePreview final {
    if(!sprite||!sprite->isLoaded()||sprite->getWidth()!=332.||
       sprite->getHeight()!=128.||b.getWidth()<=0.||b.getHeight()<=0.)
      return false;
-   if(b.getHeight()!=32.)return false;
-   if(b.getWidth()==83.){
+   if(b.getWidth()==83.&&b.getHeight()==32.){
      VSTGUI::CDrawContext::Transform tx(c,
        VSTGUI::CGraphicsTransform().scale(.25,.25)
          .translate(b.left,b.top));
      sprite->draw(&c,{0.,0.,332.,128.});
      return true;
    }
-   if(b.getWidth()==35.){
-     // 140px destination in the 4x coordinate system. Preserve the
-     // generated 52px edge regions unscaled; retain a 36px middle sample.
-     // This is an exact height-scale crop, not a horizontal squashing.
+   if(b.getWidth()==35.&&b.getHeight()==32.){
+     // Preserve the approved 35x32 A-H image without distortion.
      VSTGUI::CDrawContext::Transform tx(c,
        VSTGUI::CGraphicsTransform().scale(.25,.25)
          .translate(b.left,b.top));
@@ -296,21 +293,49 @@ struct UiV101NativePreview final {
      sprite->draw(&c,{88.,0.,140.,128.},{280.,0.});
      return true;
    }
-   return false;
+   // Nine-slice for remaining size families: preserve physical cap corners
+   // and edge wear. Stretch only the broad unlettered center of the approved
+   // high-resolution image. Do not alter paint/hit rectangles.
+   if(b.getWidth()<22.||b.getWidth()>220.||
+      b.getHeight()<22.||b.getHeight()>48.)return false;
+   constexpr std::array<double,4> sx{{0.,40.,292.,332.}};
+   constexpr std::array<double,4> sy{{0.,24.,104.,128.}};
+   const std::array<double,4> dx{{b.left,b.left+10.,b.right-10.,b.right}};
+   const std::array<double,4> dy{{b.top,b.top+6.,b.bottom-6.,b.bottom}};
+   for(std::size_t row=0;row<3;++row)
+     for(std::size_t col=0;col<3;++col){
+       const double srcW=sx[col+1]-sx[col],srcH=sy[row+1]-sy[row];
+       const double dstW=dx[col+1]-dx[col],dstH=dy[row+1]-dy[row];
+       c.saveGlobalState();
+       c.setClipRect({dx[col],dy[row],dx[col+1],dy[row+1]});
+       {
+         VSTGUI::CDrawContext::Transform tx(c,
+           VSTGUI::CGraphicsTransform()
+             .scale(dstW/srcW,dstH/srcH)
+             .translate(dx[col]-sx[col]*dstW/srcW,
+                        dy[row]-sy[row]*dstH/srcH));
+         sprite->draw(&c,{0.,0.,332.,128.});
+       }
+       c.restoreGlobalState();
+     }
+   return true;
  }
  // Shared machined keycap family. Every action button uses the same
  // rim, satin-silver/amber lens, highlights, lower bevel, lettering and shadow.
  // All layers sit strictly inside the common paint/hit rectangle.
  static void cap(VSTGUI::CDrawContext& c,L::Rect r,double y,const char* text,
                  bool active=false,int font=10,
-                 const ButtonSprites* vintage=nullptr){
+                 const ButtonSprites* vintage=nullptr,
+                 bool disabled=false,bool pressed=false){
    const Box b{r.x0,y+r.y0,r.x1,y+r.y1};
-   if(vintage&&(b.getWidth()==83.||b.getWidth()==35.)&&
-      b.getHeight()==32.&&
-      drawVintageButton(c,b,active?vintage->active:vintage->normal)){
+   VSTGUI::CBitmap* sprite=!vintage?nullptr:
+      disabled?vintage->disabled:pressed?vintage->pressed:
+      active?vintage->active:vintage->normal;
+   if(sprite&&drawVintageButton(c,b,sprite)){
      // Keep all labels native, crisp and dynamically localized/stateful.
      label(c,text,{b.left+2.,b.top+2.,b.right-2.,b.bottom-2.},
-           font,active?Color{56,29,17,255}:Color{28,27,26,255});
+           font,disabled?Color{89,81,73,255}:
+           active?Color{56,29,17,255}:Color{28,27,26,255});
      return;
    }
    const double l=b.left,t=b.top,rr=b.right,bt=b.bottom;
@@ -344,7 +369,8 @@ struct UiV101NativePreview final {
  // Modal zoom is a topmost shared overlay in MAIN and SONG. Painting
  // it only inside the main sequencer would let the SONG heading hide the
  // fourth (150%) option while pointer capture was still active.
- static void zoomPopup(VSTGUI::CDrawContext& c,std::size_t selected){
+ static void zoomPopup(VSTGUI::CDrawContext& c,std::size_t selected,
+                       const ButtonSprites* vintage=nullptr){
    constexpr const char* names[]={"100%","120%","130%","150%"};
    const double left=L::zoomOption(0).x0-4.;
    const double right=L::zoomOption(0).x1+4.;
@@ -353,7 +379,7 @@ struct UiV101NativePreview final {
    fill(c,{left,top,right,bottom},{12,20,29,255});
    border(c,{left,top,right,bottom},{104,115,121,255});
    for(std::size_t i=0;i<L::zoomPresets.size();++i)
-     cap(c,L::zoomOption(i),0.,names[i],i==selected,11);
+     cap(c,L::zoomOption(i),0.,names[i],i==selected,11,vintage);
  }
  // Dark-blue physical sequencer keycap, with matching bezel and warm
  // backlit orange state. Keep the same 17px step width / 19px pitch.
@@ -384,8 +410,9 @@ struct UiV101NativePreview final {
  }
  // Headphone pictogram replaces the ambiguous play triangle in PREVIEW.
  // All coordinates derive from the preview cap's shared hit/paint rectangle.
- static void headphone(VSTGUI::CDrawContext& c,L::Rect r,double y){
-   cap(c,r,y,"");
+ static void headphone(VSTGUI::CDrawContext& c,L::Rect r,double y,
+                       const ButtonSprites* vintage=nullptr){
+   cap(c,r,y,"",false,10,vintage);
    const double cx=(r.x0+r.x1)/2.,cy=y+(r.y0+r.y1)/2.;
    c.setFrameColor({30,35,43,255});c.setLineWidth(2.5);
    // Rounded headband arc, mirrored for even balance at 100% zoom.
@@ -624,17 +651,17 @@ struct UiV101NativePreview final {
           {5,12,19,255});
      fill(c,{L::select.x0+3.,y+14.,L::select.x1-3.,y+33.},
           live&&row==ui.selectedRow?Color{246,171,70,255}:Color{76,93,103,255});
-     cap(c,L::mute,y,"M",live&&data.muted);
-     cap(c,L::solo,y,"S",live&&data.solo);
-     cap(c,L::fill,y,"FILL",false,9);
+     cap(c,L::mute,y,"M",live&&data.muted,10,vintageButtons);
+     cap(c,L::solo,y,"S",live&&data.solo,10,vintageButtons);
+     cap(c,L::fill,y,"FILL",false,9,vintageButtons);
      rounded(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},{3,8,14,255},2.);
      satin(c,{L::sample.x0+2.,y+10.,L::sample.x1-2.,y+38.},
            {6,14,23,255},{11,22,35,255},{18,34,49,255},9);
      fill(c,{L::sample.x0+3.,y+10.,L::sample.x1-3.,y+11.},
           {71,88,101,255});
      border(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},{62,82,98,255});
-     cap(c,L::previous,y,"<",false,12);
-     cap(c,L::next,y,">",false,12);
+     cap(c,L::previous,y,"<",false,12,vintageButtons);
+     cap(c,L::next,y,">",false,12,vintageButtons);
      const std::string emptyName="(EMPTY)";
      const auto& rowName=live?(data.name.empty()?emptyName:data.name):emptyName;
      const Box nameRect{L::load.x0+5.,y+9.,L::load.x1-2.,y+39.};
@@ -664,9 +691,9 @@ struct UiV101NativePreview final {
      label(c,displayedName,nameRect,11,
            live?Color{203,222,235,255}:Color{103,116,127,255},false);
      c.restoreGlobalState();
-     cap(c,L::sampleMenu,y,"...",false,10);
-     headphone(c,L::preview,y);
-     cap(c,L::edit,y,"EDIT",false,11);
+     cap(c,L::sampleMenu,y,"...",false,10,vintageButtons);
+     headphone(c,L::preview,y,vintageButtons);
+     cap(c,L::edit,y,"EDIT",false,11,vintageButtons);
      rounded(c,{L::stepWell.x0,y+4.,L::stepWell.x1,y+44.},
              {9,17,29,255},2.);
      fill(c,{L::stepWell.x0+2.,y+6.,L::stepWell.x1-2.,y+8.},
@@ -684,9 +711,9 @@ struct UiV101NativePreview final {
             k==0?static_cast<int>(data.gain):k==1?data.pan:data.pitch,
             static_cast<int>(k));
      cap(c,L::velocity,y,"VEL",ui.expandedRow==row&&
-           ui.expansion==L::Expansion::Velocity,11);
+           ui.expansion==L::Expansion::Velocity,11,vintageButtons);
      cap(c,L::settings,y,"SET",ui.expandedRow==row&&
-           ui.expansion==L::Expansion::Settings,11);
+           ui.expansion==L::Expansion::Settings,11,vintageButtons);
      if(ui.expandedRow==row&&ui.expansion!=L::Expansion::None){
        fill(c,{13.,y+49.,1260.,y+95.},Skin::navyWell());
        fill(c,{15.,y+50.,1258.,y+94.},Skin::navyA());
@@ -713,13 +740,13 @@ struct UiV101NativePreview final {
          }};
          for(std::size_t button=0;button<settingsLabels.size();++button)
            cap(c,UiV101Interaction::settingsRect(button),y,
-               settingsLabels[button],false,10);
-         cap(c,UiV101Interaction::realtimeMinus,y,"-",false,13);
+               settingsLabels[button],false,10,vintageButtons);
+         cap(c,UiV101Interaction::realtimeMinus,y,"-",false,13,vintageButtons);
          char realtimeText[35]{};
          std::snprintf(realtimeText,sizeof(realtimeText),
                        "RT RANDOM  %u%%",data.randomRealtime);
-         cap(c,UiV101Interaction::realtimeValue,y,realtimeText,false,10);
-         cap(c,UiV101Interaction::realtimePlus,y,"+",false,13);
+         cap(c,UiV101Interaction::realtimeValue,y,realtimeText,false,10,vintageButtons);
+         cap(c,UiV101Interaction::realtimePlus,y,"+",false,13,vintageButtons);
        }
      }
    }
@@ -727,35 +754,34 @@ struct UiV101NativePreview final {
    const double footerTop=total-L::footer;
    const auto panel=L::footerPanel;
    rounded(c,{panel.x0,footerTop+panel.y0,panel.x1,footerTop+panel.y1},
-           {123,114,105,255},3.);
+           {80,72,63,255},3.);
    satin(c,{panel.x0+2.,footerTop+panel.y0+2.,
             panel.x1-2.,footerTop+panel.y1-2.},
-         {218,210,199,255},Skin::headerSurface(),
-         {180,172,161,255},8);
+         {69,65,59,255},{43,43,42,255},{29,30,32,255},8);
    border(c,{panel.x0,footerTop+panel.y0,panel.x1,footerTop+panel.y1},
-          Skin::panelEdge());
+          {119,108,94,255});
    char summary[100]{};
    std::snprintf(summary,sizeof(summary),
                  "ROWS %zu-%zu / %zu  |  PATTERN %c",
                  ui.firstRow+1,ui.firstRow+shown,scene.visibleRows,
                  static_cast<char>('A'+scene.pattern));
-   cap(c,L::footerAdd,footerTop,"ADD ROW",false,10);
-   cap(c,L::footerRemove,footerTop,"REMOVE ROW",false,10);
+   cap(c,L::footerAdd,footerTop,"ADD ROW",false,10,vintageButtons);
+   cap(c,L::footerRemove,footerTop,"REMOVE ROW",false,10,vintageButtons);
    label(c,summary,{260.,footerTop+9.,510.,footerTop+33.},11,
-         {66,68,70,255},false);
+         {222,213,197,255},false);
    if(!scene.status.empty())
      label(c,scene.status.c_str(),{520.,footerTop+9.,914.,footerTop+33.},
-           10,{75,55,45,255},false);
+           10,{220,203,180,255},false);
    // Both controls are identically sized 95x25 machined metal keys.
-   cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10);
-   cap(c,L::footerNext,footerTop,"NEXT PAGE",false,10);
+   cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10,vintageButtons,ui.firstRow==0);
+   cap(c,L::footerNext,footerTop,"NEXT PAGE",false,10,vintageButtons,ui.firstRow+shown>=scene.visibleRows);
    // The fixed-size bitmap's footer corners also carry their own screws.
    // Keep the old painted fasteners only in the fallback path.
    if(!hasVintageFaceplate){
      screw(c,L::footerScrewLeftX,total-15.);
      screw(c,L::footerScrewRightX,total-15.);
    }
-   if(zoomMenuOpen)zoomPopup(c,selected);
+   if(zoomMenuOpen)zoomPopup(c,selected,vintageButtons);
  }
 };
 }

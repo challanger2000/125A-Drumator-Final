@@ -14,14 +14,17 @@ struct UiV101SongPainter final {
  using S=UiSongLayout;
  using Color=VSTGUI::CColor;
  using Box=VSTGUI::CRect;
- static void key(VSTGUI::CDrawContext& c,double x0,double y0,double x1,
-                 double y1,const char* title,bool selected=false,int font=10){
-   P::cap(c,{x0,y0,x1,y1},0.,title,selected,font);
- }
  static void draw(VSTGUI::CDrawContext& c,const Controller& controller,
                   std::size_t page,std::size_t slot,
                   const char* status="",
-                  VSTGUI::CBitmap* agedFaceplate=nullptr){
+                  VSTGUI::CBitmap* agedFaceplate=nullptr,
+                  const P::ButtonSprites* vintageButtons=nullptr){
+   const auto key=[&](VSTGUI::CDrawContext& ctx,double x0,double y0,
+                      double x1,double y1,const char* title,
+                      bool selected=false,int font=10,bool disabled=false){
+     P::cap(ctx,{x0,y0,x1,y1},0.,title,selected,font,vintageButtons,
+            disabled);
+   };
    constexpr double top=UiV101Layout::header,bottom=432.;
    // SONG mode has no instrument step ruler; hide the underlying main-grid
    // captions without changing the shared top-row key hit map.
@@ -66,8 +69,10 @@ struct UiV101SongPainter final {
              {224,233,239,255});
    key(c,S::startPlusLeft,S::startTop,S::startPlusRight,S::startBottom,"+",false,12);
    key(c,S::startResetLeft,S::startTop,S::startResetRight,S::startBottom,"RESET");
-   key(c,S::previousLeft,S::navTop,S::previousRight,S::navBottom,"PREVIOUS");
-   key(c,S::nextLeft,S::navTop,S::nextRight,S::navBottom,"NEXT");
+   key(c,S::previousLeft,S::navTop,S::previousRight,S::navBottom,
+       "PREVIOUS",false,10,page==0);
+   key(c,S::nextLeft,S::navTop,S::nextRight,S::navBottom,
+       "NEXT",false,10,(page+1)*S::perPage>=controller.songCount());
    // Two rows of eight dark insets, one per existing chain entry. There is
    // intentionally no click-to-add tile and no altered entry hit rectangles.
    for(std::size_t i=0;i<S::perPage;++i){
@@ -103,18 +108,17 @@ struct UiV101SongPainter final {
      P::label(c,length,{x+80.,y+6.,x+145.,y+40.},10,
               {226,232,236,255},true);
    }
-   // Machined silver editor strip. Its live click map is UiSongLayout,
-   // deliberately identical to V1.0.0 for pattern/length/ADD/REMOVE.
-   P::rounded(c,{15.,313.,1256.,390.},{131,122,112,255},3.);
-   P::satin(c,{18.,316.,1253.,388.},{224,216,204,255},
-            {199,190,178,255},{170,160,148,255},12);
-   P::border(c,{15.,313.,1256.,390.},P::Skin::panelEdge());
+   // Dark recessed vintage mounting strip, without changing the hit map.
+   P::rounded(c,{15.,313.,1256.,390.},{78,70,62,255},3.);
+   P::satin(c,{18.,316.,1253.,388.},{72,67,61,255},
+            {45,44,43,255},{28,29,31,255},12);
+   P::border(c,{15.,313.,1256.,390.},{125,113,97,255});
    char selection[72]{};
    if(selected)std::snprintf(selection,sizeof(selection),
        "POSITION %02u SELECTED",static_cast<unsigned>(slot+1));
    else std::snprintf(selection,sizeof(selection),"SELECT AN EXISTING ENTRY");
-   P::label(c,selection,{26.,314.,620.,339.},11,{63,62,61,255},false);
-   P::label(c,"PATTERN",{25.,339.,109.,366.},10,{57,55,53,255},false);
+   P::label(c,selection,{26.,314.,620.,339.},11,{219,207,192,255},false);
+   P::label(c,"PATTERN",{25.,339.,109.,366.},10,{228,216,199,255},false);
    const auto current=controller.songEntry(std::min(slot,count-1));
    for(std::size_t i=0;i<8;++i){
      char letter[2]{static_cast<char>('A'+i),0};
@@ -126,15 +130,17 @@ struct UiV101SongPainter final {
        "REST",selected&&current.pattern==SongChain::kRest);
    P::label(c,"LENGTH",{S::lengthTitleLeft,339.,
                        S::lengthTitleRight,366.},10,
-             {57,55,53,255},false);
+             {228,216,199,255},false);
    constexpr const char* names[]={"1/2 BAR","1 BAR","2 BARS"};
    constexpr std::uint8_t lengths[]={8,16,32};
    for(int i=0;i<3;++i){
      const double x=678.+i*106.;
      key(c,x,339.,x+100.,365.,names[i],selected&&current.steps==lengths[i]);
    }
-   key(c,S::addLeft,S::choiceTop,S::addRight,S::choiceBottom,"ADD ENTRY");
-   key(c,S::removeLeft,S::choiceTop,S::removeRight,S::choiceBottom,"REMOVE LAST",false,9);
+   key(c,S::addLeft,S::choiceTop,S::addRight,S::choiceBottom,
+       "ADD ENTRY",false,10,count>=SongChain::kCapacity);
+   key(c,S::removeLeft,S::choiceTop,S::removeRight,S::choiceBottom,
+       "REMOVE LAST",false,9,count<=1);
    P::label(c,status&&*status?status:
            "REST and A-H are selectable. Only ADD ENTRY adds positions.",
            {29.,394.,1222.,419.},11,{44,43,42,255},false);
