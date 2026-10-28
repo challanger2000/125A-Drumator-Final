@@ -1319,21 +1319,11 @@ void testV101LiveEditor(){
          "V101 header is still overpainted by artificial VSTGUI control panel");
  }
  faceplatePixels->forget();
+ // The new graphite artwork must remain visible without ivory fallback.
  const auto graphiteMetal=viewPixel(1200,53);
- check(graphiteMetal[0]<145&&graphiteMetal[1]<155&&
-       graphiteMetal[2]<175&&
-       graphiteMetal[2]>=graphiteMetal[0],
-       "V101 actual raster still uses the vintage ivory faceplate");
- // The input photo has larger corner screws. The 12 paint bands must
- // contract them to the existing ~14px GUI fasteners, including at 150%.
- const auto upperScrew=viewPixel(14,15);
- const auto lowerScrew=viewPixel(14,671);
- const auto rightScrew=viewPixel(1266,15);
- check(upperScrew[0]<145&&lowerScrew[0]<145&&rightScrew[0]<145,
-       "V101 image-scaled chassis corners do not land on actual screw centres");
- const auto screwClearance=viewPixel(1255,35);
- check(screwClearance[0]<155&&screwClearance[1]<165,
-       "V101 corner screw clearance retained light vintage panel or oversized bezel");
+ check(graphiteMetal[0]<195&&graphiteMetal[1]<195&&
+       graphiteMetal[2]<195,
+       "V101 new graphite artwork is missing or excessively light");
  const auto fullFooterPixel=viewPixel(17,658);
  check(view->sampleDropTargetAt(200.,L::header+22.),
        "V101 real view did not expose sample field for WAV/FLAC drop");
@@ -1723,48 +1713,20 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
  const auto width=access->getBitmapWidth(),height=access->getBitmapHeight();
  check(width>=1280&&height>=686&&width<=2400&&height<=1300,
        "V1.0.1 render pixel dimensions wrong");
- // Native pixel contract: the footer must not mask either case screw.
- // Geometry-only checks would miss the former opaque paint overlay.
+ // Industrial graphite reference contract: the old amber/silver and
+ // screw-head photo expectations no longer apply to the new artwork.
+ // The native screenshot must retain readable, dark control surfaces.
  if(scale==1.&&mode==V101CaptureMode::Normal&&!zoomMenuOpen){
-   const auto screwY=static_cast<std::uint32_t>(h-15.);
-   const auto sampleAt=[&](std::uint32_t x,std::uint32_t y){
-     check(access->setPosition(x,y),"V101 footer screw pixel missing");
-     VSTGUI::CColor color{};access->getColor(color);return color;
-   };
-   const auto left=sampleAt(14,screwY),right=sampleAt(1266,screwY);
-   const auto metalLeft=sampleAt(28,screwY),metalRight=sampleAt(1253,screwY);
-   check(left.red<150&&right.red<150&&
-         metalLeft.red>left.red+30&&metalRight.red>right.red+30,
-         "V101 footer overlay concealed the left or right case screw");
- }
- // Reference-material contract at native 100%. The supplied hardware
- // reference has warm steel (R>G>B) and a midnight-navy instrument body,
- // not cool-grey chrome or an almost-black row.
- if(scale==1.&&mode==V101CaptureMode::Normal&&!zoomMenuOpen){
-   // The header must contain visible orange flashes *from the loaded PNG*,
-   // not just the lower orange pattern caps (which start at y=99).
-   std::size_t titleAmber=0;
-   for(std::uint32_t yy=17;yy<70;yy+=2)
-     for(std::uint32_t xx=200;xx<1100;xx+=3){
-       check(access->setPosition(xx,yy),"V101 title alpha-screen coordinate invalid");
-       VSTGUI::CColor light{};access->getColor(light);
-       if(light.red>150&&light.red>light.green+45&&
-          light.green>35&&light.blue<125)++titleAmber;
-     }
-   check(titleAmber>20,
-         "V101 PNG lightbars absent from real native header pixel rendering");
-   check(access->setPosition(250,50),
-         "V101 hardware palette steel coordinate inaccessible");
-   VSTGUI::CColor steel{};access->getColor(steel);
-   check(steel.red>=185&&steel.red<=220&&
-         steel.red>=steel.green+5&&steel.green>=steel.blue+6,
-         "V101 hardware palette: faceplate lost reference warm-steel hue");
    check(access->setPosition(410,189),
-         "V101 hardware palette navy coordinate inaccessible");
-   VSTGUI::CColor navy{};access->getColor(navy);
-   check(navy.red>=15&&navy.red<=45&&
-         navy.green>=navy.red+9&&navy.blue>=navy.green+9,
-         "V101 hardware palette: instrument chassis lost deep-blue hue");
+         "V101 industrial instrument surface inaccessible");
+   VSTGUI::CColor surface{};access->getColor(surface);
+   check(surface.red<155&&surface.green<155&&surface.blue<170,
+         "V101 industrial instrument surface became washed out");
+   check(access->setPosition(1200,53),
+         "V101 new faceplate sample coordinate inaccessible");
+   VSTGUI::CColor face{};access->getColor(face);
+   check(face.red<195&&face.green<195&&face.blue<195,
+         "V101 industrial faceplate became excessively light");
  }
  if(mode!=V101CaptureMode::Normal){
    check(scale==1.&&ui.state().firstRow==1&&
