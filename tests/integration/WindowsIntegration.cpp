@@ -19,6 +19,7 @@
 #include "core/UiCompactLayout.h"
 #include "core/UiSongLayout.h"
 #include "vst3/UiV101Scene.h"
+#include "vst3/UiV101WaveLayout.h"
 #include "UiV101NativePreview.h"
 #include "vst3/UiV101ControllerBridge.h"
 #include "vst3/DrumatorProcessor.h"
