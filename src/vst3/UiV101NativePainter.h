@@ -536,25 +536,11 @@ struct UiV101NativePreview final {
    char zoomCaption[20]{};
    std::snprintf(zoomCaption,sizeof(zoomCaption),"%s  v",zoomNames[selected]);
    cap(c,L::zoomTrigger,0.,zoomCaption,zoomMenuOpen,11,vintageButtons);
-   // Actual Drumator features only. This header is not yet interactive.
-   // Raise the entire control bay and align its LEFT boundary with the
-   // midnight-blue instrument chassis below. Earlier 21px inset was wrong.
-   rounded(c,{kChassisLeft,78.,kChassisRight,137.},
-           {117,108,99,255},4.);
-   rounded(c,{14.,80.,1258.,135.},Skin::headerWell(),3.);
-   satin(c,{17.,82.,1255.,133.},
-         {216,210,199,255},Skin::headerSurface(),
-         {186,179,169,255},18);
-   fill(c,{19.,80.,1253.,81.},{237,229,216,255});
-   fill(c,{19.,134.,1253.,135.},{113,105,98,255});
-   border(c,{13.,79.,1259.,136.},Skin::panelEdge());
-   // Restore the continuous warm-metal control bay across the full
-   // header. The charcoal block is removed; all vintage keycaps and
-   // original paint/hit geometry remain untouched.
-   for(const double xx:{350.,542.,729.,1115.}){
-     fill(c,{xx,81.,xx+1.,134.},{151,141,131,255});
-     fill(c,{xx+1.,81.,xx+2.,134.},{227,218,206,255});
-   }
+   // The uploaded aged Faceplate PNG is the ONLY upper control background.
+   // No synthetic bright strip, borders, dividers, brushed gradients or
+   // inset pockets from y=78..137: buttons, rotaries, real labels and the
+   // meter render directly on the original hardware photo. This applies to
+   // both MAIN and SONG because they share this native painter.
    label(c,"PATTERN",{33.,80.,154.,96.},11,{51,54,57,255},false);
    for(std::size_t i=0;i<8;++i){
      const char key[2]={static_cast<char>('A'+i),'\0'};

@@ -148,6 +148,9 @@ struct IntegrationAccess {
           v.v101FaceplateBitmap_->getWidth()==1713.&&
           v.v101FaceplateBitmap_->getHeight()==918.;
  }
+ static VSTGUI::CBitmap* vintageFaceplate(const DrumatorView& v){
+   return v.v101FaceplateBitmap_;
+ }
  static bool bundledBrandingLoaded(const DrumatorView& v){
    return v.productLogoBitmap_&&v.productLogoBitmap_->isLoaded()&&
           v.productLogoBitmap_->getWidth()==2172.&&
@@ -1258,12 +1261,32 @@ void testV101LiveEditor(){
  click(*view,1166.,14.);
  check(!IntegrationAccess::v101ZoomPopupOpen(*view),
        "V101 ZOOM enlarged edge did not close popup symmetrically");
- const auto patternMetal=viewPixel(29,87);
- const auto rotaryMetal=viewPixel(752,87);
- check(patternMetal[0]>160&&patternMetal[1]>140&&
-       std::abs(patternMetal[0]-rotaryMetal[0])<20&&
-       std::abs(patternMetal[1]-rotaryMetal[1])<20,
-       "V101 header still has dark Pattern block instead of continuous aged metal");
+ // The actual pixels behind the controls must be precisely those of
+ // the original full-size faceplate, not a new VSTGUI-drawn light/charcoal
+ // panel. Test three untouched places across the complete control row.
+ auto faceplateOnly=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+   [&](VSTGUI::CDrawContext& ctx){
+     check(drumator::v101::UiV101NativePreview::drawVintageFaceplate(
+       ctx,IntegrationAccess::vintageFaceplate(*view),686.),
+       "V101 source faceplate could not render for header pixel audit");
+   });
+ check(faceplateOnly!=nullptr,"V101 isolated photo backing raster missing");
+ auto* faceplatePixels=VSTGUI::CBitmapPixelAccess::create(faceplateOnly.get(),false);
+ check(faceplatePixels!=nullptr,"V101 photo backing pixel access unavailable");
+ for(const auto& pt:std::array<std::array<std::uint32_t,2>,3>{{
+       {{20u,85u}},{{746u,94u}},{{1101u,91u}}
+     }}){
+   check(faceplatePixels->setPosition(pt[0],pt[1]),
+         "V101 photo reference pixel outside header bounds");
+   VSTGUI::CColor original{};
+   faceplatePixels->getColor(original);
+   const auto rendered=viewPixel(pt[0],pt[1]);
+   check(std::abs(rendered[0]-int(original.red))<=3&&
+         std::abs(rendered[1]-int(original.green))<=3&&
+         std::abs(rendered[2]-int(original.blue))<=3,
+         "V101 header is still overpainted by artificial VSTGUI control panel");
+ }
+ faceplatePixels->forget();
  const auto vintageEnamel=viewPixel(1200,53);
  check(vintageEnamel[0]>215&&vintageEnamel[1]>180&&
        vintageEnamel[0]>vintageEnamel[1]&&
