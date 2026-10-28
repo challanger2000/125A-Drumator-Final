@@ -3,7 +3,7 @@
 **Datum:** 28.10.2026  
 **Repository:** `challanger2000/125A-Drumator-Final`  
 **Branch:** `develop/v1.0.1-gui-redesign`  
-**Status:** Automatisierter Windows-GUI-Audit **PASS für den geprüften Stand #40614712495** (native Menü-Vollmatrix, SONG, Wave, Geometrie und unabhängige 8-Fill-Rhythmusreferenzen). Zusätzlicher **16-Zeilen-/Sample-Pfeil-Nachweistest PENDING im Build #40615545599**. Keine V1.0.1-Veröffentlichung. **DAW-, Datei-Dialog-, Eigentümer-Sicht- und macOS-Gates sind NOT RUN**; die komplette Produktfreigabe ist deshalb ausdrücklich noch nicht erteilt.
+**Status:** **Automatisierter Windows-GUI-Gesamt-Audit PASS** — finaler geprüfter Quellstand [Build #40616117690](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40616117690): **24/24 CTests, 47/47 Steinberg Validator, 58 PASS / 0 WARNING / 0 FAIL** im unabhängigen Tester. Sämtliche native Menü-/SONG-/Wave-Funktionsmatrix, Bild-/Geometrie-Prüfungen, 16 Instrumentenzeilen und reales WAV-Pfeil-Browsing bestanden. **Keine V1.0.1-Veröffentlichung. DAW-, nativer Datei-Dialog-, Owner-Sicht- und macOS-Gates: NOT RUN.**
 
 ## 1. Verbindliche Quelle und Grenzen
 
@@ -127,10 +127,15 @@ betätigt die sichtbaren Sample-Pfeile zum Vorwärts- und Rückwärtsblättern,
 überspringt eine defekte WAV-Datei, prüft den zyklischen Übergang sowie
 das vollständige PCM im tatsächlich serialisierten Processor-Zustand.
 Auch die tatsächliche PLAY-Queue wird geprüft.
-**Build [#40615545599](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40615545599):
-PENDING, bis die neuen Tests und beide QA-Jobs erfolgreich abgeschlossen sind.**
-Bei einer Fehlermeldung aus diesem Build gilt explizit **FAIL, zu beheben**,
-niemals stillschweigend PASS durch ältere grüne Runs.
+**Zwischenlauf [#40615545599](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40615545599): FAIL nur im neu ergänzten Testorakel.** Der Test erwartete beim zweiten Step-Klick die vorherige beliebige Velocity. Die verbindliche Drumator-Logik ist jedoch **OFF → 100** und **ON → OFF**. Das war keine festgestellte Produktregression; die Sollprüfung wurde korrigiert, und ursprüngliche Test-Velocities werden danach explizit wiederhergestellt (Commit `4a3c4e833125`).
+
+**Abschließender vollständiger Lauf [#40616117690](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40616117690): SUCCESS in sämtlichen Jobs.**
+
+- **24/24 CTests PASS**, einschließlich `V101 total menu matrix and per-key geometry PASS`, `V101 SONG and Wave full native button matrix PASS` und `V101 16-row pointer isolation and real WAV sample browse PASS`.
+- **47/47 Steinberg Validator PASS**.
+- **58 PASS / 0 WARNING / 0 FAIL** unabhängiger 125A Plugin Tester.
+- Bestätigt: 16 Selektionsleisten, alle 16 Mute-/Solo-/Step-Hitboxen, keine nachbarlichen Zieländerungen, zwei tatsächlich unterschiedlich hohe Seiten, inaktive Step-Gutters, reales WAV-Vor-/Zurückblättern inklusive korruptem Nachbarn und Wrap, exakte Processor-PCM-State-Bytes, realer PLAY-Vorschaubefehl.
+- Produktseitiger V1.0.1-Code wurde nach dem geprüften Trigger-Commit nicht geändert; nachfolgende Änderungen betrafen lediglich die Rückstellung des CI-Triggers und Audit-Dokumentation.
 
 **Nicht durch Windows-CI beweisbar:** Auswahl/Abbruch des nativen OS-Dateidialogs
 in der echten Ziel-DAW, Audio-/MIDI-Recall mit dem konkreten Studio-One-Projekt,
