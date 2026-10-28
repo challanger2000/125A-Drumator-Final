@@ -416,3 +416,143 @@ void testV101SongAndWaveFullControlMatrix(){
  }
  evidence("V101 SONG/Wave full native controls: A-H/REST, 3 lengths, 64-entry navigation, start +/-/RESET, all 8 Wave keys, preview/stop, zoom, reset, apply/recall, cancel/rollback PASS");
 }
+
+
+// Independent end-to-end pointer audit for every visible instrument, including
+// the six rows on page 2. Tests the actual VSTGUI editor, Controller gates and
+// step state; verifies a gesture cannot accidentally mutate the wrong row.
+void testV101AllRowMouseIsolationAndSampleBrowse(){
+ using L=drumator::UiV101Layout;
+ Fixture f;
+ auto kit=namedKit('X',16);
+ f.kit(kit);
+ prepareAudio(*f.p);
+ f.openV101();
+ auto* view=IntegrationAccess::view(*f.c,0);
+ check(view->isV101()&&f.c->visibleRows()==16,
+       "V101 all-row audit did not attach actual sixteen-row editor");
+ const auto pattern=f.c->currentPattern();
+ for(std::size_t row=0;row<16;++row){
+   if(row==10){
+     const auto y=view->getViewSize().getHeight()-L::footer+22.;
+     click(*view,(L::footerNext.x0+L::footerNext.x1)*.5,y);
+     check(view->getViewSize().getHeight()==494.,
+           "V101 all-row audit failed transition to six-row page 2");
+   }
+   const auto first=row<10?std::size_t{0}:std::size_t{10};
+   const double top=L::rowTop(first,row-first,L::Expansions{});
+   const auto oldMute=f.c->isRowMuted(row);
+   const auto oldSolo=f.c->isRowSolo(row);
+   const auto other=(row+1)%16;
+   const auto otherMute=f.c->isRowMuted(other);
+   const auto otherSolo=f.c->isRowSolo(other);
+   // The slim row-selection rail is a real selectable target, not a
+   // decorative line or a hotspot belonging to its neighboring lane.
+   click(*view,(L::select.x0+L::select.x1)*.5,top+24.);
+   check(IntegrationAccess::v101SelectedRow(*view)==row,
+         "V101 row-selection rail selected a neighboring instrument");
+   const double muteX=(L::mute.x0+L::mute.x1)*.5;
+   click(*view,muteX,top+24.);
+   check(f.c->isRowMuted(row)!=oldMute&&
+         f.c->isRowMuted(other)==otherMute,
+         "V101 MUTE toggled the wrong instrument");
+   click(*view,muteX,top+24.);
+   check(f.c->isRowMuted(row)==oldMute,
+         "V101 MUTE twice did not restore original state");
+   const double soloX=(L::solo.x0+L::solo.x1)*.5;
+   click(*view,soloX,top+24.);
+   check(f.c->isRowSolo(row)!=oldSolo&&
+         f.c->isRowSolo(other)==otherSolo,
+         "V101 SOLO toggled the wrong instrument");
+   click(*view,soloX,top+24.);
+   check(f.c->isRowSolo(row)==oldSolo,
+         "V101 SOLO twice did not restore original state");
+   const auto before=f.c->velocity(pattern,row,0);
+   const auto neighbor=f.c->velocity(pattern,other,0);
+   const auto step=L::stepRect(0);
+   const double stepX=(step.x0+step.x1)*.5;
+   click(*view,stepX,top+20.);
+   check(f.c->velocity(pattern,row,0)!=before&&
+         f.c->velocity(pattern,other,0)==neighbor,
+         "V101 STEP changed the wrong row or failed on page 2");
+   click(*view,stepX,top+20.);
+   check(f.c->velocity(pattern,row,0)==before,
+         "V101 STEP second click failed to restore original velocity");
+   // Painted 2px step gap is truly inert, not an oversized invisible key.
+   click(*view,step.x1+1.,top+20.);
+   check(f.c->velocity(pattern,row,0)==before,
+         "V101 STEP gutter hit a neighboring sequencer control");
+ }
+ // First page is accessible again after 16th row.
+ click(*view,(L::footerPrev.x0+L::footerPrev.x1)*.5,
+        view->getViewSize().getHeight()-L::footer+22.);
+ check(view->getViewSize().getHeight()==686.&&
+       IntegrationAccess::v101SelectedRow(*view)==0,
+       "V101 PREV PAGE failed to restore real first-page geometry");
+ // Real filesystem fixture: the native sample arrows must call the same
+ // actual VST3 sample import path as the Processor, skipping broken files.
+ const auto folder=std::filesystem::current_path()/
+     "125A-Drumator-V101-Final-UI-Browse";
+ std::filesystem::create_directories(folder);
+ const auto A=folder/"A-good.wav",B=folder/"B-invalid.wav",
+            C=folder/"C-good.wav";
+ const auto wavA=constantStereo(.25f,-.25f);
+ const auto wavC=constantStereo(-.5f,.125f);
+ const auto writeFile=[&](const std::filesystem::path& file,
+                           const std::vector<std::uint8_t>& bytes){
+   std::ofstream out(file,std::ios::binary|std::ios::trunc);
+   check(out.good(),"V101 browse fixture could not open WAV");
+   out.write(reinterpret_cast<const char*>(bytes.data()),
+             static_cast<std::streamsize>(bytes.size()));
+   check(out.good(),"V101 browse fixture WAV write failed");
+ };
+ writeFile(A,wavA);
+ writeFile(B,std::vector<std::uint8_t>(64,0));
+ writeFile(C,wavC);
+ const auto aPath=A.string(),cPath=C.string();
+ check(f.c->loadWav(0,aPath)==Controller::LoadStatus::Accepted&&
+       IntegrationAccess::paths(*f.c)[0]==aPath,
+       "V101 native sample browser failed to import initial real WAV");
+ const auto clickArrow=[&](L::Rect control,std::size_t row){
+   const double top=L::rowTop(0,row,L::Expansions{});
+   click(*view,(control.x0+control.x1)*.5,
+         top+(control.y0+control.y1)*.5);
+ };
+ clickArrow(L::next,0);
+ check(IntegrationAccess::paths(*f.c)[0]==cPath,
+       "V101 sample NEXT arrow failed to skip invalid WAV");
+ clickArrow(L::previous,0);
+ check(IntegrationAccess::paths(*f.c)[0]==aPath,
+       "V101 sample PREVIOUS arrow failed to restore original WAV");
+ clickArrow(L::previous,0);
+ check(IntegrationAccess::paths(*f.c)[0]==cPath,
+       "V101 sample PREVIOUS arrow failed to wrap past invalid WAV");
+ clickArrow(L::next,0);
+ check(IntegrationAccess::paths(*f.c)[0]==aPath,
+       "V101 sample NEXT arrow failed to wrap around folder");
+ // Clicking the neighboring instrument's arrow must not change row 0.
+ clickArrow(L::next,1);
+ check(IntegrationAccess::paths(*f.c)[0]==aPath,
+       "V101 sample browsing targeted adjacent instrument");
+ ResizableMemoryIBStream memory;
+ KitState processorState;
+ check(f.p->getState(&memory)==kResultOk&&
+       KitCodec::decode(static_cast<const std::uint8_t*>(memory.getData()),
+                        static_cast<std::size_t>(memory.getCursor()),processorState)&&
+       processorState.wav[0]==wavA&&
+       processorState.names[0]=="A-good.wav",
+       "V101 sample arrows did not preserve exact decoded WAV in processor state");
+ // Real PLAY icon must queue a preview for the correct instrument.
+ check((IntegrationAccess::queuedPreviewBits(*f.p)&1u)==0,
+       "V101 sample audition queue unexpectedly set");
+ const auto play=L::preview;
+ click(*view,(play.x0+play.x1)*.5,
+      L::header+(play.y0+play.y1)*.5);
+ check((IntegrationAccess::queuedPreviewBits(*f.p)&1u)!=0,
+       "V101 actual row-0 PLAY icon failed to queue audio audition");
+ std::error_code ec;
+ std::filesystem::remove_all(folder,ec);
+ check(!ec,"V101 browse fixture cleanup failed");
+ f.closeLast();
+ evidence("V101 real 16-row M/S/selection/Step hit isolation, 2-page sizing, actual Sample PREV/NEXT invalid-skip/wrap, Processor WAV recall and PLAY queue PASS");
+}
