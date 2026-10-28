@@ -133,6 +133,12 @@ struct IntegrationAccess {
    const auto* bmp=view.knobBitmap_;
    return {bmp&&bmp->isLoaded()?1.:0.,bmp?bmp->getWidth():-1.,bmp?bmp->getHeight():-1.};
  }
+ static bool vintageButtonsLoaded(const DrumatorView& v){
+   for(const auto* bmp:v.v101VintageButtons_)
+     if(!bmp||!bmp->isLoaded()||bmp->getWidth()!=332.||
+        bmp->getHeight()!=128.)return false;
+   return true;
+ }
  static bool vintageFaceplateLoaded(const DrumatorView& v){
    return v.v101FaceplateBitmap_&&v.v101FaceplateBitmap_->isLoaded()&&
           v.v101FaceplateBitmap_->getWidth()==1713.&&
@@ -1123,6 +1129,43 @@ void testV101LiveEditor(){
  check(view->isV101(),"V101 host loaded legacy painter instead of candidate");
  check(IntegrationAccess::vintageFaceplateLoaded(*view),
        "V101 aged user PNG was not actually loaded in native editor");
+ check(IntegrationAccess::vintageButtonsLoaded(*view),
+       "V101 4x PNG button states missing, corrupt or wrong dimensions");
+ // The bitmap-backed cap must visibly differ from the procedural fallback
+ // while remaining an 83x32 overlay with the original live text.
+ const auto verifyVintageCap=[&](VSTGUI::CBitmap* sprite){
+   using P=drumator::v101::UiV101NativePreview;
+   const auto raster=[&](bool withImage){
+     return VSTGUI::renderBitmapOffscreen({83.,32.},1.,
+       [&](VSTGUI::CDrawContext& ctx){
+         P::fill(ctx,{0.,0.,83.,32.},{85,72,61,255});
+         P::ButtonSprites material{sprite,sprite,nullptr,nullptr};
+         P::cap(ctx,{0.,0.,83.,32.},0.,"MENU",false,10,
+                withImage?&material:nullptr);
+       });
+   };
+   const auto oldKey=raster(false),newKey=raster(true);
+   check(oldKey!=nullptr&&newKey!=nullptr,"V101 cap pixel capture failed");
+   auto* a=VSTGUI::CBitmapPixelAccess::create(oldKey.get(),false);
+   auto* b=VSTGUI::CBitmapPixelAccess::create(newKey.get(),false);
+   check(a&&b,"V101 cap pixels unavailable");
+   unsigned different=0;
+   for(std::uint32_t yy=0;yy<32;yy+=2)
+     for(std::uint32_t xx=0;xx<83;xx+=2){
+       check(a->setPosition(xx,yy)&&b->setPosition(xx,yy),
+             "V101 cap pixels outside expected bounds");
+       VSTGUI::CColor before{},after{};
+       a->getColor(before);b->getColor(after);
+       if(std::abs(int(before.red)-int(after.red))+
+          std::abs(int(before.green)-int(after.green))+
+          std::abs(int(before.blue)-int(after.blue))>18)++different;
+     }
+   a->forget();b->forget();
+   check(different>140,
+         "V101 header button artwork did not change actual native pixels");
+ };
+ verifyVintageCap(view->v101VintageButtons_[0]);
+ verifyVintageCap(view->v101VintageButtons_[1]);
  // Read genuine raster pixels from the attached native VSTGUI editor.
  // This checks optical state changes, not merely constants in the painter.
  const auto viewPixel=[&](std::uint32_t x,std::uint32_t y){

@@ -261,6 +261,14 @@ if(DRUMATOR_BUILD_VST3)
       RESOURCES resource/Drumator.uidesc
                 resource/125A_Drumator_Faceplate.png
                 "resource/Abgenutzte industrielle Metallfrontplatte.png"
+                resource/125A_Vintage_Button_83x32_Normal_1x.png
+                resource/125A_Vintage_Button_83x32_Normal_4x.png
+                resource/125A_Vintage_Button_83x32_Aktiv_1x.png
+                resource/125A_Vintage_Button_83x32_Aktiv_4x.png
+                resource/125A_Vintage_Button_83x32_Gedrueckt_1x.png
+                resource/125A_Vintage_Button_83x32_Gedrueckt_4x.png
+                resource/125A_Vintage_Button_83x32_Deaktiviert_1x.png
+                resource/125A_Vintage_Button_83x32_Deaktiviert_4x.png
                 resource/125A_Drumator_Knob.png
                 resource/125A_Drumator_Screw.png
                 "resource/Metallisches DRUMATOR-Logo.png"

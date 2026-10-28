@@ -740,6 +740,9 @@ DrumatorView::~DrumatorView() {
  if(screwBitmap_){screwBitmap_->forget();screwBitmap_=nullptr;}
  if(v101TitleBitmap_){v101TitleBitmap_->forget();v101TitleBitmap_=nullptr;}
  if(v101FaceplateBitmap_){v101FaceplateBitmap_->forget();v101FaceplateBitmap_=nullptr;}
+ for(auto*& bmp:v101VintageButtons_){
+   if(bmp){bmp->forget();bmp=nullptr;}
+ }
  if(sampleEditorOpen_)controller_.stopSampleEditPreview();
  controller_.unregisterView(this);
 }
@@ -1021,6 +1024,14 @@ DrumatorView::DrumatorView(const VSTGUI::CRect& size,
      VSTGUI::CResourceDescription("Futuristisches Metalllogo DRUMATOR.png"));
  v101FaceplateBitmap_=new VSTGUI::CBitmap(
      VSTGUI::CResourceDescription("Abgenutzte industrielle Metallfrontplatte.png"));
+ v101VintageButtons_[0]=new VSTGUI::CBitmap(
+     VSTGUI::CResourceDescription("125A_Vintage_Button_83x32_Normal_4x.png"));
+ v101VintageButtons_[1]=new VSTGUI::CBitmap(
+     VSTGUI::CResourceDescription("125A_Vintage_Button_83x32_Aktiv_4x.png"));
+ v101VintageButtons_[2]=new VSTGUI::CBitmap(
+     VSTGUI::CResourceDescription("125A_Vintage_Button_83x32_Gedrueckt_4x.png"));
+ v101VintageButtons_[3]=new VSTGUI::CBitmap(
+     VSTGUI::CResourceDescription("125A_Vintage_Button_83x32_Deaktiviert_4x.png"));
 }
 void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  using Painter=v101::UiV101NativePreview;
@@ -1042,9 +1053,14 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  if(status_=="EMPTY: CLICK SAMPLE OR DROP A WAV/FLAC")
    for(std::size_t row=0;row<controller_.visibleRows();++row)
      if(controller_.hasSample(row)){scene.status.clear();break;}
+ const Painter::ButtonSprites vintageButtons{
+   v101VintageButtons_[0],v101VintageButtons_[1],
+   v101VintageButtons_[2],v101VintageButtons_[3]
+ };
  Painter::draw(*c,static_cast<VSTGUI::CMultiFrameBitmap*>(knobBitmap_),
                v101TitleBitmap_,title,scene,v101_.state().zoomOpen,
-               v101_.state().zoomIndex,v101_.state(),v101FaceplateBitmap_);
+               v101_.state().zoomIndex,v101_.state(),v101FaceplateBitmap_,
+               &vintageButtons);
  drawV101Menu(c);
 }
 void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
@@ -1371,8 +1387,12 @@ void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
  v101::UiV101SongPainter::draw(*c,controller_,songPage_,songSlot_,
                                 notice,v101FaceplateBitmap_);
  // The top-row SONG EDIT key stays visibly latched while its board is open.
+ const v101::UiV101NativePreview::ButtonSprites songButtonSprites{
+   v101VintageButtons_[0],v101VintageButtons_[1],
+   v101VintageButtons_[2],v101VintageButtons_[3]
+ };
  v101::UiV101NativePreview::cap(*c,UiV101Layout::headerGroup(1),
-                                 0.,"SONG EDIT",true,10);
+                                 0.,"SONG EDIT",true,10,&songButtonSprites);
  // Modal overlays must sit ABOVE the SONG fascia. The main painter already
  // drew them, but the editor board covers y>=138 and would hide both the
  // Pattern MENU and the last zoom option. This is not merely decorative:

@@ -260,12 +260,42 @@ struct UiV101NativePreview final {
      VSTGUI::CGraphicsTransform().scale(sf,sf).translate(left,top));
    sprite->drawFrame(&c,frame,{0.,0.});
  }
+ // Approved generated 83x32 vintage hardware keys (332x128 @4x master).
+ // Only the four actual 83x32 header actions use these images. All other
+ // key sizes keep their current non-stretched native paint until approved
+ // correctly proportioned image resources exist.
+ struct ButtonSprites {
+   VSTGUI::CBitmap* normal{};
+   VSTGUI::CBitmap* active{};
+   VSTGUI::CBitmap* pressed{};
+   VSTGUI::CBitmap* disabled{};
+ };
+ static bool drawVintageButton(VSTGUI::CDrawContext& c,Box b,
+                                VSTGUI::CBitmap* sprite){
+   if(!sprite||!sprite->isLoaded()||sprite->getWidth()!=332.||
+      sprite->getHeight()!=128.||b.getWidth()<=0.||b.getHeight()<=0.)
+     return false;
+   VSTGUI::CDrawContext::Transform tx(c,
+     VSTGUI::CGraphicsTransform()
+       .scale(b.getWidth()/332.,b.getHeight()/128.)
+       .translate(b.left,b.top));
+   sprite->draw(&c,{0.,0.,332.,128.});
+   return true;
+ }
  // Shared machined keycap family. Every action button uses the same
  // rim, satin-silver/amber lens, highlights, lower bevel, lettering and shadow.
  // All layers sit strictly inside the common paint/hit rectangle.
  static void cap(VSTGUI::CDrawContext& c,L::Rect r,double y,const char* text,
-                 bool active=false,int font=10){
+                 bool active=false,int font=10,
+                 const ButtonSprites* vintage=nullptr){
    const Box b{r.x0,y+r.y0,r.x1,y+r.y1};
+   if(vintage&&b.getWidth()==83.&&b.getHeight()==32.&&
+      drawVintageButton(c,b,active?vintage->active:vintage->normal)){
+     // Keep all labels native, crisp and dynamically localized/stateful.
+     label(c,text,{b.left+2.,b.top+2.,b.right-2.,b.bottom-2.},
+           font,active?Color{56,29,17,255}:Color{28,27,26,255});
+     return;
+   }
    const double l=b.left,t=b.top,rr=b.right,bt=b.bottom;
    const bool compact=b.getHeight()<24.;
    const double radius=compact?2.:3.;
@@ -401,7 +431,8 @@ struct UiV101NativePreview final {
                   const Scene& scene,
                   bool zoomMenuOpen=false,std::size_t zoomPreset=0,
                   const UiV101Interaction::State& ui={},
-                  VSTGUI::CBitmap* faceplatePng=nullptr){
+                  VSTGUI::CBitmap* faceplatePng=nullptr,
+                  const ButtonSprites* vintageButtons=nullptr){
    const auto cream=Skin::steel();
    auto expanded=L::Expansions{};
    if(ui.expandedRow<L::instruments)expanded[ui.expandedRow]=ui.expansion;
@@ -485,10 +516,11 @@ struct UiV101NativePreview final {
    label(c,"PTNR",{364.,80.,447.,96.},11,{54,54,54,255});
    // One identical 32px machined keycap and vertical baseline for all
    // header actions: PATTERN, MENU, 1/2 BARS, SONG, SONG EDIT.
-   cap(c,L::patternMenu,0.,"MENU");
-   cap(c,L::barsButton,0.,scene.patternLength==32?"2 BARS":"1 BAR");
-   cap(c,L::headerGroup(0),0.,"SONG",scene.songEnabled,11);
-   cap(c,L::headerGroup(1),0.,"SONG EDIT",false,10);
+   cap(c,L::patternMenu,0.,"MENU",false,10,vintageButtons);
+   cap(c,L::barsButton,0.,scene.patternLength==32?"2 BARS":"1 BAR",
+       false,10,vintageButtons);
+   cap(c,L::headerGroup(0),0.,"SONG",scene.songEnabled,11,vintageButtons);
+   cap(c,L::headerGroup(1),0.,"SONG EDIT",false,10,vintageButtons);
    char swingText[18]{},humanText[18]{},masterText[18]{};
    std::snprintf(swingText,sizeof(swingText),"%u%%",scene.swing);
    std::snprintf(humanText,sizeof(humanText),"%u%%",scene.humanize);
