@@ -116,8 +116,8 @@ struct UiV101SongPainter final {
      const double x=678.+i*106.;
      key(c,x,339.,x+100.,365.,names[i],selected&&current.steps==lengths[i]);
    }
-   key(c,1012.,339.,1110.,365.,"ADD ENTRY");
-   key(c,1118.,339.,1239.,365.,"REMOVE LAST",false,9);
+   key(c,S::addLeft,S::choiceTop,S::addRight,S::choiceBottom,"ADD ENTRY");
+   key(c,S::removeLeft,S::choiceTop,S::removeRight,S::choiceBottom,"REMOVE LAST",false,9);
    P::label(c,status&&*status?status:
            "REST and A-H are selectable. Only ADD ENTRY adds positions.",
            {29.,394.,1222.,419.},10,{44,43,42,255},false);
