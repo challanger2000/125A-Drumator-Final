@@ -1,5 +1,6 @@
 #include "core/UiV101Layout.h"
 #include "vst3/UiV101Popup.h"
+#include "vst3/UiV101WaveLayout.h"
 #include <iostream>
 using L=drumator::UiV101Layout;
 #define CHECK(x) do{if(!(x)){std::cerr<<__LINE__<<" " #x "\n";return 1;}}while(false)
@@ -44,6 +45,23 @@ int main(){
     if(i)CHECK(area.x0>L::headerKnob(i-1).x1+60.);
   }
   CHECK(L::headerKnob(2).x1<1132.);
+  // All eight V1.0.1 Wave keys share the exact same paint/hit geometry.
+  // The old modal remains independently checked by the 1.0.0 tests.
+  using W=drumator::UiV101WaveLayout;
+  CHECK(W::toolbar.size()==8);
+  for(std::size_t i=0;i<W::toolbar.size();++i){
+    const auto r=W::toolbar[i];
+    CHECK(r.width()==86.&&r.bottom-r.top==32.);
+    CHECK(W::buttonAt((r.left+r.right)/2.,(r.top+r.bottom)/2.)==
+          static_cast<int>(i));
+    if(i)CHECK(r.left-W::toolbar[i-1].right==8.);
+    if(i)CHECK(W::buttonAt(r.left-4.,473.)==-1);
+  }
+  for(std::size_t i=0;i<5;++i){
+    const auto r=W::readout(i);
+    CHECK(r.width()==140.&&r.bottom-r.top==46.);
+    if(i)CHECK(r.left-W::readout(i-1).right==13.);
+  }
   CHECK(L::zoomTrigger.x1-L::zoomTrigger.x0==80.);
   CHECK(L::zoomTrigger.y1-L::zoomTrigger.y0==28.);
   CHECK(L::zoomHit(1145.,25.,false)==-1);
