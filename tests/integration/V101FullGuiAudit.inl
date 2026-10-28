@@ -476,12 +476,23 @@ void testV101AllRowMouseIsolationAndSampleBrowse(){
          f.c->velocity(pattern,other,0)==neighbor,
          "V101 STEP changed the wrong row or failed on page 2");
    click(*view,stepX,top+20.);
-   check(f.c->velocity(pattern,row,0)==before,
-         "V101 STEP second click failed to restore original velocity");
+   const auto twice=f.c->velocity(pattern,row,0);
+   // Drumator's established Step policy is OFF->100 and ON->OFF.
+   // Double-clicking a previously non-100 active note must restore its
+   // occupancy at the defined 100 default, not its historic velocity.
+   const auto expected=before==0?std::uint8_t{0}:std::uint8_t{100};
+   check(twice==expected,
+         "V101 STEP second click violated the 0/100 occupancy contract");
    // Painted 2px step gap is truly inert, not an oversized invisible key.
    click(*view,step.x1+1.,top+20.);
-   check(f.c->velocity(pattern,row,0)==before,
+   check(f.c->velocity(pattern,row,0)==expected,
          "V101 STEP gutter hit a neighboring sequencer control");
+   // Restore the exact fixture velocity for subsequent instrument checks.
+   if(twice!=before)
+     check(f.c->setStepVelocity(pattern,row,0,before),
+           "V101 all-row audit could not restore original note velocity");
+   check(f.c->velocity(pattern,row,0)==before,
+         "V101 all-row audit failed to restore the fixture");
  }
  // First page is accessible again after 16th row.
  click(*view,(L::footerPrev.x0+L::footerPrev.x1)*.5,
