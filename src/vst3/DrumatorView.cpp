@@ -1792,8 +1792,10 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
      const double bx=678+idx*106.;
      drawControl(c,{bx,339,bx+100,365},lenNames[idx],chosen,selectionVisible);
    }
-   drawControl(c,{1012,339,1110,365},"ADD ENTRY",false,count<64);
-   drawControl(c,{1118,339,1239,365},"REMOVE LAST",false,count>1);
+   drawControl(c,{UiSongLayout::addLeft,UiSongLayout::choiceTop,
+                  UiSongLayout::addRight,UiSongLayout::choiceBottom},"ADD ENTRY",false,count<64);
+   drawControl(c,{UiSongLayout::removeLeft,UiSongLayout::choiceTop,
+                  UiSongLayout::removeRight,UiSongLayout::choiceBottom},"REMOVE LAST",false,count>1);
  }
 
  // Contextual menus are drawn AFTER the row grid; they cannot be obscured.
