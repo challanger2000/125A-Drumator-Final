@@ -253,8 +253,15 @@ void testV101SongAndWaveFullControlMatrix(){
        view->getViewSize().getHeight());
    const auto first=drumator::UiV101Popup::cell(popup,0);
    const double menuX=mid(first.x0,first.x1),menuY=mid(first.y0,first.y1);
-   check(pixelAt(static_cast<int>(menuX),static_cast<int>(menuY)).red>125,
-         "GUI audit SONG board visually hides Pattern popup option");
+   check(IntegrationAccess::v101Popup(*view)==drumator::UiV101Popup::Kind::Pattern,
+         "GUI audit SONG menu trigger did not open the native popup");
+   // Do not sample the *center*: COPY's dark glyph is centered and is
+   // legitimately near-black even when its silver cap is fully visible.
+   // Sample the satin face inside its left rim, outside the text.
+   const auto menuFace=pixelAt(static_cast<int>(first.x0+8.),
+                               static_cast<int>(first.y0+9.));
+   check(menuFace.red>125&&menuFace.green>120,
+         "GUI audit SONG Pattern popup silver face hidden behind board");
    click(*view,menuX,menuY); // overlaps SONG START minus underneath
    check(f.c->songStartBar()==2,
          "GUI audit Pattern popup click leaked to SONG START minus");
@@ -264,8 +271,11 @@ void testV101SongAndWaveFullControlMatrix(){
    const auto lastZoom=L::zoomOption(3);
    const double zx=mid(lastZoom.x0,lastZoom.x1);
    const double zy=mid(lastZoom.y0,lastZoom.y1);
-   check(pixelAt(static_cast<int>(zx),static_cast<int>(zy)).red>125,
-         "GUI audit SONG header hides the 150-percent zoom key");
+   // Likewise, the center of the zoom option contains dark text.
+   const auto zoomFace=pixelAt(static_cast<int>(lastZoom.x0+8.),
+                               static_cast<int>(lastZoom.y0+9.));
+   check(zoomFace.red>125&&zoomFace.green>120,
+         "GUI audit SONG header hides the 150-percent zoom option face");
    click(*view,zx,zy);
    check(std::abs(nativeEditor.getZoomFactor()-1.5)<0.0001,
          "GUI audit SONG zoom key did not apply through actual host");
