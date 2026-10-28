@@ -49,13 +49,16 @@ struct UiV101Layout final {
     const double x=33.+39.*static_cast<double>(i);
     return {x,headerButtonY,x+35.,headerButtonY+headerButtonHeight};
   }
-  static constexpr Rect patternMenu{364.,headerButtonY,414.,
+  // Four large machined header keys, all 83x32, with 8px gutters.
+  // Keep A-H's compact 35px keycaps and the three real rotary controls.
+  static constexpr double headerActionWidth=83.,headerActionGap=8.;
+  static constexpr Rect patternMenu{364.,headerButtonY,447.,
                                     headerButtonY+headerButtonHeight};
-  static constexpr Rect barsButton{431.,headerButtonY,514.,
+  static constexpr Rect barsButton{455.,headerButtonY,538.,
                                    headerButtonY+headerButtonHeight};
   static constexpr std::array<Rect,headerGroupCount> headerGroups{{
-    {527.,headerButtonY,610.,headerButtonY+headerButtonHeight},
-    {618.,headerButtonY,716.,headerButtonY+headerButtonHeight}
+    {546.,headerButtonY,629.,headerButtonY+headerButtonHeight},
+    {637.,headerButtonY,720.,headerButtonY+headerButtonHeight}
   }};
   static constexpr double headerKnobY=114.,headerKnobRadius=18.;
   static constexpr std::array<double,3> headerKnobCenters{{785.,907.,1029.}};
@@ -169,6 +172,20 @@ struct UiV101Layout final {
                 sampleMenu.x1==next.x0);
 };
 // MSVC evaluates constexpr function bodies reliably after the class is complete.
+static_assert(UiV101Layout::patternMenu.x1-UiV101Layout::patternMenu.x0==
+              UiV101Layout::headerActionWidth);
+static_assert(UiV101Layout::barsButton.x1-UiV101Layout::barsButton.x0==
+              UiV101Layout::headerActionWidth);
+static_assert(UiV101Layout::headerGroups[0].x1-UiV101Layout::headerGroups[0].x0==
+              UiV101Layout::headerActionWidth);
+static_assert(UiV101Layout::headerGroups[1].x1-UiV101Layout::headerGroups[1].x0==
+              UiV101Layout::headerActionWidth);
+static_assert(UiV101Layout::barsButton.x0-UiV101Layout::patternMenu.x1==
+              UiV101Layout::headerActionGap);
+static_assert(UiV101Layout::headerGroups[0].x0-UiV101Layout::barsButton.x1==
+              UiV101Layout::headerActionGap);
+static_assert(UiV101Layout::headerGroups[1].x0-UiV101Layout::headerGroups[0].x1==
+              UiV101Layout::headerActionGap);
 static_assert(UiV101Layout::headerGroups[0].x0>
               UiV101Layout::barsButton.x1);
 static_assert(UiV101Layout::headerGroups[0].y0==
