@@ -69,6 +69,9 @@
 
 ## 5. Ausstehende externe Freigabeprüfungen
 
+**Zusätzlicher Release-Blocker (Versionsidentität):** Der Entwicklungspfad heißt V1.0.1, aber `CMakeLists.txt` trägt derzeit weiterhin `project(Drumator VERSION 1.0.0)` und `src/vst3/PluginIDs.h` enthält `kPluginVersion="1.0.0"`. Das ist während einer **nicht veröffentlichten GUI-Entwicklungsphase** zulässig, aber der daraus gebaute VST3 darf **nicht als fertige 1.0.1** ausgeliefert werden. Vor einer bewusst freigegebenen V1.0.1 müssen Source-/Binary-/moduleinfo-/Paketversionsnummer, Release-Metadaten und Projekt-Recall auf Übereinstimmung geprüft werden. **Status: NOT RUN / Release-Gate**, nicht Aufgabe dieses GUI-Audits.
+
+
 | Prüfung | Ort | Status |
 |---|---|---|
 | Komplette GUI-Menümatrix am tatsächlich gebauten Windows-VST3 | GitHub Actions Windows | **PASS #40612433257**, erweiterte SONG-Popup-Sonderfälle **PENDING #40613295263** |
