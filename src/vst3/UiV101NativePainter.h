@@ -260,10 +260,11 @@ struct UiV101NativePreview final {
      VSTGUI::CGraphicsTransform().scale(sf,sf).translate(left,top));
    sprite->drawFrame(&c,frame,{0.,0.});
  }
- // Approved generated 83x32 vintage hardware keys (332x128 @4x master).
- // Only the four actual 83x32 header actions use these images. All other
- // key sizes keep their current non-stretched native paint until approved
- // correctly proportioned image resources exist.
+ // Approved generated 83x32 vintage hardware key textures (332x128 @4x).
+ // The 35x32 Pattern A-H keys reuse the exact artwork through three native
+ // bitmap strips. The left/right bevels remain at 1:1 scale; only the wide
+ // centre portion is cropped, never squeezed or stretched into a square.
+ // Paint and hit rectangles are shared with UiV101Layout.
  struct ButtonSprites {
    VSTGUI::CBitmap* normal{};
    VSTGUI::CBitmap* active{};
@@ -275,12 +276,27 @@ struct UiV101NativePreview final {
    if(!sprite||!sprite->isLoaded()||sprite->getWidth()!=332.||
       sprite->getHeight()!=128.||b.getWidth()<=0.||b.getHeight()<=0.)
      return false;
-   VSTGUI::CDrawContext::Transform tx(c,
-     VSTGUI::CGraphicsTransform()
-       .scale(b.getWidth()/332.,b.getHeight()/128.)
-       .translate(b.left,b.top));
-   sprite->draw(&c,{0.,0.,332.,128.});
-   return true;
+   if(b.getHeight()!=32.)return false;
+   if(b.getWidth()==83.){
+     VSTGUI::CDrawContext::Transform tx(c,
+       VSTGUI::CGraphicsTransform().scale(.25,.25)
+         .translate(b.left,b.top));
+     sprite->draw(&c,{0.,0.,332.,128.});
+     return true;
+   }
+   if(b.getWidth()==35.){
+     // 140px destination in the 4x coordinate system. Preserve the
+     // generated 52px edge regions unscaled; retain a 36px middle sample.
+     // This is an exact height-scale crop, not a horizontal squashing.
+     VSTGUI::CDrawContext::Transform tx(c,
+       VSTGUI::CGraphicsTransform().scale(.25,.25)
+         .translate(b.left,b.top));
+     sprite->draw(&c,{0.,0.,52.,128.},{0.,0.});
+     sprite->draw(&c,{52.,0.,88.,128.},{148.,0.});
+     sprite->draw(&c,{88.,0.,140.,128.},{280.,0.});
+     return true;
+   }
+   return false;
  }
  // Shared machined keycap family. Every action button uses the same
  // rim, satin-silver/amber lens, highlights, lower bevel, lettering and shadow.
@@ -289,7 +305,8 @@ struct UiV101NativePreview final {
                  bool active=false,int font=10,
                  const ButtonSprites* vintage=nullptr){
    const Box b{r.x0,y+r.y0,r.x1,y+r.y1};
-   if(vintage&&b.getWidth()==83.&&b.getHeight()==32.&&
+   if(vintage&&(b.getWidth()==83.||b.getWidth()==35.)&&
+      b.getHeight()==32.&&
       drawVintageButton(c,b,active?vintage->active:vintage->normal)){
      // Keep all labels native, crisp and dynamically localized/stateful.
      label(c,text,{b.left+2.,b.top+2.,b.right-2.,b.bottom-2.},
@@ -504,16 +521,33 @@ struct UiV101NativePreview final {
    fill(c,{19.,80.,1253.,81.},{237,229,216,255});
    fill(c,{19.,134.,1253.,135.},{113,105,98,255});
    border(c,{13.,79.,1259.,136.},Skin::panelEdge());
-   for(const double xx:{350.,542.,729.,1115.}){
-     fill(c,{xx,81.,xx+1.,134.},{151,141,131,255});
-     fill(c,{xx+1.,81.,xx+2.,134.},{227,218,206,255});
+   // Continuous recessed anthracite hardware bay behind ALL twelve
+   // Pattern + transport keys. The approved aged ivory chassis remains
+   // visible around the recess and behind the three global rotary controls.
+   // Nothing here moves a control or changes its hit rectangle.
+   rounded(c,{21.,80.,740.,136.},{74,68,62,255},5.);
+   rounded(c,{23.,82.,738.,135.},{18,19,22,255},4.);
+   satin(c,{25.,84.,736.,133.},
+         {70,68,65,255},{46,46,46,255},{30,32,34,255},18);
+   // Scuffed upper/lower lip and subtle worn powder-coat grain.
+   fill(c,{27.,84.,734.,85.},{122,117,107,255});
+   fill(c,{27.,132.,734.,133.},{19,20,22,255});
+   for(const double y:{90.,94.,128.})
+     fill(c,{27.,y,734.,y+.35},{89,88,83,33});
+   // Three engraved group dividers inside the common dark bay.
+   for(const double xx:{350.,542.,729.}){
+     fill(c,{xx,86.,xx+1.,131.},{16,16,18,255});
+     fill(c,{xx+1.,86.,xx+2.,131.},{112,106,96,255});
    }
-   label(c,"PATTERN",{33.,80.,154.,96.},11,{51,54,57,255},false);
+   // The meter module has its own independent separator on light steel.
+   fill(c,{1115.,81.,1116.,134.},{151,141,131,255});
+   fill(c,{1116.,81.,1117.,134.},{227,218,206,255});
+   label(c,"PATTERN",{33.,80.,154.,96.},11,{232,222,204,255},false);
    for(std::size_t i=0;i<8;++i){
      const char key[2]={static_cast<char>('A'+i),'\0'};
-     cap(c,L::patternButton(i),0.,key,i==scene.pattern,12);
+     cap(c,L::patternButton(i),0.,key,i==scene.pattern,12,vintageButtons);
    }
-   label(c,"PTNR",{364.,80.,447.,96.},11,{54,54,54,255});
+   label(c,"PTNR",{364.,80.,447.,96.},11,{232,222,204,255});
    // One identical 32px machined keycap and vertical baseline for all
    // header actions: PATTERN, MENU, 1/2 BARS, SONG, SONG EDIT.
    cap(c,L::patternMenu,0.,"MENU",false,10,vintageButtons);

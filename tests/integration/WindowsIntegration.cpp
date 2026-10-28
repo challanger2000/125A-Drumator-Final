@@ -1137,14 +1137,15 @@ void testV101LiveEditor(){
        "V101 4x PNG button states missing, corrupt or wrong dimensions");
  // The bitmap-backed cap must visibly differ from the procedural fallback
  // while remaining an 83x32 overlay with the original live text.
- const auto verifyVintageCap=[&](VSTGUI::CBitmap* sprite){
+ const auto verifyVintageCap=[&](VSTGUI::CBitmap* sprite,
+                                double width,const char* caption){
    using P=drumator::v101::UiV101NativePreview;
    const auto raster=[&](bool withImage){
-     return VSTGUI::renderBitmapOffscreen({83.,32.},1.,
+     return VSTGUI::renderBitmapOffscreen({width,32.},1.,
        [&](VSTGUI::CDrawContext& ctx){
-         P::fill(ctx,{0.,0.,83.,32.},{85,72,61,255});
+         P::fill(ctx,{0.,0.,width,32.},{85,72,61,255});
          P::ButtonSprites material{sprite,sprite,nullptr,nullptr};
-         P::cap(ctx,{0.,0.,83.,32.},0.,"MENU",false,10,
+         P::cap(ctx,{0.,0.,width,32.},0.,caption,false,10,
                 withImage?&material:nullptr);
        });
    };
@@ -1155,7 +1156,7 @@ void testV101LiveEditor(){
    check(a&&b,"V101 cap pixels unavailable");
    unsigned different=0;
    for(std::uint32_t yy=0;yy<32;yy+=2)
-     for(std::uint32_t xx=0;xx<83;xx+=2){
+     for(std::uint32_t xx=0;xx<static_cast<std::uint32_t>(width);xx+=2){
        check(a->setPosition(xx,yy)&&b->setPosition(xx,yy),
              "V101 cap pixels outside expected bounds");
        VSTGUI::CColor before{},after{};
@@ -1165,11 +1166,15 @@ void testV101LiveEditor(){
           std::abs(int(before.blue)-int(after.blue))>18)++different;
      }
    a->forget();b->forget();
-   check(different>140,
-         "V101 header button artwork did not change actual native pixels");
+   check(different>static_cast<unsigned>(width*1.35),
+         "V101 generated bitmap did not change actual native cap pixels");
  };
- verifyVintageCap(IntegrationAccess::vintageButton(*view,0));
- verifyVintageCap(IntegrationAccess::vintageButton(*view,1));
+ verifyVintageCap(IntegrationAccess::vintageButton(*view,0),83.,"MENU");
+ verifyVintageCap(IntegrationAccess::vintageButton(*view,1),83.,"MENU");
+ // A-H must use the same photographic material with the 35x32 corners
+ // preserved. This rejects accidentally falling back to the old squares.
+ verifyVintageCap(IntegrationAccess::vintageButton(*view,0),35.,"A");
+ verifyVintageCap(IntegrationAccess::vintageButton(*view,1),35.,"A");
  // Read genuine raster pixels from the attached native VSTGUI editor.
  // This checks optical state changes, not merely constants in the painter.
  const auto viewPixel=[&](std::uint32_t x,std::uint32_t y){
@@ -1198,6 +1203,11 @@ void testV101LiveEditor(){
  click(*view,1166.,14.);
  check(!IntegrationAccess::v101ZoomPopupOpen(*view),
        "V101 ZOOM enlarged edge did not close popup symmetrically");
+ const auto darkControlBay=viewPixel(29,87);
+ const auto lightRotaryBay=viewPixel(752,87);
+ check(darkControlBay[0]+55<lightRotaryBay[0]&&
+       darkControlBay[1]+45<lightRotaryBay[1],
+       "V101 old light button bay did not become aged recessed anthracite");
  const auto vintageEnamel=viewPixel(1200,53);
  check(vintageEnamel[0]>215&&vintageEnamel[1]>180&&
        vintageEnamel[0]>vintageEnamel[1]&&
