@@ -40,9 +40,10 @@ struct UiV101SongPainter final {
    const auto first=S::first(page);
    const bool selected=slot>=first&&slot<first+S::perPage&&slot<count;
    char title[48]{};
-   std::snprintf(title,sizeof(title),"SONG CHAIN  %02u-%02u / 64",
+   std::snprintf(title,sizeof(title),"SONG CHAIN %02u-%02u | %02u ENTRIES",
                  static_cast<unsigned>(first+1),
-                 static_cast<unsigned>(first+S::perPage));
+                 static_cast<unsigned>(first+S::perPage),
+                 static_cast<unsigned>(count));
    P::label(c,title,{27.,169.,307.,195.},12,{223,231,236,255},false);
    P::label(c,"SONG START",{311.,169.,432.,194.},10,{177,195,206,255},false);
    const auto startBar=controller.songStartBar();
@@ -67,12 +68,15 @@ struct UiV101SongPainter final {
    for(std::size_t i=0;i<S::perPage;++i){
      const std::size_t index=first+i;
      const double x=S::cellX(i%S::columns),y=S::cellY(i/S::columns);
+     const bool populated=index<count;
+     // Vacant positions stay in the 64-entry grid but read as inactive wells.
+     // No new click target is introduced: ADD ENTRY remains the sole creator.
      P::rounded(c,{x,y,x+S::cellWidth,y+S::cellHeight},
-                P::Skin::navyWell(),3.);
+                populated?P::Skin::navyWell():Color{78,81,83,255},3.);
      P::border(c,{x,y,x+S::cellWidth,y+S::cellHeight},
-               index==slot&&index<count?P::Skin::amber():
-                                        P::Skin::navyTrim());
-     if(index>=count)continue;
+               !populated?Color{120,118,114,255}:
+               index==slot?P::Skin::amber():P::Skin::navyTrim());
+     if(!populated)continue;
      const auto entry=controller.songEntry(index);
      if(index==slot){
        P::fill(c,{x+3.,y+3.,x+S::cellWidth-3.,y+5.},P::Skin::amber());
@@ -104,7 +108,7 @@ struct UiV101SongPainter final {
    if(selected)std::snprintf(selection,sizeof(selection),
        "POSITION %02u SELECTED",static_cast<unsigned>(slot+1));
    else std::snprintf(selection,sizeof(selection),"SELECT AN EXISTING ENTRY");
-   P::label(c,selection,{26.,314.,620.,339.},10,{63,62,61,255},false);
+   P::label(c,selection,{26.,314.,620.,339.},11,{63,62,61,255},false);
    P::label(c,"PATTERN",{25.,339.,109.,366.},10,{57,55,53,255},false);
    const auto current=controller.songEntry(std::min(slot,count-1));
    for(std::size_t i=0;i<8;++i){
@@ -128,7 +132,7 @@ struct UiV101SongPainter final {
    key(c,S::removeLeft,S::choiceTop,S::removeRight,S::choiceBottom,"REMOVE LAST",false,9);
    P::label(c,status&&*status?status:
            "REST and A-H are selectable. Only ADD ENTRY adds positions.",
-           {29.,394.,1222.,419.},10,{44,43,42,255},false);
+           {29.,394.,1222.,419.},11,{44,43,42,255},false);
    P::screw(c,14.,bottom-15.);
    P::screw(c,1266.,bottom-15.);
  }

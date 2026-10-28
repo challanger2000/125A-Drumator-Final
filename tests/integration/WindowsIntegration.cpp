@@ -1214,6 +1214,13 @@ void testV101LiveEditor(){
        std::abs(hostEditor.getZoomFactor()-1.3)<.0001,
        "V101 SONG 130 percent screenshot does not use actual 130 percent host zoom");
  captureVstgui(*view,"v101-song-board-hardware-130",1.3);
+ // Screenshot every actual user zoom for design review, not scaled mockups.
+ click(*view,1200.,25.);click(*view,1200.,87.);
+ check(view->zoomMatches(1.2),"V101 SONG 120% host zoom mismatch");
+ captureVstgui(*view,"v101-song-board-hardware-120",1.2);
+ click(*view,1200.,25.);click(*view,1200.,139.);
+ check(view->zoomMatches(1.5),"V101 SONG 150% host zoom mismatch");
+ captureVstgui(*view,"v101-song-board-hardware-150",1.5);
  click(*view,1200.,25.);click(*view,1200.,61.); // restore 100%
  check(view->zoomMatches(1.0)&&
        std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
@@ -1261,6 +1268,14 @@ void testV101LiveEditor(){
  check(!IntegrationAccess::songEditorOpen(*view)&&view->isV101()&&
        view->getViewSize().getHeight()==686.,
        "V101 SONG close did not return to native main GUI and height");
+ click(*view,1200.,25.);click(*view,1200.,87.);
+ check(view->zoomMatches(1.2),"V101 MAIN 120% host zoom mismatch");
+ captureVstgui(*view,"v101-layout-native-main-120",1.2);
+ click(*view,1200.,25.);click(*view,1200.,139.);
+ check(view->zoomMatches(1.5),"V101 MAIN 150% host zoom mismatch");
+ captureVstgui(*view,"v101-layout-native-main-150",1.5);
+ click(*view,1200.,25.);click(*view,1200.,61.);
+ check(view->zoomMatches(1.0),"V101 MAIN 100% host zoom restore mismatch");
  // Compact 95x25 footer keys must page in the actual host, resizing
  // from ten to six rows and back without stale click areas.
  const auto initialHeight=view->getViewSize().getHeight();
@@ -1302,6 +1317,17 @@ void testV101LiveEditor(){
        std::abs(hostEditor.getZoomFactor()-1.3)<.0001,
        "V101 Wave 130 percent raster did not update the actual editor zoom state");
  captureVstgui(*view,"v101-wave-editor-hardware-130",1.3);
+ check(hostEditor.setZoomChecked(1.2),"V101 Wave host rejected 120%");
+ view->refreshFromHost(false);
+ check(view->zoomMatches(1.2),"V101 Wave 120% host zoom mismatch");
+ captureVstgui(*view,"v101-wave-editor-hardware-120",1.2);
+ check(hostEditor.setZoomChecked(1.5),"V101 Wave host rejected 150%");
+ view->refreshFromHost(false);
+ check(view->zoomMatches(1.5),"V101 Wave 150% host zoom mismatch");
+ captureVstgui(*view,"v101-wave-editor-hardware-150",1.5);
+ check(hostEditor.setZoomChecked(1.0),"V101 Wave host rejected 100% restore");
+ view->refreshFromHost(false);
+ check(view->zoomMatches(1.0),"V101 Wave host zoom restore mismatch");
  // Mounting groups are a unified paint-only 41px-deep navy family;
  // zoom/fit, preview/stop, reset and cancel/apply share one blue border.
  const auto& bezelGroups=drumator::UiV101WaveLayout::toolbarGroups;

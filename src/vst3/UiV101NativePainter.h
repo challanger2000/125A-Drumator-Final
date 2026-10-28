@@ -321,7 +321,7 @@ struct UiV101NativePreview final {
                         double cx,double cy,double fraction,
                         const char* title,const char* readout){
    fraction=std::clamp(fraction,0.,1.);
-   label(c,title,{cx-46.,78.,cx+46.,91.},10,{55,56,58,255});
+   label(c,title,{cx-46.,78.,cx+46.,91.},11,{55,56,58,255});
    // Small recessed socket; must not cover SWING/HUMANIZE/MASTER labels.
    c.setFillColor({62,58,53,255});
    c.drawEllipse({cx-kHeaderMountRadius,cy-kHeaderMountRadius,cx+kHeaderMountRadius,cy+kHeaderMountRadius},VSTGUI::kDrawFilled);
@@ -339,7 +339,7 @@ struct UiV101NativePreview final {
      c.drawLine({cx+dx*22.,cy+dy*22.},{cx+dx*24.,cy+dy*24.});
    }
    originalDial(c,sprite,cx,cy,fraction,44.);
-   label(c,readout,{cx+24.,101.,cx+54.,126.},10,{45,48,52,255},false);
+   label(c,readout,{cx+24.,101.,cx+54.,126.},11,{45,48,52,255},false);
  }
  static void dial(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* sprite,
                   double x,double y,int value,int index){
@@ -431,7 +431,7 @@ struct UiV101NativePreview final {
      const char key[2]={static_cast<char>('A'+i),'\0'};
      cap(c,L::patternButton(i),0.,key,i==scene.pattern,12);
    }
-   label(c,"PTNR",{364.,80.,447.,96.},10,{54,54,54,255});
+   label(c,"PTNR",{364.,80.,447.,96.},11,{54,54,54,255});
    // One identical 32px machined keycap and vertical baseline for all
    // header actions: PATTERN, MENU, 1/2 BARS, SONG, SONG EDIT.
    cap(c,L::patternMenu,0.,"MENU");
@@ -480,7 +480,7 @@ struct UiV101NativePreview final {
    label(c,"EDIT",{354.,140.,406.,157.},10);
    for(int i=0;i<32;i+=4){
      char n[8]{};std::snprintf(n,sizeof(n),"%d",i+1);
-     label(c,n,{L::stepX+i*L::stepPitch,140.,L::stepX+(i+2)*L::stepPitch,157.},10);
+     label(c,n,{L::stepX+i*L::stepPitch,140.,L::stepX+(i+2)*L::stepPitch,157.},11);
    }
    label(c,"VOL",{1037.,140.,1087.,157.},10);
    label(c,"PAN",{1097.,140.,1147.,157.},10);
@@ -542,9 +542,9 @@ struct UiV101NativePreview final {
             k==0?static_cast<int>(data.gain):k==1?data.pan:data.pitch,
             static_cast<int>(k));
      cap(c,L::velocity,y,"VEL",ui.expandedRow==row&&
-           ui.expansion==L::Expansion::Velocity,9);
+           ui.expansion==L::Expansion::Velocity,11);
      cap(c,L::settings,y,"SET",ui.expandedRow==row&&
-           ui.expansion==L::Expansion::Settings,9);
+           ui.expansion==L::Expansion::Settings,11);
      if(ui.expandedRow==row&&ui.expansion!=L::Expansion::None){
        fill(c,{13.,y+49.,1260.,y+95.},Skin::navyWell());
        fill(c,{15.,y+50.,1258.,y+94.},Skin::navyA());
@@ -597,16 +597,16 @@ struct UiV101NativePreview final {
                  "ROWS %zu-%zu / %zu  |  PATTERN %c",
                  ui.firstRow+1,ui.firstRow+shown,scene.visibleRows,
                  static_cast<char>('A'+scene.pattern));
-   cap(c,L::footerAdd,footerTop,"ADD ROW",false,9);
-   cap(c,L::footerRemove,footerTop,"REMOVE ROW",false,9);
-   label(c,summary,{260.,footerTop+9.,510.,footerTop+33.},10,
+   cap(c,L::footerAdd,footerTop,"ADD ROW",false,10);
+   cap(c,L::footerRemove,footerTop,"REMOVE ROW",false,10);
+   label(c,summary,{260.,footerTop+9.,510.,footerTop+33.},11,
          {66,68,70,255},false);
    if(!scene.status.empty())
      label(c,scene.status.c_str(),{520.,footerTop+9.,914.,footerTop+33.},
-           9,{89,68,58,255},false);
+           10,{75,55,45,255},false);
    // Both controls are identically sized 95x25 machined metal keys.
-   cap(c,L::footerPrev,footerTop,"PREV PAGE",false,9);
-   cap(c,L::footerNext,footerTop,"NEXT PAGE",false,9);
+   cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10);
+   cap(c,L::footerNext,footerTop,"NEXT PAGE",false,10);
    screw(c,L::footerScrewLeftX,total-15.);
    screw(c,L::footerScrewRightX,total-15.);
    if(zoomMenuOpen)zoomPopup(c,selected);

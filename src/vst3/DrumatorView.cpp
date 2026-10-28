@@ -1033,6 +1033,9 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  scene.meterRight=mainMeterR_;
  scene.clipped=controller_.meterState().clip!=0;
  scene.status=status_;
+ // WAVE owns its status line: never show a duplicate in the MAIN footer.
+ // This is paint-only; the underlying status_ remains untouched.
+ if(sampleEditorOpen_)scene.status.clear();
  if(status_=="EMPTY: CLICK SAMPLE OR DROP A WAV/FLAC")
    for(std::size_t row=0;row<controller_.visibleRows();++row)
      if(controller_.hasSample(row)){scene.status.clear();break;}
@@ -1169,6 +1172,9 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
 
 void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
  drawV101(c);
+ // Visual-only modal scrim; preserves all hit rectangles and engine state.
+ c->setFillColor(VSTGUI::CColor{9,15,24,128});
+ c->drawRect({0.,0.,UiV101Layout::width,v101_.height()},VSTGUI::kDrawFilled);
    // Identical UiWaveEditorLayout geometry; only the V1.0.1 materials
    // and paint primitives change. All source-frame marker math is preserved.
    using P=v101::UiV101NativePreview;
@@ -1303,11 +1309,13 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
    // in the legacy editor; here the other tools receive exactly the same.
    // Bezel rectangles are strictly decorative, leaving hit geometry intact.
    for(const auto& g:UiV101WaveLayout::toolbarGroups){
-     P::rounded(*c,{g.left,g.top,g.right,g.bottom},
+     // Inset only the decorative frames: 2px nominal separation reads as 4px.
+     const double bezelLeft=g.left+1.,bezelRight=g.right-1.;
+     P::rounded(*c,{bezelLeft,g.top,bezelRight,g.bottom},
                 {13,27,43,255},3.);
-     P::border(*c,{g.left,g.top,g.right,g.bottom},
+     P::border(*c,{bezelLeft,g.top,bezelRight,g.bottom},
                {47,109,154,255});
-     P::fill(*c,{g.left+4.,g.top+2.,g.right-4.,g.top+3.},
+     P::fill(*c,{bezelLeft+4.,g.top+2.,bezelRight-4.,g.top+3.},
              {90,135,163,255});
    }
    // Eight precisely equal 86x32 hardware keys, 8px gutters. The
