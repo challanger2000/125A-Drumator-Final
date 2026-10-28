@@ -883,6 +883,9 @@ bool DrumatorView::applyZoomFromState(double factor) {
  return zoomMatches(factor);
 }
 void DrumatorView::refreshFromHost(bool relayout) {
+ // Host zoom may change while either modal editor is visible. Keep the
+ // shared hardware zoom indicator accurate in MAIN, SONG and Wave alike.
+ if(v101Mode_)v101_.syncZoomFromHost(editor_.getZoomFactor());
  if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_) {
    // Ordinary controller notifications during a rotary/velocity drag must
    // not cancel that same gesture. Full structural relayout is different.
@@ -892,7 +895,6 @@ void DrumatorView::refreshFromHost(bool relayout) {
      v101MenuRow_=kRows;
    }
    v101_.reconcile();
-   v101_.syncZoomFromHost(editor_.getZoomFactor());
    if(relayout&&getParentView())(void)adjustEditorHeight();
    else invalid();
    return;
