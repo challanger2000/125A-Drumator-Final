@@ -1541,8 +1541,14 @@ void testV101LiveEditor(){
  const auto rgbTotal=[](const std::array<int,3>& rgb){
    return rgb[0]+rgb[1]+rgb[2];
  };
- check(rgbTotal(modalBackgroundPixel)+60<rgbTotal(normalBackgroundPixel),
-       "V101 Wave modal background is not visibly dimmed");
+ // On a near-black panel, a 50%-opaque modal scrim cannot remove the
+ // former ivory-skin 60 RGB-sum units. Still require visible darkening
+ // and correct per-channel direction using actual editor pixels.
+ check(rgbTotal(modalBackgroundPixel)+18<rgbTotal(normalBackgroundPixel)&&
+       modalBackgroundPixel[0]<normalBackgroundPixel[0]&&
+       modalBackgroundPixel[1]<normalBackgroundPixel[1]&&
+       modalBackgroundPixel[2]<normalBackgroundPixel[2],
+       "V101 Wave modal scrim failed to darken actual drum controls");
  check(hostEditor.setZoomChecked(1.3),
        "V101 host rejected Wave-editor zoom change to 130 percent");
  view->refreshFromHost(false);

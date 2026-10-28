@@ -282,14 +282,22 @@ void testV101SongAndWaveFullControlMatrix(){
          "GUI audit Pattern popup click leaked to SONG START minus");
    click(*view,mid(S::startResetLeft,S::startResetRight),181.);
    check(f.c->songStartBar()==1,"GUI audit SONG START not restored");
-   click(*view,1200.,25.); // Zoom popup while SONG is open
    const auto lastZoom=L::zoomOption(3);
    const double zx=mid(lastZoom.x0,lastZoom.x1);
    const double zy=mid(lastZoom.y0,lastZoom.y1);
-   // Likewise, the center of the zoom option contains dark text.
-   const auto zoomFace=pixelAt(static_cast<int>(lastZoom.x0+8.),
-                               static_cast<int>(lastZoom.y0+9.));
-   check(zoomFace.red>125&&zoomFace.green>120,
+   const auto zoomPx=static_cast<int>(lastZoom.x0+8.);
+   const auto zoomPy=static_cast<int>(lastZoom.y0+9.);
+   const auto zoomClosed=pixelAt(zoomPx,zoomPy);
+   click(*view,1200.,25.); // Zoom popup while SONG is open
+   check(IntegrationAccess::v101ZoomPopupOpen(*view),
+         "GUI audit SONG zoom popup failed to open");
+   const auto zoomFace=pixelAt(zoomPx,zoomPy);
+   // Detect a covered popup by actual delta from the SONG board.
+   // Absolute ivory-cap brightness no longer applies to black keys.
+   const int zoomDelta=std::abs(int(zoomFace.red)-int(zoomClosed.red))+
+                       std::abs(int(zoomFace.green)-int(zoomClosed.green))+
+                       std::abs(int(zoomFace.blue)-int(zoomClosed.blue));
+   check(zoomDelta>20,
          "GUI audit SONG header hides the 150-percent zoom option face");
    click(*view,zx,zy);
    check(std::abs(nativeEditor.getZoomFactor()-1.5)<0.0001,
