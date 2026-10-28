@@ -93,8 +93,14 @@ public:
    return {left,56.,left+112.,88.}; // relative to expanded ROW TOP
  }
  static constexpr L::Rect realtimeMinus{882.,56.,928.,88.};
- static constexpr L::Rect realtimeValue{938.,56.,1080.,88.};
- static constexpr L::Rect realtimePlus{1090.,56.,1136.,88.};
+ // RT RANDOM is a draggable readout (not a pushbutton). Its width now
+ // matches the 112px RANDOM VEL and other settings actions.
+ static constexpr L::Rect realtimeValue{938.,56.,1050.,88.};
+ static constexpr L::Rect realtimePlus{1060.,56.,1106.,88.};
+ static_assert(realtimeValue.x1-realtimeValue.x0==112.);
+ static_assert(realtimeValue.x1+10.==realtimePlus.x0);
+ static_assert(settingsRect(5).x1<realtimeMinus.x0&&
+               realtimeMinus.x1+10.==realtimeValue.x0);
  static constexpr SettingsAction settingsAt(double x,double relativeY)noexcept{
    if(relativeY<48.||relativeY>=96.)return SettingsAction::None;
    for(std::size_t i=0;i<6;++i)

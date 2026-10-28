@@ -548,33 +548,19 @@ struct UiV101NativePreview final {
    fill(c,{19.,80.,1253.,81.},{237,229,216,255});
    fill(c,{19.,134.,1253.,135.},{113,105,98,255});
    border(c,{13.,79.,1259.,136.},Skin::panelEdge());
-   // Continuous recessed anthracite hardware bay behind ALL twelve
-   // Pattern + transport keys. The approved aged ivory chassis remains
-   // visible around the recess and behind the three global rotary controls.
-   // Nothing here moves a control or changes its hit rectangle.
-   rounded(c,{21.,80.,740.,136.},{74,68,62,255},5.);
-   rounded(c,{23.,82.,738.,135.},{18,19,22,255},4.);
-   satin(c,{25.,84.,736.,133.},
-         {70,68,65,255},{46,46,46,255},{30,32,34,255},18);
-   // Scuffed upper/lower lip and subtle worn powder-coat grain.
-   fill(c,{27.,84.,734.,85.},{122,117,107,255});
-   fill(c,{27.,132.,734.,133.},{19,20,22,255});
-   for(const double y:{90.,94.,128.})
-     fill(c,{27.,y,734.,y+.35},{89,88,83,33});
-   // Three engraved group dividers inside the common dark bay.
-   for(const double xx:{350.,542.,729.}){
-     fill(c,{xx,86.,xx+1.,131.},{16,16,18,255});
-     fill(c,{xx+1.,86.,xx+2.,131.},{112,106,96,255});
+   // Restore the continuous warm-metal control bay across the full
+   // header. The charcoal block is removed; all vintage keycaps and
+   // original paint/hit geometry remain untouched.
+   for(const double xx:{350.,542.,729.,1115.}){
+     fill(c,{xx,81.,xx+1.,134.},{151,141,131,255});
+     fill(c,{xx+1.,81.,xx+2.,134.},{227,218,206,255});
    }
-   // The meter module has its own independent separator on light steel.
-   fill(c,{1115.,81.,1116.,134.},{151,141,131,255});
-   fill(c,{1116.,81.,1117.,134.},{227,218,206,255});
-   label(c,"PATTERN",{33.,80.,154.,96.},11,{232,222,204,255},false);
+   label(c,"PATTERN",{33.,80.,154.,96.},11,{51,54,57,255},false);
    for(std::size_t i=0;i<8;++i){
      const char key[2]={static_cast<char>('A'+i),'\0'};
      cap(c,L::patternButton(i),0.,key,i==scene.pattern,12,vintageButtons);
    }
-   label(c,"PTNR",{364.,80.,447.,96.},11,{232,222,204,255});
+   label(c,"PTNR",{364.,80.,447.,96.},11,{54,54,54,255});
    // One identical 32px machined keycap and vertical baseline for all
    // header actions: PATTERN, MENU, 1/2 BARS, SONG, SONG EDIT.
    cap(c,L::patternMenu,0.,"MENU",false,10,vintageButtons);
@@ -742,10 +728,27 @@ struct UiV101NativePreview final {
            cap(c,UiV101Interaction::settingsRect(button),y,
                settingsLabels[button],false,10,vintageButtons);
          cap(c,UiV101Interaction::realtimeMinus,y,"-",false,13,vintageButtons);
-         char realtimeText[35]{};
+         // Genuine numeric drag field rather than an oversized faux key.
+         // Exact 112x32 bounds are shared with the interaction hit map.
+         const auto r=UiV101Interaction::realtimeValue;
+         const Box display{r.x0,y+r.y0,r.x1,y+r.y1};
+         rounded(c,display,{7,12,17,255},3.);
+         rounded(c,{display.left+2.,display.top+2.,
+                    display.right-2.,display.bottom-2.},
+                 {24,36,44,255},2.);
+         border(c,display,{96,113,119,255});
+         fill(c,{display.left+4.,display.top+3.,
+                 display.right-4.,display.top+4.},{73,102,112,255});
+         label(c,"RT RANDOM",
+               {display.left+3.,display.top+3.,
+                display.right-3.,display.top+15.},
+               9,{159,183,191,255});
+         char realtimeText[16]{};
          std::snprintf(realtimeText,sizeof(realtimeText),
-                       "RT RANDOM  %u%%",data.randomRealtime);
-         cap(c,UiV101Interaction::realtimeValue,y,realtimeText,false,10,vintageButtons);
+                       "%u%%",data.randomRealtime);
+         label(c,realtimeText,{display.left+3.,display.top+15.,
+                               display.right-3.,display.bottom-2.},
+               12,{247,193,99,255});
          cap(c,UiV101Interaction::realtimePlus,y,"+",false,13,vintageButtons);
        }
      }

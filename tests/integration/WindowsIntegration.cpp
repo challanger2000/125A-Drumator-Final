@@ -1041,6 +1041,14 @@ void testV101Interaction(){
  const auto chokeRequest=ui.takeDeferredRequest();
  check(chokeRequest.kind==UI::DeferredKind::ChokeMenu&&chokeRequest.row==9,
        "V101 CHOKE view request lost exact instrument target");
+ // The RT value must be the same 112px width as RANDOM VEL, with
+ // isolated - / + hit surfaces and an inert 10px gutter.
+ static_assert(UI::realtimeValue.x1-UI::realtimeValue.x0==112.);
+ static_assert(UI::realtimeValue.x1+10.==UI::realtimePlus.x0);
+ check(UI::settingsAt(1055.,69.)==UI::SettingsAction::None&&
+       UI::settingsAt(1072.,69.)==UI::SettingsAction::RandomRealtimeUp&&
+       UI::settingsAt(1109.,69.)==UI::SettingsAction::None,
+       "V101 new compact RT readout has wrong hitboxes or overlapping gaps");
  const auto randomRealtime=f.c->rowRandomVelocity(9);
  check(ui.down(1100.,expandedTop+69.)==UI::Result::Applied&&
        f.c->rowRandomVelocity(9)==randomRealtime+10,
@@ -1250,11 +1258,12 @@ void testV101LiveEditor(){
  click(*view,1166.,14.);
  check(!IntegrationAccess::v101ZoomPopupOpen(*view),
        "V101 ZOOM enlarged edge did not close popup symmetrically");
- const auto darkControlBay=viewPixel(29,87);
- const auto lightRotaryBay=viewPixel(752,87);
- check(darkControlBay[0]+55<lightRotaryBay[0]&&
-       darkControlBay[1]+45<lightRotaryBay[1],
-       "V101 old light button bay did not become aged recessed anthracite");
+ const auto patternMetal=viewPixel(29,87);
+ const auto rotaryMetal=viewPixel(752,87);
+ check(patternMetal[0]>160&&patternMetal[1]>140&&
+       std::abs(patternMetal[0]-rotaryMetal[0])<20&&
+       std::abs(patternMetal[1]-rotaryMetal[1])<20,
+       "V101 header still has dark Pattern block instead of continuous aged metal");
  const auto vintageEnamel=viewPixel(1200,53);
  check(vintageEnamel[0]>215&&vintageEnamel[1]>180&&
        vintageEnamel[0]>vintageEnamel[1]&&
