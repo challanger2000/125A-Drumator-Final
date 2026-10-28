@@ -462,7 +462,7 @@ struct UiV101NativePreview final {
    label(c,"S",{52.,140.,79.,157.},10);
    label(c,"FILL",{84.,140.,124.,157.},10);
    label(c,"INSTRUMENT / SAMPLE",{132.,140.,304.,157.},10);
-   label(c,"PREV",{310.,140.,347.,157.},10);
+   label(c,"PLAY",{310.,140.,347.,157.},10);
    label(c,"EDIT",{354.,140.,406.,157.},10);
    for(int i=0;i<32;i+=4){
      char n[8]{};std::snprintf(n,sizeof(n),"%d",i+1);
