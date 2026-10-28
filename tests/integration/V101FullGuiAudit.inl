@@ -7,7 +7,6 @@ void testV101MenuMatrixAndGeometry(){
  using L=drumator::UiV101Layout;
  using Pop=drumator::UiV101Popup;
  using Kind=Pop::Kind;
- using drumator::filledRow;
  using drumator::RowFill;
  V101PatternEditHost automation;
  Fixture f;
@@ -150,10 +149,26 @@ void testV101MenuMatrixAndGeometry(){
  check(f.c->patternLength(current)==32,"GUI audit Fill source length wrong");
  for(std::size_t option=0;option<modes.size();++option){
    popupClick(Kind::Fill,static_cast<int>(option),99.,L::header+20.,L::header);
-   const auto expected=filledRow(modes[option]);
-   for(std::size_t step=0;step<32;++step)
-     check(f.c->velocity(current,0,step)==expected[step],
+   // Independent musical oracle: do NOT call filledRow(), which is
+   // itself the product's implementation. Otherwise a shared defect in
+   // fillInstrument/filledRow would make both actual and expected wrong.
+   for(std::size_t step=0;step<32;++step){
+     unsigned expected=0;
+     switch(option){
+       case 0:expected=step%2==0?127:0;break; // EVERY 2
+       case 1:expected=step%4==0?127:0;break; // EVERY 4
+       case 2:expected=step%8==0?127:0;break; // EVERY 8
+       case 3:expected=step%8==4?127:0;break; // SNARE 2/4
+       case 4:expected=127;break; // ALL
+       case 5:expected=step%2==1?127:0;break; // OFFBEAT 8
+       case 6:expected=step%4==0?127:step%4==2?95:
+                       step%4==3?84:0;break; // GALLOP 127/95/84
+       case 7:expected=(step%16==4||step%16==12)?127:
+                       (step%16==11||step%16==15)?42:0;break;
+     }
+     check(f.c->velocity(current,0,step)==expected,
            "GUI audit FILL option mapped to wrong rhythm/velocity");
+   }
  }
  // Mouse-open SET must expose every Output (16) and Choke (5) entry.
  click(*view,1230.,L::header+36.);
