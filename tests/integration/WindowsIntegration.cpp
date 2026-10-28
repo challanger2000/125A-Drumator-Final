@@ -1274,6 +1274,16 @@ void testV101LiveEditor(){
        "V101 real Wave editor did not open for rendering verification");
  captureVstgui(*view,"v101-wave-editor-hardware-100",1.0);
  captureVstgui(*view,"v101-wave-editor-hardware-130",1.3);
+ // On the real native editor, every new Wave key must agree with its
+ // exact hitbox; clicks in the eight-pixel gutters must be inert.
+ check(drumator::UiV101WaveLayout::buttonAt(360.,473.)==-1&&
+       drumator::UiV101WaveLayout::buttonAt(971.,473.)==7,
+       "V101 Wave hardware toolbar hit map differs from the painted keys");
+ const auto beforeGap=IntegrationAccess::sampleEditorDraft(*view);
+ click(*view,360.,473.);
+ check(IntegrationAccess::sampleEditorOpen(*view)&&
+       IntegrationAccess::sampleEditorDraft(*view)==beforeGap,
+       "V101 Wave obsolete toolbar gap still changes the edit");
  const auto preEdit=IntegrationAccess::sampleEditorDraft(*view);
  click(*view,300.,210.);
  check(IntegrationAccess::sampleEditorDraft(*view).start!=preEdit.start,
