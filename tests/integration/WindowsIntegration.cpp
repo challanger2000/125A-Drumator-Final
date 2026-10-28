@@ -133,6 +133,9 @@ struct IntegrationAccess {
    const auto* bmp=view.knobBitmap_;
    return {bmp&&bmp->isLoaded()?1.:0.,bmp?bmp->getWidth():-1.,bmp?bmp->getHeight():-1.};
  }
+ static VSTGUI::CBitmap* vintageButton(const DrumatorView& v,std::size_t index){
+   return index<v.v101VintageButtons_.size()?v.v101VintageButtons_[index]:nullptr;
+ }
  static bool vintageButtonsLoaded(const DrumatorView& v){
    for(const auto* bmp:v.v101VintageButtons_)
      if(!bmp||!bmp->isLoaded()||bmp->getWidth()!=332.||
@@ -1164,8 +1167,8 @@ void testV101LiveEditor(){
    check(different>140,
          "V101 header button artwork did not change actual native pixels");
  };
- verifyVintageCap(view->v101VintageButtons_[0]);
- verifyVintageCap(view->v101VintageButtons_[1]);
+ verifyVintageCap(IntegrationAccess::vintageButton(*view,0));
+ verifyVintageCap(IntegrationAccess::vintageButton(*view,1));
  // Read genuine raster pixels from the attached native VSTGUI editor.
  // This checks optical state changes, not merely constants in the painter.
  const auto viewPixel=[&](std::uint32_t x,std::uint32_t y){
