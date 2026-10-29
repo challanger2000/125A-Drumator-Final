@@ -1973,8 +1973,10 @@ void testV101CommercialVisualEvidence(){
    snapshot("main",label,scale);
 
    click(*v,1230.,L::header+12.); // row 1 VEL, existing live control
+   // Expansion shows nine instrument rows instead of ten: the 48px
+   // subpanel replaces the tenth row, so the host height stays 686px.
    check(IntegrationAccess::v101Expansion(*v)==L::Expansion::Velocity&&
-         v->getViewSize().getHeight()==734.,
+         v->getViewSize().getHeight()==686.,
          "commercial VEL real editor state / expanded height incorrect");
    snapshot("velocity",label,scale);
    click(*v,1230.,L::header+12.);
