@@ -1021,7 +1021,7 @@ DrumatorView::DrumatorView(const VSTGUI::CRect& size,
  knobBitmap_=new VSTGUI::CMultiFrameBitmap(VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
  screwBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription("125A_Drumator_Screw.png"));
  v101TitleBitmap_=new VSTGUI::CBitmap(
-     VSTGUI::CResourceDescription("Industrielles Metalllogo DRUMATOR.png"));
+     VSTGUI::CResourceDescription("DRUMATOR_Original_mit_echter_Transparenz.png"));
  v101FaceplateBitmap_=new VSTGUI::CBitmap(
      VSTGUI::CResourceDescription("Futuristische industrielle Metalloberfläche.png"));
  v101VintageButtons_[0]=new VSTGUI::CBitmap(

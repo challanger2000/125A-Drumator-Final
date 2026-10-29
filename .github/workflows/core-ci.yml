@@ -77,8 +77,7 @@ jobs:
           Copy-Item 'resource/125A_Dark_Button_83x32_Deaktiviert_1x.png' -Destination (Join-Path $resourceDirectory '125A_Dark_Button_83x32_Deaktiviert_1x.png')
           Copy-Item 'resource/125A_Dark_Button_83x32_Deaktiviert_4x.png' -Destination (Join-Path $resourceDirectory '125A_Dark_Button_83x32_Deaktiviert_4x.png')
           Copy-Item 'resource/Metallisches DRUMATOR-Logo.png' -Destination (Join-Path $resourceDirectory 'Metallisches DRUMATOR-Logo.png')
-          Copy-Item -LiteralPath 'resource/Futuristisches Metalllogo DRUMATOR.png' -Destination (Join-Path $resourceDirectory 'Futuristisches Metalllogo DRUMATOR.png')
-          Copy-Item -LiteralPath 'resource/Industrielles Metalllogo DRUMATOR.png' -Destination (Join-Path $resourceDirectory 'Industrielles Metalllogo DRUMATOR.png')
+          Copy-Item -LiteralPath 'resource/DRUMATOR_Original_mit_echter_Transparenz.png' -Destination (Join-Path $resourceDirectory 'DRUMATOR_Original_mit_echter_Transparenz.png')
           $moduleInfo = Join-Path $resourceDirectory 'moduleinfo.json'
           # Use the CMake project version for package metadata; verify that
           # the compiled processor/controller factory classes agree below.
@@ -127,7 +126,7 @@ jobs:
             '125A Drumator.vst3/Contents/Resources/125A_Drumator_Screw.png',
             '125A Drumator.vst3/Contents/Resources/125A_Drumator_Faceplate.png',
             '125A Drumator.vst3/Contents/Resources/Futuristische industrielle Metalloberfläche.png',
-            '125A Drumator.vst3/Contents/Resources/Industrielles Metalllogo DRUMATOR.png',
+            '125A Drumator.vst3/Contents/Resources/DRUMATOR_Original_mit_echter_Transparenz.png',
             '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Normal_1x.png',
             '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Normal_4x.png',
             '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Aktiv_1x.png',
@@ -137,13 +136,11 @@ jobs:
             '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Deaktiviert_1x.png',
             '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Deaktiviert_4x.png',
             '125A Drumator.vst3/Contents/Resources/Metallisches DRUMATOR-Logo.png',
-            '125A Drumator.vst3/Contents/Resources/Futuristisches Metalllogo DRUMATOR.png',
             '125A Drumator.vst3/Contents/Resources/moduleinfo.json'
           ) | Sort-Object
           $actual = @($bundleFiles | ForEach-Object {
             [System.IO.Path]::GetRelativePath($artifactRoot, $_.FullName).Replace('\','/')
           }) | Sort-Object
-          foreach ($requiredImage in @('125A_Drumator_Faceplate.png', 'Futuristische industrielle Metalloberfläche.png', 'Industrielles Metalllogo DRUMATOR.png', '125A_Dark_Button_83x32_Normal_1x.png', '125A_Dark_Button_83x32_Normal_4x.png', '125A_Dark_Button_83x32_Aktiv_1x.png', '125A_Dark_Button_83x32_Aktiv_4x.png', '125A_Dark_Button_83x32_Gedrueckt_1x.png', '125A_Dark_Button_83x32_Gedrueckt_4x.png', '125A_Dark_Button_83x32_Deaktiviert_1x.png', '125A_Dark_Button_83x32_Deaktiviert_4x.png', 'Metallisches DRUMATOR-Logo.png', 'Futuristisches Metalllogo DRUMATOR.png')) {
             $imagePath = Join-Path $resourceDirectory $requiredImage
             if (!(Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 1024) {
               throw "Missing or empty mandatory visual resource: $requiredImage"

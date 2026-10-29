@@ -852,10 +852,10 @@ void testV101ControllerScene(){
  check(knob->getWidth()==125.&&knob->getHeight()==12625.,
        "V101 controller pixel test original knob resource decode failed");
  auto* pngTitle=new VSTGUI::CBitmap(
-   VSTGUI::CResourceDescription("Futuristisches Metalllogo DRUMATOR.png"));
+   VSTGUI::CResourceDescription("DRUMATOR_Original_mit_echter_Transparenz.png"));
  const auto titleBounds=drumator::qa::UiV101NativePreview::measureTitle(pngTitle);
- check(titleBounds.valid()&&titleBounds.width>100.&&titleBounds.height>10.,
-       "V101 native controller scene must load actual new futuristic logo PNG");
+ check(titleBounds.valid()&&titleBounds.width>2000.&&titleBounds.height>250.&&titleBounds.height<350.,
+       "V101 native controller scene must load the corrected transparent DRUMATOR plaque");
  const auto stepPixel=[&](const drumator::qa::UiV101NativePreview::Scene& state){
    auto bmp=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
      [&](VSTGUI::CDrawContext& dc){
@@ -1683,11 +1683,11 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
  auto* knob=new VSTGUI::CMultiFrameBitmap(
    VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
  auto* logo=new VSTGUI::CBitmap(
-   VSTGUI::CResourceDescription("Futuristisches Metalllogo DRUMATOR.png"));
+   VSTGUI::CResourceDescription("DRUMATOR_Original_mit_echter_Transparenz.png"));
  check(knob->getWidth()==125.&&knob->getHeight()==12625.,
        "V1.0.1 preview did not load real V1.0 knob filmstrip");
  const auto bounds=drumator::qa::UiV101NativePreview::measureTitle(logo);
- check(bounds.valid()&&bounds.width>100.&&bounds.height>10.,
+ check(bounds.valid()&&bounds.width>2000.&&bounds.height>250.&&bounds.height<350.,
        "V1.0.1 logo PNG unreadable or lacks alpha-visible content");
  auto* logoPixels=VSTGUI::CBitmapPixelAccess::create(logo,false);
  check(logoPixels!=nullptr&&logoPixels->setPosition(0,0),
