@@ -138,12 +138,13 @@ struct IntegrationAccess {
  static VSTGUI::CBitmap* vintageButton(const DrumatorView& v,std::size_t index){
    return index<v.v101VintageButtons_.size()?v.v101VintageButtons_[index]:nullptr;
  }
- // Original 125A SVG master: paths 24..28 silver, 29 red.
- // Product GUI draws only this six-path signet, not the older badge PNG.
- static bool officialMasterSignetAvailable(){
+ // All 30 official master paths are present: exact SYSTEMS and AUDIO
+ // SOFTWARE contours (0..23), silver signet (24..28), red A stroke (29).
+ static bool officialMasterLogoAvailable(){
    if(kBrandLogoPaths.size()!=30||!kBrandLogoPaths[29].red)return false;
-   for(std::size_t i=24;i<29;++i)if(kBrandLogoPaths[i].red)return false;
-   return std::string(kBrandLogoPaths[24].path).rfind("M 1236 588",0)==0&&
+   for(std::size_t i=0;i<29;++i)if(kBrandLogoPaths[i].red)return false;
+   return std::string(kBrandLogoPaths[0].path).rfind("M 1387 769",0)==0&&
+          std::string(kBrandLogoPaths[24].path).rfind("M 1236 588",0)==0&&
           std::string(kBrandLogoPaths[29].path).rfind("M 1014 103 L 1162 103",0)==0;
  }
  static bool modernTitleLoaded(const DrumatorView& v){
@@ -709,7 +710,24 @@ void captureVstgui(DrumatorView& v,const std::string& title,double scale){
          std::abs(int(actual.blue)-int(background.blue));
        if(difference>36)++wordmarkVisible;
      }
+   // The complete official logo MUST paint the master lettering below
+   // its signet. The former six-path-only drawing left this region identical
+   // to the raw dark plate. This raster oracle catches that omission.
+   unsigned footerLetterPixels=0;
+   for(std::uint32_t y=69;y<92;++y)
+     for(std::uint32_t x=25;x<196;++x){
+       check(access->setPosition(x,y)&&platePixels->setPosition(x,y),
+             "125A original master caption pixel compare outside header");
+       VSTGUI::CColor actual{},background{};
+       access->getColor(actual);platePixels->getColor(background);
+       if(int(actual.red)>int(background.red)+45&&
+          int(actual.green)>int(background.green)+45&&
+          int(actual.blue)>int(background.blue)+45)
+         ++footerLetterPixels;
+     }
    platePixels->forget();
+   check(footerLetterPixels>50,
+         "V101 official SVG SYSTEMS/AUDIO SOFTWARE captions absent from actual editor");
    check(dark>6000&&wordmarkVisible>160,
          "packaged V1.0.1 lacks dark graphite faceplate or DRUMATOR text overlay");
  }
@@ -1201,8 +1219,8 @@ void testV101LiveEditor(){
        "V101 new DRUMATOR-only logo not packaged or wrong dimensions");
  // Authoritative Branding master is compiled into the native VST3 View.
  // Neither the removed badge resource nor its captions may be required.
- check(IntegrationAccess::officialMasterSignetAvailable(),
-       "V101 original 125A-only SVG signet missing or its red/silver paths changed");
+ check(IntegrationAccess::officialMasterLogoAvailable(),
+       "V101 complete official 125A SVG master missing or its red/silver paths changed");
  // The bitmap-backed cap must visibly differ from the procedural fallback
  // while remaining an 83x32 overlay with the original live text.
  const auto verifyVintageCap=[&](VSTGUI::CBitmap* sprite,

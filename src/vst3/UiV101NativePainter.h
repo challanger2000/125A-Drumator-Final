@@ -144,25 +144,22 @@ struct UiV101NativePreview final {
    c.setFont(VSTGUI::kNormalFont,font);c.setFontColor(ink);
    c.drawString(value,r,center?VSTGUI::kCenterText:VSTGUI::kLeftText);
  }
- // Exact signet paths 24..29 from 125A-Branding/125A_Logo_Master_FINAL.svg.
- // All earlier paths are SYSTEMS and AUDIO SOFTWARE and must not be drawn.
- // The signet sits directly on the original dark headplate, without a badge.
- static void brandSignet(VSTGUI::CDrawContext& c,L::Rect area){
+ // Complete official 125A Systems master (all 30 paths), sourced from
+ // 125A-Branding/125A_Logo_Master_FINAL.svg. The master explicitly forbids
+ // redrawing or omitting the SYSTEMS / AUDIO SOFTWARE lettering, and no
+ // independently approved signet-only asset exists in the Branding repo.
+ // Draw uniformly scaled, optically centered by the actual master silhouette.
+ static void brandMasterLogo(VSTGUI::CDrawContext& c,L::Rect area){
    static_assert(kBrandLogoPaths.size()==30);
-   constexpr double sourceX=340.,sourceY=103.,sourceW=1065.,sourceH=485.;
-   constexpr double margin=6.;
-   // Deliberately understated signet: 60% of the former fit size.
-   // Preserve master geometry and horizontal centering. The visible
-   // graphite header bay has a raised lower outline: optical centering
-   // needs a 10px upward offset from the old geometric area center.
-   constexpr double signetScale=0.60;
-   constexpr double opticalLift=10.;
-   const double sf=signetScale*std::min(
+   // Actual bounds of the visible master paths; omit blank SVG viewBox margins.
+   constexpr double sourceX=163.,sourceY=103.,sourceW=1446.,sourceH=703.;
+   constexpr double margin=4.;
+   const double sf=std::min(
        (area.x1-area.x0-2.*margin)/sourceW,
        (area.y1-area.y0-2.*margin)/sourceH);
    const double left=(area.x0+area.x1-sourceW*sf)*0.5-sourceX*sf;
-   const double top=(area.y0+area.y1-sourceH*sf)*0.5-sourceY*sf-opticalLift;
-   for(std::size_t n=24;n<kBrandLogoPaths.size();++n){
+   const double top=(area.y0+area.y1-sourceH*sf)*0.5-sourceY*sf;
+   for(std::size_t n=0;n<kBrandLogoPaths.size();++n){
      const auto& shape=kBrandLogoPaths[n];
      auto* path=c.createGraphicsPath();
      if(!path)continue;
@@ -513,9 +510,9 @@ struct UiV101NativePreview final {
    if(!hasVintageFaceplate){
      screw(c,14.,15.);screw(c,L::width-14.,15.);
    }
-   // 125A-Branding SVG signet only. No metal nameplate, caption,
-   // frame, screws, synthetic backing or substituted font is composited.
-   brandSignet(c,L::brandSignetArea);
+   // Complete 125A-Branding master, including original vector captions.
+   // No metal nameplate, frame, screws or substituted fonts are composited.
+   brandMasterLogo(c,L::brandSignetArea);
    // The standalone owner-approved DRUMATOR wordmark is alpha-composited
    // directly on the original graphite plate, with no additional plaque.
    hardwareTitle(c,titlePng,titleBounds);
