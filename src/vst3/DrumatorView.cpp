@@ -1211,10 +1211,8 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
      const double sourceY=(v101FaceplateBitmap_->getHeight()-505.)*.5;
      v101FaceplateBitmap_->draw(c,{230.,100.,1050.,605.},
                                {sourceX,sourceY});
-     // Preserve the photograph's real metal grain without sacrificing
-     // contrast for waveform, readouts and button labels.
-     c->setFillColor(VSTGUI::CColor{7,16,27,102});
-     c->drawRect({230.,100.,1050.,605.},VSTGUI::kDrawFilled);
+     // Show the supplied faceplate texture at its original brightness.
+     // The waveform well and control readouts already have opaque surfaces.
    }else{
      P::satin(*c,{225.,96.,1055.,610.},{67,76,85,255},
               {42,51,61,255},{25,34,44,255},22);
