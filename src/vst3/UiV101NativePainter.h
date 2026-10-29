@@ -223,11 +223,15 @@ struct UiV101NativePreview final {
    const double sf=dest.getWidth()/bounds.width;
    const double x=dest.left-bounds.left*sf;
    const double y=dest.top-bounds.top*sf;
-   // As with the original V1.0 sprite, the VSTGUI transform scales the
-   // existing PNG and preserves its original alpha, lightbars and glows.
+   // Preserve the user-approved plaque and its true transparent pixels.
+   // Blend the printed metal of the nameplate into the continuous
+   // brushed-steel faceplate: full opacity made it look pasted on.
+   // Drawing alpha affects only this bitmap, never the controls or text.
    VSTGUI::CDrawContext::Transform tx(c,
       VSTGUI::CGraphicsTransform().scale(sf,sf).translate(x,y));
-   logo->draw(&c,{0.,0.,logo->getWidth(),logo->getHeight()});
+   constexpr float kIntegratedNameplateOpacity=0.72f;
+   logo->draw(&c,{0.,0.,logo->getWidth(),logo->getHeight()},
+              VSTGUI::CPoint(0.,0.),kIntegratedNameplateOpacity);
  }
  // Same 125x125, 101-frame JKnobMan image used by V1.0; the actual
  // opaque dial sits inside its transparent frame. Not a painted imitation.
