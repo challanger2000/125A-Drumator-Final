@@ -223,15 +223,12 @@ struct UiV101NativePreview final {
    const double sf=dest.getWidth()/bounds.width;
    const double x=dest.left-bounds.left*sf;
    const double y=dest.top-bounds.top*sf;
-   // Preserve the user-approved plaque and its true transparent pixels.
-   // Blend the printed metal of the nameplate into the continuous
-   // brushed-steel faceplate: full opacity made it look pasted on.
-   // Drawing alpha affects only this bitmap, never the controls or text.
+   // A standalone metallic wordmark: draw at its intended 100% alpha.
+   // The PNG has no backing plate. Alpha-bound measurement skips near-zero
+   // stray pixels without altering or physically cropping the source asset.
    VSTGUI::CDrawContext::Transform tx(c,
       VSTGUI::CGraphicsTransform().scale(sf,sf).translate(x,y));
-   constexpr float kIntegratedNameplateOpacity=0.72f;
-   logo->draw(&c,{0.,0.,logo->getWidth(),logo->getHeight()},
-              VSTGUI::CPoint(0.,0.),kIntegratedNameplateOpacity);
+   logo->draw(&c,{0.,0.,logo->getWidth(),logo->getHeight()});
  }
  // Same 125x125, 101-frame JKnobMan image used by V1.0; the actual
  // opaque dial sits inside its transparent frame. Not a painted imitation.
@@ -512,7 +509,7 @@ struct UiV101NativePreview final {
    brandLogo(c,badgeMidX-(163.+1609.)*.5*logoScale,
                badgeMidY-(103.+806.)*.5*logoScale,55.);
    // The standalone owner-approved DRUMATOR wordmark is alpha-composited
-   // on the new faceplate without the former ornamental amber lightbars.
+   // directly on the original graphite plate, with no additional plaque.
    hardwareTitle(c,titlePng,titleBounds);
    // The percentage and dropdown affordance identify the single zoom control;
    // no redundant "ZOOM" legend or decorative separating line.

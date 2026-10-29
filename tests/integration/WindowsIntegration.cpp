@@ -852,7 +852,7 @@ void testV101ControllerScene(){
  check(knob->getWidth()==125.&&knob->getHeight()==12625.,
        "V101 controller pixel test original knob resource decode failed");
  auto* pngTitle=new VSTGUI::CBitmap(
-   VSTGUI::CResourceDescription("DRUMATOR_Original_mit_echter_Transparenz.png"));
+   VSTGUI::CResourceDescription("DRUMATOR_Logo_Modern_Transparent.png"));
  const auto titleBounds=drumator::qa::UiV101NativePreview::measureTitle(pngTitle);
  check(titleBounds.valid()&&titleBounds.width>2000.&&titleBounds.height>250.&&titleBounds.height<350.,
        "V101 native controller scene must load the corrected transparent DRUMATOR plaque");
@@ -1683,7 +1683,7 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
  auto* knob=new VSTGUI::CMultiFrameBitmap(
    VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
  auto* logo=new VSTGUI::CBitmap(
-   VSTGUI::CResourceDescription("DRUMATOR_Original_mit_echter_Transparenz.png"));
+   VSTGUI::CResourceDescription("DRUMATOR_Logo_Modern_Transparent.png"));
  check(knob->getWidth()==125.&&knob->getHeight()==12625.,
        "V1.0.1 preview did not load real V1.0 knob filmstrip");
  const auto bounds=drumator::qa::UiV101NativePreview::measureTitle(logo);
@@ -1695,7 +1695,7 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
  VSTGUI::CColor corner{};logoPixels->getColor(corner);
  logoPixels->forget();
  check(corner.alpha<24,
-       "V1.0.1 title has an opaque rectangular backdrop instead of transparent PNG");
+       "V1.0.1 standalone wordmark has opaque corner pixels");
  const auto box=drumator::qa::UiV101NativePreview::titleTarget(bounds);
  check(box.left>=191.&&box.right<=1119.&&box.top>=6.&&box.bottom<=77.,
        "V1.0.1 title/lightbars overlap 125A badge, header controls or ZOOM");
