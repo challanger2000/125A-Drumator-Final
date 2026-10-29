@@ -562,7 +562,7 @@ struct UiV101NativePreview final {
    // both MAIN and SONG because they share this native painter.
    constexpr auto heading=L::patternHeading;
    label(c,"PATTERN",{heading.x0,heading.y0,heading.x1,heading.y1},
-         11,{218,226,235,255},false);
+         11,{218,226,235,255},true);
    for(std::size_t i=0;i<8;++i){
      const char key[2]={static_cast<char>('A'+i),'\0'};
      cap(c,L::patternButton(i),0.,key,i==scene.pattern,12,vintageButtons);

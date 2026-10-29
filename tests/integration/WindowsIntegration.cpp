@@ -1380,6 +1380,42 @@ void testV101LiveEditor(){
          std::abs(rendered[2]-int(original.blue))<=3,
          "V101 header is still overpainted by artificial VSTGUI control panel");
  }
+ // Pixel-oracle for the ACTUAL VST3 painter and the actual photograph.
+ // The faceplate is not blank, so compare against its untouched pixel data:
+ // only the PATTERN glyphs may differ in this x=33..341, y=80..96 bank.
+ // Checking only the rectangle's center did not catch left-aligned text.
+ {
+   const auto current=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+       [&](VSTGUI::CDrawContext& dc){view->draw(&dc);});
+   check(current!=nullptr,"PATTERN heading actual native raster missing");
+   auto* actual=VSTGUI::CBitmapPixelAccess::create(current.get(),false);
+   check(actual!=nullptr,"PATTERN heading pixels inaccessible");
+   int low=999,high=-1,inkCount=0;
+   for(std::uint32_t yy=82;yy<94;++yy)
+     for(std::uint32_t xx=33;xx<=341;++xx){
+       check(actual->setPosition(xx,yy)&&
+             faceplatePixels->setPosition(xx,yy),
+             "PATTERN title raster location out of bounds");
+       VSTGUI::CColor ink{},background{};
+       actual->getColor(ink);faceplatePixels->getColor(background);
+       const int brighter=int(ink.red)-int(background.red)+
+                          int(ink.green)-int(background.green)+
+                          int(ink.blue)-int(background.blue);
+       if(brighter>90){
+         low=std::min(low,static_cast<int>(xx));
+         high=std::max(high,static_cast<int>(xx));
+         ++inkCount;
+       }
+     }
+   actual->forget();
+   check(inkCount>22&&high>=low,
+         "V101 PATTERN heading not visible on actual graphite header");
+   const double actualCenter=(low+high)*.5;
+   const double buttonBankCenter=(L::patternButton(0).x0+
+                                  L::patternButton(7).x1)*.5;
+   check(std::abs(actualCenter-buttonBankCenter)<=3.,
+         "V101 PATTERN visible glyphs must center over all eight A-H keys");
+ }
  faceplatePixels->forget();
  // The new graphite artwork must remain visible without ivory fallback.
  const auto graphiteMetal=viewPixel(1200,53);
