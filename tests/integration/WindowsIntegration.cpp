@@ -1773,6 +1773,80 @@ void testV101LiveEditor(){
  evidence("V101 attached native VST3 editor: live raster, Step/Pattern/FILL, OUTPUT/CHOKE, sample menu, SONG return, 16-row paging, zoom, WAV edit request and teardown PASS");
 }
 
+
+// E2E host fixture: Controller is connected to the real Processor. Unlike
+// encoder-only unit tests, this exercises the UI-side kit mirror, processor
+// IPC, native file path handling, staged output and actual disk bytes.
+void testV101ConnectedPatternSongExportsAndLimiter(){
+ Fixture f;
+ auto kit=v101PreviewKit(); // contains ten genuine, playable PCM samples
+ kit.chain.setCount(2);
+ check(kit.chain.configure(0,2,32)&&kit.chain.configure(1,2,32),
+       "connected EXPORT SONG fixture setup");
+ f.kit(kit);
+ const auto base=std::filesystem::temp_directory_path();
+ const auto pm=base/"125a-v101-connected-pattern.mid";
+ const auto sm=base/"125a-v101-connected-song.mid";
+ const auto pw=base/"125a-v101-connected-pattern.wav";
+ const auto sw=base/"125a-v101-connected-song.wav";
+ const auto lw=base/"125a-v101-connected-limited.wav";
+ const auto read=[](const std::filesystem::path& p){
+   std::ifstream stream(p,std::ios::binary);
+   return std::vector<std::uint8_t>(
+     (std::istreambuf_iterator<char>(stream)),std::istreambuf_iterator<char>());
+ };
+ const auto validMidi=[](const std::vector<std::uint8_t>& b){
+   return b.size()>48&&b[0]=='M'&&b[1]=='T'&&b[2]=='h'&&b[3]=='d'&&
+          b[8]==0&&b[9]==1&&b[10]==0&&b[11]==17&&
+          b[12]==3&&b[13]==0xc0;
+ };
+ const auto validWav=[](const std::vector<std::uint8_t>& b){
+   return b.size()>44&&b[0]=='R'&&b[1]=='I'&&b[2]=='F'&&b[3]=='F'&&
+          b[8]=='W'&&b[9]=='A'&&b[10]=='V'&&b[11]=='E'&&
+          b[20]==1&&b[22]==2&&b[34]==24&&
+          b[24]==0x80&&b[25]==0xbb&&b[26]==0&&b[27]==0;
+ };
+ check(f.c->exportMidi(false,pm.string()),"connected PATTERN MIDI disk export");
+ check(f.c->exportMidi(true,sm.string()),"connected SONG MIDI disk export");
+ const auto midiPattern=read(pm),midiSong=read(sm);
+ check(validMidi(midiPattern)&&validMidi(midiSong),
+       "connected MIDI files must parse as 17-track 960-PPQ type-1 SMF");
+ check(midiSong.size()>midiPattern.size(),
+       "connected SONG MIDI must contain more musical events than PATTERN");
+ check(f.c->exportWav(false,pw.string()),"connected PATTERN WAV disk export");
+ check(f.c->exportWav(true,sw.string()),"connected SONG WAV disk export");
+ const auto wavPattern=read(pw),wavSong=read(sw);
+ check(validWav(wavPattern)&&validWav(wavSong),
+       "connected WAV files must be playable stereo 48kHz/24bit PCM");
+ check(wavSong.size()>wavPattern.size(),
+       "connected SONG WAV must extend beyond single PATTERN");
+ if(validWav(wavPattern))
+   check(std::any_of(wavPattern.begin()+44,wavPattern.end(),
+                     [](std::uint8_t b){return b!=0;}),
+         "connected pattern WAV contains no playable sample audio");
+ check(!f.c->limiterEnabled(),"connected LIMIT initial OFF");
+ check(f.c->setLimiterEnabled(true)&&f.c->limiterEnabled(),
+       "connected LIMIT ON message/Controller failed");
+ check(f.c->exportWav(false,lw.string()),
+       "connected LIMIT ON 24bit WAV export");
+ const auto limited=read(lw);
+ check(validWav(limited),"connected limited WAV header");
+ check(f.c->setLimiterEnabled(false)&&!f.c->limiterEnabled(),
+       "connected LIMIT OFF message/Controller failed");
+ const auto saved=read(pw);
+ check(!f.c->exportMidi(false,""),
+       "connected invalid MIDI destination must be rejected");
+ check(read(pw)==saved,
+       "connected rejected output must preserve existing WAV bytes");
+ for(const auto& p:{pm,sm,pw,sw,lw}){
+   std::error_code ec;
+   std::filesystem::remove(p,ec);
+   check(!std::filesystem::exists(p.string()+".125a-export-part",ec),
+         "connected export left a partial file");
+ }
+ evidence("V1.0.1 connected Controller/Processor: PATTERN+SONG MIDI, PATTERN+SONG 24bit PCM WAV, LIMIT ON/OFF, file rollback PASS");
+}
+
 enum class V101CaptureMode { Normal, Velocity, Settings };
 void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
                         V101CaptureMode mode=V101CaptureMode::Normal){
@@ -4861,6 +4935,7 @@ int main(int argc,char** argv){
  run("V101 actual Controller to native visual scene",testV101ControllerScene);
  run("V101 native interactive controller, lane and zoom actions",testV101Interaction);
  run("V101 real VST3 editor attach, mouse dispatch, dialogs and zoom",testV101LiveEditor);
+ run("V101 connected Controller/Processor exports and limiter",testV101ConnectedPatternSongExportsAndLimiter);
  run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
  run("V101 SONG and Wave full native button matrix",testV101SongAndWaveFullControlMatrix);
  run("V101 16-row pointer isolation and real WAV sample browse",testV101AllRowMouseIsolationAndSampleBrowse);
