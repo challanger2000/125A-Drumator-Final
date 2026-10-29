@@ -1907,8 +1907,10 @@ void testV101ConnectedPatternSongExportsAndLimiter(){
              std::abs(nrr)<=StereoPeakLimiter::kCeiling+.000001,
              "connected LIMIT ON audio exceeded -0.3dBFS ceiling");
        if(std::abs(nl)>.001&&std::abs(nrr)>.001)
-         check(std::abs(nl/nrr-ol/orr)<.002,
-               "connected LIMIT ON changed stereo channel balance");
+         // OFF WAV values may be hard-clipped by PCM24 packing; compare the
+         // ON channels against the independent source ratio, not OFF clipping.
+         check(std::abs(nl/nrr-(.9/-.72))<.002,
+               "connected LIMIT ON changed source stereo channel balance");
      }
      check(peakOff>.99&&peakOn<=StereoPeakLimiter::kCeiling+.000001&&
            meaningful>100&&off!=on,
