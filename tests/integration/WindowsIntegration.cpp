@@ -19,6 +19,7 @@
 #include "core/UiCompactLayout.h"
 #include "core/UiSongLayout.h"
 #include "vst3/UiV101Scene.h"
+#include "vst3/BrandLogoGeometry.h"
 #include "vst3/UiV101WaveLayout.h"
 #include "UiV101NativePreview.h"
 #include "vst3/UiV101ControllerBridge.h"
@@ -137,11 +138,13 @@ struct IntegrationAccess {
  static VSTGUI::CBitmap* vintageButton(const DrumatorView& v,std::size_t index){
    return index<v.v101VintageButtons_.size()?v.v101VintageButtons_[index]:nullptr;
  }
- static bool metalBadgeLoaded(const DrumatorView& v){
-   return v.v101BadgeBitmap_&&v.v101BadgeBitmap_->isLoaded()&&
-          v.v101BadgeBitmap_->getWidth()>=1000.&&
-          v.v101BadgeBitmap_->getHeight()>=500.&&
-          v.v101BadgeBounds_[2]>500.&&v.v101BadgeBounds_[3]>300.;
+ // Original 125A SVG master: paths 24..28 silver, 29 red.
+ // Product GUI draws only this six-path signet, not the older badge PNG.
+ static bool officialMasterSignetAvailable(){
+   if(kBrandLogoPaths.size()!=30||!kBrandLogoPaths[29].red)return false;
+   for(std::size_t i=24;i<29;++i)if(kBrandLogoPaths[i].red)return false;
+   return std::string(kBrandLogoPaths[24].path).rfind("M 1236 588",0)==0&&
+          std::string(kBrandLogoPaths[29].path).rfind("M 1014 103 L 1162 103",0)==0;
  }
  static bool modernTitleLoaded(const DrumatorView& v){
    return v.v101TitleBitmap_&&v.v101TitleBitmap_->isLoaded()&&
@@ -1196,10 +1199,10 @@ void testV101LiveEditor(){
        "V101 4x dark button states missing, corrupt or wrong dimensions");
  check(IntegrationAccess::modernTitleLoaded(*view),
        "V101 new DRUMATOR-only logo not packaged or wrong dimensions");
- // First draw also measures uploaded badge alpha bounds. Ensure actual
- // packaged resource is loaded and rendered by the production editor.
- check(IntegrationAccess::metalBadgeLoaded(*view),
-       "V101 new 125A Systems metallic header badge missing in packaged editor");
+ // Authoritative Branding master is compiled into the native VST3 View.
+ // Neither the removed badge resource nor its captions may be required.
+ check(IntegrationAccess::officialMasterSignetAvailable(),
+       "V101 original 125A-only SVG signet missing or its red/silver paths changed");
  // The bitmap-backed cap must visibly differ from the procedural fallback
  // while remaining an 83x32 overlay with the original live text.
  const auto verifyVintageCap=[&](VSTGUI::CBitmap* sprite,
@@ -1767,7 +1770,7 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
        "V1.0.1 standalone wordmark has opaque corner pixels");
  const auto box=drumator::qa::UiV101NativePreview::titleTarget(bounds);
  check(box.left>=191.&&box.right<=1119.&&box.top>=6.&&box.bottom<=77.,
-       "V1.0.1 title/lightbars overlap 125A badge, header controls or ZOOM");
+       "V1.0.1 title/lightbars overlap the 125A signet, header controls or ZOOM");
  auto bitmap=VSTGUI::renderBitmapOffscreen(
    VSTGUI::CPoint(L::width,h),scale,
    [knob,logo,bounds,&scene,&ui,zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
