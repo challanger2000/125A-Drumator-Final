@@ -22,14 +22,13 @@ int main(){
   static_assert(L::footerPanelRight-L::footerPanelLeft>=1260.);
   static_assert(L::footerScrewLeftX>L::footerPanelLeft&&
                 L::footerScrewRightX<L::footerPanelRight);
-  // Larger badge ends above the clickable A-H caps; PATTERN remains visible,
-  // aligned over the right half of its group instead of behind the logo.
-  static_assert(L::badgePlate.x1<L::patternHeading.x0);
-  static_assert(L::badgePlate.y1<L::headerButtonY);
-  static_assert(L::badgePlate.x1-L::badgePlate.x0>=170.);
-  static_assert(L::badgeCaption.x0>L::badgePlate.x0&&
-                L::badgeCaption.x1<L::badgePlate.x1);
-  static_assert(L::badgeCaption.y1<=L::badgePlate.y1);
+  // Original SVG signet is constrained to the former logo area.
+  // No header labels or clickable pattern/zoom controls may be displaced.
+  static_assert(L::brandSignetArea.x1<L::patternHeading.x0);
+  static_assert(L::brandSignetArea.y1<L::headerButtonY);
+  static_assert(L::brandSignetArea.x1-L::brandSignetArea.x0>=170.);
+  static_assert(L::brandSignetArea.x0>=20.&&L::brandSignetArea.x1<=200.);
+  static_assert(L::brandSignetArea.y0>=0.&&L::brandSignetArea.y1<=98.);
   CHECK(L::zoomPresets.size()==4);
   CHECK(L::zoomPresets[0]==1.&&L::zoomPresets[1]==1.2);
   CHECK(L::zoomPresets[2]==1.3&&L::zoomPresets[3]==1.5);

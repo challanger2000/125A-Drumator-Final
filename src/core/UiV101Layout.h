@@ -32,11 +32,9 @@ struct UiV101Layout final {
       return x>=x0&&x<x1&&y>=y0&&y<y1;
     }
   };
-  // Keep the approved silver PNG, but render it large enough that its
-  // bottom legend can be redrawn crisply without intersecting the steps.
-  // Caption and pattern heading are separate paint-only elements.
-  static constexpr Rect badgePlate{22.,2.,199.,97.};
-  static constexpr Rect badgeCaption{48.,77.,176.,88.};
+  // Placement only: the original SVG signet paths are painted directly
+  // on the unmodified dark headplate. No signet backdrop or wordmarks.
+  static constexpr Rect brandSignetArea{22.,2.,199.,97.};
   static constexpr Rect patternHeading{213.,80.,339.,96.};
   // Relative to the 48px footer origin. Previous keys were 120/130x31
   // and too large for the recessed strip; now both are 95x25.

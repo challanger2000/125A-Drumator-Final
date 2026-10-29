@@ -740,7 +740,6 @@ DrumatorView::~DrumatorView() {
  if(screwBitmap_){screwBitmap_->forget();screwBitmap_=nullptr;}
  if(v101TitleBitmap_){v101TitleBitmap_->forget();v101TitleBitmap_=nullptr;}
  if(v101FaceplateBitmap_){v101FaceplateBitmap_->forget();v101FaceplateBitmap_=nullptr;}
- if(v101BadgeBitmap_){v101BadgeBitmap_->forget();v101BadgeBitmap_=nullptr;}
  for(auto*& bmp:v101VintageButtons_){
    if(bmp){bmp->forget();bmp=nullptr;}
  }
@@ -1025,8 +1024,6 @@ DrumatorView::DrumatorView(const VSTGUI::CRect& size,
      VSTGUI::CResourceDescription("DRUMATOR_Logo_Modern_Transparent.png"));
  v101FaceplateBitmap_=new VSTGUI::CBitmap(
      VSTGUI::CResourceDescription("Futuristische industrielle Metalloberfläche.png"));
- v101BadgeBitmap_=new VSTGUI::CBitmap(
-     VSTGUI::CResourceDescription("125A Systems Metall-Logo Badge.png"));
  v101VintageButtons_[0]=new VSTGUI::CBitmap(
      VSTGUI::CResourceDescription("125A_Dark_Button_83x32_Normal_4x.png"));
  v101VintageButtons_[1]=new VSTGUI::CBitmap(
@@ -1041,9 +1038,6 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  if(!v101TitleMeasured_) {
    const auto bounds=Painter::measureTitle(v101TitleBitmap_);
    v101TitleBounds_={{bounds.left,bounds.top,bounds.width,bounds.height}};
-   const auto badgeBounds=Painter::measureTitle(v101BadgeBitmap_);
-   v101BadgeBounds_={{badgeBounds.left,badgeBounds.top,
-                      badgeBounds.width,badgeBounds.height}};
    v101TitleMeasured_=true;
  }
  const Painter::TitleBounds title{v101TitleBounds_[0],v101TitleBounds_[1],
@@ -1066,9 +1060,7 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  Painter::draw(*c,static_cast<VSTGUI::CMultiFrameBitmap*>(knobBitmap_),
                v101TitleBitmap_,title,scene,v101_.state().zoomOpen,
                v101_.state().zoomIndex,v101_.state(),v101FaceplateBitmap_,
-               &vintageButtons,v101BadgeBitmap_,
-               {v101BadgeBounds_[0],v101BadgeBounds_[1],
-                v101BadgeBounds_[2],v101BadgeBounds_[3]});
+               &vintageButtons);
   // New controls share exactly the already approved dark hardware caps.
  Painter::cap(*c,UiV101Layout::footerExport,
               v101_.height()-UiV101Layout::footer,"EXPORT",

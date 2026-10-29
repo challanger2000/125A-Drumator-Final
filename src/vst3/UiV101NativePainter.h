@@ -144,11 +144,19 @@ struct UiV101NativePreview final {
    c.setFont(VSTGUI::kNormalFont,font);c.setFontColor(ink);
    c.drawString(value,r,center?VSTGUI::kCenterText:VSTGUI::kLeftText);
  }
- // Exactly the V1.0 official 125A master geometry, never a font redraw.
- // Only its uniform scale and position change to fit the ivory fascia.
- static void brandLogo(VSTGUI::CDrawContext& c,double left,double top,double targetHeight){
-   const double sf=targetHeight/887.;
-   for(const auto& shape:kBrandLogoPaths){
+ // Exact signet paths 24..29 from 125A-Branding/125A_Logo_Master_FINAL.svg.
+ // All earlier paths are SYSTEMS and AUDIO SOFTWARE and must not be drawn.
+ // The signet sits directly on the original dark headplate, without a badge.
+ static void brandSignet(VSTGUI::CDrawContext& c,L::Rect area){
+   static_assert(kBrandLogoPaths.size()==30);
+   constexpr double sourceX=340.,sourceY=103.,sourceW=1065.,sourceH=485.;
+   constexpr double margin=6.;
+   const double sf=std::min((area.x1-area.x0-2.*margin)/sourceW,
+                            (area.y1-area.y0-2.*margin)/sourceH);
+   const double left=(area.x0+area.x1-sourceW*sf)*0.5-sourceX*sf;
+   const double top=(area.y0+area.y1-sourceH*sf)*0.5-sourceY*sf;
+   for(std::size_t n=24;n<kBrandLogoPaths.size();++n){
+     const auto& shape=kBrandLogoPaths[n];
      auto* path=c.createGraphicsPath();
      if(!path)continue;
      const char* cursor=shape.path;
@@ -170,7 +178,7 @@ struct UiV101NativePreview final {
        if(command=='M')path->beginSubpath(left+x*sf,top+y*sf);
        else path->addLine(left+x*sf,top+y*sf);
      }
-     c.setFillColor(shape.red?Color{215,25,32,255}:Color{222,218,209,255});
+     c.setFillColor(shape.red?Color{215,25,32,255}:Color{217,217,217,255});
      c.drawGraphicsPath(path,VSTGUI::CDrawContext::kPathFilledEvenOdd);
      path->forget();
    }
@@ -461,8 +469,11 @@ struct UiV101NativePreview final {
                   const UiV101Interaction::State& ui={},
                   VSTGUI::CBitmap* faceplatePng=nullptr,
                   const ButtonSprites* vintageButtons=nullptr,
-                  VSTGUI::CBitmap* badgePng=nullptr,
-                  TitleBounds badgeBounds={}){
+                  VSTGUI::CBitmap* faceplateBadgeUnused=nullptr,
+                  TitleBounds unusedBadgeBounds={}){
+   // Preserve the old optional argument ABI for native preview callers.
+   (void)faceplateBadgeUnused;
+   (void)unusedBadgeBounds;
    const auto cream=Skin::steel();
    auto expanded=L::Expansions{};
    if(ui.expandedRow<L::instruments)expanded[ui.expandedRow]=ui.expansion;
@@ -495,45 +506,9 @@ struct UiV101NativePreview final {
    if(!hasVintageFaceplate){
      screw(c,14.,15.);screw(c,L::width-14.,15.);
    }
-   // Bottom fasteners draw AFTER the inset footer so their metal edges
-   // cannot be masked by the solid footer background.
-   // User-approved industrial 125A metal badge, loaded from the
-   // repository asset; preserve its original aspect ratio and real alpha.
-   // Never draw the former synthetic enamel badge underneath the image.
-   if(badgePng&&badgePng->isLoaded()&&badgeBounds.valid()){
-     constexpr auto area=L::badgePlate;
-     const double left=area.x0,right=area.x1,top=area.y0,bottom=area.y1;
-     const double sf=std::min((right-left)/badgeBounds.width,
-                              (bottom-top)/badgeBounds.height);
-     const double displayedW=badgeBounds.width*sf;
-     const double displayedH=badgeBounds.height*sf;
-     const double px=(left+right-displayedW)*.5-badgeBounds.left*sf;
-     const double py=(top+bottom-displayedH)*.5-badgeBounds.top*sf;
-     {
-       VSTGUI::CDrawContext::Transform tx(c,
-         VSTGUI::CGraphicsTransform().scale(sf,sf).translate(px,py));
-       badgePng->draw(&c,{0.,0.,badgePng->getWidth(),badgePng->getHeight()});
-     }
-   }else{
-     // The rare unavailable-image fallback uses the same physical footprint.
-     rounded(c,{22.,2.,199.,97.},{12,18,25,255},5.);
-     rounded(c,{24.,4.,197.,95.},{78,96,112,255},4.);
-     rounded(c,{26.,6.,195.,93.},{19,29,40,255},4.);
-     fill(c,{32.,7.,189.,8.},{130,153,173,255});
-     constexpr double badgeMidX=(22.+199.)/2.,badgeMidY=(2.+97.)/2.;
-     constexpr double logoScale=72./887.;
-     brandLogo(c,badgeMidX-(163.+1609.)*.5*logoScale,
-                 badgeMidY-(103.+806.)*.5*logoScale,72.);
-   }
-   // The original PNG's microlettering becomes just a handful of pixels at
-   // editor size. Retain the approved badge and its geometry, but repaint
-   // only the AUDIO SOFTWARE caption in readable, native-resolution type.
-   constexpr auto caption=L::badgeCaption;
-   fill(c,{caption.x0,caption.y0,caption.x1,caption.y1},
-        {17,21,25,255});
-   label(c,"AUDIO SOFTWARE",
-         {caption.x0,caption.y0,caption.x1,caption.y1},10,
-         {223,231,236,255});
+   // 125A-Branding SVG signet only. No metal nameplate, caption,
+   // frame, screws, synthetic backing or substituted font is composited.
+   brandSignet(c,L::brandSignetArea);
    // The standalone owner-approved DRUMATOR wordmark is alpha-composited
    // directly on the original graphite plate, with no additional plaque.
    hardwareTitle(c,titlePng,titleBounds);
