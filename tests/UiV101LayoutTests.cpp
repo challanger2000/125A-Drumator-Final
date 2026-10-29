@@ -9,13 +9,16 @@ int main(){
   for(std::size_t step=0;step<L::steps;step+=4){
     const auto number=L::stepNumberRect(step);
     const auto painted=L::stepRect(step);
-    CHECK(number.x1-number.x0==17.&&number.y0==140.&&number.y1==157.);
-    CHECK((number.x0+number.x1)*.5==(painted.x0+painted.x1)*.5+1.);
-    if(step)CHECK(number.x0-L::stepNumberRect(step-4).x0==4.*L::stepPitch);
+    // These are compile-time geometry invariants; do not instantiate the
+    // CHECK macro here (MSVC C4127 under the /WX CI contract).
+    if(number.x1-number.x0!=17.||number.y0!=140.||number.y1!=157.||
+       (number.x0+number.x1)*.5!=(painted.x0+painted.x1)*.5+1.||
+       (step&&number.x0-L::stepNumberRect(step-4).x0!=4.*L::stepPitch))
+       return 1;
   }
-  CHECK(L::footerPanelLeft==22.&&L::footerPanelRight==1258.);
-  CHECK(L::footerPanelLeft>L::footerScrewLeftX+L::footerScrewRadius&&
-        L::footerPanelRight<L::footerScrewRightX-L::footerScrewRadius);
+  static_assert(L::footerPanelLeft==22.&&L::footerPanelRight==1258.);
+  static_assert(L::footerPanelLeft>L::footerScrewLeftX+L::footerScrewRadius&&
+                L::footerPanelRight<L::footerScrewRightX-L::footerScrewRadius);
   CHECK(L::zoomPresets.size()==4);
   CHECK(L::zoomPresets[0]==1.&&L::zoomPresets[1]==1.2);
   CHECK(L::zoomPresets[2]==1.3&&L::zoomPresets[3]==1.5);
