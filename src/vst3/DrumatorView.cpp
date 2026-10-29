@@ -1068,6 +1068,9 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  Painter::cap(*c,UiV101Layout::limiterTrigger,0.,
               controller_.limiterEnabled()?"LIMIT ON":"LIMIT OFF",
               controller_.limiterEnabled(),10,&vintageButtons);
+ // Draw the modal zoom popup OVER the limiter, never under its cap.
+ if(v101_.state().zoomOpen)
+   Painter::zoomPopup(*c,v101_.state().zoomIndex,&vintageButtons);
  drawV101Menu(c);
 }
 void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
@@ -1079,7 +1082,7 @@ void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
  const double rowY=valid?
    UiV101Layout::rowTop(first,v101MenuRow_-first,v101_.expandedRows()):
    UiV101Layout::header;
- const auto g=UiV101Popup::geometry(v101Menu_,rowY,v101_.height());
+ const auto g=UiV101Popup::geometry(v101Menu_,rowY,getViewSize().getHeight());
  Painter::fill(*c,{g.x-4.,g.y-4.,g.x+g.width+4.,
                    g.y+g.rows*g.cellHeight+4.},{17,26,36,255});
  Painter::border(*c,{g.x-4.,g.y-4.,g.x+g.width+4.,
@@ -1154,7 +1157,7 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
    const double rowY=valid?
      UiV101Layout::rowTop(first,v101MenuRow_-first,v101_.expandedRows()):
      UiV101Layout::header;
-   const auto g=UiV101Popup::geometry(v101Menu_,rowY,v101_.height());
+   const auto g=UiV101Popup::geometry(v101Menu_,rowY,getViewSize().getHeight());
    const int option=UiV101Popup::hit(v101Menu_,g,x,y);
    const bool ok=applyV101Menu(option);
    v101Menu_=UiV101Popup::Kind::None;
@@ -1162,11 +1165,12 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
    if(!ok)status_="MENU ACTION NOT APPLIED";
    invalid();return true;
  }
- if(UiV101Layout::footerExport.hit(x,y-(v101_.height()-UiV101Layout::footer))){
+ if(!v101_.state().zoomOpen&&UiV101Layout::footerExport.hit(
+      x,y-(getViewSize().getHeight()-UiV101Layout::footer))){
     v101Menu_=UiV101Popup::Kind::Export;v101MenuRow_=kRows;
     invalid();return true;
  }
- if(UiV101Layout::limiterTrigger.hit(x,y)){
+ if(!v101_.state().zoomOpen&&UiV101Layout::limiterTrigger.hit(x,y)){
     if(!controller_.setLimiterEnabled(!controller_.limiterEnabled()))
        status_="LIMITER SWITCH REJECTED";
     invalid();return true;
@@ -1453,6 +1457,10 @@ void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
  // The top-row SONG EDIT key stays visibly latched while its board is open.
  v101::UiV101NativePreview::cap(*c,UiV101Layout::headerGroup(1),
                                  0.,"SONG EDIT",true,10,&songButtonSprites);
+ // SONG painter covers MAIN footer; repaint the same real EXPORT key.
+ v101::UiV101NativePreview::cap(*c,UiV101Layout::footerExport,
+     getViewSize().getHeight()-UiV101Layout::footer,"EXPORT",
+     v101Menu_==UiV101Popup::Kind::Export,11,&songButtonSprites);
  // Modal overlays must sit ABOVE the SONG fascia. The main painter already
  // drew them, but the editor board covers y>=138 and would hide both the
  // Pattern MENU and the last zoom option. This is not merely decorative:
@@ -2385,6 +2393,14 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
  // the underlying SONG Pattern A-H or entry editor.
  if(v101Mode_&&songEditorOpen_&&
     (v101Menu_!=UiV101Popup::Kind::None||v101_.state().zoomOpen)){
+   (void)v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
+                       (buttons&VSTGUI::kShift)!=0);
+   return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+ }
+ // SONG footer EXPORT must have identical hit behavior to MAIN.
+ if(v101Mode_&&songEditorOpen_&&
+    UiV101Layout::footerExport.hit(
+      x,y-(getViewSize().getHeight()-UiV101Layout::footer))){
    (void)v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
                        (buttons&VSTGUI::kShift)!=0);
    return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;

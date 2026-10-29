@@ -81,7 +81,8 @@ struct UiV101Layout final {
   }
   static constexpr Rect meterReset{1132.,98.,1248.,134.};
   static constexpr Rect footerExport{915.,10.,1010.,35.}; // footer-relative
-  static constexpr Rect limiterTrigger{1085.,54.,1222.,86.};
+  // Standard 83x32 header key, with 10px clearance from zoom popup.
+  static constexpr Rect limiterTrigger{1069.,54.,1152.,86.};
   // Exact same 83x32 hardware cap as MENU/BARS/SONG/SONG EDIT.
   // Keep right edge and optical center (near 1208,29) unchanged; the 4px
   // gap before the existing zoom option popup is retained.

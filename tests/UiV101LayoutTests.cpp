@@ -115,6 +115,26 @@ int main(){
                 L::footerExport.y1==L::footerPrev.y1);
   static_assert(L::limiterTrigger.x0>L::headerKnobCenters[2]+L::headerKnobRadius);
   static_assert(L::limiterTrigger.y1<L::meterReset.y0);
+  // The new caps use only existing physical button size families.
+  static_assert(L::footerExport.x1-L::footerExport.x0==95. &&
+                L::footerExport.y1-L::footerExport.y0==25.);
+  static_assert(L::limiterTrigger.x1-L::limiterTrigger.x0==83. &&
+                L::limiterTrigger.y1-L::limiterTrigger.y0==32.);
+  static_assert(L::limiterTrigger.x1+10.<=L::zoomOption(0).x0);
+  for(const auto height: {432.,686.}) {
+    const auto g=drumator::UiV101Popup::geometry(
+        drumator::UiV101Popup::Kind::Export,L::header,height);
+    CHECK(g.rows==4&&g.columns==1&&g.width==210.);
+    CHECK(g.y+g.rows*g.cellHeight<=height-L::footer);
+    for(int option=0;option<4;++option) {
+      const auto cell=drumator::UiV101Popup::cell(g,option);
+      CHECK(cell.x0>=g.x&&cell.x1<=g.x+g.width);
+      CHECK(cell.y0>=L::header&&cell.y1<height-L::footer);
+      CHECK(drumator::UiV101Popup::hit(
+          drumator::UiV101Popup::Kind::Export,g,
+          (cell.x0+cell.x1)*.5,(cell.y0+cell.y1)*.5)==option);
+    }
+  }
   CHECK(L::editorHeight(0,10,e)==686.);
   CHECK(L::editorHeight(0,10,e)*1.5==1029.);
   const auto action=[&](double x,double yy){return L::hit(x,yy,0,10,e).action;};

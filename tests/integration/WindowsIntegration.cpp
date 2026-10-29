@@ -1495,10 +1495,22 @@ void testV101LiveEditor(){
  click(*view,1200.,25.);click(*view,1200.,139.);
  check(view->zoomMatches(1.5),"V101 SONG 150% host zoom mismatch");
  captureVstgui(*view,"v101-song-board-hardware-150",1.5);
+ // Regression: zoom 100% lies above the old LIMIT click rectangle.
+ const bool limiterBeforeZoom=f.c->limiterEnabled();
  click(*view,1200.,25.);click(*view,1200.,61.); // restore 100%
  check(view->zoomMatches(1.0)&&
        std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
-       "V101 SONG zoom restore from 130 to 100 failed");
+       "V101 SONG zoom restore from 150 to 100 failed");
+ check(f.c->limiterEnabled()==limiterBeforeZoom,
+       "V101 zoom 100% must never toggle limiter");
+ const double songExportY=view->getViewSize().getHeight()-L::footer+22.;
+ click(*view,(L::footerExport.x0+L::footerExport.x1)*.5,songExportY);
+ check(IntegrationAccess::v101Popup(*view)==UiV101Popup::Kind::Export,
+       "SONG footer EXPORT did not open real menu");
+ captureVstgui(*view,"v101-song-export-menu-100",1.0);
+ click(*view,1100.,210.);
+ check(IntegrationAccess::v101Popup(*view)==UiV101Popup::Kind::None,
+       "SONG EXPORT outside click did not dismiss");
  const auto songCount=f.c->songCount();
  click(*view,181.,352.); // Pattern B for selected entry
  check(f.c->songEntry(0).pattern==1,
@@ -1562,6 +1574,23 @@ void testV101LiveEditor(){
  IntegrationAccess::setStatusText(*view,originalStatus);
  check(f.c->renameRow(0,"Kick 01"),
        "V101 long-name visual stress did not restore original sample name");
+ const auto limiterX=(L::limiterTrigger.x0+L::limiterTrigger.x1)*.5;
+ const auto limiterY=(L::limiterTrigger.y0+L::limiterTrigger.y1)*.5;
+ const bool beforeLimiter=f.c->limiterEnabled();
+ click(*view,limiterX,limiterY);
+ check(f.c->limiterEnabled()!=beforeLimiter,
+       "MAIN LIMIT ON/OFF not connected to processor");
+ captureVstgui(*view,"v101-main-limiter-on-100",1.0);
+ click(*view,limiterX,limiterY);
+ check(f.c->limiterEnabled()==beforeLimiter,"MAIN limiter toggle restore");
+ const double mainExportY=view->getViewSize().getHeight()-L::footer+22.;
+ click(*view,(L::footerExport.x0+L::footerExport.x1)*.5,mainExportY);
+ check(IntegrationAccess::v101Popup(*view)==UiV101Popup::Kind::Export,
+       "MAIN footer EXPORT did not open native menu");
+ captureVstgui(*view,"v101-main-export-menu-100",1.0);
+ click(*view,1100.,210.);
+ check(IntegrationAccess::v101Popup(*view)==UiV101Popup::Kind::None,
+       "MAIN EXPORT outside-click dismissal failed");
  click(*view,1200.,25.);click(*view,1200.,87.);
  check(view->zoomMatches(1.2),"V101 MAIN 120% host zoom mismatch");
  captureVstgui(*view,"v101-layout-native-main-120",1.2);
