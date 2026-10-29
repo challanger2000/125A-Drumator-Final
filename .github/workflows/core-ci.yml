@@ -141,6 +141,7 @@ jobs:
           $actual = @($bundleFiles | ForEach-Object {
             [System.IO.Path]::GetRelativePath($artifactRoot, $_.FullName).Replace('\','/')
           }) | Sort-Object
+          foreach ($requiredImage in @('125A_Drumator_Faceplate.png', 'Futuristische industrielle Metalloberfläche.png', 'DRUMATOR_Original_mit_echter_Transparenz.png', '125A_Dark_Button_83x32_Normal_1x.png', '125A_Dark_Button_83x32_Normal_4x.png', '125A_Dark_Button_83x32_Aktiv_1x.png', '125A_Dark_Button_83x32_Aktiv_4x.png', '125A_Dark_Button_83x32_Gedrueckt_1x.png', '125A_Dark_Button_83x32_Gedrueckt_4x.png', '125A_Dark_Button_83x32_Deaktiviert_1x.png', '125A_Dark_Button_83x32_Deaktiviert_4x.png', 'Metallisches DRUMATOR-Logo.png')) {
             $imagePath = Join-Path $resourceDirectory $requiredImage
             if (!(Test-Path -LiteralPath $imagePath) -or (Get-Item -LiteralPath $imagePath).Length -lt 1024) {
               throw "Missing or empty mandatory visual resource: $requiredImage"
