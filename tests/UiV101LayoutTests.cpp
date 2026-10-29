@@ -28,7 +28,10 @@ int main(){
                 L::brandMasterSafeArea.x1<=160.);
   static_assert(L::brandMasterSafeArea.y0>=12.&&
                 L::brandMasterSafeArea.y1<=62.);
-  static_assert(L::brandMasterSafeArea.x1<L::patternHeading.x0);
+  // The centered PATTERN legend shares horizontal extent with the
+  // upper-left signet but lies 19px BELOW its safe area, so check actual
+  // two-dimensional separation rather than requiring artificial X spacing.
+  static_assert(L::brandMasterSafeArea.y1+12.<=L::patternHeading.y0);
   static_assert(L::brandMasterSafeArea.y1+30.<L::headerButtonY);
   static_assert(L::brandMasterSafeArea.x1-L::brandMasterSafeArea.x0<=90.);
   static_assert(L::brandMasterSafeArea.y1-L::brandMasterSafeArea.y0<=50.);
