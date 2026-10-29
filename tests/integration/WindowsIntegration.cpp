@@ -1686,6 +1686,20 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
    VSTGUI::CResourceDescription("DRUMATOR_Logo_Modern_Transparent.png"));
  check(knob->getWidth()==125.&&knob->getHeight()==12625.,
        "V1.0.1 preview did not load real V1.0 knob filmstrip");
+ // Validate the actual 101-frame production resource, not a mock-up:
+ // the metal CAP alone is titanium-blue, while the dark housing stays gray.
+ auto* knobPixels=VSTGUI::CBitmapPixelAccess::create(knob,false);
+ check(knobPixels!=nullptr&&knobPixels->setPosition(62,62+125*50),
+       "V1.0.1 titanium-blue knob PNG could not be decoded");
+ VSTGUI::CColor capTint{};knobPixels->getColor(capTint);
+ check(knobPixels->setPosition(20,62+125*50),
+       "V1.0.1 knob housing inspection failed");
+ VSTGUI::CColor housing{};knobPixels->getColor(housing);
+ knobPixels->forget();
+ check(capTint.blue>capTint.green+15&&capTint.green>capTint.red+10,
+       "V1.0.1 titanium-blue knob cap has reverted to silver");
+ check(housing.red==housing.green&&housing.green==housing.blue,
+       "V1.0.1 knob housing must retain its original neutral-gray color");
  const auto bounds=drumator::qa::UiV101NativePreview::measureTitle(logo);
  check(bounds.valid()&&bounds.width>2000.&&bounds.height>250.&&bounds.height<350.,
        "V1.0.1 logo PNG unreadable or lacks alpha-visible content");
