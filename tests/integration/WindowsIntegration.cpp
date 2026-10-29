@@ -1070,18 +1070,6 @@ void testV101Interaction(){
        f.c->velocity(2,9,0)==100&&f.c->velocity(2,9,1)==0&&
        f.c->velocity(2,8,0)==otherRowBefore,
        "V101 VEL reset failed, created a note or edited a different row");
- const unsigned outBefore=f.c->rowOutput(9);
- check(ui.down(151.,expandedTop+69.)==UI::Result::DeferredToView&&
-       f.c->rowOutput(9)==outBefore,
-       "V101 OUTPUT selector silently mutated Controller");
- const auto outputRequest=ui.takeDeferredRequest();
- check(outputRequest.kind==UI::DeferredKind::OutputMenu&&outputRequest.row==9,
-       "V101 OUTPUT view request lost exact instrument target");
- check(ui.down(280.,expandedTop+69.)==UI::Result::DeferredToView,
-       "V101 CHOKE menu not deferred");
- const auto chokeRequest=ui.takeDeferredRequest();
- check(chokeRequest.kind==UI::DeferredKind::ChokeMenu&&chokeRequest.row==9,
-       "V101 CHOKE view request lost exact instrument target");
  // LIVE VEL has isolated +/-/drag controls beyond the Step bars, and
  // no corresponding hit area in SET.
  static_assert(UI::realtimeValue.x1-UI::realtimeValue.x0==124.);
@@ -1107,6 +1095,18 @@ void testV101Interaction(){
  check(ui.down(1230.,expandedTop+36.)==UI::Result::Handled&&
        ui.state().expansion==L::Expansion::Settings,
        "V101 VEL/SET exclusion failed");
+ const unsigned outBefore=f.c->rowOutput(9);
+ check(ui.down(151.,expandedTop+69.)==UI::Result::DeferredToView&&
+       f.c->rowOutput(9)==outBefore,
+       "V101 OUTPUT selector silently mutated Controller");
+ const auto outputRequest=ui.takeDeferredRequest();
+ check(outputRequest.kind==UI::DeferredKind::OutputMenu&&outputRequest.row==9,
+       "V101 OUTPUT view request lost exact instrument target");
+ check(ui.down(280.,expandedTop+69.)==UI::Result::DeferredToView,
+       "V101 CHOKE menu not deferred");
+ const auto chokeRequest=ui.takeDeferredRequest();
+ check(chokeRequest.kind==UI::DeferredKind::ChokeMenu&&chokeRequest.row==9,
+       "V101 CHOKE view request lost exact instrument target");
  check(ui.down(401.,expandedTop+69.)==UI::Result::Applied,
        "V101 SET copy row failed");
  const double row8Top=L::rowTop(ui.state().firstRow,7,ui.expandedRows());
