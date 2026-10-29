@@ -112,3 +112,18 @@ Aktuelle Ressourcenliste im gebauten Bundle: 8 dunkle Button-Zustände/Auflösun
 - Bei reproduzierten Problemen: erst Quellursache + negatives Regressionstest-Orakel, danach gebündelte Reparatur; keine kosmetischen oder funktionsfremden Änderungen im Audit.
 
 **Auditentscheidung:** **Windows-CI technisch PASS / reale Releasefreigabe BLOCKIERT durch DR-A01; relevante QA-/Realtime-Abdeckungsdefizite DR-A02 bis DR-A04 sind gezielt zu bearbeiten.**
+
+## 7. Nachbesserung und tatsächliche Windows-QA — 29.10.2026
+
+**Korrekturcommit:** [`66d07ba`](https://github.com/challanger2000/125A-Drumator-Final/commit/66d07ba8bdb69d0cf7b286fb6400ca5c432720c1) (Tests, CI-Screenshot-Auswahl, Anleitung, `CURRENT.md`; keine Änderung an DSP/MIDI/GUI-Produktcode).  
+**Exakter Prüflauf:** [GitHub Actions #40814316169](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40814316169): **Windows SUCCESS und unabhängiger Plugin-Tester SUCCESS; 24/24 CTests, 47/47 Steinberg-Validator-Tests, 58 PASS / 0 WARNING / 0 FAIL**.
+
+- **DR-A02: gezielte V1.0.1-Prototypverwechslung geschlossen.** Native Fallback-/Prototyp-Bilder werden weiterhin für die Testorakel erzeugt, aber vor der Veröffentlichung der Screenshot-ZIP aus `build/gui-shots/` entfernt. Das neue, selbst heruntergeladene Bildartefakt **12871788006** enthält **kein** `v101-layout-native-prototype-*`, `v101-layout-native-zoom-menu-*` oder `v101-controller-*-lane-*`. Die produktiven MAIN-, SONG- und WAVE-Renderings sind vorhanden; ZIP-Integrität bestätigt. **Rest:** 60 Dateien insgesamt, darunter andere ältere `gui39`/`v2`/SONG-Diagnostikbilder; nicht mit V1.0.1-Design-Screenshots verwechseln.
+- **DR-A03: konkrete WAVE-Faceplate-Regression bei 100% geschlossen.** `testV101LiveEditor` prüft jetzt fünf frei sichtbare Metall-Pixel im WAVE-Modal **gegen ein separat gerendertes Original-PNG-Referenzbild** mit unveränderter Helligkeit (RGB-Differenzsumme ≤15). Ein glatter Ersatz oder die zuvor entfernte zusätzliche 40%-Abdunklung würde an mehreren Punkten scheitern. Die volle 24-CTest-Matrix einschließlich dieses neuen Orakels ist bestanden; 120/130/150% haben native Renderings, aber kein identisches 5-Punkt-Orakel.
+- **DR-A05/DR-A08: Bedienungsgrenzen dokumentiert.** END-Klick mit Shift, 4/4, Pattern-only-DAW-Automation, 16/64-MiB eingebettete WAV-Grenzen stehen in `docs/BEDIENUNGSANLEITUNG-DE.md`. Keine Änderung an Bedienfunktionen.
+- **DR-A04 OPEN:** Für extrem große VST3-Hostautomations-Queues ist weiterhin erst ein valider Grenzfall-/Callback-Zeit-Test erforderlich. Ein willkürliches Abschneiden wäre eine mögliche Automations-Regression und wurde bewusst nicht implementiert.
+- **DR-A01 NOT RUN / RELEASE BLOCKER:** echte Studio-One-/ASIO-Interaktion mit genau dieser VST3, Native-Dateidialog, realer Save/Close/Reopen-Recall, 16 DAW-Ausgänge und Zoomfreigabe.
+
+**Ehrliche Fehlchronik:** Der vorangegangene Workflow [#40814030401](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40814030401) endete mit **BUILD FAIL** wegen einer neuen lokalen Testvariable `original` (MSVC C4456, /WX); CTests/Validator/Tester wurden dort **NICHT AUSGEFÜHRT**. Die reine Testvariablen-Umbenennung im Commit `66d07ba` ist mit dem vollständigen SUCCESS-Run #40814316169 gegengeprüft.
+
+**Schluss:** Die zwei konkreten GUI-Test-/Screenshot-Befunde sind jetzt für die beschriebenen automatisierten Windows-Szenarien geschlossen. **Produktcode bleibt unverändert**, **V1.0.1 FINAL weiterhin nicht freigegeben**.

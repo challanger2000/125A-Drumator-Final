@@ -4,7 +4,7 @@
 
 - Branch: `develop/v1.0.1-gui-redesign`; Version in CMake, PluginIDs und Windows-Binary: **1.0.1**.
 - Geprüfter Produktstand vor dem Audit-Nachbesserungszyklus: `e59023351a61e01cbfe80bfe3d01d0aacfaefc06`; [Windows Actions #40811357723](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40811357723): **24/24 CTests, 47/47 Validator, 58 PASS / 0 WARNING / 0 FAIL** im unabhängigen Tester.
-- [Aktueller umfangreicher Audit](docs/audits/DRUMATOR-V101-GESAMT-AUDIT-20261029.md). Nachfolgeänderungen an Tests/Workflows sind **nur** mit einem neuen erfolgreichen Workflow für ihren exakten Commit als geprüft zu werten.
+- [Aktueller umfangreicher Audit](docs/audits/DRUMATOR-V101-GESAMT-AUDIT-20261029.md), mit überprüftem Nachtrag: [Korrekturcommit `66d07ba`](https://github.com/challanger2000/125A-Drumator-Final/commit/66d07ba8bdb69d0cf7b286fb6400ca5c432720c1) — Windows [#40814316169](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40814316169) **SUCCESS, 24/24 CTests, 47/47 Validator, 58/58 Plugin Tester**. Produktcode seit `e590233` unverändert.
 - **NICHT V1.0.1 FINAL**: Studio One/ASIO/echter Datei-Picker/DAW-Projekt-Recall und User-Designfreigabe sind für die aktuelle Binary **NOT RUN**.
 - Die folgende V1.0.0-Sektion bezeichnet den zuvor bestätigten Releasekandidaten und wird durch den noch nicht veröffentlichten GUI-Entwicklungszweig nicht ersetzt.
 
