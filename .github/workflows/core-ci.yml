@@ -50,6 +50,21 @@ jobs:
             Get-Content build/Testing/Temporary/LastTest.log | Select-Object -Last 180 | Write-Output
             exit $testExit
           }
+      # The native test uses the actual VST3 controller/view painter and
+      # writes MAIN/SONG/WAVE bitmaps before its final assertion. Preserve
+      # those authentic pixels even if an unrelated functional assertion
+      # fails. This does NOT override or suppress the CTest failure gate.
+      - name: Archive real V1.0.1 View logo evidence even on test failure
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: 125A-Drumator-V101-Master-Signet-View-Renderings
+          path: |
+            build/gui-shots/v101-layout-native-main-150.bmp
+            build/gui-shots/v101-layout-native-main-120.bmp
+            build/gui-shots/v101-song-board-hardware-150.bmp
+            build/gui-shots/v101-wave-editor-hardware-150.bmp
+          if-no-files-found: error
       - name: Assemble standard Windows VST3 bundle and validate
         shell: pwsh
         run: |
