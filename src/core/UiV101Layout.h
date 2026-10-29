@@ -236,10 +236,12 @@ static_assert(UiV101Layout::zoomPresets[0]==1.0 &&
               UiV101Layout::zoomPresets[3]==1.5);
 static_assert(UiV101Layout::zoomOption(3).y1<=UiV101Layout::header);
 static_assert(UiV101Layout::stepRect(UiV101Layout::steps-1).x1<=UiV101Layout::stepEnd);
-static_assert(UiV101Layout::footerPanelLeft >
-              UiV101Layout::footerScrewLeftX+UiV101Layout::footerScrewRadius);
-static_assert(UiV101Layout::footerPanelRight <
-              UiV101Layout::footerScrewRightX-UiV101Layout::footerScrewRadius);
+// The full-width strip extends BEHIND both lower screw heads. The painter
+// restores the screw faces AFTER the inset instead of narrowing the strip.
+static_assert(UiV101Layout::footerPanelLeft <
+              UiV101Layout::footerScrewLeftX);
+static_assert(UiV101Layout::footerPanelRight >
+              UiV101Layout::footerScrewRightX);
 static_assert(UiV101Layout::footerPrev.x0>=UiV101Layout::footerPanel.x0+10.&&
               UiV101Layout::footerNext.x1<=UiV101Layout::footerPanel.x1-10.);
 static_assert(UiV101Layout::footerAdd.x0>=UiV101Layout::footerPanel.x0+10.&&
