@@ -1446,19 +1446,40 @@ int main(int argc,char** argv) {
  // Measure only process(), excluding fixture construction/kit reset; this is
  // Windows CI diagnostic timing, NOT a real-ASIO deadline certification.
  {
+   // Steinberg's normal ParameterValueQueue deliberately coalesces points
+   // with equal sample offsets. It cannot reproduce an adversarial queue
+   // count. Override the real SDK VST3 host interfaces instead: the plugin
+   // receives exactly 16,384 getPoint() calls without hidden coalescing.
+   class DenseValueQueue final : public ParameterValueQueue {
+    public:
+     explicit DenseValueQueue(int32 sample) :
+       ParameterValueQueue(drumator::kPatternParam),sample_(sample) {}
+     int32 PLUGIN_API getPointCount() SMTG_OVERRIDE {return 16384;}
+     tresult PLUGIN_API getPoint(int32 point,int32& sample,ParamValue& value) SMTG_OVERRIDE {
+       if(point<0||point>=getPointCount())return kResultFalse;
+       sample=sample_;value=(point&1)?1./7.:0.;
+       ++reads;
+       return kResultTrue;
+     }
+     std::uint32_t reads=0;
+    private:
+     int32 sample_;
+   };
+   class DenseHostChanges final : public ParameterChanges {
+    public:
+     explicit DenseHostChanges(int32 sample):ParameterChanges(0),queue(sample){}
+     int32 PLUGIN_API getParameterCount() SMTG_OVERRIDE{return 1;}
+     IParamValueQueue* PLUGIN_API getParameterData(int32 index) SMTG_OVERRIDE{
+       return index==0?&queue:nullptr;
+     }
+     IParamValueQueue* PLUGIN_API addParameterData(
+         const ParamID&,int32&) SMTG_OVERRIDE{return nullptr;}
+     DenseValueQueue queue;
+   };
    constexpr int32 kDensePoints=16384;
-   ParameterChanges denseHost;
-   int32 denseParameterIndex=0;
-   auto* denseQueue=denseHost.addParameterData(
-       drumator::kPatternParam,denseParameterIndex);
-   require(denseQueue!=nullptr,"P16 dense host automation queue absent");
-   for(int32 n=0;n<kDensePoints;++n){
-     int32 densePointIndex=0;
-     require(denseQueue->addPoint(64,(n&1)?1./7.:0.,densePointIndex)==kResultOk,
-             "P16 cannot construct 16,384 host points");
-   }
-   require(denseQueue->getPointCount()==kDensePoints,
-           "P16 did not actually supply all host parameter points");
+   DenseHostChanges denseHost(64);
+   require(denseHost.queue.getPointCount()==kDensePoints,
+           "P16 adversarial queue did not expose all host parameter points");
    std::array<double,12> measuredMilliseconds{};
    for(std::size_t iteration=0;iteration<measuredMilliseconds.size();++iteration){
      loadPattern(0);
@@ -1487,6 +1508,9 @@ int main(int argc,char** argv) {
      require(lateB>1.,
              "P16 lost last host point or let equal-offset MIDI A override B");
    }
+   require(denseHost.queue.reads==
+           static_cast<std::uint32_t>(kDensePoints*measuredMilliseconds.size()),
+           "P16 host queue did not deliver all 16384 points on all 12 callbacks");
    std::sort(measuredMilliseconds.begin(),measuredMilliseconds.end());
    const double p99=measuredMilliseconds.back();
    const double median=measuredMilliseconds[measuredMilliseconds.size()/2];
@@ -1509,20 +1533,13 @@ int main(int argc,char** argv) {
            "P16 outputless host state not usable on restored audio bus");
    double afterOutputless=0.;
    for(int n=180;n<240;++n)afterOutputless+=std::abs(left[n]);
-   require(afterOutputless>1.,
-           "P16 outputless dense queue lost the final B pattern");
+   require(afterOutputless>1.&&
+           denseHost.queue.reads==static_cast<std::uint32_t>(
+             kDensePoints*(measuredMilliseconds.size()+1)),
+           "P16 outputless dense queue lost the final B or missed input points");
 
    // Zero-frame parameter flush is a separate branch and uses offset 0.
-   ParameterChanges zeroFrameHost;
-   int32 zeroParameterIndex=0;
-   auto* zeroQueue=zeroFrameHost.addParameterData(
-       drumator::kPatternParam,zeroParameterIndex);
-   require(zeroQueue!=nullptr,"P16 zero-frame queue absent");
-   for(int32 n=0;n<kDensePoints;++n){
-     int32 zeroPointIndex=0;
-     require(zeroQueue->addPoint(0,(n&1)?1./7.:0.,zeroPointIndex)==kResultOk,
-             "P16 zero-frame dense host fixture");
-   }
+   DenseHostChanges zeroFrameHost(0);
    loadPattern(0);context.projectTimeMusic=0.;
    ProcessData zeroFrame=data;
    zeroFrame.numSamples=0;
@@ -1535,8 +1552,9 @@ int main(int argc,char** argv) {
            "P16 audio after zero-frame flush failed");
    double afterZeroFrame=0.;
    for(int n=180;n<240;++n)afterZeroFrame+=std::abs(left[n]);
-   require(afterZeroFrame>1.,
-           "P16 zero-frame host flush lost the final B pattern");
+   require(afterZeroFrame>1.&&
+           zeroFrameHost.queue.reads==static_cast<std::uint32_t>(kDensePoints),
+           "P16 zero-frame dense flush lost B or missed input points");
    events.clear();
    data.inputParameterChanges=nullptr;
    std::cout<<"P16 dense automation NORMAL / OUTPUTLESS / ZERO-FRAME,"
