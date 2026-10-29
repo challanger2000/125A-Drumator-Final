@@ -46,7 +46,7 @@ int main(int argc,char** argv) {
     const auto modulePath=drumator::pathFromUtf8(argv[1]);
     // Verify packaged GUI assets from the installable VST3, not source-tree paths.
     const auto resourceDir=modulePath.parent_path().parent_path()/L"Resources";
-    for(const auto* required:{L"Metallisches DRUMATOR-Logo.png",L"125A_Drumator_Faceplate.png"}) {
+    for(const auto* required:{L"DRUMATOR_Logo_Modern_Transparent.png",L"125A_Drumator_Faceplate.png"}) {
       const auto file=resourceDir/required;
       std::ifstream in(file,std::ios::binary);
       std::array<unsigned char,24> png{};
