@@ -1572,11 +1572,12 @@ void testV101LiveEditor(){
        {{902u,585u}},{{1001u,594u}}}}){
    check(waveMetalPixels->setPosition(point[0],point[1]),
          "V101 Wave original metal reference outside bitmap");
-   VSTGUI::CColor original{};waveMetalPixels->getColor(original);
+   VSTGUI::CColor referenceMetalPixel{};
+   waveMetalPixels->getColor(referenceMetalPixel);
    const auto actual=viewPixel(point[0],point[1]);
-   const int rgbDifference=std::abs(actual[0]-int(original.red))+
-                           std::abs(actual[1]-int(original.green))+
-                           std::abs(actual[2]-int(original.blue));
+   const int rgbDifference=std::abs(actual[0]-int(referenceMetalPixel.red))+
+                           std::abs(actual[1]-int(referenceMetalPixel.green))+
+                           std::abs(actual[2]-int(referenceMetalPixel.blue));
    check(rgbDifference<=15,
          "V101 WAVE interior must show undarkened original metal image");
  }
