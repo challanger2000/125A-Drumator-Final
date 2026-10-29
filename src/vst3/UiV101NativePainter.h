@@ -92,46 +92,28 @@ struct UiV101NativePreview final {
      fill(c,{r.left,top,r.right,bottom},ink);
    }
  }
- // The supplied 1713x918 artwork has much larger photo screw heads and
- // edge details than the final 1280px hardware layout. Simple stretch makes
- // the case look magnified, even though interactive controls are correct.
- // A 3-column x 4-row nine-slice variant contracts all FOUR image corners
- // to the actual 14px screw centres while retaining full-size midsections.
- // Vertical bands reserve the 158px header and preserve the bottom edge on
- // 6-row, expanded and normal editor heights. No clip or hit rect changes.
+ // Draw the supplied faceplate as ONE photograph. Never nine-slice it:
+ // slicing a panel with continuous grooves, bevels and brushed grain
+ // breaks the geometry at every slice boundary.
+ // Keep the artwork's aspect ratio and crop the surplus at the center.
+ // All views share the same 1280x686 reference framing, including SONG.
  static bool drawVintageFaceplate(VSTGUI::CDrawContext& c,
                                   VSTGUI::CBitmap* plate,double height,bool omitHeader=false){
    if(!plate||!plate->isLoaded()||plate->getWidth()<300.||
       plate->getHeight()<300.||height<L::header+L::footer)return false;
    const double w=plate->getWidth(),h=plate->getHeight();
-   constexpr double cornerX=100.,cornerY=100.;
-   const std::array<double,4> sourceX{{0.,cornerX,w-cornerX,w}};
-   const std::array<double,4> destX{{0.,28.,L::width-28.,L::width}};
-   const std::array<double,5> sourceY{{0.,cornerY,h*L::header/686.,h-cornerY,h}};
-   const std::array<double,5> destY{{0.,28.,L::header,height-28.,height}};
-   if(!(sourceY[1]<sourceY[2]&&sourceY[2]<sourceY[3]&&
-        destY[2]<destY[3]))return false;
-   // Clip a transformed copy of the unchanged source PNG to each band.
-   // The transformed source origin is anchored at both band boundaries.
-   for(std::size_t row=omitHeader?2u:0u;row<4u;++row)
-     for(std::size_t col=0;col<3u;++col){
-       const double sourceW=sourceX[col+1]-sourceX[col];
-       const double sourceH=sourceY[row+1]-sourceY[row];
-       const double destW=destX[col+1]-destX[col];
-       const double destH=destY[row+1]-destY[row];
-       const double sx=destW/sourceW,sy=destH/sourceH;
-       c.saveGlobalState();
-       c.setClipRect({destX[col],destY[row],
-                      destX[col+1],destY[row+1]});
-       {
-         VSTGUI::CDrawContext::Transform tx(c,
-           VSTGUI::CGraphicsTransform().scale(sx,sy)
-              .translate(destX[col]-sourceX[col]*sx,
-                         destY[row]-sourceY[row]*sy));
-         plate->draw(&c,{0.,0.,w,h});
-       }
-       c.restoreGlobalState();
-     }
+   constexpr double referenceHeight=686.;
+   const double scale=std::max(L::width/w,referenceHeight/h);
+   const double x=(L::width-w*scale)*.5;
+   const double y=(referenceHeight-h*scale)*.5;
+   c.saveGlobalState();
+   c.setClipRect({0.,omitHeader?L::header:0.,L::width,height});
+   {
+     VSTGUI::CDrawContext::Transform tx(c,
+       VSTGUI::CGraphicsTransform().scale(scale,scale).translate(x,y));
+     plate->draw(&c,{0.,0.,w,h});
+   }
+   c.restoreGlobalState();
    return true;
  }
  // Square buttons were the main Windows-98 cue. These tiny inset corner
