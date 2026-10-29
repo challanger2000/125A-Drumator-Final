@@ -212,6 +212,33 @@ jobs:
             }
             Copy-Item -LiteralPath $lane -Destination "build/gui-shots/v101-controller-$kind-lane-100.bmp" -Force
           }
+          # CTest and the standalone diagnostic renderer deliberately produce
+          # LIGHT procedural/fallback images. Keep their ASSERTIONS, but never
+          # publish those as if they were the current dark product GUI.
+          # The archive must contain only actual attached/packaged View pixels.
+          $fallbackMasks = @(
+            'v101-layout-native-prototype-*.bmp',
+            'v101-layout-native-zoom-menu-*.bmp',
+            'v101-controller-velocity-lane-*.bmp',
+            'v101-controller-settings-lane-*.bmp'
+          )
+          foreach ($mask in $fallbackMasks) {
+            @(Get-ChildItem -Path 'build/gui-shots' -Filter $mask -File -ErrorAction SilentlyContinue) |
+              Remove-Item -Force
+          }
+          $remaining = @(Get-ChildItem -Path 'build/gui-shots' -File)
+          if (@($remaining | Where-Object {
+                $_.Name -like 'v101-layout-native-prototype-*' -or
+                $_.Name -like 'v101-controller-*-lane-*' -or
+                $_.Name -like 'v101-layout-native-zoom-menu-*'
+              }).Count -ne 0) {
+            throw 'Legacy light fallback image leaked into production GUI artifact'
+          }
+          if (-not @($remaining | Where-Object { $_.Name -eq 'v101-wave-editor-hardware-100.bmp' }).Count -or
+              -not @($remaining | Where-Object { $_.Name -eq 'v101-song-board-hardware-100.bmp' }).Count -or
+              -not @($remaining | Where-Object { $_.Name -eq 'packaged-vst3-resources-silver-100.bmp' }).Count) {
+            throw 'Verified production MAIN/SONG/WAVE screenshots missing from artifact'
+          }
           $bundleFiles | Select-Object FullName,Length | Format-Table
       - name: Archive native VSTGUI pixel renderings
         uses: actions/upload-artifact@v4

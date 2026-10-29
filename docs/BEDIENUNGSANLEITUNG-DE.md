@@ -20,6 +20,8 @@ Ein VST3-Drum-Sampler für Windows mit Step-Sequencer. Er ist auf **One-Shot-Sam
 
 **Knackser vermeiden:** START manuell setzen und bei Bedarf einen kurzen FADE IN verwenden. Es gibt weder AUTO START noch ZERO SNAP.
 
+**WAVE-Marker:** Ein Klick nahe der vorhandenen END-Markierung greift END; auf freier Wellenformfläche setzt ein einfacher Klick standardmäßig START. **Shift + Linksklick** auf freier Fläche setzt END. Dies ist die bestehende Bedienweise, keine neue Funktion.
+
 ## Pattern und Tempo
 
 Die Step-Schritte werden zum musikalischen Transport der DAW synchronisiert. In der Hauptansicht **1 BAR** oder **2 BARS** wählen. Die Buttons haben identische Abmessungen und verändern nur die Länge des aktuellen Patterns. Achtung: Dies ist **keine Tempoanpassung importierter Audiodateien**.
@@ -29,6 +31,12 @@ Die Pattern A–H lassen sich separat auswählen und bearbeiten. Das Pattern-Men
 ## Mischen und Ausgänge
 
 Die Instrumentenzeilen bieten VOL, PAN, PITCH, Mute, Solo, Choke, Fill und Output-Zuordnung. Zusätzliche VST3-Ausgänge müssen in der DAW aktiviert werden, sofern sie dort für das Instrument angeboten werden. Die Sample-Preview-Wiedergabe ist nicht mit dem DAW-Transport identisch.
+
+## Verbindliche Funktionsgrenzen
+
+- SONG START und BAR-Zuordnung sind in V1 für **4/4** (16 Sechzehntel pro Takt) ausgelegt; andere Taktarten/Taktwechsel sind nicht validiert.
+- In der DAW lässt sich in V1 **nur Pattern A–H** als VST3-Parameter automatisieren. Die übrigen Regler sind bedienbar und werden im Projektzustand gespeichert, aber nicht als einzelne DAW-Automationsparameter angeboten.
+- Für den eingebetteten Projekt-Samplezustand gelten technische Obergrenzen von **16 MiB WAV-Daten je Instrument** und **64 MiB WAV-Daten insgesamt**. Dateien vor der endgültigen Speicherung entsprechend testen.
 
 ## Grenzen / noch zu prüfende Bedienung
 

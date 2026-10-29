@@ -1551,6 +1551,36 @@ void testV101LiveEditor(){
        std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
        "V101 Wave 100 percent raster did not use real 100 percent zoom");
  captureVstgui(*view,"v101-wave-editor-hardware-100",1.0);
+ // The actual WAVE modal must expose the owner-approved source PNG at its
+ // native brightness. A generic dark rectangle, fallback satin fill or
+ // an unrequested translucent darkening pass must FAIL this pixel oracle.
+ // Only sample unpainted metal below the readouts; no overlay text or knobs.
+ auto* waveMetal=IntegrationAccess::vintageFaceplate(*view);
+ check(waveMetal&&waveMetal->isLoaded()&&waveMetal->getWidth()>=820.&&
+       waveMetal->getHeight()>=505.,
+       "V101 Wave original metal faceplate source not loaded");
+ auto expectedWaveMetal=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+   [&](VSTGUI::CDrawContext& dc){
+     waveMetal->draw(&dc,{230.,100.,1050.,605.},
+       {(waveMetal->getWidth()-820.)*.5,(waveMetal->getHeight()-505.)*.5});
+   });
+ check(expectedWaveMetal!=nullptr,"V101 Wave source metal reference unavailable");
+ auto* waveMetalPixels=VSTGUI::CBitmapPixelAccess::create(expectedWaveMetal.get(),false);
+ check(waveMetalPixels!=nullptr,"V101 Wave original faceplate pixels unavailable");
+ for(const auto& point:std::array<std::array<std::uint32_t,2>,5>{{
+       {{250u,558u}},{{410u,565u}},{{800u,570u}},
+       {{902u,585u}},{{1001u,594u}}}}){
+   check(waveMetalPixels->setPosition(point[0],point[1]),
+         "V101 Wave original metal reference outside bitmap");
+   VSTGUI::CColor original{};waveMetalPixels->getColor(original);
+   const auto actual=viewPixel(point[0],point[1]);
+   const int rgbDifference=std::abs(actual[0]-int(original.red))+
+                           std::abs(actual[1]-int(original.green))+
+                           std::abs(actual[2]-int(original.blue));
+   check(rgbDifference<=15,
+         "V101 WAVE interior must show undarkened original metal image");
+ }
+ waveMetalPixels->forget();
  // Assert that the modal scrim actually darkens a control outside the dialog.
  const auto modalBackgroundPixel=viewPixel(96,173);
  const auto rgbTotal=[](const std::array<int,3>& rgb){
