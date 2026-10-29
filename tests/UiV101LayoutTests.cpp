@@ -105,6 +105,14 @@ int main(){
   CHECK(L::zoomHit(1100.,165.,true)==-1);
   L::Expansions e{};
   const double y=L::header;
+  // Visual/semantic header audit: legend must be centered over *all*
+  // A-H buttons, independent of their current selection or UI zoom.
+  const auto firstPattern=L::patternButton(0),lastPattern=L::patternButton(7);
+  CHECK((L::patternHeading.x0+L::patternHeading.x1)==
+        (firstPattern.x0+lastPattern.x1));
+  CHECK(L::patternHeading.y1+3.<=firstPattern.y0);
+  CHECK(L::patternHeading.x0==firstPattern.x0&&
+        L::patternHeading.x1==lastPattern.x1);
   CHECK(L::footerAdd.x1-L::footerAdd.x0==95.);
   CHECK(L::footerRemove.x1-L::footerRemove.x0==95.);
   CHECK(L::footerPrev.x1-L::footerPrev.x0==95.);
