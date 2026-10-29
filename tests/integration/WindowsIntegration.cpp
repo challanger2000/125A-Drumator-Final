@@ -1060,7 +1060,8 @@ void testV101Interaction(){
  // controller contents, note occupancy and non-selected instrument isolation.
  check(UI::velocityAt(190.,76.)==UI::SettingsAction::RandomVelocity&&
        UI::velocityAt(330.,76.)==UI::SettingsAction::ResetVelocity&&
-       UI::settingsAt(190.,76.)==UI::SettingsAction::Output,
+       UI::settingsAt(190.,76.)==UI::SettingsAction::None&&
+       UI::settingsAt(392.,76.)==UI::SettingsAction::Output,
        "V101 random/reset one-shot hit regions are not Velocity-only");
  const auto otherRowBefore=f.c->velocity(2,8,0);
  check(ui.down(190.,expandedTop+76.)==UI::Result::Applied&&
@@ -1096,26 +1097,26 @@ void testV101Interaction(){
        ui.state().expansion==L::Expansion::Settings,
        "V101 VEL/SET exclusion failed");
  const unsigned outBefore=f.c->rowOutput(9);
- check(ui.down(151.,expandedTop+69.)==UI::Result::DeferredToView&&
+ check(ui.down(392.,expandedTop+69.)==UI::Result::DeferredToView&&
        f.c->rowOutput(9)==outBefore,
        "V101 OUTPUT selector silently mutated Controller");
  const auto outputRequest=ui.takeDeferredRequest();
  check(outputRequest.kind==UI::DeferredKind::OutputMenu&&outputRequest.row==9,
        "V101 OUTPUT view request lost exact instrument target");
- check(ui.down(280.,expandedTop+69.)==UI::Result::DeferredToView,
+ check(ui.down(514.,expandedTop+69.)==UI::Result::DeferredToView,
        "V101 CHOKE menu not deferred");
  const auto chokeRequest=ui.takeDeferredRequest();
  check(chokeRequest.kind==UI::DeferredKind::ChokeMenu&&chokeRequest.row==9,
        "V101 CHOKE view request lost exact instrument target");
- check(ui.down(401.,expandedTop+69.)==UI::Result::Applied,
+ check(ui.down(636.,expandedTop+69.)==UI::Result::Applied,
        "V101 SET copy row failed");
  const double row8Top=L::rowTop(ui.state().firstRow,7,ui.expandedRows());
  check(ui.down(1230.,row8Top+36.)==UI::Result::Handled&&
        ui.state().expandedRow==8,"V101 settings switch row failed");
- check(ui.down(540.,row8Top+69.)==UI::Result::Applied&&
+ check(ui.down(758.,row8Top+69.)==UI::Result::Applied&&
        f.c->velocity(2,8,0)==100,
        "V101 SET paste row did not modify pattern");
- check(ui.down(652.,row8Top+69.)==UI::Result::Applied&&
+ check(ui.down(880.,row8Top+69.)==UI::Result::Applied&&
        f.c->velocity(2,8,0)==0,"V101 SET clear row failed");
  // Modal zoom selection cannot click through; host rejection rolls back.
  check(ui.down(1200.,24.)==UI::Result::Handled&&ui.state().zoomOpen,
@@ -1387,13 +1388,13 @@ void testV101LiveEditor(){
        "V101 attached FILL menu did not edit the real row");
  // Mouse-only SET row; OUTPUT and CHOKE popups use the painted hit geometry.
  click(*view,1230.,L::header+36.);
- click(*view,151.,L::header+69.);
+ click(*view,392.,L::header+69.);
  const auto outputGeometry=drumator::UiV101Popup::geometry(
      drumator::UiV101Popup::Kind::Output,L::header,view->getViewSize().getHeight());
  const auto output2=drumator::UiV101Popup::cell(outputGeometry,2);
  click(*view,(output2.x0+output2.x1)/2.,(output2.y0+output2.y1)/2.);
  check(f.c->rowOutput(0)==2,"V101 host OUTPUT menu did not set bus 2");
- click(*view,280.,L::header+69.);
+ click(*view,514.,L::header+69.);
  const auto chokeGeometry=drumator::UiV101Popup::geometry(
      drumator::UiV101Popup::Kind::Choke,L::header,view->getViewSize().getHeight());
  const auto choke3=drumator::UiV101Popup::cell(chokeGeometry,3);

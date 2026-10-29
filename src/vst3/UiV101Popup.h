@@ -27,7 +27,7 @@ struct UiV101Popup final {
  }
  static Geometry geometry(Kind kind,double rowTop,double viewHeight) noexcept {
    const auto x=kind==Kind::Pattern?364.:kind==Kind::Fill?84.:
-                kind==Kind::Output?138.:kind==Kind::Choke?260.:155.;
+                kind==Kind::Output?336.:kind==Kind::Choke?458.:155.;
    const int cols=kind==Kind::Output?2:1;
    const int rows=(count(kind)+cols-1)/cols;
    const double w=cols==2?224.:kind==Kind::Pattern?190.:176.;

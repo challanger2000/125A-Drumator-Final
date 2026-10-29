@@ -88,7 +88,9 @@ public:
    return L::hit(x,y,state_.firstRow,shownRows(),expandedRows());
  }
  static constexpr L::Rect settingsRect(std::size_t index)noexcept {
-   constexpr std::array<double,5> x{{138.,260.,382.,504.,626.}};
+   // Five identical 112px keys with four 10px gaps: 600px total.
+   // Center this SET group in the 13..1260 chassis: midpoint x=636.
+   constexpr std::array<double,5> x{{336.,458.,580.,702.,824.}};
    const double left=x[index];
    return {left,56.,left+112.,88.}; // relative to expanded ROW TOP
  }

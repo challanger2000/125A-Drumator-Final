@@ -21,6 +21,24 @@ void testV101MenuMatrixAndGeometry(){
  const auto center=[](L::Rect r){
    return std::pair<double,double>{(r.x0+r.x1)/2.,(r.y0+r.y1)/2.};
  };
+ const auto setCenter=[](std::size_t i){
+   return (drumator::UiV101Interaction::settingsRect(i).x0+
+           drumator::UiV101Interaction::settingsRect(i).x1)*.5;
+ };
+ // All five buttons form one visually centered 600px group, with
+ // untouched 112x32 controls and 10px gutters. Popup anchors follow them.
+ const auto firstSet=drumator::UiV101Interaction::settingsRect(0);
+ const auto lastSet=drumator::UiV101Interaction::settingsRect(4);
+ check(std::abs((firstSet.x0+lastSet.x1)*.5-(13.+1260.)*.5)<1.&&
+       lastSet.x1-firstSet.x0==600.,
+       "GUI audit SET five-key group not centered in expanded panel");
+ for(std::size_t key=0;key<5;++key){
+   const auto r=drumator::UiV101Interaction::settingsRect(key);
+   check(r.x1-r.x0==112.&&r.y1-r.y0==32.&&
+         (key==0||r.x0-drumator::UiV101Interaction::settingsRect(key-1).x1==10.),
+         "GUI audit SET five-key sizes and uniform 10px gaps regressed");
+ }
+
  const auto popupClick=[&](Kind kind,int option,double triggerX,
                            double triggerY,double rowTop){
    check(option>=0&&option<Pop::count(kind),"GUI audit invalid popup test index");
@@ -173,7 +191,7 @@ void testV101MenuMatrixAndGeometry(){
  // Mouse-open SET must expose every Output (16) and Choke (5) entry.
  click(*view,1230.,L::header+36.);
  for(int bus=0;bus<16;++bus){
-   popupClick(Kind::Output,bus,151.,L::header+69.,L::header);
+   popupClick(Kind::Output,bus,setCenter(0),L::header+69.,L::header);
    check(f.c->rowOutput(0)==static_cast<unsigned>(bus),
          "GUI audit OUTPUT menu index did not set matching bus");
  }
@@ -189,12 +207,12 @@ void testV101MenuMatrixAndGeometry(){
        "GUI audit BUS 16 selection not persisted in processor state");
  check(drumator::v101::captureControllerScene(*f.c).rows[0].outputBus==15,
        "GUI audit BUS label does not follow actual controller assignment");
- popupClick(Kind::Output,0,151.,L::header+69.,L::header);
+ popupClick(Kind::Output,0,setCenter(0),L::header+69.,L::header);
  check(f.c->rowOutput(0)==0&&
        drumator::v101::captureControllerScene(*f.c).rows[0].outputBus==0,
        "GUI audit BUS routing did not return to MAIN");
  for(int group=0;group<5;++group){
-   popupClick(Kind::Choke,group,280.,L::header+69.,L::header);
+   popupClick(Kind::Choke,group,setCenter(1),L::header+69.,L::header);
    check(f.c->rowChoke(0)==static_cast<unsigned>(group),
          "GUI audit CHOKE menu index did not set matching group");
  }
@@ -222,16 +240,16 @@ void testV101MenuMatrixAndGeometry(){
        "GUI audit VEL RESET did not create a single undoable change");
  click(*view,330.,L::header+76.); // restore 100 before row copy
  click(*view,1230.,L::header+36.); // VEL -> SET
- click(*view,438.,L::header+69.); // SET COPY ROW
+ click(*view,setCenter(2),L::header+69.); // SET COPY ROW
  const auto copied=f.c->velocity(current,0,4);
  L::Expansions setFirst{};setFirst[0]=L::Expansion::Settings;
  const auto row1ExpandedTop=L::rowTop(0,1,setFirst);
  click(*view,1230.,row1ExpandedTop+36.); // SET for row 1
  const auto row1Top=L::rowTop(0,1,L::Expansions{});
- click(*view,560.,row1Top+69.); // SET PASTE ROW
+ click(*view,setCenter(3),row1Top+69.); // SET PASTE ROW
  check(f.c->velocity(current,1,4)==copied,
        "GUI audit SET PASTE ROW did not copy pattern to target");
- click(*view,680.,row1Top+69.); // SET CLEAR ROW
+ click(*view,setCenter(4),row1Top+69.); // SET CLEAR ROW
  check(f.c->velocity(current,1,4)==0,
        "GUI audit SET CLEAR ROW did not erase target note");
  // Return expansion to row 0 for the existing sample popup target test.
