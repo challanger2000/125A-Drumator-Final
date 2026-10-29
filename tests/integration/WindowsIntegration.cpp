@@ -118,6 +118,8 @@ struct IntegrationAccess {
  static bool sampleEditorOpen(const DrumatorView& view){return view.sampleEditorOpen_;}
  static bool songEditorOpen(const DrumatorView& view){return view.songEditorOpen_;}
  static std::size_t v101SelectedRow(const DrumatorView& view){return view.v101_.state().selectedRow;}
+ static std::size_t v101FirstRow(const DrumatorView& view){return view.v101_.state().firstRow;}
+ static UiV101Layout::Expansion v101Expansion(const DrumatorView& view){return view.v101_.state().expansion;}
  static bool v101ZoomPopupOpen(const DrumatorView& view){return view.v101_.state().zoomOpen;}
  static UiV101Popup::Kind v101Popup(const DrumatorView& view){return view.v101Menu_;}
  static std::string sampleEditorStatus(const DrumatorView& v){return v.status_;}
@@ -1844,7 +1846,178 @@ void testV101ConnectedPatternSongExportsAndLimiter(){
    check(!std::filesystem::exists(p.string()+".125a-export-part",ec),
          "connected export left a partial file");
  }
+ // Audio-level E2E: two simultaneous floating-point stereo sample voices
+ // deliberately exceed 0 dBFS. The connected GUI Controller must propagate
+ // LIMIT into the real Processor and the offline WAV mixer, not only report ON.
+ {
+   Fixture hotFixture;
+   KitState hot{};
+   hot.visible=2;hot.selected=0;hot.patternLengths.fill(16);
+   hot.grid.fill(0);
+   hot.grid[0]=127;hot.grid[kSteps]=127;
+   hot.names[0]="hot-left.wav";hot.names[1]="hot-right.wav";
+   hot.wav[0]=constantStereo(.9f,-.72f);
+   hot.wav[1]=constantStereo(.9f,-.72f);
+   hotFixture.kit(hot);
+   const auto without=base/"125a-v101-hot-limiter-off.wav";
+   const auto with=base/"125a-v101-hot-limiter-on.wav";
+   const auto pcm24=[](const std::vector<std::uint8_t>& b,std::size_t p){
+     std::int32_t n=static_cast<std::int32_t>(b[p])|
+                    (static_cast<std::int32_t>(b[p+1])<<8)|
+                    (static_cast<std::int32_t>(b[p+2])<<16);
+     if(n&0x800000)n|=static_cast<std::int32_t>(0xff000000u);
+     return static_cast<double>(n)/8388608.;
+   };
+   auto processorLimiter=[&](unsigned expected){
+     ResizableMemoryIBStream saved;
+     KitState observed{};
+     check(hotFixture.p->getState(&saved)==kResultOk&&
+           KitCodec::decode(static_cast<const std::uint8_t*>(saved.getData()),
+                            static_cast<std::size_t>(saved.getCursor()),observed),
+           "connected LIMIT processor state could not be decoded");
+     check(observed.limiter==expected,
+           "connected LIMIT GUI control did not reach Processor state");
+   };
+   check(!hotFixture.c->limiterEnabled(),
+         "connected hot limiter fixture must start OFF");
+   processorLimiter(0);
+   check(hotFixture.c->exportWav(false,without.string()),
+         "connected hot LIMIT OFF WAV creation failed");
+   const auto off=read(without);
+   check(hotFixture.c->setLimiterEnabled(true)&&
+         hotFixture.c->limiterEnabled(),
+         "connected hot LIMIT ON Controller command failed");
+   processorLimiter(1);
+   check(hotFixture.c->exportWav(false,with.string()),
+         "connected hot LIMIT ON WAV creation failed");
+   const auto on=read(with);
+   check(validWav(off)&&validWav(on)&&off.size()==on.size(),
+         "connected hot LIMIT WAV pair must share valid timing and header");
+   if(validWav(off)&&validWav(on)&&off.size()==on.size()){
+     double peakOff=0.,peakOn=0.;
+     unsigned meaningful=0;
+     const std::size_t last=std::min<std::size_t>(off.size(),44u+1024u*6u);
+     for(std::size_t p=44;p+5<last;p+=6){
+       const double ol=pcm24(off,p),orr=pcm24(off,p+3);
+       const double nl=pcm24(on,p),nrr=pcm24(on,p+3);
+       peakOff=std::max({peakOff,std::abs(ol),std::abs(orr)});
+       peakOn=std::max({peakOn,std::abs(nl),std::abs(nrr)});
+       if(std::abs(ol-nl)>.03)++meaningful;
+       check(std::abs(nl)<=StereoPeakLimiter::kCeiling+.000001 &&
+             std::abs(nrr)<=StereoPeakLimiter::kCeiling+.000001,
+             "connected LIMIT ON audio exceeded -0.3dBFS ceiling");
+       if(std::abs(nl)>.001&&std::abs(nrr)>.001)
+         check(std::abs(nl/nrr-ol/orr)<.002,
+               "connected LIMIT ON changed stereo channel balance");
+     }
+     check(peakOff>.99&&peakOn<=StereoPeakLimiter::kCeiling+.000001&&
+           meaningful>100&&off!=on,
+           "connected LIMIT OFF and ON must produce independently distinct PCM");
+   }
+   check(hotFixture.c->setLimiterEnabled(false)&&
+         !hotFixture.c->limiterEnabled(),
+         "connected hot LIMIT OFF Controller command failed");
+   processorLimiter(0);
+   check(hotFixture.c->exportWav(false,with.string()),
+         "connected hot limiter second OFF export failed");
+   check(read(with)==off,
+         "connected LIMIT ON->OFF must recover bit-exact original 24-bit PCM");
+   for(const auto& path:{without,with}){
+     std::error_code ec;std::filesystem::remove(path,ec);
+   }
+ }
+ evidence("V1.0.1 connected LIMIT end-to-end: ON -0.3dBFS, stereo link, OFF exact PCM, Processor state ON/OFF PASS");
  evidence("V1.0.1 connected Controller/Processor: PATTERN+SONG MIDI, PATTERN+SONG 24bit PCM WAV, LIMIT ON/OFF, file rollback PASS");
+}
+
+// Commercial visual matrix: every capture is generated from the attached
+// production V1.0.1 VSTGUI View, never a fallback preview or zoomed mockup.
+// Capture only after asserting actual host zoom, current mode and open popup.
+void testV101CommercialVisualEvidence(){
+ using L=drumator::UiV101Layout;
+ using K=drumator::UiV101Popup::Kind;
+ Fixture f;
+ auto kit=v101PreviewKit();
+ kit.visible=16;
+ f.kit(kit);
+ auto& host=f.openV101();
+ auto* v=IntegrationAccess::view(*f.c,0);
+ const std::array<std::pair<double,const char*>,4> zooms{{
+   {1.0,"100"},{1.2,"120"},{1.3,"130"},{1.5,"150"}
+ }};
+ const auto snapshot=[&](const char* prefix,const char* zoom,double value){
+   check(v->isV101()&&v->zoomMatches(value)&&
+         std::abs(host.getZoomFactor()-value)<.0001,
+         "commercial native image without matching real host zoom");
+   captureVstgui(*v,std::string("v101-current-")+prefix+"-"+zoom,value);
+ };
+ const auto popup=[&](K kind,const char* label,double x,double y,
+                      const char* zoom,double value){
+   click(*v,x,y);
+   check(IntegrationAccess::v101Popup(*v)==kind,
+         "commercial menu screenshot attempted without open native popup");
+   snapshot(label,zoom,value);
+   click(*v,1100.,210.); // modal outside-click, no underlying action
+   check(IntegrationAccess::v101Popup(*v)==K::None,
+         "commercial menu failed dismissal after visual capture");
+ };
+ for(std::size_t z=0;z<zooms.size();++z){
+   const auto [scale,label]=zooms[z];
+   if(z!=0){
+     click(*v,1200.,25.);
+     click(*v,1200.,49.+26.*z+12.);
+   }
+   check(v->getViewSize().getHeight()==686.&&
+         IntegrationAccess::v101FirstRow(*v)==0,
+         "commercial MAIN initial native host geometry / page incorrect");
+   snapshot("main",label,scale);
+
+   click(*v,1230.,L::header+12.); // row 1 VEL, existing live control
+   check(IntegrationAccess::v101Expansion(*v)==L::Expansion::Velocity&&
+         v->getViewSize().getHeight()==734.,
+         "commercial VEL real editor state / expanded height incorrect");
+   snapshot("velocity",label,scale);
+   click(*v,1230.,L::header+12.);
+   check(IntegrationAccess::v101Expansion(*v)==L::Expansion::None,
+         "commercial VEL collapse did not restore MAIN state");
+
+   click(*v,1230.,L::header+36.); // SET for first instrument
+   check(IntegrationAccess::v101Expansion(*v)==L::Expansion::Settings,
+         "commercial SET screenshot not in expanded Settings state");
+   snapshot("settings",label,scale);
+   popup(K::Output,"popup-bus",392.,L::header+69.,label,scale);
+   popup(K::Choke,"popup-choke",514.,L::header+69.,label,scale);
+   click(*v,1230.,L::header+36.); // close SET
+   check(IntegrationAccess::v101Expansion(*v)==L::Expansion::None&&
+         v->getViewSize().getHeight()==686.,
+         "commercial SET collapse did not restore MAIN geometry");
+
+   popup(K::Pattern,"popup-pattern",400.,115.,label,scale);
+   popup(K::Fill,"popup-fill",99.,L::header+20.,label,scale);
+   popup(K::Sample,"popup-sample",267.,L::header+20.,label,scale);
+   // Export is footer-relative and must never open a clipped menu.
+   popup(K::Export,"popup-export",960.,
+         v->getViewSize().getHeight()-L::footer+22.,label,scale);
+
+   click(*v,1200.,25.);
+   check(IntegrationAccess::v101ZoomPopupOpen(*v),
+         "commercial zoom popup must be open before screenshot");
+   snapshot("popup-zoom",label,scale);
+   click(*v,1100.,210.);
+   check(!IntegrationAccess::v101ZoomPopupOpen(*v),
+         "commercial zoom popup dismissal failed");
+
+   click(*v,1175.,v->getViewSize().getHeight()-L::footer+22.);
+   check(IntegrationAccess::v101FirstRow(*v)==10&&
+         v->getViewSize().getHeight()==494.,
+         "commercial second instrument page missing or wrong height");
+   snapshot("page2-last-six",label,scale);
+   click(*v,1070.,v->getViewSize().getHeight()-L::footer+22.);
+   check(IntegrationAccess::v101FirstRow(*v)==0&&
+         v->getViewSize().getHeight()==686.,
+         "commercial return to first instrument page failed");
+ }
+ evidence("Commercial CURRENT V1.0.1 native 4-zoom MAIN/VEL/SET/PAGE2 + Pattern/Fill/BUS/Choke/Sample/Export/Zoom popup matrix PASS");
 }
 
 enum class V101CaptureMode { Normal, Velocity, Settings };
@@ -4936,6 +5109,7 @@ int main(int argc,char** argv){
  run("V101 native interactive controller, lane and zoom actions",testV101Interaction);
  run("V101 real VST3 editor attach, mouse dispatch, dialogs and zoom",testV101LiveEditor);
  run("V101 connected Controller/Processor exports and limiter",testV101ConnectedPatternSongExportsAndLimiter);
+ run("V101 native commercial 4-zoom GUI evidence matrix",testV101CommercialVisualEvidence);
  run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
  run("V101 SONG and Wave full native button matrix",testV101SongAndWaveFullControlMatrix);
  run("V101 16-row pointer isolation and real WAV sample browse",testV101AllRowMouseIsolationAndSampleBrowse);
