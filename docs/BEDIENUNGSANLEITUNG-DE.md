@@ -22,6 +22,16 @@ Ein VST3-Drum-Sampler für Windows mit Step-Sequencer. Er ist auf **One-Shot-Sam
 
 **WAVE-Marker:** Ein Klick nahe der vorhandenen END-Markierung greift END; auf freier Wellenformfläche setzt ein einfacher Klick standardmäßig START. **Shift + Linksklick** auf freier Fläche setzt END. Dies ist die bestehende Bedienweise, keine neue Funktion.
 
+## Instrumente: Velocity und BUS-Zuordnung (V1.0.1)
+
+Über **VEL** unter der jeweiligen Instrumentenzeile lassen sich die Velocity-Balken der Steps direkt bearbeiten. **RANDOM VEL** verändert einmalig die Velocity vorhandener Steps **nur dieses Instruments** im ausgewählten Pattern; **RESET VEL** stellt die vorhandenen Steps derselben Instrumentenzeile auf **100** zurück. Leere Steps bleiben leer. In 1-BAR-Ansicht bleibt der nicht sichtbare zweite Takt unberührt. Beide Eingriffe sind über PATTERN → UNDO rückgängig zu machen.
+
+**LIVE VEL** steuert dagegen eine nichtdestruktive Anschlagstärkenvariation während der Wiedergabe (0–100 %). Gespeicherte Step-Velocities bleiben dabei unverändert. Das Feld lässt sich ziehen; die Tasten −/+ verändern den Wert.
+
+Im Bereich **SET** befindet sich die BUS-Zuordnung, die als **BUS 1** (MAIN) oder **BUS 2–16** angezeigt wird. Eine BUS-Auswahl legt das Audiosignal einer Instrumentenzeile auf den gewählten Stereo-VST3-Bus; sie **aktiviert im Host nicht automatisch** die zugehörige Ausgabespur. Für separate Drum-Kanäle die entsprechenden Instrumentenausgänge (DRUM 02 bis DRUM 16) **in Studio One aktivieren**. Solange ein zusätzlicher Bus nicht aktiv ist, kann Drumator das Signal auf MAIN ausgeben. Die BUS-Auswahl wird mit dem Projekt gespeichert.
+
+**Wichtig:** Die aktuelle Funktionsprüfung des BUS-Menüs und das 16-Bus-Audio-Routing sind automatisiert bestanden; die konkrete Aktivierung in Studio One/ASIO bleibt ein **offener Praxistest**.
+
 ## Pattern und Tempo
 
 Die Step-Schritte werden zum musikalischen Transport der DAW synchronisiert. In der Hauptansicht **1 BAR** oder **2 BARS** wählen. Die Buttons haben identische Abmessungen und verändern nur die Länge des aktuellen Patterns. Achtung: Dies ist **keine Tempoanpassung importierter Audiodateien**.
