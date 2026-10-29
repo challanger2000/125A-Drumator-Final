@@ -501,27 +501,39 @@ struct UiV101NativePreview final {
    // repository asset; preserve its original aspect ratio and real alpha.
    // Never draw the former synthetic enamel badge underneath the image.
    if(badgePng&&badgePng->isLoaded()&&badgeBounds.valid()){
-     constexpr double left=26.,right=157.,top=7.,bottom=78.;
+     constexpr auto area=L::badgePlate;
+     const double left=area.x0,right=area.x1,top=area.y0,bottom=area.y1;
      const double sf=std::min((right-left)/badgeBounds.width,
                               (bottom-top)/badgeBounds.height);
      const double displayedW=badgeBounds.width*sf;
      const double displayedH=badgeBounds.height*sf;
      const double px=(left+right-displayedW)*.5-badgeBounds.left*sf;
      const double py=(top+bottom-displayedH)*.5-badgeBounds.top*sf;
-     VSTGUI::CDrawContext::Transform tx(c,
-       VSTGUI::CGraphicsTransform().scale(sf,sf).translate(px,py));
-     badgePng->draw(&c,{0.,0.,badgePng->getWidth(),badgePng->getHeight()});
+     {
+       VSTGUI::CDrawContext::Transform tx(c,
+         VSTGUI::CGraphicsTransform().scale(sf,sf).translate(px,py));
+       badgePng->draw(&c,{0.,0.,badgePng->getWidth(),badgePng->getHeight()});
+     }
    }else{
-     // Missing-image fallback remains usable for standalone diagnostic painters.
-     rounded(c,{26.,10.,157.,76.},{12,18,25,255},5.);
-     rounded(c,{28.,12.,155.,73.},{78,96,112,255},4.);
-     rounded(c,{30.,14.,153.,71.},{19,29,40,255},4.);
-     fill(c,{35.,15.,148.,16.},{130,153,173,255});
-     constexpr double badgeMidX=(26.+157.)/2.,badgeMidY=(10.+76.)/2.;
-     constexpr double logoScale=55./887.;
+     // The rare unavailable-image fallback uses the same physical footprint.
+     rounded(c,{22.,2.,199.,97.},{12,18,25,255},5.);
+     rounded(c,{24.,4.,197.,95.},{78,96,112,255},4.);
+     rounded(c,{26.,6.,195.,93.},{19,29,40,255},4.);
+     fill(c,{32.,7.,189.,8.},{130,153,173,255});
+     constexpr double badgeMidX=(22.+199.)/2.,badgeMidY=(2.+97.)/2.;
+     constexpr double logoScale=72./887.;
      brandLogo(c,badgeMidX-(163.+1609.)*.5*logoScale,
-                 badgeMidY-(103.+806.)*.5*logoScale,55.);
+                 badgeMidY-(103.+806.)*.5*logoScale,72.);
    }
+   // The original PNG's microlettering becomes just a handful of pixels at
+   // editor size. Retain the approved badge and its geometry, but repaint
+   // only the AUDIO SOFTWARE caption in readable, native-resolution type.
+   constexpr auto caption=L::badgeCaption;
+   fill(c,{caption.x0,caption.y0,caption.x1,caption.y1},
+        {17,21,25,255});
+   label(c,"AUDIO SOFTWARE",
+         {caption.x0,caption.y0,caption.x1,caption.y1},10,
+         {223,231,236,255});
    // The standalone owner-approved DRUMATOR wordmark is alpha-composited
    // directly on the original graphite plate, with no additional plaque.
    hardwareTitle(c,titlePng,titleBounds);
@@ -539,7 +551,9 @@ struct UiV101NativePreview final {
    // inset pockets from y=78..137: buttons, rotaries, real labels and the
    // meter render directly on the original hardware photo. This applies to
    // both MAIN and SONG because they share this native painter.
-   label(c,"PATTERN",{33.,80.,154.,96.},11,{218,226,235,255},false);
+   constexpr auto heading=L::patternHeading;
+   label(c,"PATTERN",{heading.x0,heading.y0,heading.x1,heading.y1},
+         11,{218,226,235,255},false);
    for(std::size_t i=0;i<8;++i){
      const char key[2]={static_cast<char>('A'+i),'\0'};
      cap(c,L::patternButton(i),0.,key,i==scene.pattern,12,vintageButtons);
@@ -768,12 +782,10 @@ struct UiV101NativePreview final {
    // Both controls are identically sized 95x25 machined metal keys.
    cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10,vintageButtons,ui.firstRow==0);
    cap(c,L::footerNext,footerTop,"NEXT PAGE",false,10,vintageButtons,ui.firstRow+shown>=scene.visibleRows);
-   // The fixed-size bitmap's footer corners also carry their own screws.
-   // Keep the old painted fasteners only in the fallback path.
-   if(!hasVintageFaceplate){
-     screw(c,L::footerScrewLeftX,total-15.);
-     screw(c,L::footerScrewRightX,total-15.);
-   }
+   // Preserve clearly exposed corner screws in both the image-backed and
+   // fallback skins. Draw AFTER the full-width inset, never underneath it.
+   screw(c,L::footerScrewLeftX,total-15.);
+   screw(c,L::footerScrewRightX,total-15.);
    if(zoomMenuOpen)zoomPopup(c,selected,vintageButtons);
  }
 };
