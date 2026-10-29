@@ -22,13 +22,16 @@ int main(){
   static_assert(L::footerPanelRight-L::footerPanelLeft>=1260.);
   static_assert(L::footerScrewLeftX>L::footerPanelLeft&&
                 L::footerScrewRightX<L::footerPanelRight);
-  // Original SVG signet is constrained to the former logo area.
-  // No header labels or clickable pattern/zoom controls may be displaced.
-  static_assert(L::brandSignetArea.x1<L::patternHeading.x0);
-  static_assert(L::brandSignetArea.y1<L::headerButtonY);
-  static_assert(L::brandSignetArea.x1-L::brandSignetArea.x0>=170.);
-  static_assert(L::brandSignetArea.x0>=20.&&L::brandSignetArea.x1<=200.);
-  static_assert(L::brandSignetArea.y0>=0.&&L::brandSignetArea.y1<=98.);
+  // COMPLETE Branding master (all 30 SVG paths) must sit INSIDE the
+  // graphite faceplate, away from its top trim and the stepped bottom bevel.
+  static_assert(L::brandMasterSafeArea.x0>=65.&&
+                L::brandMasterSafeArea.x1<=160.);
+  static_assert(L::brandMasterSafeArea.y0>=12.&&
+                L::brandMasterSafeArea.y1<=62.);
+  static_assert(L::brandMasterSafeArea.x1<L::patternHeading.x0);
+  static_assert(L::brandMasterSafeArea.y1+30.<L::headerButtonY);
+  static_assert(L::brandMasterSafeArea.x1-L::brandMasterSafeArea.x0<=90.);
+  static_assert(L::brandMasterSafeArea.y1-L::brandMasterSafeArea.y0<=50.);
   CHECK(L::zoomPresets.size()==4);
   CHECK(L::zoomPresets[0]==1.&&L::zoomPresets[1]==1.2);
   CHECK(L::zoomPresets[2]==1.3&&L::zoomPresets[3]==1.5);

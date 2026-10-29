@@ -710,24 +710,39 @@ void captureVstgui(DrumatorView& v,const std::string& title,double scale){
          std::abs(int(actual.blue)-int(background.blue));
        if(difference>36)++wordmarkVisible;
      }
-   // The complete official logo MUST paint the master lettering below
-   // its signet. The former six-path-only drawing left this region identical
-   // to the raw dark plate. This raster oracle catches that omission.
-   unsigned footerLetterPixels=0;
-   for(std::uint32_t y=69;y<92;++y)
-     for(std::uint32_t x=25;x<196;++x){
+   // Verify BOTH original SVG captions are really painted at their new
+   // header-interior positions (not only that their vector data exist).
+   // The tiny AUDIO SOFTWARE strokes may be only 2-3 pixels at 100%.
+   unsigned systemsPixels=0,audioPixels=0,bevelBleedPixels=0;
+   for(std::uint32_t y=45;y<59;++y)
+     for(std::uint32_t x=65;x<157;++x){
        check(access->setPosition(x,y)&&platePixels->setPosition(x,y),
-             "125A original master caption pixel compare outside header");
+             "125A master caption comparison outside the real header");
        VSTGUI::CColor actual{},background{};
        access->getColor(actual);platePixels->getColor(background);
-       if(int(actual.red)>int(background.red)+45&&
-          int(actual.green)>int(background.green)+45&&
-          int(actual.blue)>int(background.blue)+45)
-         ++footerLetterPixels;
+       const bool lighter=int(actual.red)>int(background.red)+30&&
+                          int(actual.green)>int(background.green)+30&&
+                          int(actual.blue)>int(background.blue)+30;
+       if(lighter){if(y<53)++systemsPixels;else ++audioPixels;}
+     }
+   // On the horizontal stepped bevel itself the raw faceplate and final
+   // editor must be identical: the 125A artwork must not paint this edge.
+   for(std::uint32_t y=68;y<77;++y)
+     for(std::uint32_t x=67;x<155;++x){
+       check(access->setPosition(x,y)&&platePixels->setPosition(x,y),
+             "125A bevel comparison outside header");
+       VSTGUI::CColor actual{},background{};
+       access->getColor(actual);platePixels->getColor(background);
+       const int diff=std::abs(int(actual.red)-int(background.red))+
+                      std::abs(int(actual.green)-int(background.green))+
+                      std::abs(int(actual.blue)-int(background.blue));
+       if(diff>9)++bevelBleedPixels;
      }
    platePixels->forget();
-   check(footerLetterPixels>50,
-         "V101 official SVG SYSTEMS/AUDIO SOFTWARE captions absent from actual editor");
+   check(systemsPixels>12&&audioPixels>2,
+         "V101 complete master SYSTEMS/AUDIO SOFTWARE letterforms missing on graphite");
+   check(bevelBleedPixels==0,
+         "V101 125A branding must not overpaint the horizontal metal bevel");
    check(dark>6000&&wordmarkVisible>160,
          "packaged V1.0.1 lacks dark graphite faceplate or DRUMATOR text overlay");
  }

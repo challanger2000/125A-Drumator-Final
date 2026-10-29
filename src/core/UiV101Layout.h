@@ -32,9 +32,11 @@ struct UiV101Layout final {
       return x>=x0&&x<x1&&y>=y0&&y<y1;
     }
   };
-  // Placement only: the original SVG signet paths are painted directly
-  // on the unmodified dark headplate. No signet backdrop or wordmarks.
-  static constexpr Rect brandSignetArea{22.,2.,199.,97.};
+  // Safe inside the upper-left graphite panel, measured against the
+  // original industrial faceplate at 150%. The top metallic highlight
+  // and the black stepped bevel below the logo must remain untouched.
+  // Applies to the COMPLETE official 125A SVG, including both captions.
+  static constexpr Rect brandMasterSafeArea{67.,13.,154.,61.};
   static constexpr Rect patternHeading{213.,80.,339.,96.};
   // Relative to the 48px footer origin. Previous keys were 120/130x31
   // and too large for the recessed strip; now both are 95x25.
