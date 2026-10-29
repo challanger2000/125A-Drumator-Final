@@ -152,13 +152,16 @@ struct UiV101NativePreview final {
    constexpr double sourceX=340.,sourceY=103.,sourceW=1065.,sourceH=485.;
    constexpr double margin=6.;
    // Deliberately understated signet: 60% of the former fit size.
-   // Preserve master geometry, aspect ratio and exact area centering.
+   // Preserve master geometry and horizontal centering. The visible
+   // graphite header bay has a raised lower outline: optical centering
+   // needs a 10px upward offset from the old geometric area center.
    constexpr double signetScale=0.60;
+   constexpr double opticalLift=10.;
    const double sf=signetScale*std::min(
        (area.x1-area.x0-2.*margin)/sourceW,
        (area.y1-area.y0-2.*margin)/sourceH);
    const double left=(area.x0+area.x1-sourceW*sf)*0.5-sourceX*sf;
-   const double top=(area.y0+area.y1-sourceH*sf)*0.5-sourceY*sf;
+   const double top=(area.y0+area.y1-sourceH*sf)*0.5-sourceY*sf-opticalLift;
    for(std::size_t n=24;n<kBrandLogoPaths.size();++n){
      const auto& shape=kBrandLogoPaths[n];
      auto* path=c.createGraphicsPath();
