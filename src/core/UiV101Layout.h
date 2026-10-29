@@ -36,7 +36,7 @@ struct UiV101Layout final {
   // bottom legend can be redrawn crisply without intersecting the steps.
   // Caption and pattern heading are separate paint-only elements.
   static constexpr Rect badgePlate{22.,2.,199.,97.};
-  static constexpr Rect badgeCaption{48.,84.,176.,95.};
+  static constexpr Rect badgeCaption{48.,77.,176.,88.};
   static constexpr Rect patternHeading{213.,80.,339.,96.};
   // Relative to the 48px footer origin. Previous keys were 120/130x31
   // and too large for the recessed strip; now both are 95x25.
