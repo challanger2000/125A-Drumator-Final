@@ -540,7 +540,9 @@ struct UiV101NativePreview final {
      const char key[2]={static_cast<char>('A'+i),'\0'};
      cap(c,L::patternButton(i),0.,key,i==scene.pattern,12,vintageButtons);
    }
-   label(c,"PTNR",{364.,80.,447.,96.},11,{210,223,231,255});
+   // Spell out the action context; the obsolete "PTNR" abbreviation
+   // was ambiguous beside the A-H PATTERN selector.
+   label(c,"PATTERN EDIT",{364.,80.,447.,96.},10,{210,223,231,255});
    // One identical 32px machined keycap and vertical baseline for all
    // header actions: PATTERN, MENU, 1/2 BARS, SONG, SONG EDIT.
    cap(c,L::patternMenu,0.,"MENU",false,10,vintageButtons);
@@ -597,6 +599,13 @@ struct UiV101NativePreview final {
    label(c,"VOL",{1037.,140.,1087.,157.},10);
    label(c,"PAN",{1097.,140.,1147.,157.},10);
    label(c,"PITCH",{1153.,140.,1214.,157.},10);
+   // The photographed background contains a bright diagonal metal bevel.
+   // At some zoom factors it leaks through the 2px gaps between adjacent
+   // instrument chassis. Use one continuous dark enamel backing *only*
+   // inside the instrument rack; keep faceplate, outer rails, header, logo,
+   // column headings and bottom screw-bearing footer photo untouched.
+   fill(c,{kChassisLeft,L::header,kChassisRight,total-L::footer},
+        Skin::navyWell());
    for(std::size_t index=0;index<shown;++index){
      const std::size_t row=ui.firstRow+index;
      const double y=L::rowTop(ui.firstRow,index,expanded);

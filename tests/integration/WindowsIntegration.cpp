@@ -1387,6 +1387,26 @@ void testV101LiveEditor(){
        graphiteMetal[2]<195,
        "V101 new graphite artwork is missing or excessively light");
  const auto fullFooterPixel=viewPixel(17,658);
+ // All rack seams must have the same dark backing, not reveal the
+ // diagonal silver bevel of the source graphite photograph at y~580.
+ // Read pixels from the ACTUAL native VSTGUI editor in a single raster.
+ {
+   const auto bitmap=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+       [&](VSTGUI::CDrawContext& dc){view->draw(&dc);});
+   check(bitmap!=nullptr,"V101 seam raster missing");
+   auto* px=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
+   check(px!=nullptr,"V101 seam raster has no native pixel access");
+   for(std::uint32_t row=1;row<10;++row){
+     const auto y=static_cast<std::uint32_t>(
+         L::header+row*L::rowHeight);
+     check(px->setPosition(650u,y),
+           "V101 channel seam outside native raster");
+     VSTGUI::CColor seam{};px->getColor(seam);
+     check(seam.red<45&&seam.green<50&&seam.blue<65,
+           "V101 background photo bevel leaks into channel seam");
+   }
+   px->forget();
+ }
  check(view->sampleDropTargetAt(200.,L::header+22.),
        "V101 real view did not expose sample field for WAV/FLAC drop");
  check(!view->sampleDropTargetAt(420.,L::header+22.),
@@ -1483,8 +1503,10 @@ void testV101LiveEditor(){
  const auto populatedSongPixel=viewPixel(153,226);
  const auto vacantSongPixel=viewPixel(153,278);
  check(vacantSongPixel[0]>populatedSongPixel[0]+25&&
-       vacantSongPixel[1]>populatedSongPixel[1]+25,
-       "V101 empty Song cell is not visibly de-emphasized");
+       vacantSongPixel[1]>populatedSongPixel[1]+25&&
+       vacantSongPixel[0]<75&&vacantSongPixel[1]<75&&
+       vacantSongPixel[2]<80,
+       "V101 inactive SONG cell must be visibly distinct but dark navy, not light gray");
  click(*view,1200.,25.);click(*view,1200.,113.); // real 130% popup
  check(view->zoomMatches(1.3)&&
        std::abs(hostEditor.getZoomFactor()-1.3)<.0001,

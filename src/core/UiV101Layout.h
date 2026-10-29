@@ -38,10 +38,11 @@ struct UiV101Layout final {
   // Applies to the COMPLETE official 125A SVG, including both captions.
   static constexpr Rect brandMasterSafeArea{67.,13.,154.,61.};
   static constexpr Rect patternHeading{213.,80.,339.,96.};
-  // Relative to the 48px footer origin. Previous keys were 120/130x31
-  // and too large for the recessed strip; now both are 95x25.
-  static constexpr Rect footerAdd{50.,10.,140.,35.};
-  static constexpr Rect footerRemove{151.,10.,241.,35.};
+  // All five footer action keys now use the same 95x25 hardware cap.
+  // Left pair preserves an 11px gutter and keeps the ROW summary clear.
+  // These exact shared rectangles also govern mouse hit testing.
+  static constexpr Rect footerAdd{45.,10.,140.,35.};
+  static constexpr Rect footerRemove{151.,10.,246.,35.};
   static constexpr Rect footerPrev{1020.,10.,1115.,35.};
   static constexpr Rect footerNext{1130.,10.,1225.,35.};
   static constexpr Rect footerPanel{footerPanelLeft,footerPanelTop,
@@ -257,6 +258,10 @@ static_assert(UiV101Layout::footerPrev.y0>=UiV101Layout::footerPanel.y0&&
               UiV101Layout::footerNext.y1<=UiV101Layout::footerPanel.y1);
 static_assert(UiV101Layout::footerPrev.x1-UiV101Layout::footerPrev.x0==95.&&
               UiV101Layout::footerNext.y1-UiV101Layout::footerNext.y0==25.);
+static_assert(UiV101Layout::footerAdd.x1-UiV101Layout::footerAdd.x0==95.&&
+              UiV101Layout::footerRemove.x1-UiV101Layout::footerRemove.x0==95.&&
+              UiV101Layout::footerExport.x1-UiV101Layout::footerExport.x0==95.);
+static_assert(UiV101Layout::footerRemove.x1+12.<=260.); // ROW summary
 
 static_assert(UiV101Layout::editorHeight(0,UiV101Layout::visibleRows,
               UiV101Layout::Expansions{})*1.5<=1080.);

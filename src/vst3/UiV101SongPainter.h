@@ -80,10 +80,13 @@ struct UiV101SongPainter final {
      const bool populated=index<count;
      // Vacant positions stay in the 64-entry grid but read as inactive wells.
      // No new click target is introduced: ADD ENTRY remains the sole creator.
+     // Inactive locations should read as recessed graphite, never the
+     // light-gray tiles of the previous design. They remain slightly
+     // lighter than populated wells and must not imply clickable ADD.
      P::rounded(c,{x,y,x+S::cellWidth,y+S::cellHeight},
-                populated?P::Skin::navyWell():Color{78,81,83,255},3.);
+                populated?P::Skin::navyWell():Color{40,52,65,255},3.);
      P::border(c,{x,y,x+S::cellWidth,y+S::cellHeight},
-               !populated?Color{120,118,114,255}:
+               !populated?Color{63,80,95,255}:
                index==slot?P::Skin::amber():P::Skin::navyTrim());
      if(!populated)continue;
      const auto entry=controller.songEntry(index);

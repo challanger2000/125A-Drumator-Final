@@ -105,8 +105,13 @@ int main(){
   CHECK(L::zoomHit(1100.,165.,true)==-1);
   L::Expansions e{};
   const double y=L::header;
-  CHECK(L::footerAdd.x1-L::footerAdd.x0==90.);
-  CHECK(L::footerRemove.x1-L::footerRemove.x0==90.);
+  CHECK(L::footerAdd.x1-L::footerAdd.x0==95.);
+  CHECK(L::footerRemove.x1-L::footerRemove.x0==95.);
+  CHECK(L::footerPrev.x1-L::footerPrev.x0==95.);
+  CHECK(L::footerNext.x1-L::footerNext.x0==95.);
+  CHECK(L::footerExport.x1-L::footerExport.x0==95.);
+  CHECK(L::footerAdd.x1+11.==L::footerRemove.x0);
+  CHECK(L::footerRemove.x1+14.==260.);
   CHECK(L::footerAdd.y0==L::footerPrev.y0&&
         L::footerRemove.y1==L::footerNext.y1);
   CHECK(L::footerRemove.x1<L::footerPrev.x0);
