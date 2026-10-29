@@ -1432,7 +1432,8 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
    c->drawString(gainText,{911,405,1001,439});
    c->setFont(VSTGUI::kNormalFont,12);c->setFontColor(letters);
    if(!status_.empty())
-     c->drawString(status_.c_str(),{265,556,1020,585});
+     v101::UiV101NativePreview::fittedStatus(
+       *c,status_.c_str(),{265.,556.,1020.,585.},12,letters,true);
  // Dark mounting fasteners at the corners of the modal metal surround.
  v101::UiV101NativePreview::screw(*c,235.,106.);
  v101::UiV101NativePreview::screw(*c,1045.,106.);

@@ -144,7 +144,7 @@ struct UiV101SongPainter final {
        "ADD ENTRY",false,10,count>=SongChain::kCapacity);
    key(c,S::removeLeft,S::choiceTop,S::removeRight,S::choiceBottom,
        "REMOVE LAST",false,9,count<=1);
-   P::label(c,status&&*status?status:
+   P::fittedStatus(c,status&&*status?status:
            "REST and A-H are selectable. Only ADD ENTRY adds positions.",
            {29.,394.,900.,419.},11,{200,211,221,255},false);
    P::screw(c,14.,bottom-15.);

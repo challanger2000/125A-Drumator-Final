@@ -1595,6 +1595,22 @@ void testV101LiveEditor(){
  IntegrationAccess::setStatusText(*view,
      "SAMPLE IMPORT FAILED: INVALID OR UNSUPPORTED AUDIO FILE");
  captureVstgui(*view,"v101-main-long-label-and-status-100",1.0);
+ // Adversarial dynamic diagnostics must never overlap adjacent buttons.
+ IntegrationAccess::setStatusText(*view,std::string(256,'W'));
+ captureVstgui(*view,"v101-main-status-overflow-100",1.0);
+ {
+   auto metrics=VSTGUI::renderBitmapOffscreen({380.,24.},1.,
+       [&](VSTGUI::CDrawContext& dc){
+         const auto fitted=drumator::v101::UiV101NativePreview::fitStatusText(
+             dc,std::string(256,'W'),{0.,0.,380.,24.},10);
+         dc.setFont(VSTGUI::kNormalFont,10);
+         check(fitted.size()<256&&fitted.size()>=3&&
+               fitted.compare(fitted.size()-3,3,"...")==0&&
+               dc.getStringWidth(fitted.c_str())<=374.,
+               "V101 dynamic status must ellipsize using actual native font metrics");
+       });
+   check(metrics!=nullptr,"V101 native status font oracle not available");
+ }
  IntegrationAccess::setStatusText(*view,originalStatus);
  check(f.c->renameRow(0,"Kick 01"),
        "V101 long-name visual stress did not restore original sample name");

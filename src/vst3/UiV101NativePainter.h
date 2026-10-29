@@ -144,6 +144,33 @@ struct UiV101NativePreview final {
    c.setFont(VSTGUI::kNormalFont,font);c.setFontColor(ink);
    c.drawString(value,r,center?VSTGUI::kCenterText:VSTGUI::kLeftText);
  }
+ // Dynamic status text needs a native-font fit AND a paint clip: VSTGUI's
+ // drawString() does not confine glyph pixels to its input rectangle.
+ static std::string fitStatusText(VSTGUI::CDrawContext& c,
+                                  const std::string& text,Box bounds,int font){
+   c.setFont(VSTGUI::kNormalFont,font);
+   const double available=std::max(0.,bounds.getWidth()-6.);
+   if(c.getStringWidth(text.c_str())<=available)return text;
+   std::string shortened=text;
+   while(!shortened.empty()&&
+         c.getStringWidth((shortened+"...").c_str())>available){
+     std::size_t start=shortened.size()-1;
+     while(start>0&&
+           (static_cast<unsigned char>(shortened[start])&0xc0u)==0x80u)
+       --start;
+     shortened.erase(start);
+   }
+   return shortened+"...";
+ }
+ static void fittedStatus(VSTGUI::CDrawContext& c,const char* value,Box bounds,
+                          int font,Color ink,bool center=false){
+   if(!value||!*value)return;
+   const auto text=fitStatusText(c,value,bounds,font);
+   c.saveGlobalState();
+   c.setClipRect(bounds);
+   label(c,text.c_str(),bounds,font,ink,center);
+   c.restoreGlobalState();
+ }
  // Complete official 125A Systems master (all 30 paths), sourced from
  // 125A-Branding/125A_Logo_Master_FINAL.svg. The master explicitly forbids
  // redrawing or omitting the SYSTEMS / AUDIO SOFTWARE lettering, and no
@@ -768,7 +795,7 @@ struct UiV101NativePreview final {
    label(c,summary,{260.,footerTop+9.,510.,footerTop+33.},11,
          {222,213,197,255},false);
    if(!scene.status.empty())
-     label(c,scene.status.c_str(),{520.,footerTop+9.,900.,footerTop+33.},
+     fittedStatus(c,scene.status.c_str(),{520.,footerTop+9.,900.,footerTop+33.},
            10,{220,203,180,255},false);
    // Both controls are identically sized 95x25 machined metal keys.
    cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10,vintageButtons,ui.firstRow==0);
