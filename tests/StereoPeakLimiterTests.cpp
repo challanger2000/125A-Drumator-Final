@@ -17,7 +17,7 @@ int main(){
   s.process(l,r,true);
   if(i>300&&i<input.size()-100){
    check(std::max(std::abs(l),std::abs(r))<=StereoPeakLimiter::kCeiling+1e-5f,
-         "ON peak ceiling after ramp settled");
+         "ON peak ceiling without lookahead");
   }
   if(i>300&&input[i-StereoPeakLimiter::kLookahead]>0.001f)
     check(std::abs(l+r/.75f)<1e-4f,"linked stereo balance");
@@ -28,9 +28,21 @@ int main(){
   s.process(l,r,false);
   if(i>=StereoPeakLimiter::kLookahead){
    check(std::abs(l-(i==StereoPeakLimiter::kLookahead?.5f:.1f))<1e-5f,
-        "OFF neutral level at fixed latency");
+        "OFF exact zero-latency PCM");
   }
  }
+ // At any point, including directly after heavy limiting, OFF must
+ // reproduce the incoming PCM exactly and never insert a silent prefix.
+ s.reset();
+ for(std::size_t i=0;i<1024;++i){
+  float l=(i%3==0)?2.f:0.1234567f,r=(i%5==0)?-1.75f:0.011345f;
+  const auto inL=l,inR=r;
+  s.process(l,r,true);
+  l=inL;r=inR;
+  s.process(l,r,false);
+  check(l==inL&&r==inR,"OFF bit-transparent after active limiting");
+ }
+ check(StereoPeakLimiter::kLookahead==0,"zero samples plugin latency");
  check(!s.prepare(0)&&!s.prepare(1e9),"invalid rate rejected");
  std::printf("StereoPeakLimiter: %s\n",bad==0?"PASS":"FAIL");
  return bad?1:0;

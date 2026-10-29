@@ -155,7 +155,7 @@ class OfflineWavExport final {
       for(std::uint32_t i=0;i<frames;++i){
         float l=static_cast<float>(left[i]*master),r=static_cast<float>(right[i]*master);
         limiter.process(l,r,limitOn);
-        // Match host delay compensation: omit the first 64 delayed frames.
+        // kLookahead=0: export is sample-aligned with the live, bypassed host.
         if(inputFrames+i<StereoPeakLimiter::kLookahead)continue;
         pack(l,pcm.data()+encoded*6);
         pack(r,pcm.data()+encoded*6+3);

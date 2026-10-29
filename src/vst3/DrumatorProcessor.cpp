@@ -1549,11 +1549,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
      }
    }
  }
- // Apply the same fixed-latency, linked peak limiter to MAIN and all
- // active stereo stems. OFF still goes through a unity-gain delay so the
- // DAW never needs to renegotiate latency when toggling the switch.
+ // Stereo-linked zero-latency peak limiting on MAIN and active stems.
+ // The OFF path skips the limiter entirely and preserves legacy sample
+ // timing and PCM bit-for-bit across transport, notes and project recall.
  const bool limitOn=limiterEnabled_.load(std::memory_order_relaxed)!=0;
- for(Steinberg::int32 bus=0;bus<data.numOutputs&&
+ if(limitOn)for(Steinberg::int32 bus=0;bus<data.numOutputs&&
          bus<static_cast<Steinberg::int32>(kRows);++bus){
    auto& outputBus=data.outputs[bus];
    if(outputBus.numChannels!=2||!outputBus.channelBuffers32||
