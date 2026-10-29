@@ -38,8 +38,8 @@ struct UiV101Layout final {
   // Applies to the COMPLETE official 125A SVG, including both captions.
   static constexpr Rect brandMasterSafeArea{67.,13.,154.,61.};
   // Center the PATTERN legend above the entire A-H group, not merely
-  // its rightmost keys. All eight caps occupy x33..338 at 100% UI scale.
-  static constexpr Rect patternHeading{33.,80.,338.,96.};
+  // its rightmost keys. The eight caps occupy x33..341 at 100% UI scale.
+  static constexpr Rect patternHeading{33.,80.,341.,96.};
   // All five footer action keys now use the same 95x25 hardware cap.
   // Left pair preserves an 11px gutter and keeps the ROW summary clear.
   // These exact shared rectangles also govern mouse hit testing.
