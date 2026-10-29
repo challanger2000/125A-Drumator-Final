@@ -14,7 +14,9 @@ struct UiV101Layout final {
   // Compact footer: exact same rectangles are used for paint and mouse hits.
   // The raised page switches stay inside the inset panel, away from the
   // exposed corner screws and the instrument counter.
-  static constexpr double footerPanelLeft=32.,footerPanelRight=1248.;
+  // Widen footer to match the row fascia without covering image-backed
+  // corner screw heads (centers x=14 / 1266, radius approx. 7px).
+  static constexpr double footerPanelLeft=22.,footerPanelRight=1258.;
   static constexpr double footerPanelTop=4.,footerPanelBottom=38.;
 
   // Only SONG and SONG EDIT are buttons. The existing SWING, HUMANIZE,
@@ -108,6 +110,12 @@ struct UiV101Layout final {
   static constexpr Rect stepRect(std::size_t i) noexcept{
     const double x=stepX+i*stepPitch;
     return {x,9.,x+17.,40.};
+  }
+  // Actual paint is stepCap(x+1..x+18). Quarter captions use exactly
+  // the SAME painted-cap center, not a two-step-wide 38px label field.
+  static constexpr Rect stepNumberRect(std::size_t i) noexcept{
+    const double x=stepX+1.+i*stepPitch;
+    return {x,140.,x+17.,157.};
   }
   static constexpr Rect knobRect(std::size_t i)noexcept{
     const double x=knobCenters[i];

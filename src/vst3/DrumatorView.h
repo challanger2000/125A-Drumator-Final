@@ -67,6 +67,9 @@ private:
  VSTGUI::CBitmap* v101TitleBitmap_{nullptr};
  // Separate image-backed V1.0.1 chassis; original V1.0.0 faceplate retained.
  VSTGUI::CBitmap* v101FaceplateBitmap_{nullptr};
+ // Uploaded 125A Systems metal nameplate, separate from DRUMATOR title.
+ VSTGUI::CBitmap* v101BadgeBitmap_{nullptr};
+ std::array<double,4> v101BadgeBounds_{};
  // Four separate 4x PNG key states, currently used for the 83x32 header
  // family (normal/active). Pressed/disabled remain for real state mapping.
  std::array<VSTGUI::CBitmap*,4> v101VintageButtons_{{nullptr,nullptr,nullptr,nullptr}};

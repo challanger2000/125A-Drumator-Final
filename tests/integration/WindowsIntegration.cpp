@@ -137,6 +137,12 @@ struct IntegrationAccess {
  static VSTGUI::CBitmap* vintageButton(const DrumatorView& v,std::size_t index){
    return index<v.v101VintageButtons_.size()?v.v101VintageButtons_[index]:nullptr;
  }
+ static bool metalBadgeLoaded(const DrumatorView& v){
+   return v.v101BadgeBitmap_&&v.v101BadgeBitmap_->isLoaded()&&
+          v.v101BadgeBitmap_->getWidth()>=1000.&&
+          v.v101BadgeBitmap_->getHeight()>=500.&&
+          v.v101BadgeBounds_[2]>500.&&v.v101BadgeBounds_[3]>300.;
+ }
  static bool modernTitleLoaded(const DrumatorView& v){
    return v.v101TitleBitmap_&&v.v101TitleBitmap_->isLoaded()&&
           v.v101TitleBitmap_->getWidth()>=300.&&
@@ -1190,6 +1196,10 @@ void testV101LiveEditor(){
        "V101 4x dark button states missing, corrupt or wrong dimensions");
  check(IntegrationAccess::modernTitleLoaded(*view),
        "V101 new DRUMATOR-only logo not packaged or wrong dimensions");
+ // First draw also measures uploaded badge alpha bounds. Ensure actual
+ // packaged resource is loaded and rendered by the production editor.
+ check(IntegrationAccess::metalBadgeLoaded(*view),
+       "V101 new 125A Systems metallic header badge missing in packaged editor");
  // The bitmap-backed cap must visibly differ from the procedural fallback
  // while remaining an 83x32 overlay with the original live text.
  const auto verifyVintageCap=[&](VSTGUI::CBitmap* sprite,

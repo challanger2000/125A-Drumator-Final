@@ -262,6 +262,7 @@ if(DRUMATOR_BUILD_VST3)
                 resource/125A_Drumator_Faceplate.png
                 "resource/Futuristische industrielle Metalloberfläche.png"
                 "resource/DRUMATOR_Logo_Modern_Transparent.png"
+                "resource/125A Systems Metall-Logo Badge.png"
                 resource/125A_Dark_Button_83x32_Normal_1x.png
                 resource/125A_Dark_Button_83x32_Normal_4x.png
                 resource/125A_Dark_Button_83x32_Aktiv_1x.png
