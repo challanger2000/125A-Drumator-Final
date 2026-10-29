@@ -1197,11 +1197,31 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
    // Identical UiWaveEditorLayout geometry; only the V1.0.1 materials
    // and paint primitives change. All source-frame marker math is preserved.
    using P=v101::UiV101NativePreview;
-   P::satin(*c,{225.,96.,1055.,610.},{67,76,85,255},
-            {42,51,61,255},{25,34,44,255},22);
+   // The modal editor uses the SAME brushed-metal source as MAIN/SONG.
+   // Sample only the quiet center of the supplied faceplate: drawing the
+   // whole photograph here would duplicate its large bevel and corner trim.
+   // Source and destination are both 820x505 in logical 100%-scale pixels.
+   // The original resource stays unchanged, and no controls are relocated.
+   const bool hasWaveMetal=v101FaceplateBitmap_&&
+        v101FaceplateBitmap_->isLoaded()&&
+        v101FaceplateBitmap_->getWidth()>=820.&&
+        v101FaceplateBitmap_->getHeight()>=505.;
+   if(hasWaveMetal){
+     const double sourceX=(v101FaceplateBitmap_->getWidth()-820.)*.5;
+     const double sourceY=(v101FaceplateBitmap_->getHeight()-505.)*.5;
+     v101FaceplateBitmap_->draw(c,{230.,100.,1050.,605.},
+                               {sourceX,sourceY});
+     // Preserve the photograph's real metal grain without sacrificing
+     // contrast for waveform, readouts and button labels.
+     c->setFillColor(VSTGUI::CColor{7,16,27,102});
+     c->drawRect({230.,100.,1050.,605.},VSTGUI::kDrawFilled);
+   }else{
+     P::satin(*c,{225.,96.,1055.,610.},{67,76,85,255},
+              {42,51,61,255},{25,34,44,255},22);
+     c->setFillColor(P::Skin::graphite());
+     c->drawRect({230.,100.,1050.,605.},VSTGUI::kDrawFilled);
+   }
    P::border(*c,{225.,96.,1055.,610.},P::Skin::panelEdge());
-   c->setFillColor(P::Skin::graphite());
-   c->drawRect({230,100,1050,605},VSTGUI::kDrawFilled);
    // Narrow metallic title shoulder; restrained lower bevel.
    c->setFillColor(VSTGUI::CColor{27,41,56,255});
    c->drawRect({234,104,1046,151},VSTGUI::kDrawFilled);
