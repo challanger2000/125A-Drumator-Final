@@ -2,6 +2,7 @@
 
 **Prüfdatum:** 29. Oktober 2026  
 **Ergebnis:** **GUI AUDIT NOT READY / kommerzielle Freigabe BLOCKIERT**  
+**Letzte technische Nachprüfung:** Produktcommit `ccc6e1200380adde9ae326538b4f7b451f7e3814`, Windows [#40942211432](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40942211432) **SUCCESS**: 27/27 CTests, 47/47 Steinberg Validator, 58 PASS / 0 WARNING / 0 FAIL im unabhängigen Tester. Die ursprüngliche Produktbaseline und Befunde G01/G06 unten sind zur Nachvollziehbarkeit erhalten und durch Abschnitt 9 fortgeschrieben.  
 **Exakt geprüfter Produkt-HEAD:** `a7377e6ababe50df724e29ba791b85ea8f183f74`  
 **Repository:** `challanger2000/125A-Drumator-Final` · **Branch:** `develop/v1.0.1-gui-redesign`  
 **Produkt:** 125A Drumator, **Windows x64 VST3 1.0.1**, Steinberg SDK **3.8.1**  
@@ -95,7 +96,7 @@ Legende: **BILD** = aktuelles natives V1.0.1-VST3-Rendering vorhanden; **FUNK** 
 
 ## 5. Befunde nach Schweregrad, Ursache und Reproduktion
 
-### G01 — HIGH / GUI-AUDIT-GATE — aktuelle VEL-/zweite Seiten-/Popup-Ansichten visuell nicht vollständig nachgewiesen
+### G01 — GESCHLOSSEN IM NACHPRÜF-LAUF / ursprünglich HIGH — aktuelle VEL-/zweite Seiten-/Popup-Ansichten
 
 **Beleg:** Artefakt **12924730931** enthält 63 Bilder, davon 15 explizit `v101-*`. Kein `v101-velocity-*` und kein gezieltes aktuelles `v101-page2-*` bei 100/120/130/150. Die vorhandenen `velocity-design-*` und `v2-*` stellen sichtbar die alte blaue Oberfläche dar. Keine komplette aktuelle Screenshotmatrix aller sieben Menüarten bei vier Zoomstufen.
 
@@ -129,7 +130,7 @@ Legende: **BILD** = aktuelles natives V1.0.1-VST3-Rendering vorhanden; **FUNK** 
 
 **Empfehlung:** Nicht ungefragt angleichen; die funktionalen Gruppen können absichtlich verschieden sein. Vor kommerziellem Design-Sign-off entscheiden, ob konsequent eine Breite oder Gruppenbreiten gelten sollen; Symmetrie und Statusbereich dabei berücksichtigen.
 
-### G06 — HIGH / TESTADEQUANZ — LIMIT im verbundenen End-to-End-Test nicht gegen Audioausgang verglichen
+### G06 — GESCHLOSSEN IM NACHPRÜF-LAUF / ursprünglich HIGH — LIMIT-End-to-End-Ausgangstest
 
 **Beleg:** `tests/integration/WindowsIntegration.cpp` neue `testV101ConnectedPatternSongExportsAndLimiter`: `setLimiterEnabled(true)`, Export `limited.wav`, Prüfung der Datei-Header und Rücksetzen; **kein** sampleweiser Vergleich `LIMIT ON` vs. `LIMIT OFF` und keine integrierte Ceiling-/Bypass-PCM-Assertion in genau diesem verbundenen Exportpfad. Die separat bestehenden `tests/StereoPeakLimiterTests.cpp` und `tests/OfflineWavExportTests.cpp` prüfen dagegen sinnvoll Peak-/PCM-Verhalten.
 
@@ -159,18 +160,18 @@ Legende: **BILD** = aktuelles natives V1.0.1-VST3-Rendering vorhanden; **FUNK** 
 
 **Belegt PASS (genau dieser Produkt-Commit):** Windows x64 VST3-Build; 27/27 CTests; 47/47 Steinberg Validator; 58/0/0 unabhängiger Tester; native VST3-Hostfixture-Pointer/Zoom; SONG-Zoom 150→100 ohne LIMIT-Umschalten; MAIN-/SONG-EXPORT-Menü und Sichtzustand; 32-Step-Geometrie; MENU/FILL/OUTPUT/CHOKE/SONG/WAVE-Funktionsmatrix der tatsächlich getesteten Fälle; MIDI- und WAV-Unit-Dateiparser, WAV-Stereosamples und End-Tail, Limiter-Einzeltest, verbundene Controller-/Processor-Dateierzeugung.
 
-**Nicht als PASS behaupten:** komplette visuelle VEL-/SET-/Page-2- und Popup-Matrix bei 100/120/130/150; tatsächliche Studio-One-Dialoge, fremde MIDI-Importsoftware, reale User-Samples und verschiedene Schreibpfade; Langzeit-ASIO-Stabilität; echtes DAW-Hostresize unter Windows-DPI; Spotify/Gumroad/Kundenveröffentlichung (hier nicht relevant); unabhängiges kommerzielles Design-Sign-off nach offenen G02/G03/G05; verbundener Limiter-PCM-Metamorphose-Test G06; Apple/macOS (aus Scope ausgeschlossen).
+**Nicht als PASS behaupten:** vollständige manuelle Einzel-Pixelabnahme *jedes* Buttons in *jedem* möglichen Zustand, tatsächliche Studio-One-Dialoge, fremde MIDI-Importsoftware, reale User-Samples und verschiedene Schreibpfade; Langzeit-ASIO-Stabilität; echtes DAW-Hostresize unter Windows-DPI; Spotify/Gumroad/Kundenveröffentlichung (hier nicht relevant); unabhängiges kommerzielles Design-Sign-off nach offenen G02/G03/G05/G10; systematischer DAW-ON/OFF-Signalvergleich (Windows Processor-/WAV-PCM-Tests jetzt PASS); Apple/macOS (aus Scope ausgeschlossen).
 
 **UI-Zustandsprüfungen, die noch als Nachweis fehlen:** jeweils geöffnetes/geschlossenes Popup, erster/letzter Eintrag und click-through-Negativkontrolle, VEL mit Schritt 1/127/leeren Steps/Undo, SET mit BUS 1/16 und CHOKE 0/4, beide Instrumentenseiten inkl. letzte Zeile/gesperrter PAGE, SONG 1/64 und BAR-Extrema, WAVE Mono und Stereo mit erkennbaren START/END/Fades, LONG LABELS und aktuelle echte Statusmeldungen, alle vier Zoomstufen *am realen Hosteditor* plus DAW-Verifikation.
 
 ## 7. Abnahmeentscheidung und Reihenfolge
 
-**Entscheidung: GUI AUDIT NOT READY; kommerzielle Veröffentlichung NICHT freigeben.** Das technische Windows-Paket selbst ist nach seinen automatisierten Prüfungen **grün**. Die Veröffentlichung scheitert nicht an einem reproduzierten Absturz, sondern an den ausdrücklich geforderten, bislang **nicht vollständig belegten** visuellen Zuständen und am noch ausstehenden echten Studio-One-/Dateipicker-/Recall-Praxistest. G02/G03 sind echte sichtbare UX-/Designbefunde, aber zunächst vom Eigentümer zu entscheiden.
+**Entscheidung: GUI AUDIT NOT READY; kommerzielle Veröffentlichung NICHT freigeben.** Das technische Windows-Paket selbst ist nach seinen automatisierten Prüfungen **grün**. G01 und G06 sind in der Nachprüfung technisch geschlossen; die noch offenen Gates betreffen die echte Studio-One-/Dateipicker-/Recall-Abnahme, die dokumentierten Gestaltungsbefunde G02/G03/G05/G10 und die manuelle Vollabnahme der Bildqualität. Kein reproduzierter Produktabsturz wurde gefunden.
 
 **Vorgeschlagene spätere Freigabe-Reihenfolge (noch NICHT implementiert):**
-1. **G01/G04:** vollständigen Bild-/UI-Nachweis der aktuellen V1.0.1 ergänzen und echte Studio-One-Prüfliste ausführen. Keine alten Blau-/Prototypbilder zur Beweisführung übernehmen.
-2. **G06:** verbundenen LIMIT-PCM-Audiovergleich als *Test* ergänzen; Studio-One-ON/OFF-Wirkung separat kontrollieren.
-3. **G02/G03/G05:** Gestaltung erst nach konkreter Owner-Entscheidung gebündelt korrigieren, wenn gewünscht. Logo bleibt abgenommen und unangetastet.
+1. **G04:** echte Studio-One-Prüfliste einschließlich OS-Dialog, Export-/Import, Limiter, Zoom und Projekt-Recall ausführen. Die neuen G01/G06-Windows-Testbelege ersetzen das nicht.
+2. **G02/G03/G05/G10:** Gestaltung erst nach konkreter Owner-Entscheidung gebündelt korrigieren, wenn gewünscht. Logo bleibt abgenommen und unangetastet.
+3. **G07/G08/G09:** Verpackungsressourcen und Navigations-/Pluginmetadaten im späteren Release-Zyklus kontrollieren.
 4. Danach die Gesamtmatrix auf einem **einzigen exakten neuen Produkt-Commit** erneut prüfen, aktuelle Bilder vollständig visuell kontrollieren, tatsächlichen Benutzer-/DAW-Abnahmebericht einholen. Erst dann ein finales kommerzielles Release-Gate evaluieren.
 
 ## 8. Prüfgeltung
@@ -178,3 +179,37 @@ Legende: **BILD** = aktuelles natives V1.0.1-VST3-Rendering vorhanden; **FUNK** 
 Dieser Bericht ist ein **unabhängiger, read-only Quell-, Test-, Package- und Bild-Audit** des Produkt-HEADs `a7377e6ababe50df724e29ba791b85ea8f183f74`. Die Prüfung lief über GitHub-Quell-/CI-Belege und die aus dem erfolgreichen Windows-Run heruntergeladenen und inspizierten VST3- und Bilddateien. **Es wurde kein eigener Studio-One-Prozess und kein ASIO-Treiber gestartet.** Er sagt weder, dass alle visuellen Zustände bereits betrachtet wurden, noch dass sämtliche theoretisch möglichen Mouse-, FilePicker- und DAW-Sequenzen dynamisch gelaufen wären.
 
 **Produktdateien bleiben unverändert.** Nur der ausdrücklich angeforderte Bericht wird auf dem bestehenden Entwicklungsbranch abgelegt. Kein Codex, keine neue Branch, kein Release und keine eigenmächtige Korrektur von G02/G03/G05/G06.
+
+
+## 9. Nachprüfung 29.10.2026 — neue tatsächliche Windows-Belege
+
+**Geprüfter Produkt-/Teststand:** `ccc6e1200380adde9ae326538b4f7b451f7e3814`. Für diese Nachprüfung wurde ausschließlich `tests/integration/WindowsIntegration.cpp` geändert; **keine** Produkt-DSP-Dateien, Faceplate, Fonts, Logos oder UI-Geometrie. Keine eigenmächtige Designkorrektur.
+
+- [Windows-Lauf #40942211432](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40942211432): **SUCCESS**.
+- **27/27 CTests PASS**, **47/47 Steinberg Validator PASS**, **58 PASS / 0 WARNING / 0 FAIL** im Plugin Tester v0.3.2.
+- Tatsächliche V1.0.1-Bilder: Actions-Artifact **`125A-Drumator-VSTGUI-Native-Renderings`, ID 12926979107**; Archiv um **44 neue `v101-current-*`-BMPs** erweitert.
+- Jeder neue Snapshot wird erst gespeichert, nachdem `view.zoomMatches(expected)` und `hostEditor.getZoomFactor()` den echten Hostzoom bestätigen. Menüzustände werden mit `IntegrationAccess::v101Popup`, der Zoomzustand separat mit `v101ZoomPopupOpen` verifiziert. Mit VEL/SET und Page-2 werden vorher die aktiven Zustände und die echte Hostgröße geprüft.
+- **Aktuelle echte Screenshotmatrix an allen vier Zooms 100/120/130/150:** MAIN, VEL, SET, PAGE 2 mit sechs Instrumenten; die sieben Menügruppen Pattern, FILL, BUS, CHOKE, SAMPLE, EXPORT und ZOOM. Das sind **44 aktuelle Bilder**, strikt von den ebenfalls im Artefakt enthaltenen historischen `v2-*`- und `velocity-design-*`-Bildern getrennt. SONG- und WAVE-Editor lagen bereits mit echter 100/120/130/150-Capture- und Eingabekontrolle vor.
+- **G01 STATUS: GESCHLOSSEN, WINDOWS VISUAL EVIDENCE PASS** für die benannten Zustände und vier Zoomstufen. Die manuelle Betrachtung der zwei Kontaktbogen-Gesamtüberblicke sowie der hochaufgelösten VEL/SET/PAGE2-/Menübeispiele zeigte keine angeschnittenen Buttons oder verschwundene Footer-Elemente. Das ersetzt **nicht** eine Freigabe aller Pixel-/Textvarianten durch den Eigentümer oder den DAW-Test.
+- **G06 STATUS: GESCHLOSSEN, WINDOWS AUDIO PCM PASS.** Eine Fixture mit **zwei echten simultanen Stereo-Float-WAV-Samples** `L=+0.90/R=-0.72` je Instrument führt zu absichtlicher Summenübersteuerung. Der über `Controller::setLimiterEnabled` erreichte Processor-State wird per `getState` geprüft. Die tatsächlich geschriebenen **24-bit-WAV-Dateien** für OFF/ON/OFF werden frameweise auf -0.3-dBFS-Ceiling, Stereo-Quellverhältnis, wirksame Pegelreduktion und **bitidentischen** letzten OFF-Export geprüft. Zusätzlich erzeugen **zwei echte VST3-Processor-Instanzen** mit identischer Kit-MIDI-Clock separat die Audioausgangsblöcke für OFF und ON und prüfen **256 Frames** auf nachweisbare Dämpfung, unverändertes Stereo-Verhältnis und Ceiling. Die Audioverarbeitung selbst wurde dabei nicht modifiziert.
+- **G04 STATUS UNVERÄNDERT: BLOCKER.** Weder Studio One mit realen Datei-Pickern noch ASIO-Last-/Projekt-Recall wurde in GitHub Actions ausgeführt.
+
+### G10 — MEDIUM / NEUER SICHTBARER VISUELLER BEFUND — Hintergrundleiste schimmert zwischen Instrumentenzeilen durch
+
+**Echte Bilder:** `v101-current-settings-150.bmp` und `v101-current-velocity-150.bmp`, zwischen „Clap 01“ und „Rim 01“, etwa bei **Bild-y ≈ 870–885 bei 150 %**; ähnlicher Spalt in `v101-current-main-150.bmp`. In einer dünnen ansonsten dunklen horizontalen Trennfuge sind weiße/silbrige diagonale Fragmente und helle Abschnitte sichtbar.
+
+**Nachvollziehbare Ursache:** `src/vst3/UiV101NativePainter.h::drawVintageFaceplate` zeichnet `resource/Futuristische industrielle Metalloberfläche.png` **hinter** den separat gerenderten Instrumentenzeilen als einzelne Fotografie mit fixer 686px-Referenzgröße. Das untere innere Metallbevel der Fotoressource verläuft bei der tatsächlichen vertikalen Skalierung ungefähr in dieser Bildzone und bleibt durch kleine nicht überdeckte Zeilenabstände sichtbar. Kein Funktions-/Hitboxfehler, aber die gleichmäßige Optik der Trennfugen wird unterbrochen.
+
+**Vorgeschlagene Designkorrektur, noch NICHT ausgeführt:** Bei der späteren autorisierten GUI-Korrekturrunde die dynamischen Zeilenabstände mit einem durchgängigen passenden dunklen Untergrund hinterlegen oder die sichtbare Foto-Bevel-Zone davon trennen. **Nur die Instrumenten-Schnittstelle behandeln, nicht den vorläufig abgenommenen 125A-Signet-, Titel- oder Kopfplattenbereich ändern.** Danach 100/120/130/150 und 9-/10-/6-Zeilen-Zustände erneut mit echten Pixelbelegen prüfen.
+
+### Weiterhin offene Entscheidungspunkte
+
+- **G02:** helle inaktive SONG-Eintragskacheln; gestalterische Owner-Entscheidung.
+- **G03:** doppeldeutig abgekürztes `PTNR`; gestalterische Owner-Entscheidung.
+- **G05:** 90px- gegenüber 95px-Footer-Breiten; nach Gruppen differenziert, kein belegter Funktionsfehler.
+- **G07:** ungenutztes historisches Badge im Package. Keine Ressourcen ohne überprüfte Nichtbenutzung entfernen.
+- **G08:** ältere Navigations-/Release-Historie in `CURRENT.md` und `AGENTS.md`; Development-Hinweis unter diesem Report aktualisiert, noch kein neuer FULL-Release.
+- **G09:** oberstes `moduleinfo.json.Name` leer trotz korrekter Controller-/Processor-Klassennamen; DAW-Browser-Abnahme offen.
+- **G04:** manuelle Studio-One-OS-Picker-, Zoom-, Export-/Import-, Limiter-, ASIO- und Projekt-Recall-Abnahme **NOT RUN**.
+
+**Gesamtergebnis bleibt: GUI AUDIT NOT READY / KEINE KOMMERZIELLE FREIGABE.** Die zwei High-Testlücken sind in Windows behoben, doch G04 und die Gestaltungskorrekturen/Freigaben sind noch offen.

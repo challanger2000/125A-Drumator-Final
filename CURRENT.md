@@ -1,5 +1,7 @@
 # 125A Drumator — Current
 
+> **Aktueller V1.0.1-Entwicklungs-/QA-Nachtrag (29.10.2026):** Branch `develop/v1.0.1-gui-redesign`, **Produkt-/Testcommit `ccc6e1200380adde9ae326538b4f7b451f7e3814`**, [Windows QA #40942211432](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40942211432) **SUCCESS: 27/27 CTests, 47/47 Validator, 58 PASS / 0 WARNING / 0 FAIL**. Der zusätzliche Test belegt aktuelle native MAIN/VEL/SET/Seite2-/Popup-Renderings in vier Zoomstufen (44 Bilder) und verbundenes Limiter-ON/OFF-PCM in WAV- und echter VST3-Processor-Ausgabe. [Kommerzieller GUI-Audit und noch offene Design-/Studio-One-Gates](docs/audits/DRUMATOR-V101-COMMERCIAL-GUI-AUDIT.md). **KEINE 1.0.1 FINAL-FREIGABE:** echte Studio-One-Dialoge, Export-/Import, ASIO, Projekt-Recall und gestalterische Owner-Entscheidungen bleiben offen. Die bisherige V1.0.0-Releasekandidat-Navigation ist davon unberührt.
+
 ## Aktueller V1.0.1-GUI-Entwicklungszweig (29.10.2026)
 
 - Branch: `develop/v1.0.1-gui-redesign`; Version in CMake, PluginIDs und Windows-Binary: **1.0.1**.
