@@ -84,7 +84,7 @@ struct UiV101SongPainter final {
      // light-gray tiles of the previous design. They remain slightly
      // lighter than populated wells and must not imply clickable ADD.
      P::rounded(c,{x,y,x+S::cellWidth,y+S::cellHeight},
-                populated?P::Skin::navyWell():Color{40,52,65,255},3.);
+                populated?P::Skin::navyWell():Color{45,57,69,255},3.);
      P::border(c,{x,y,x+S::cellWidth,y+S::cellHeight},
                !populated?Color{63,80,95,255}:
                index==slot?P::Skin::amber():P::Skin::navyTrim());
