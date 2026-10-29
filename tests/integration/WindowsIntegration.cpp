@@ -2106,6 +2106,69 @@ void testV101CommercialVisualEvidence(){
  evidence("Commercial CURRENT V1.0.1 native 4-zoom MAIN/VEL/SET/PAGE2 + Pattern/Fill/BUS/Choke/Sample/Export/Zoom popup matrix PASS");
 }
 
+// Actual Win32 VSTGUI font metrics, not guessed character widths.
+// Every fixed commercial label must fit its painted cap including 2px
+// text insets. Long dynamic names and status are covered separately.
+void testV101NativeTypographyFit(){
+ struct Spec {const char* text;int font;double width;const char* error;};
+ const std::vector<Spec> labels{
+   {"PATTERN",11,308.,"A-H Pattern bank title clips"},
+   {"PATTERN EDIT",10,83.,"Pattern MENU title clips"},
+   {"MENU",10,83.,"MENU key clips"},
+   {"2 BARS",10,83.,"BARS key clips"},
+   {"SONG EDIT",10,83.,"SONG EDIT header key clips"},
+   {"SWING",11,92.,"SWING heading clips"},
+   {"HUMANIZE",11,92.,"HUMANIZE heading clips"},
+   {"MASTER",11,92.,"MASTER heading clips"},
+   {"LIMIT OFF",10,83.,"LIMIT OFF clips"},
+   {"LIMIT ON",10,83.,"LIMIT ON clips"},
+   {"150% v",11,83.,"ZOOM header caption clips"},
+   {"ADD ROW",10,95.,"ADD ROW footer clips"},
+   {"REMOVE ROW",10,95.,"REMOVE ROW footer clips"},
+   {"EXPORT",11,95.,"EXPORT footer clips"},
+   {"PREV PAGE",10,95.,"PREV PAGE footer clips"},
+   {"NEXT PAGE",10,95.,"NEXT PAGE footer clips"},
+   {"FILL",9,40.,"FILL row clips"},
+   {"EDIT",11,52.,"EDIT row clips"},
+   {"VEL",11,37.,"VEL row clips"},
+   {"SET",11,37.,"SET row clips"},
+   {"RANDOM VEL",10,128.,"RANDOM VEL clips"},
+   {"RESET VEL",10,128.,"RESET VEL clips"},
+   {"CHOKE",10,112.,"CHOKE settings clips"},
+   {"CLEAR ROW",10,112.,"CLEAR ROW settings clips"},
+   {"RANDOM VELOCITY",10,190.,"PATTERN popup RANDOM VELOCITY clips"},
+   {"SNARE GHOST",10,176.,"FILL popup SNARE GHOST clips"},
+   {"REMOVE SAMPLE",10,176.,"SAMPLE popup REMOVE SAMPLE clips"},
+   {"BUS 16",10,110.,"BUS popup BUS 16 clips"},
+   {"SONG WAV",10,210.,"EXPORT popup SONG WAV clips"},
+   {"PREVIOUS",10,100.,"SONG PREVIOUS clips"},
+   {"REMOVE LAST",9,98.,"SONG REMOVE LAST clips"},
+   {"ADD ENTRY",10,98.,"SONG ADD ENTRY clips"},
+   {"2 BARS",10,100.,"SONG length 2 BARS clips"},
+   {"REST",10,84.,"SONG REST clips"},
+   {"SONG CHAIN 49-64 | 64 ENTRIES",12,280.,"SONG chain count clips"},
+   {"SONG EDITOR  /  64-POSITION CHAIN",10,599.,"SONG board title clips"},
+   {"ZOOM +",10,86.,"WAVE ZOOM+ clips"},
+   {"PREVIEW",10,86.,"WAVE PREVIEW clips"},
+   {"CANCEL",10,86.,"WAVE CANCEL clips"},
+   {"APPLY",10,86.,"WAVE APPLY clips"},
+ };
+ double worstFraction=0.;
+ const auto raster=VSTGUI::renderBitmapOffscreen({256.,64.},1.,
+   [&](VSTGUI::CDrawContext& c){
+     for(const auto& spec:labels){
+       c.setFont(VSTGUI::kNormalFont,spec.font);
+       const auto actual=c.getStringWidth(spec.text);
+       check(std::isfinite(actual)&&actual>=0.&&actual<=spec.width-4.,
+             spec.error);
+       worstFraction=std::max(worstFraction,actual/(spec.width-4.));
+     }
+   });
+ check(raster!=nullptr,"Win32 native typography audit raster unavailable");
+ evidence("V1.0.1 native commercial typography: 40 fixed labels from MAIN, SET, VEL, SONG, WAVE and popup/zoom/footer fit Win32 font widths; worst fraction="+
+          std::to_string(worstFraction)+" PASS");
+}
+
 enum class V101CaptureMode { Normal, Velocity, Settings };
 void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
                         V101CaptureMode mode=V101CaptureMode::Normal){
@@ -5196,6 +5259,7 @@ int main(int argc,char** argv){
  run("V101 real VST3 editor attach, mouse dispatch, dialogs and zoom",testV101LiveEditor);
  run("V101 connected Controller/Processor exports and limiter",testV101ConnectedPatternSongExportsAndLimiter);
  run("V101 native commercial 4-zoom GUI evidence matrix",testV101CommercialVisualEvidence);
+ run("V101 native commercial typography geometry",testV101NativeTypographyFit);
  run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
  run("V101 SONG and Wave full native button matrix",testV101SongAndWaveFullControlMatrix);
  run("V101 16-row pointer isolation and real WAV sample browse",testV101AllRowMouseIsolationAndSampleBrowse);
