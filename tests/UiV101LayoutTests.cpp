@@ -108,6 +108,11 @@ int main(){
   CHECK(L::footerAdd.y0==L::footerPrev.y0&&
         L::footerRemove.y1==L::footerNext.y1);
   CHECK(L::footerRemove.x1<L::footerPrev.x0);
+  static_assert(L::footerExport.x1+10.<=L::footerPrev.x0);
+  static_assert(L::footerExport.y0==L::footerPrev.y0&&
+                L::footerExport.y1==L::footerPrev.y1);
+  static_assert(L::limiterTrigger.x0>L::headerKnobCenters[2]+L::headerKnobRadius);
+  static_assert(L::limiterTrigger.y1<L::meterReset.y0);
   CHECK(L::editorHeight(0,10,e)==686.);
   CHECK(L::editorHeight(0,10,e)*1.5==1029.);
   const auto action=[&](double x,double yy){return L::hit(x,yy,0,10,e).action;};

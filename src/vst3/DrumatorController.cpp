@@ -10,6 +10,9 @@
 #include "core/PreparedKitNames.h"
 #include "core/ZoomRecallPolicy.h"
 #include "core/Utf8Path.h"
+#include "core/MidiExport.h"
+#include "core/OfflineWavExport.h"
+#include "core/ExportFile.h"
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "pluginterfaces/vst/ivstattributes.h"
@@ -74,6 +77,10 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
       clip<0||full<0||clip>65535||full>65535||
       reset<0||static_cast<std::uint64_t>(reset)<lastClearEpoch_)
      return Steinberg::kResultFalse;
+   double exportTempo=0.;
+   if(attrs->getFloat("ExportTempo",exportTempo)==Steinberg::kResultOk&&
+      std::isfinite(exportTempo)&&exportTempo>=20.&&exportTempo<=300.)
+      exportTempoBpm_=exportTempo;
    Steinberg::int64 dropped=0,inspected=0,valid=0,uninspected=0;
    if(attrs->getInt("TriggerDrops",dropped)==Steinberg::kResultOk&&dropped<0)
       return Steinberg::kResultFalse;
@@ -431,7 +438,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
  Steinberg::uint32 magic=0,next=0;
  if(!stream.readInt32u(magic)||!stream.readInt32u(next))
     return Steinberg::kResultFalse;
- if(magic==kKitMagic||magic==kKitMagicV16||magic==kKitMagicV15||magic==kKitMagicV14||magic==kKitMagicV13||magic==kKitMagicV12||magic==kKitMagicV11||magic==kKitMagicV10||magic==kKitMagicV9||magic==kKitMagicV8||magic==kKitMagicV7||magic==kKitMagicV6||magic==kKitMagicV5||magic==kKitMagicV4) {
+ if(magic==kKitMagic||magic==kKitMagicV17||magic==kKitMagicV16||magic==kKitMagicV15||magic==kKitMagicV14||magic==kKitMagicV13||magic==kKitMagicV12||magic==kKitMagicV11||magic==kKitMagicV10||magic==kKitMagicV9||magic==kKitMagicV8||magic==kKitMagicV7||magic==kKitMagicV6||magic==kKitMagicV5||magic==kKitMagicV4) {
     if(next<2+kCells+kRows*6+4||next>kMaxKitBytes-8)
        return Steinberg::kResultFalse;
     KitState candidate;
@@ -487,6 +494,9 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
     }else {
       componentStatePendingController_=true;
     }
+    exportWavs_.swap(candidate.wav); // no-throw after identity validation
+    exportEdits_=candidate.sampleEdits;
+    limiterEnabled_=candidate.limiter!=0;
     visibleRows_=candidate.visible;
     swingPercent_=candidate.swing;
     humanizePercent_=candidate.humanize;
@@ -1246,7 +1256,10 @@ bool Controller::commitSampleEdit(std::size_t row,const SampleEdit& edit,
    ready= a->setInt("Revision",revision)==Steinberg::kResultOk;
  const bool success=ready&&sendEditMessage(msg)==Steinberg::kResultOk;
  
- if(success){invalidateWaveQuery();try {notifyViews(false);}catch(const std::bad_alloc&){ /* committed state remains authoritative */ }}
+ if(success){
+   exportEdits_[row]=edit;
+   invalidateWaveQuery();try {notifyViews(false);}catch(const std::bad_alloc&){ /* committed state remains authoritative */ }
+ }
  return success;
  }catch(const std::bad_alloc&){return false;}
 }
@@ -1334,6 +1347,7 @@ bool Controller::clearSample(std::size_t row) {
    invalidateWaveQuery();
    labels_[row].swap(emptyLabel);samplePaths_[row].clear();
    samplePresent_[row]=false;
+   exportWavs_[row].clear();exportEdits_[row]=SampleEdit{};
    try {notifyViews(false);}
    catch(const std::bad_alloc&) { /* committed state must not be reported as rejection */ }
  }
@@ -1529,6 +1543,8 @@ Controller::LoadStatus Controller::loadWav(std::size_t row,const std::string& pa
  samplePresent_[row]=true;
  originIdentity_[row]=wavIdentity(data);
  originIdentityValid_[row]=true;
+ exportWavs_[row].swap(data); // accepted PCM, no-throw ownership transfer
+ exportEdits_[row]=SampleEdit{};
  pathsRestoredBeforeComponent_=false;
  componentStatePendingController_=false;
  // The embedded WAV and UI metadata are committed. Host repaint/dirty
@@ -1538,4 +1554,60 @@ Controller::LoadStatus Controller::loadWav(std::size_t row,const std::string& pa
  }catch(const std::filesystem::filesystem_error&) {return LoadStatus::NotFound;}
   catch(const std::exception&) {return LoadStatus::ReadError;}
 }
+bool Controller::setLimiterEnabled(bool enabled){
+ if(limiterEnabled_==enabled)return true;
+ auto* msg=allocateMessage();if(!msg)return false;
+ msg->setMessageID("Drumator.Limiter");
+ auto* a=msg->getAttributes();
+ const bool success=a&&a->setInt("Enabled",enabled?1:0)==Steinberg::kResultOk&&
+     sendEditMessage(msg)==Steinberg::kResultOk;
+ msg->release();
+ if(success){limiterEnabled_=enabled;notifyViews(false);}
+ return success;
+}
+bool Controller::exportMidi(bool song,const std::string& path){
+ try {
+   MidiExportConfig config;
+   config.grid=grid_;
+   config.patternLengths=patternLengths_;
+   config.randomVelocity=randomVelocity_;
+   config.song=songChain_;
+   config.selectedPattern=static_cast<std::uint8_t>(currentPattern());
+   config.swingPercent=swingPercent_;
+   config.humanizePercent=humanizePercent_;
+   config.tempoBpm=exportTempoBpm_;
+   config.exportSong=song;
+   std::vector<std::uint8_t> bytes;
+   if(!MidiExport::encode(config,bytes))return false;
+   ExportFile writer(pathFromUtf8(path));
+   return writer.open()&&writer.write(bytes.data(),bytes.size())&&writer.finish();
+ }catch(...){return false;}
+}
+bool Controller::exportWav(bool song,const std::string& path){
+ try {
+   KitState state;
+   state.selected=static_cast<std::uint8_t>(currentPattern());
+   state.visible=visibleRows_;
+   state.grid=grid_;
+   state.patternLengths=patternLengths_;
+   state.randomVelocity=randomVelocity_;
+   state.names=labels_;
+   state.displayNames=customNames_;
+   state.wav=exportWavs_;
+   state.sampleEdits=exportEdits_;
+   state.gain=gain_;state.pan=pan_;state.pitch=pitch_;
+   state.choke=choke_;state.output=output_;
+   state.swing=swingPercent_;state.humanize=humanizePercent_;
+   state.masterVolume=masterVolume_;
+   state.limiter=limiterEnabled_?1:0;
+   state.songEnabled=songEnabled_?1:0;
+   state.chain=songChain_;state.songStartBar=songStartBar_;
+   for(std::size_t row=0;row<kRows;++row){
+     if(muted_[row])state.muted|=static_cast<std::uint16_t>(1u<<row);
+     if(solo_[row])state.solo|=static_cast<std::uint16_t>(1u<<row);
+   }
+   return OfflineWavExport::render(state,song,exportTempoBpm_,pathFromUtf8(path));
+ }catch(...){return false;}
+}
+
 }

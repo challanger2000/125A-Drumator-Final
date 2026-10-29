@@ -3,6 +3,7 @@
 #include "core/AtomicPatternBank.h"
 #include "core/VisibleRows.h"
 #include "core/KitState.h"
+#include "core/StereoPeakLimiter.h"
 #include "core/SampleVoiceEngine.h"
 #include "core/SampleExchange.h"
 #include "core/TriggerBatch.h"
@@ -93,6 +94,9 @@ public:
  Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream*) SMTG_OVERRIDE;
  Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream*) SMTG_OVERRIDE;
  Steinberg::uint32 PLUGIN_API getTailSamples() SMTG_OVERRIDE;
+ Steinberg::uint32 PLUGIN_API getLatencySamples() SMTG_OVERRIDE {
+   return static_cast<Steinberg::uint32>(StereoPeakLimiter::kLookahead);
+ }
 private:
  std::uint64_t meterId_{0};
  std::shared_ptr<OutputMeter> meter_{};
@@ -135,6 +139,9 @@ private:
  // One-shot previews from GUI; one pending request per row, not persisted.
  std::atomic<std::uint32_t> previewPending_{0};
  std::atomic<double> outputRate_{0.0};
+ std::atomic<double> lastExportTempo_{120.0};
+ std::atomic<std::uint8_t> limiterEnabled_{0};
+ std::array<StereoPeakLimiter,kRows> limiterBuses_{};
  bool wasPlaying_{false};
  std::int64_t phaseOriginStep_{0};
  double expectedNextPpq_{0.0};

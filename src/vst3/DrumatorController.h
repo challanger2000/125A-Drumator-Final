@@ -121,6 +121,11 @@ public:
  bool adjustSwing(int delta);
  bool adjustHumanize(int delta);
  bool adjustMasterVolume(int delta);
+ bool setLimiterEnabled(bool enabled);
+ bool limiterEnabled() const noexcept {return limiterEnabled_;}
+ bool exportMidi(bool song,const std::string& path);
+ bool exportWav(bool song,const std::string& path);
+ double exportTempoBpm() const noexcept {return exportTempoBpm_;}
  unsigned masterVolume() const noexcept {return masterVolume_;}
  bool adjustRandomVelocity(std::size_t row,int delta);
  unsigned rowRandomVelocity(std::size_t row) const noexcept {
@@ -187,6 +192,10 @@ private:
  std::array<std::string,kRows> customNames_{};
  // Filesystem navigation is session-only. Embedded WAV data remains self-contained.
  std::array<std::string,kRows> samplePaths_{};
+ // Control-thread-only embedded PCM cache, refreshed only after accepted
+ // sample import and Component state recall. Never touched by process().
+ std::array<std::vector<std::uint8_t>,kRows> exportWavs_{};
+ std::array<SampleEdit,kRows> exportEdits_{};
  // UI thread only. A single row cache bounds decoded-PCM residency even
  // when several View windows/16 sample rows exist. Processor revision is
  // always checked before reusing it after edit, import or project recall.
@@ -233,6 +242,8 @@ private:
  std::uint8_t swingPercent_{0};
  std::uint8_t humanizePercent_{0};
  std::uint8_t masterVolume_{100};
+ bool limiterEnabled_{false};
+ double exportTempoBpm_{120.0};
  std::array<std::uint8_t,kRows> randomVelocity_{};
  SongChain songChain_{};
  bool songEnabled_{false};

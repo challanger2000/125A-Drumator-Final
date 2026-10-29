@@ -9,7 +9,7 @@
 namespace drumator {
 struct UiV101Popup final {
  using L=UiV101Layout;
- enum class Kind:std::uint8_t{None,Pattern,Fill,Output,Choke,Sample};
+ enum class Kind:std::uint8_t{None,Pattern,Fill,Output,Choke,Sample,Export};
  struct Geometry {
    double x=0.,y=0.,width=0.,cellHeight=26.;
    int columns=1,rows=0;
@@ -21,17 +21,21 @@ struct UiV101Popup final {
      case Kind::Output:return 16;
      case Kind::Choke:return 5;
      case Kind::Sample:return 3;
+     case Kind::Export:return 4;
      case Kind::None:return 0;
    }
    return 0;
  }
  static Geometry geometry(Kind kind,double rowTop,double viewHeight) noexcept {
-   const auto x=kind==Kind::Pattern?364.:kind==Kind::Fill?84.:
+   const auto x=kind==Kind::Export?798.:
+                kind==Kind::Pattern?364.:kind==Kind::Fill?84.:
                 kind==Kind::Output?336.:kind==Kind::Choke?458.:155.;
    const int cols=kind==Kind::Output?2:1;
    const int rows=(count(kind)+cols-1)/cols;
-   const double w=cols==2?224.:kind==Kind::Pattern?190.:176.;
-   const double top=kind==Kind::Pattern?136.:rowTop+L::rowHeight;
+   const double w=kind==Kind::Export?210.:cols==2?224.:kind==Kind::Pattern?190.:176.;
+   const double top=kind==Kind::Pattern?136.:
+                    kind==Kind::Export?viewHeight-L::footer-rows*26.-10.:
+                    rowTop+L::rowHeight;
    const double maxY=std::max(L::header,viewHeight-rows*26.-5.);
    return {x,std::clamp(top,L::header,maxY),w,26.,cols,rows};
  }
@@ -53,12 +57,15 @@ struct UiV101Popup final {
       "SNARE 2/4","ALL","OFFBEAT 8","GALLOP","SNARE GHOST"};
    static constexpr const char* choke[]={"OFF","1","2","3","4"};
    static constexpr const char* sample[]={"LOAD SAMPLE","RENAME ROW","REMOVE SAMPLE"};
+   static constexpr const char* exports[]={"PATTERN MIDI","PATTERN WAV",
+                                           "SONG MIDI","SONG WAV"};
    if(option<0||option>=count(kind))return "";
    switch(kind){
      case Kind::Pattern:return pattern[option];
      case Kind::Fill:return fills[option];
      case Kind::Choke:return choke[option];
      case Kind::Sample:return sample[option];
+     case Kind::Export:return exports[option];
      default:return "";
    }
  }

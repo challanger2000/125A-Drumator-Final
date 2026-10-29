@@ -777,7 +777,7 @@ struct UiV101NativePreview final {
    label(c,summary,{260.,footerTop+9.,510.,footerTop+33.},11,
          {222,213,197,255},false);
    if(!scene.status.empty())
-     label(c,scene.status.c_str(),{520.,footerTop+9.,914.,footerTop+33.},
+     label(c,scene.status.c_str(),{520.,footerTop+9.,900.,footerTop+33.},
            10,{220,203,180,255},false);
    // Both controls are identically sized 95x25 machined metal keys.
    cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10,vintageButtons,ui.firstRow==0);

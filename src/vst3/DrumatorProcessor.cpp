@@ -191,7 +191,8 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
              static_cast<std::uint64_t>(INT64_MAX))))==Steinberg::kResultOk&&
         attrs->setInt("HostUninspected",static_cast<Steinberg::int64>(
           std::min<std::uint64_t>(uninspectedHostEvents_.load(std::memory_order_acquire),
-             static_cast<std::uint64_t>(INT64_MAX))))==Steinberg::kResultOk)
+             static_cast<std::uint64_t>(INT64_MAX))))==Steinberg::kResultOk&&
+        attrs->setFloat("ExportTempo",lastExportTempo_.load(std::memory_order_acquire))==Steinberg::kResultOk)
        status=sendMessage(reply);
    }catch(...){status=Steinberg::kOutOfMemory;}
    if(status==Steinberg::kResultOk) {
@@ -207,6 +208,14 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
  }
  if(std::strcmp(id,"Drumator.MeterClear")==0){
    meter_->clearClips();
+   return Steinberg::kResultOk;
+ }
+ if(std::strcmp(id,"Drumator.Limiter")==0){
+   auto* a=msg->getAttributes();
+   Steinberg::int64 enabled=-1;
+   if(!a||a->getInt("Enabled",enabled)!=Steinberg::kResultOk||
+      (enabled!=0&&enabled!=1))return Steinberg::kInvalidArgument;
+   limiterEnabled_.store(static_cast<std::uint8_t>(enabled),std::memory_order_release);
    return Steinberg::kResultOk;
  }
  // Control-thread-only state query. The audio selection is atomic; no
@@ -790,6 +799,8 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(Steinberg::Vst::Process
  auditionStop_.store(false,std::memory_order_release);
  if(!voices_.setOutputRate(setup.sampleRate)||
     !masterRamp_.prepare(setup.sampleRate))return Steinberg::kResultFalse;
+ for(auto& limiter:limiterBuses_)
+    if(!limiter.prepare(setup.sampleRate))return Steinberg::kResultFalse;
  masterRamp_.reset(masterVolume_.load(std::memory_order_relaxed)/100.f);
  if(!patternTimeline_.configure(static_cast<std::size_t>(setup.maxSamplesPerBlock)))
    return Steinberg::kOutOfMemory;
@@ -1106,6 +1117,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
    }
    context=&inferred;
  }
+ if(context&&(context->state&Steinberg::Vst::ProcessContext::kTempoValid)&&
+    std::isfinite(context->tempo)&&context->tempo>=20.&&context->tempo<=300.)
+    lastExportTempo_.store(context->tempo,std::memory_order_release);
  const bool playing=explicitStop?false:context?
      ((context->state&Steinberg::Vst::ProcessContext::kPlaying)!=0):
      wasPlaying_;
@@ -1535,6 +1549,20 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
      }
    }
  }
+ // Apply the same fixed-latency, linked peak limiter to MAIN and all
+ // active stereo stems. OFF still goes through a unity-gain delay so the
+ // DAW never needs to renegotiate latency when toggling the switch.
+ const bool limitOn=limiterEnabled_.load(std::memory_order_relaxed)!=0;
+ for(Steinberg::int32 bus=0;bus<data.numOutputs&&
+         bus<static_cast<Steinberg::int32>(kRows);++bus){
+   auto& outputBus=data.outputs[bus];
+   if(outputBus.numChannels!=2||!outputBus.channelBuffers32||
+      !outputBus.channelBuffers32[0]||!outputBus.channelBuffers32[1])continue;
+   auto* l=outputBus.channelBuffers32[0];
+   auto* r=outputBus.channelBuffers32[1];
+   for(Steinberg::int32 i=0;i<data.numSamples;++i)
+      limiterBuses_[static_cast<std::size_t>(bus)].process(l[i],r[i],limitOn);
+ }
  // Conservative: do not claim silence just because a short sound ended within
  // the current block. The host can determine silence independently.
  meter_->observe(data,activeStemMask_.load(std::memory_order_relaxed));
@@ -1580,6 +1608,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
    kit_.swing=swingPercent_.load(std::memory_order_relaxed);
    kit_.humanize=humanizePercent_.load(std::memory_order_relaxed);
    kit_.masterVolume=masterVolume_.load(std::memory_order_relaxed);
+   kit_.limiter=limiterEnabled_.load(std::memory_order_relaxed);
    for(std::size_t row=0;row<kRows;++row)
       kit_.randomVelocity[row]=randomVelocity_[row].load(std::memory_order_relaxed);
    for(std::size_t i=0;i<kPatterns;++i)
@@ -1606,7 +1635,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
  if(!stream.readInt32u(magic)||!stream.readInt32u(next))
     return Steinberg::kResultFalse;
  KitState candidate;
- if(magic==kKitMagic||magic==kKitMagicV16||magic==kKitMagicV15||magic==kKitMagicV14||magic==kKitMagicV13||magic==kKitMagicV12||magic==kKitMagicV11||magic==kKitMagicV10||magic==kKitMagicV9||magic==kKitMagicV8||magic==kKitMagicV7||magic==kKitMagicV6||magic==kKitMagicV5||magic==kKitMagicV4) {
+ if(magic==kKitMagic||magic==kKitMagicV17||magic==kKitMagicV16||magic==kKitMagicV15||magic==kKitMagicV14||magic==kKitMagicV13||magic==kKitMagicV12||magic==kKitMagicV11||magic==kKitMagicV10||magic==kKitMagicV9||magic==kKitMagicV8||magic==kKitMagicV7||magic==kKitMagicV6||magic==kKitMagicV5||magic==kKitMagicV4) {
     if(next<2+kCells+kRows*6+4||next>kMaxKitBytes-8)
        return Steinberg::kResultFalse;
     try {
@@ -1679,6 +1708,9 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     swingPercent_.store(kit_.swing,std::memory_order_relaxed);
     humanizePercent_.store(kit_.humanize,std::memory_order_relaxed);
     masterVolume_.store(kit_.masterVolume,std::memory_order_relaxed);
+    limiterEnabled_.store(kit_.limiter,std::memory_order_relaxed);
+    // Recall is a discontinuity: discard lookahead PCM from the prior kit.
+    for(auto& limiter:limiterBuses_)limiter.reset();
     // Host project recall is immediate; the restore gate has quiesced audio.
     masterRamp_.reset(static_cast<float>(kit_.masterVolume)/100.f);
     for(std::size_t row=0;row<kRows;++row)

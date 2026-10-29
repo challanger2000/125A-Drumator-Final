@@ -1069,6 +1069,13 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
                &vintageButtons,v101BadgeBitmap_,
                {v101BadgeBounds_[0],v101BadgeBounds_[1],
                 v101BadgeBounds_[2],v101BadgeBounds_[3]});
+  // New controls share exactly the already approved dark hardware caps.
+ Painter::cap(*c,UiV101Layout::footerExport,
+              v101_.height()-UiV101Layout::footer,"EXPORT",
+              v101Menu_==UiV101Popup::Kind::Export,11,&vintageButtons);
+ Painter::cap(*c,UiV101Layout::limiterTrigger,0.,
+              controller_.limiterEnabled()?"LIMIT ON":"LIMIT OFF",
+              controller_.limiterEnabled(),10,&vintageButtons);
  drawV101Menu(c);
 }
 void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
@@ -1105,7 +1112,8 @@ bool DrumatorView::applyV101Menu(int option) {
  const auto kind=v101Menu_;
  const auto row=v101MenuRow_;
  if(option<0||option>=UiV101Popup::count(kind))return true;
- if(kind!=UiV101Popup::Kind::Pattern&&row>=controller_.visibleRows())return false;
+ if(kind!=UiV101Popup::Kind::Pattern&&kind!=UiV101Popup::Kind::Export&&
+    row>=controller_.visibleRows())return false;
  switch(kind) {
    case UiV101Popup::Kind::Pattern:
      return option==0?controller_.copyCurrentPattern():
@@ -1141,6 +1149,7 @@ bool DrumatorView::applyV101Menu(int option) {
      if(option==0){load(row);return true;}
      if(option==1){editName(row);return true;}
      return controller_.clearSample(row);
+   case UiV101Popup::Kind::Export:return exportSelection(option);
    case UiV101Popup::Kind::None:return true;
  }
  return false;
@@ -1160,6 +1169,15 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
    v101MenuRow_=kRows;
    if(!ok)status_="MENU ACTION NOT APPLIED";
    invalid();return true;
+ }
+ if(UiV101Layout::footerExport.hit(x,y-(v101_.height()-UiV101Layout::footer))){
+    v101Menu_=UiV101Popup::Kind::Export;v101MenuRow_=kRows;
+    invalid();return true;
+ }
+ if(UiV101Layout::limiterTrigger.hit(x,y)){
+    if(!controller_.setLimiterEnabled(!controller_.limiterEnabled()))
+       status_="LIMITER SWITCH REJECTED";
+    invalid();return true;
  }
  const auto previous=v101_.state();
  const auto previousHeight=v101_.height();
@@ -2187,6 +2205,38 @@ void DrumatorView::load(std::size_t row) {
  }
  picker->forget();
  invalid();
+}
+
+
+bool DrumatorView::exportSelection(int option){
+ if(option<0||option>=4)return false;
+ auto* frame=getFrame();if(!frame)return false;
+ const bool wav=option==1||option==3;
+ const bool song=option>=2;
+ auto* picker=VSTGUI::CNewFileSelector::create(
+     frame,VSTGUI::CNewFileSelector::kSelectSaveFile);
+ if(!picker){status_="EXPORT FILE DIALOG UNAVAILABLE";return false;}
+ if(wav)picker->addFileExtension(VSTGUI::CFileExtension("WAV PCM 24-bit","wav","audio/wav"));
+ else picker->addFileExtension(VSTGUI::CFileExtension("MIDI file","mid","audio/midi"));
+ picker->setTitle(song?"125A Drumator - Export SONG":"125A Drumator - Export PATTERN");
+ const bool selected=picker->runModal();
+ std::string path;
+ if(selected&&picker->getNumSelectedFiles()>0){
+   const auto* file=picker->getSelectedFile(0);
+   if(file)path=file;
+ }
+ picker->forget();
+ if(path.empty())return true; // Cancel is not a software failure.
+ const auto dot=path.find_last_of('.');
+ const auto slash=path.find_last_of("/\\");
+ const bool hasExtension=dot!=std::string::npos&&
+                         (slash==std::string::npos||dot>slash);
+ if(!hasExtension)path+=wav?".wav":".mid";
+ const bool ok=wav?controller_.exportWav(song,path):
+                   controller_.exportMidi(song,path);
+ status_=ok?(song?"SONG EXPORT COMPLETED":"PATTERN EXPORT COMPLETED"):
+            "EXPORT FAILED - PREVIOUS FILE PRESERVED";
+ return ok;
 }
 
 void DrumatorView::onSampleEditorReady(std::size_t row,bool ok) {

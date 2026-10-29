@@ -82,6 +82,7 @@ private:
  void drawV101Wave(VSTGUI::CDrawContext* c);
  bool v101MouseDown(double x,double y,bool erase,bool fine);
  void drawV101Menu(VSTGUI::CDrawContext* c);
+ bool exportSelection(int option);
  bool applyV101Menu(int item);
 
  VSTGUI::CBitmap* backgroundBitmap_{nullptr};
