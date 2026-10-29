@@ -16,9 +16,20 @@ int main(){
        (step&&number.x0-L::stepNumberRect(step-4).x0!=4.*L::stepPitch))
        return 1;
   }
-  static_assert(L::footerPanelLeft==22.&&L::footerPanelRight==1258.);
-  static_assert(L::footerPanelLeft>L::footerScrewLeftX+L::footerScrewRadius&&
-                L::footerPanelRight<L::footerScrewRightX-L::footerScrewRadius);
+  // A continuous footer must be as wide as the top chassis framing;
+  // both lower screws are re-rendered after the plate by the native painter.
+  static_assert(L::footerPanelLeft==8.&&L::footerPanelRight==1272.);
+  static_assert(L::footerPanelRight-L::footerPanelLeft>=1260.);
+  static_assert(L::footerScrewLeftX>L::footerPanelLeft&&
+                L::footerScrewRightX<L::footerPanelRight);
+  // Larger badge ends above the clickable A-H caps; PATTERN remains visible,
+  // aligned over the right half of its group instead of behind the logo.
+  static_assert(L::badgePlate.x1<L::patternHeading.x0);
+  static_assert(L::badgePlate.y1<L::headerButtonY);
+  static_assert(L::badgePlate.x1-L::badgePlate.x0>=170.);
+  static_assert(L::badgeCaption.x0>L::badgePlate.x0&&
+                L::badgeCaption.x1<L::badgePlate.x1);
+  static_assert(L::badgeCaption.y1<=L::badgePlate.y1);
   CHECK(L::zoomPresets.size()==4);
   CHECK(L::zoomPresets[0]==1.&&L::zoomPresets[1]==1.2);
   CHECK(L::zoomPresets[2]==1.3&&L::zoomPresets[3]==1.5);
