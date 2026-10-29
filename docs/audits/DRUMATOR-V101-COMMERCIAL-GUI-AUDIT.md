@@ -2,7 +2,7 @@
 
 **Prüfdatum:** 29. Oktober 2026  
 **Ergebnis:** **GUI AUDIT NOT READY / kommerzielle Freigabe BLOCKIERT**  
-**Letzte technische Nachprüfung:** Produktcommit `ccc6e1200380adde9ae326538b4f7b451f7e3814`, Windows [#40942211432](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40942211432) **SUCCESS**: 27/27 CTests, 47/47 Steinberg Validator, 58 PASS / 0 WARNING / 0 FAIL im unabhängigen Tester. Die ursprüngliche Produktbaseline und Befunde G01/G06 unten sind zur Nachvollziehbarkeit erhalten und durch Abschnitt 9 fortgeschrieben.  
+**Neuester geprüfter Produkt-/GUI-Stand:** `17f2169cd8e3cf0e6e251054055e57a92813a2bf`; Windows [#40946548467](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40946548467) **SUCCESS**: 27/27 CTests, 47/47 Steinberg Validator, 58 PASS / 0 WARNING / 0 FAIL im unabhängigen Tester. Die früheren Audits und ihre damaligen Befunde bleiben als historische Basis dokumentiert; aktualisierter Abschluss in Abschnitt **10**. **Kein kommerzielles Release, Studio One weiterhin NOT RUN**.  
 **Exakt geprüfter Produkt-HEAD:** `a7377e6ababe50df724e29ba791b85ea8f183f74`  
 **Repository:** `challanger2000/125A-Drumator-Final` · **Branch:** `develop/v1.0.1-gui-redesign`  
 **Produkt:** 125A Drumator, **Windows x64 VST3 1.0.1**, Steinberg SDK **3.8.1**  
@@ -106,13 +106,13 @@ Legende: **BILD** = aktuelles natives V1.0.1-VST3-Rendering vorhanden; **FUNK** 
 
 **Betroffen:** `tests/integration/WindowsIntegration.cpp` (Snapshot-Erzeugung), `tests/integration/V101FullGuiAudit.inl` (GUI-Fälle), `.github/workflows/core-ci.yml` (Archiv-Auswahl). **Empfehlung nach separater Freigabe:** durch echte Editor-Klicks und `zoomMatches` belegte CURRENT-V101-Ansichten für VEL, SET, Page 2/letzte Reihe und jede Popup-Art bei allen vier Zooms erfassen; relevante Zustände **vor** Capture explizit assertieren; Bild-/Hitbox-Orakel ergänzen. **Kein Produktfehler bewiesen, aber Audit unvollständig.**
 
-### G02 — MEDIUM / VISUELL — hellgraue SONG-Leerfelder stören die dunkle Materialfamilie
+### G02 — HISTORISCHER MEDIUM-BEFUND; in Abschnitt 10 geschlossen — hellgraue SONG-Leerfelder
 
 **Beleg:** `v101-song-board-hardware-150.bmp` und `v101-song-board-hardware-100.bmp`, zweite Kachelreihe; `src/vst3/UiV101SongPainter.h:75–86`: leere Slots `Color{78,81,83,255}` mit Rand `{120,118,114,255}` versus befüllte dunkle `Skin::navyWell()`.
 
 **Reproduktion:** SONG EDIT mit acht Einträgen öffnen. Einträge 01–08 dunkel; 09–16 auffällig hellgrau. Unterschied ist absichtlich implementiert, nicht kaputt. **Empfehlung:** Eigentümerentscheid über dunkle deaktivierte Navy-Wells mit erhaltenem Kontrast statt pauschaler Farbersetzung. **Noch keine Codeänderung.**
 
-### G03 — MEDIUM / VISUELL/UX — unklare Header-Beschriftung „PTNR“
+### G03 — HISTORISCHER MEDIUM-BEFUND; in Abschnitt 10 geschlossen — unklare Header-Beschriftung „PTNR“
 
 **Beleg:** in aktuellen MAIN-/SONG-100/150-Bildern steht über der MENU-Taste „PTNR“, daneben bereits „PATTERN“ über A–H. `src/vst3/UiV101NativePainter.h:543`: `label(c,"PTNR",{364.,80.,447.,96.},...)`; MENU selbst `x364..447,y99..131`.
 
@@ -124,7 +124,7 @@ Legende: **BILD** = aktuelles natives V1.0.1-VST3-Rendering vorhanden; **FUNK** 
 
 **Reproduktion:** Nicht in dieser Umgebung – echte DAW und tatsächliche Windows-Save-Dialoge nötig. **Pflichtprüfung:** vier Dateitypen im echten Picker, vorgeschlagene Erweiterung, Verzeichnisse mit Unicode/Leerzeichen, Abbruch, Schreibschutz, existierende Datei mit Überschreiben/Rollback, lange SONG-Datei, Datei in DAW importieren, WAV anhören, LIMIT ON/OFF vergleichen, Projekt speichern/schließen/neu öffnen und sämtliche GUI-/Prozessorstates wiederfinden. **Kein behaupteter Produktfehler, aber zwingende Freigabes​​perre.**
 
-### G05 — LOW / DESIGNKONSISTENZ — zwei unterschiedliche Footer-Buttonbreiten
+### G05 — HISTORISCHER LOW-BEFUND; in Abschnitt 10 geschlossen — zwei unterschiedliche Footer-Buttonbreiten
 
 **Beleg:** `src/core/UiV101Layout.h:43–46,83`: ADD/REMOVE jeweils **90×25**, PREV/NEXT/EXPORT **95×25**. In aktuellen MAIN-100/150-Bildern sichtbar. Einheitliche Höhe und Buttonfamilie, aber nicht alle fünf identisch breit.
 
@@ -194,7 +194,7 @@ Dieser Bericht ist ein **unabhängiger, read-only Quell-, Test-, Package- und Bi
 - **G06 STATUS: GESCHLOSSEN, WINDOWS AUDIO PCM PASS.** Eine Fixture mit **zwei echten simultanen Stereo-Float-WAV-Samples** `L=+0.90/R=-0.72` je Instrument führt zu absichtlicher Summenübersteuerung. Der über `Controller::setLimiterEnabled` erreichte Processor-State wird per `getState` geprüft. Die tatsächlich geschriebenen **24-bit-WAV-Dateien** für OFF/ON/OFF werden frameweise auf -0.3-dBFS-Ceiling, Stereo-Quellverhältnis, wirksame Pegelreduktion und **bitidentischen** letzten OFF-Export geprüft. Zusätzlich erzeugen **zwei echte VST3-Processor-Instanzen** mit identischer Kit-MIDI-Clock separat die Audioausgangsblöcke für OFF und ON und prüfen **256 Frames** auf nachweisbare Dämpfung, unverändertes Stereo-Verhältnis und Ceiling. Die Audioverarbeitung selbst wurde dabei nicht modifiziert.
 - **G04 STATUS UNVERÄNDERT: BLOCKER.** Weder Studio One mit realen Datei-Pickern noch ASIO-Last-/Projekt-Recall wurde in GitHub Actions ausgeführt.
 
-### G10 — MEDIUM / NEUER SICHTBARER VISUELLER BEFUND — Hintergrundleiste schimmert zwischen Instrumentenzeilen durch
+### G10 — HISTORISCHER MEDIUM-BEFUND; in Abschnitt 10 geschlossen — Hintergrundleiste schimmert zwischen Instrumentenzeilen durch
 
 **Echte Bilder:** `v101-current-settings-150.bmp` und `v101-current-velocity-150.bmp`, zwischen „Clap 01“ und „Rim 01“, etwa bei **Bild-y ≈ 870–885 bei 150 %**; ähnlicher Spalt in `v101-current-main-150.bmp`. In einer dünnen ansonsten dunklen horizontalen Trennfuge sind weiße/silbrige diagonale Fragmente und helle Abschnitte sichtbar.
 
@@ -213,3 +213,32 @@ Dieser Bericht ist ein **unabhängiger, read-only Quell-, Test-, Package- und Bi
 - **G04:** manuelle Studio-One-OS-Picker-, Zoom-, Export-/Import-, Limiter-, ASIO- und Projekt-Recall-Abnahme **NOT RUN**.
 
 **Gesamtergebnis bleibt: GUI AUDIT NOT READY / KEINE KOMMERZIELLE FREIGABE.** Die zwei High-Testlücken sind in Windows behoben, doch G04 und die Gestaltungskorrekturen/Freigaben sind noch offen.
+
+
+## 10. Freigegebene, gebündelte GUI-Korrekturrunde — 29.10.2026
+
+**Freigabegrundlage:** Auf den Vorschlag, G02/G03/G05/G10 als eine gebündelte GUI-Korrekturrunde auszuführen, erteilte der Eigentümer die Anweisung „los“. Die bis dahin vorläufig abgenommene 125A-Branding-Komposition wurde nicht verändert.
+
+**Produktstand:** `17f2169cd8e3cf0e6e251054055e57a92813a2bf` (V1.0.1-Entwicklungsbranch); Änderungen gegenüber `ccc6e12` beschränken sich auf `src/core/UiV101Layout.h`, `src/vst3/UiV101NativePainter.h`, `src/vst3/UiV101SongPainter.h` und ergänzende Tests. Kein DSP-/Export-/Branding-Quellcode geändert.
+
+**Abschließende überprüfte CI-Provenienz:** Windows [#40946548467](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40946548467) **SUCCESS** mit **27/27** CTests, **47/47** Steinberg Validator und **58 PASS / 0 WARNING / 0 FAIL** unabhängigen 125A Plugin Tester v0.3.2. Aktuelle native GUI-Aufnahmen im Artifact **`125A-Drumator-VSTGUI-Native-Renderings` / ID 12928724052** (einschließlich 44 `v101-current-*`-Bilder bei vier realen Hostzoomstufen).
+
+| Auditpunkt | Konkrete Korrektur | Nachweis / Status |
+|---|---|---|
+| **G02**: helle SONG-Leerfelder | In `UiV101SongPainter.h` statt grau (`78/81/83`) dunkel-navy (`45/57/69`), matte dunkelblaue Kontur `63/80/95`; weiterhin heller als belegte Kacheln, ohne neue Hitflächen | Echte native `v101-song-board-hardware-100/120/130/150.bmp`; RGB-Test: Leerzelle ist dunkler als 75/75/80, trotzdem je >25 Stufen heller (R/G) als belegte Zelle. **CLOSED / PASS** |
+| **G03**: „PTNR“ | Vollständige Beschriftung **`PATTERN EDIT`** in exakt derselben 83px-Headerfläche, Fontgröße 10; MENU darunter unverändert | Native `v101-current-main-100/150.bmp`, `v101-song-board-hardware-150.bmp`, visuelle Prüfung: vollständig lesbar, kein Clip, Abstände erhalten. **CLOSED / PASS** |
+| **G05**: abweichende Footer-Breiten | ADD ROW und REMOVE ROW von 90 auf **95×25** angeglichen; präzise neue x-Bounds ADD `45..140`, REMOVE `151..246`; EXPORT/PREV/NEXT bleiben 95×25. 11px Zwischenraum, 14px bis Summary-Text | `UiV101LayoutTests.cpp` prüft alle fünf Maße, Zwischenräume, unveränderte vertikale Flucht. Echter Windows-VSTGUI-Maustest ADD/REMOVE und Page-Navigation bestand; native 100/150-Screenshots kontrolliert. **CLOSED / PASS** |
+| **G10**: Fotokante in Instrumentenfugen | Ein einziges `Skin::navyWell()`-Fundament von x=12 bis 1260 zwischen `header` und `footer` **hinter** allen gezeichneten Instrumentenzeilen. Gesonderter Kopfplatten-/Logo-/Footerbereich und deren Foto bleiben unangetastet. Instrumenten-Hitflächen unverändert | Echter Hosteditor-Rastertest prüft alle neun Nahtstellen an x=650: rote/grüne/blaue Kanäle je unter 45/50/65. Alte Stelle bei GUI x=650,y=590 ursprünglich ca. `(62,64,66)`, nach Korrektur `(15,27,40)` bei 150%-Rendering. **CLOSED / PASS** |
+
+**Gesonderte Fehlerdiagnose:** Der erste QA-Lauf für `481d2db` meldete genau einen visuellen Testfehler: Die neue SONG-Leerzelle `40/52/65` hatte gegenüber dem belegten Pixel `15/27/40` nur exakt 25 statt verlangten **mehr als 25** RGB-Stufen Kontrast. Die Endfassung `45/57/69` behebt den realen Grenzfall ohne Absenkung des Testmaßstabs. Der vollständige finale Build `17f2169` besteht sämtliche Prüfungen. Kein Test wurde deaktiviert.
+
+**Visuell tatsächlich kontrolliert:** echte MAIN-150%-Aufnahme mit korrigierter Headerzeile, einheitlichen Footer-Tasten und dunklen 10 Zeilen; SONG-150%-Aufnahme mit deutlich zurückgenommenen Leerzellen; Trennfugen per pixelgenauem Vorher-/Nachher-RGB-Vergleich; 44 aktuelle Zoom-/Menü-Snapshots werden weiterhin im CI reproduzierbar erzeugt. **Nicht** behaupten, dass jedes potenzielle GUI-Rendering in Studio One manuell bestätigt ist.
+
+### Verbleibende offene kommerzielle Freigabepunkte
+
+- **G04 ist weiterhin BLOCKER:** Studio One auf dem Eigentümer-Rechner: tatsächliche Windows-Save-Dateiauswahldialoge, alle vier MIDI-/WAV-Exporte einschließlich Reimport, LIMIT ON/OFF-Abhören, ASIO-Dauerstabilität, Zoom/Windows-DPI, Projekt-SAVE/CLOSE/REOPEN und vollständiger State-Recall. **NOT RUN**.
+- **G07/G09:** historisches, ungenutztes Badge im Package und oberstes leeres `moduleinfo.json.Name`; vor Veröffentlichung separat auf Verwendungszweck bzw. tatsächliche DAW-Anzeige prüfen, nicht blind ändern.
+- **G08:** aktuelle QA-basierte Orientierung in `CURRENT.md` ergänzt; V1.0.0-Releasekandidat und nicht veröffentlichte V1.0.1 sind weiterhin getrennt.
+- Owner-Sichtabnahme des aktuellen 150%-Renderings aus dem neuen Lauf steht aus. Das bereits akzeptierte 125A-Logo bleibt unangetastet.
+
+**Endentscheidung dieses Software-/GUI-Korrekturdurchgangs:** **G02/G03/G05/G10 geschlossen; V1.0.1 Windows QA PASS.** Weiterhin **KEINE V1.0.1 FINAL- oder kommerzielle Releasefreigabe** ohne G04 und Eigentümer-Abnahme.
