@@ -242,3 +242,53 @@ Dieser Bericht ist ein **unabhängiger, read-only Quell-, Test-, Package- und Bi
 - Owner-Sichtabnahme des aktuellen 150%-Renderings aus dem neuen Lauf steht aus. Das bereits akzeptierte 125A-Logo bleibt unangetastet.
 
 **Endentscheidung dieses Software-/GUI-Korrekturdurchgangs:** **G02/G03/G05/G10 geschlossen; V1.0.1 Windows QA PASS.** Weiterhin **KEINE V1.0.1 FINAL- oder kommerzielle Releasefreigabe** ohne G04 und Eigentümer-Abnahme.
+
+
+## 11. Professioneller GUI-Abschluss-Audit vor Studio One — 29.10.2026
+
+**Exakter geprüfter Produktstand:** `e69d74e504d6bc8b08ce1162fc578542611b66e0` (Windows x64 VST3 1.0.1). **GitHub Actions [#40953050769](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40953050769): SUCCESS**. 27/27 CTests inklusive echter nativer Controller/View/Processor-Integration, 47/47 Steinberg Validator, unabhängiger 125A Plugin Tester v0.3.2 **58 PASS / 0 WARNING / 0 FAIL**. Alle Produktquellen seit `17f2169`-GUI-Freigaberunde lediglich für die folgenden zwei GUI-Feststellungen geändert; DSP/Export/Pattern/Branding nicht verändert. **Diese Freigabe ist PRE-DAW, keine kommerzielle FINAL-Freigabe.**
+
+### 11.1 Zwei zusätzlich gefundene und behobene GUI-Mängel
+
+**G11 — PATTERN-Titel falsch ausgerichtet — CLOSED.**
+- Tatsächliche Ausgangslage: `UiV101Layout::patternHeading{213,80,339,96}` gegenüber der A-H-Gruppe von **x33 bis x341**. Dazu war der `label`-Aufruf ausdrücklich **linksbündig**. Deshalb war selbst eine reine Änderung des Textfelds nicht ausreichend.
+- Endkorrektur: `patternHeading{33,80,341,96}`, Label **zentriert**, mit weiterhin 16px Titelhöhe, freier 3px Distanz zu den Pattern-Buttons (y99) und **19px Abstand** zwischen dem unteren Logogrößen-Bereich (y61) und der Überschrift (y80).
+- Tests: Geometrie-Mittelpunkt `(33+341)/2=187`; ergänzter **nativer Rastertest** rendert die echte VSTGUI-View und dieselbe unveränderte Hintergrundfotografie, isoliert ausschließlich die helleren tatsächlichen Buchstabenpixel im Titel-Rechteck und fordert einen sichtbaren Mittelpunkt innerhalb von **±3px** des Bank-Mittelpunkts. Alle Tests PASS.
+- Visuelle Prüfung: im aktuellen `v101-current-main-100.bmp` und `-150.bmp` sitzt PATTERN sichtbar zentral über A–H, nicht links über A oder über E–H. Es wurde **nicht** auf dem Logo, Pattern-Tasten oder einem zusätzlichen Metallschild gezeichnet.
+
+**G12 — lange Statusmeldungen konnten ohne Begrenzung überlagern — CLOSED.**
+- Ursache: VSTGUI `drawString` clippt Text **nicht** automatisch auf das übergebene Textrechteck. Das betraf dynamische Statusmeldungen in MAIN, SONG und WAVE.
+- Endkorrektur: gemeinsame `UiV101NativePreview::fitStatusText`/`fittedStatus`-Routinen; **tatsächliche Win32-Fontmessung**, UTF-8-codepoint-sicheres Kürzen, eindeutiges `...`-Ende, zusätzlich native ClipRect-Sicherung. Anwendung in allen drei Ansichten, ohne neue Buttons, Dialoge oder Änderungen an DSP und Statusinhalt.
+- Test: in einem echten angeschlossenen Editor mit 256 `W`-Zeichen erzeugtes `v101-main-status-overflow-100.bmp`; Breite wird durch das aktuelle Plattformfont auf das **380px-Statuskompartiment** begrenzt, die gemessene sichtbare Zeichenkette enthält `...`. **PASS**. Die etablierte Testmeldung und der lange Sample-Name werden weiterhin korrekt angezeigt.
+
+### 11.2 Tatsächlich kontrollierte Geometrie und Oberflächen
+
+| Gruppe | Exakte Prüfmethode | Endbefund |
+|---|---|---|
+| Logo + DRUMATOR-Wordmark | Originales Branding-Master und Bildressource identisch; 100%-Pixelvergleich der gesamten x0..180/y0..72-Region gegenüber früherem geprüften Build | **PASS**; keine Veränderung |
+| Header A–H, MENU, BARS, SONG/SONG EDIT, LIMIT, Zoom, drei globale Knöpfe, L/R/Clip-Meter | Originale `UiV101Layout`- und Hit-Zonen, native UI-Vergleichsbilder und echten Pointer-Hosttest; G11-Pixelmittelpunkt | **PASS**, Headertitel und Buttons im Einklang |
+| 32 Steps + Taktzahlen 1/5/9/13/17/21/25/29 | 19px Pitch, getrennte 17px Schalter, gerenderte Zahlen-Mittelpunktregel; Pattern A–H, Tempo/Varianten und tatsächlicher Step-Klick | **PASS** |
+| 16 Instrumente/Seite 1–2, M/S/FILL/SAMPLE/PREV/NEXT/PLAY/EDIT/3 Drehregler/VEL/SET | 10/9/6 sichtbare Zeilen, reale Resizes 686/494, grenzengetrennter Maus-/State-Test, Bilder bei vier Zooms | **PASS** für tatsächliche Testzustände |
+| VEL und SET, LIVE VEL, FILL/BUS/CHOKE/SAMPLE-Menüs | Controller-Aktionen, tatsächliche VST3-Capture je 100/120/130/150, geteilte Paint-/Hit-Geometrie, Popups modal | **PASS** für alle getesteten Kategorien |
+| SONG mit 1–64 Einträgen, A–H/REST, 3 Längen, START±/RESET, Entry-Navigation, ADD/REMOVE | Quelle `UiSongLayout`, reale Host-Maus- und State-Fixtures, aktuelle SONG-100/120/130/150 und Export-Popup | **PASS** |
+| WAVE mit acht Werkzeugen, START/END/Fades/GAIN, PREVIEW/STOP, APPLY/CANCEL | `UiV101WaveLayout` mit acht 86×32-Keys; Bilder bei vier Zooms, Audio-/Undo-/Cancel-Tests | **PASS** |
+| Footer mit ADD/REMOVE/EXPORT/PREV/NEXT und Live-Status | alle fünf **95×25**, 11px Linksgutter, 15px zwischen Status und EXPORT, Clip-/UTF-8-Längenfix; sechs-Reihen-Ansicht | **PASS** |
+| Schrift-/Labelüberlauf | **40 feste Labels** aus allen Ansichten mit `VSTGUI::CDrawContext::getStringWidth()` im echten Win32-Kontext gegen die gezeichnete Tastenbreite **minus 4px Sicherheitsabstand**; variable Namen und Status separat | **40/40 PASS**, keine fehlenden/abgeschnittenen festen Beschriftungen nachgewiesen |
+| Farbe/Verläufe/Zeilenfugen | Tatsächliche Bildpixel bei vier Zoomstufen; x650 in allen neun Hauptzeilen-Nähten, dunkler Wert bei 100/150 **RGB (15,27,40)**, bei Zwischenzoom geringfügige Resamplingabweichungen | **PASS** |
+| Menü-Overlays, kein fremdes Übermalen | unabhängiger Pixel-Differenzvergleich der **sieben Popup-Arten bei 100/120/130/150** gegen die passende geschlossene MAIN- bzw. SET-Ansicht; Änderungen liegen in Popup-/Auslöserflächen | **28/28 Zustands-Paarvergleiche PASS** |
+| Responsive feste Zoomstufen | 100/120/130/150 realer Host-Zoom, MAIN 1280×686 bis 1920×1029, SONG 1280×432 bis 1920×648, sechs Reihen 1280×494 bis 1920×741; 130%-Höhe wird hostbedingt auf 891px gerastert | **PASS**; kein Screenshotclip bei diesen Größen |
+| Ressourcen/Metallgrafik/Begrenzungen | finale Bildquelle aus echtem VST3-Host, vier Aufnahmen pro 11 `v101-current-*`-Zustandsfamilien (**44 aktuelle Bilder**), zusätzlich SONG/WAVE/Statusstress, alter V2-Bildsatz NICHT als aktuelle GUI gezählt | **PASS** für vorhandene Fixtures |
+
+**Pixel-Differenzvergleich MAIN 100%:** finale `e69d74e` gegenüber `17f2169` verändert nur **432 Pixel im Rechteck x162..261/y85..92**, also die korrekt verschobene „PATTERN“-Überschrift; gesamter Markenbereich links oben und alle Pixel ab y138 einschließlich Step-Reihen/Footer bleiben identisch. Neu langer Statusfall wird getrennt auf seiner eigenen Testfixture dargestellt.
+
+**Paketnachweis:** finale **17-Dateien-VST3 ZIP** mit ZIP-CRC-Prüfung **PASS**; tatsächliche Windows x64 VST3-Binärdatei **SHA-256 `2c7e1b934bdbdfb8682c1879622bf09eb51fa45a7cd2542912efdfb1c3ca00b0`**. Im CI-ZIP verbleiben historisches Badge und moduleinfo `Name` laut G07/G09 als *Packagemetadaten*, ohne aktuellen Render-Effekt.
+
+### 11.3 Ergebnis und harte Nachweisgrenzen
+
+**AUTOMATISIERTE UND VISUELLE PRE-DAW-GUI-ABNAHME: PASS.** Für alle oben genannten reproduzierbaren, im echten Windows-Testhost sichtbaren Zustände ist **kein weiterer offener reproduzierter GUI-Geometrie-, Clipping-, Button-/Popup- oder Textbreitenfehler bekannt**.
+
+**Nicht dasselbe wie ein Beweis für *alle denkbaren* Fälle:** Edge-Case-Kombinationen außerhalb der Fixture-Matrix, Nutzer-Windows-Fonts, Screenreader/Keyboard-Accessibility, abweichende DAW-Window-Manager, echte OS-Dateiauswahl und freies DPI-Resizing sind nicht vollständig mit Screenshots beweisbar. Deshalb **keine absolute Fehlerfreiheitsgarantie**.
+
+**Anschließendes Owner-/Studio-One-Gate (G04) – weiterhin NOT RUN:** echtes Laden der exakt geprüften VST3; Öffnen/Schließen/Wiederöffnen; Zoom bei 100/120/130/150 plus Windows-DPI und Maus-Hitboxes; beide Instrumentenseiten, VEL, SET, SONG, WAVE, Menüaktionen; alle vier MIDI-/WAV-Speicherdialoge, Abbruch/Überschreiben, Reimport und Playback; LIMIT ON/OFF in Echtzeit und WAV; Projekt SAVE/CLOSE/REOPEN inklusive SONG-/Limiter-/GUI-Recall. Erst danach Owner-Freigabe/Releasepaket.
+
+**Wichtig:** G02/G03/G05/G10 und G11/G12 sind für den Stand `e69d74e` **technisch geschlossen**. Es wurde **kein GitHub Release veröffentlicht, kein Final-Tag erstellt und keine kommerzielle Freigabe behauptet**. Diese Datei ist der belastbare Übergabebericht für die DAW-Praxiskontrolle.
