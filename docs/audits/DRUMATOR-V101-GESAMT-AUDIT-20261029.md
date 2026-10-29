@@ -62,7 +62,7 @@ Seit `DrumatorView.cpp:1192–1230` wird der mittlere Ausschnitt der produktiven
 
 **Status CODE/SCREENSHOT SICHTBAR, gezielter Negativtest NOT RUN.** Der Test könnte trotz Rückfall auf eine glatte Fläche weiterhin PASS melden. Für den nächsten Änderungszyklus eine feste Pixelregion im Modal gegen die unabhängig gerenderte entsprechende Originaltextur prüfen, mit Negativkontrolle (Bitmap absichtlich fehlend/gestrichen).
 
-### DR-A04 — MEDIUM / ECHTZEIT-RISIKO, NOCH KEIN REPRODUZIERTER FEHLER — unbeschränkte Automationspunktlisten
+### DR-A04 — HIGH-DENSITY-STRESSTEST BESTANDEN (16.384 Punkte); allgemeine O(N)-Grenze bleibt — Automationspunktlisten
 
 `Processor::process` begrenzt die Prüfung von **Host-MIDI-Events auf 4096** und meldet nicht inspizierte Elemente nachvollziehbar. Für `inputParameterChanges`-Queues laufen dagegen Schleifen über `getParameterCount()` und `getPointCount()` ohne entsprechendes explizites Arbeitsbudget, einschließlich Restore- und Outputless-Pfad (`DrumatorProcessor.cpp`, etwa Zeilen 850, 893 und 1143). Der Pakettest belegt einen kombinierten Fall mit **250** Automationspunkten und 8 MIDI-Ereignissen, nicht extreme Parameterqueue-Größen.
 
@@ -127,3 +127,30 @@ Aktuelle Ressourcenliste im gebauten Bundle: 8 dunkle Button-Zustände/Auflösun
 **Ehrliche Fehlchronik:** Der vorangegangene Workflow [#40814030401](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40814030401) endete mit **BUILD FAIL** wegen einer neuen lokalen Testvariable `original` (MSVC C4456, /WX); CTests/Validator/Tester wurden dort **NICHT AUSGEFÜHRT**. Die reine Testvariablen-Umbenennung im Commit `66d07ba` ist mit dem vollständigen SUCCESS-Run #40814316169 gegengeprüft.
 
 **Schluss:** Die zwei konkreten GUI-Test-/Screenshot-Befunde sind jetzt für die beschriebenen automatisierten Windows-Szenarien geschlossen. **Produktcode bleibt unverändert**, **V1.0.1 FINAL weiterhin nicht freigegeben**.
+
+## 8. Abschluss Extremtest Host-Automation – 29.10.2026
+
+**Endgültiger Testcommit:** [`14eee24ae432e8c4b4d39f63ed3f0c88a6aa8bbf`](https://github.com/challanger2000/125A-Drumator-Final/commit/14eee24ae432e8c4b4d39f63ed3f0c88a6aa8bbf) – **nur `tests/PackagedAudioHostSmoke.cpp`, keine Produkt-/DSP-/State-/GUI-Änderung.**
+
+**Exakter Gesamtprüflauf:** [Windows GitHub Actions #40816232717](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40816232717) **SUCCESS (Windows + unabhängiger Tester)**.
+- **24/24 CTests** PASS
+- **47/47 Steinberg Validator** PASS
+- **58 PASS / 0 WARNING / 0 FAIL** im unabhängigen 125A Plugin Tester V0.3.2 gegen die tatsächlich gebaute DLL.
+- Verifizierte Windows-x64-VST3-DLL SHA-256: `d18543c50031fccf8933c106896ae076a235be7c94e06c1c8adf76315e3b693c`.
+
+### P16 – tatsächlich ausgeführte Extremfälle
+
+- Die echte **paketierte VST3-DLL** verarbeitet **16.384 Host-Automationspunkte innerhalb eines 256-Sample-Blocks**, **12** Durchgänge; ein unabhängiger Host-Testzähler belegt **196.608 tatsächlich gelesene `getPoint()`-Einträge**.
+- Alle Punkte liegen auf Sampleoffset 64 und alternieren Pattern A/B; der **letzte Host-Punkt (B)** muss Vorrang vor einer **gleichzeitigen MIDI-Pattern-A-Note** haben. Die tatsächlich ausgegebene PCM-Audioantwort im Bereich Samples 180–239 bestätigt B; alle geprüften L/R-Werte endlich, kein unerwünschter Host/MIDI-Prioritätsverlust.
+- **Ohne Audioausgänge (`numOutputs=0`)** bleiben die 16.384 Parameterpunkte wirksam; anschließend ist Pattern B im wieder aktivierten Audiosignal nachgewiesen.
+- **Zero-Frame-Flush (`numSamples=0`)** verarbeitet separat 16.384 Offset-0-Parameterpunkte; Pattern B bleibt nachfolgend im realen Audio erhalten.
+- Timing ausschließlich um `IAudioProcessor::process`, **nicht** um Fixture-Erstellung: **Median 0,3708 ms, gemessener Maximalwert und 12-Messwerte-p99 0,3742 ms** (Windows-2022-Runner, 48 kHz/256 Samples, rechnerische Deadline 5,333 ms). **Offline-Diagnostik, kein echter ASIO-Realtime-Nachweis**.
+- Die SDK-Helferklasse `ParameterValueQueue` führt bei identischen Sampleoffsets intern eine Zusammenfassung aus. Der erste Probecommit [`d3302a2`](https://github.com/challanger2000/125A-Drumator-Final/commit/d3302a2a929eeb726311ca430a1cbb98a858ec64) scheiterte **ausschließlich an der Test-Assertion**, dass alle 16.384 Punkte vorliegen – **kein nachgewiesener Pluginfehler**. Erst die zweite Probe mit selbst implementierter VST3-Interface-Testqueue lieferte tatsächlich alle 16.384 Punkte. Der erste Job [#40815728141](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40815728141) war **FAIL** und wird **nicht** als bestandener Test umetikettiert.
+
+### Auditentscheidung zu DR-A04
+
+**DR-A04: CLOSED für den konkret festgelegten Extremtest (16.384 Punkte, normal, outputless und zero-frame).** In diesen Belastungen **kein reproduzierter Fehler** und kein Bedarf für einen DSP-Code-Fix.
+
+**Abgrenzung:** Die aktuelle Quellimplementierung iteriert weiterhin über `getPointCount()`; eine mathematisch konstante O(1)-Obergrenze für beliebig fehlerhafte Hostqueues ist damit **nicht** bewiesen. Das ist ein allgemeines Robustheitslimit, jedoch nach positivem 16.384-Punkt-Stress **kein separat reproduzierter V1.0.1-Releaseblocker**. Eine willkürliche Limitierung würde gültige Automation ändern und wird ohne Fehlernachweis nicht eingeführt.
+
+**Einziger verbleibender V1.0.1-Releaseblocker des Audits: DR-A01 – echte DAW-/ASIO-/Save-Recall-Bedienabnahme auf dem Nutzerrechner (NOT RUN).** Es wurde keine V1.0.1-FINAL-Freigabe durch den Audit erteilt.
