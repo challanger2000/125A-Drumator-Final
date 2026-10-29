@@ -111,6 +111,9 @@ public:
  // Modifies only occupied steps in the active pattern/active bar length,
  // persisted through PatternReplace as one undoable operation.
  bool randomizeRowVelocity(std::size_t row);
+ // Restore velocity 100 for occupied steps of one instrument in the
+ // selected A-H pattern only; preserve zeros and hidden bar 2 in 1-bar mode.
+ bool resetRowVelocity(std::size_t row);
  bool varyPatternVelocity();
  bool resetPatternVelocity();
  std::uint32_t velocityVariation_{0};

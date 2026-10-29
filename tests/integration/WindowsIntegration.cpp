@@ -1056,10 +1056,20 @@ void testV101Interaction(){
        "V101 second velocity begin failed");
  check(ui.up()==UI::Result::Handled&&f.c->velocity(2,9,0)==64,
        "V101 velocity commit did not retain edited value");
- // Exactly one VEL/SET expansion; view actions do not invent menus.
- check(ui.down(1230.,expandedTop+36.)==UI::Result::Handled&&
-       ui.state().expansion==L::Expansion::Settings,
-       "V101 VEL/SET exclusion failed");
+ // VEL owns both row-local one-shot operations, not SET. Validate live
+ // controller contents, note occupancy and non-selected instrument isolation.
+ check(UI::velocityAt(190.,76.)==UI::SettingsAction::RandomVelocity&&
+       UI::velocityAt(330.,76.)==UI::SettingsAction::ResetVelocity&&
+       UI::settingsAt(190.,76.)==UI::SettingsAction::Output,
+       "V101 random/reset one-shot hit regions are not Velocity-only");
+ const auto otherRowBefore=f.c->velocity(2,8,0);
+ check(ui.down(190.,expandedTop+76.)==UI::Result::Applied&&
+       f.c->velocity(2,9,0)!=64,
+       "V101 VEL random did not vary occupied row note");
+ check(ui.down(330.,expandedTop+76.)==UI::Result::Applied&&
+       f.c->velocity(2,9,0)==100&&f.c->velocity(2,9,1)==0&&
+       f.c->velocity(2,8,0)==otherRowBefore,
+       "V101 VEL reset failed, created a note or edited a different row");
  const unsigned outBefore=f.c->rowOutput(9);
  check(ui.down(151.,expandedTop+69.)==UI::Result::DeferredToView&&
        f.c->rowOutput(9)==outBefore,
@@ -1072,35 +1082,38 @@ void testV101Interaction(){
  const auto chokeRequest=ui.takeDeferredRequest();
  check(chokeRequest.kind==UI::DeferredKind::ChokeMenu&&chokeRequest.row==9,
        "V101 CHOKE view request lost exact instrument target");
- // The RT value must be the same 112px width as RANDOM VEL, with
- // isolated - / + hit surfaces and an inert 10px gutter.
- static_assert(UI::realtimeValue.x1-UI::realtimeValue.x0==112.);
- static_assert(UI::realtimeValue.x1+10.==UI::realtimePlus.x0);
- check(UI::settingsAt(1055.,69.)==UI::SettingsAction::None&&
-       UI::settingsAt(1072.,69.)==UI::SettingsAction::RandomRealtimeUp&&
-       UI::settingsAt(1109.,69.)==UI::SettingsAction::None,
-       "V101 new compact RT readout has wrong hitboxes or overlapping gaps");
+ // LIVE VEL has isolated +/-/drag controls beyond the Step bars, and
+ // no corresponding hit area in SET.
+ static_assert(UI::realtimeValue.x1-UI::realtimeValue.x0==124.);
+ check(UI::velocityAt(1077.,69.)==UI::SettingsAction::None&&
+       UI::velocityAt(1230.,69.)==UI::SettingsAction::RandomRealtimeUp&&
+       UI::settingsAt(1230.,69.)==UI::SettingsAction::None,
+       "V101 LIVE VEL hit regions overlap or leaked back into SET");
  const auto randomRealtime=f.c->rowRandomVelocity(9);
- check(ui.down(1100.,expandedTop+69.)==UI::Result::Applied&&
+ check(ui.down(1230.,expandedTop+69.)==UI::Result::Applied&&
        f.c->rowRandomVelocity(9)==randomRealtime+10,
-       "V101 realtime random increase not connected");
- check(ui.down(900.,expandedTop+69.)==UI::Result::Applied&&
+       "V101 live velocity increase not connected");
+ check(ui.down(1050.,expandedTop+69.)==UI::Result::Applied&&
        f.c->rowRandomVelocity(9)==randomRealtime,
-       "V101 realtime random decrease not connected");
- check(ui.down(1000.,expandedTop+69.)==UI::Result::Handled,
-       "V101 realtime percent field did not start direct mouse drag");
- check(ui.move(1000.,expandedTop+57.)==UI::Result::Applied&&
+       "V101 live velocity decrease not connected");
+ check(ui.down(1140.,expandedTop+69.)==UI::Result::Handled,
+       "V101 live velocity readout did not start drag");
+ check(ui.move(1140.,expandedTop+57.)==UI::Result::Applied&&
        f.c->rowRandomVelocity(9)==3,
-       "V101 realtime percent drag cannot reach exact sub-10 values");
+       "V101 live velocity drag cannot reach fine values");
  check(ui.up()==UI::Result::Handled,
-       "V101 realtime drag failed to release");
+       "V101 live velocity drag failed to release");
+ // Exactly one VEL or SET expansion at a time.
+ check(ui.down(1230.,expandedTop+36.)==UI::Result::Handled&&
+       ui.state().expansion==L::Expansion::Settings,
+       "V101 VEL/SET exclusion failed");
  check(ui.down(401.,expandedTop+69.)==UI::Result::Applied,
        "V101 SET copy row failed");
  const double row8Top=L::rowTop(ui.state().firstRow,7,ui.expandedRows());
  check(ui.down(1230.,row8Top+36.)==UI::Result::Handled&&
        ui.state().expandedRow==8,"V101 settings switch row failed");
  check(ui.down(540.,row8Top+69.)==UI::Result::Applied&&
-       f.c->velocity(2,8,0)==64,
+       f.c->velocity(2,8,0)==100,
        "V101 SET paste row did not modify pattern");
  check(ui.down(652.,row8Top+69.)==UI::Result::Applied&&
        f.c->velocity(2,8,0)==0,"V101 SET clear row failed");

@@ -866,6 +866,24 @@ bool Controller::randomizeRowVelocity(std::size_t row){
  velocityVariation_=variation;
  return true;
 }
+bool Controller::resetRowVelocity(std::size_t row){
+ if(row>=visibleRows_)return false;
+ const auto p=currentPattern();
+ const auto active=static_cast<std::size_t>(patternLength(p));
+ if(active!=16&&active!=32)return false;
+ PatternSteps data{};
+ std::copy_n(grid_.begin()+p*kRows*kSteps,data.size(),data.begin());
+ bool occupied=false,changed=false;
+ for(std::size_t step=0;step<active;++step){
+   auto& velocity=data[row*kSteps+step];
+   if(velocity==0)continue;
+   occupied=true;
+   if(velocity!=100){velocity=100;changed=true;}
+ }
+ if(!occupied)return false;
+ if(!changed)return true; // avoid a needless Undo entry
+ return replacePattern(p,data);
+}
 bool Controller::varyPatternVelocity(){
  const auto p=currentPattern();
  const auto active=static_cast<std::size_t>(patternLength(p));

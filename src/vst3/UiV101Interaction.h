@@ -16,8 +16,8 @@ public:
  using L=UiV101Layout;
  enum class Result { Ignored, Handled, Applied, DeferredToView, Failed };
  enum class SettingsAction { None, Output, Choke, Copy, Paste, Clear,
-                             RandomVelocity, RandomRealtimeDown, RandomRealtimeUp,
-                             RandomRealtimeDrag };
+                             RandomVelocity, ResetVelocity, RandomRealtimeDown,
+                             RandomRealtimeUp, RandomRealtimeDrag };
  // A DeferredToView result must carry its exact host-side action and target.
  // The view consumes this once to open a popup/dialog; never infer it from
  // a subsequent mouse position or a potentially changed selected row.
@@ -88,24 +88,34 @@ public:
    return L::hit(x,y,state_.firstRow,shownRows(),expandedRows());
  }
  static constexpr L::Rect settingsRect(std::size_t index)noexcept {
-   constexpr std::array<double,6> x{{138.,260.,382.,504.,626.,748.}};
+   constexpr std::array<double,5> x{{138.,260.,382.,504.,626.}};
    const double left=x[index];
    return {left,56.,left+112.,88.}; // relative to expanded ROW TOP
  }
- static constexpr L::Rect realtimeMinus{882.,56.,928.,88.};
- // RT RANDOM is a draggable readout (not a pushbutton). Its width now
- // matches the 112px RANDOM VEL and other settings actions.
- static constexpr L::Rect realtimeValue{938.,56.,1050.,88.};
- static constexpr L::Rect realtimePlus{1060.,56.,1106.,88.};
- static_assert(realtimeValue.x1-realtimeValue.x0==112.);
+ // The two one-shot edits live in VEL, beside the actual velocity bars.
+ // LIVE VEL is a separate non-destructive playback variation, with its
+ // own dark readout/short +/- controls after the 32-bar velocity lane.
+ static constexpr L::Rect velocityRandom{132.,64.,260.,92.};
+ static constexpr L::Rect velocityReset{272.,64.,400.,92.};
+ static constexpr L::Rect realtimeMinus{1038.,58.,1072.,90.};
+ static constexpr L::Rect realtimeValue{1082.,58.,1206.,90.};
+ static constexpr L::Rect realtimePlus{1216.,58.,1250.,90.};
+ static_assert(velocityRandom.x1+12.==velocityReset.x0);
+ static_assert(velocityReset.x1< L::stepX);
+ static_assert(realtimeMinus.x1+10.==realtimeValue.x0);
  static_assert(realtimeValue.x1+10.==realtimePlus.x0);
- static_assert(realtimeMinus.x0==882.&&
-               realtimeMinus.x1+10.==realtimeValue.x0);
+ static_assert(realtimeMinus.x0> L::stepEnd);
  static constexpr SettingsAction settingsAt(double x,double relativeY)noexcept{
    if(relativeY<48.||relativeY>=96.)return SettingsAction::None;
-   for(std::size_t i=0;i<6;++i)
+   for(std::size_t i=0;i<5;++i)
      if(settingsRect(i).hit(x,relativeY))
        return static_cast<SettingsAction>(static_cast<int>(i)+1);
+   return SettingsAction::None;
+ }
+ static constexpr SettingsAction velocityAt(double x,double relativeY)noexcept{
+   if(relativeY<48.||relativeY>=96.)return SettingsAction::None;
+   if(velocityRandom.hit(x,relativeY))return SettingsAction::RandomVelocity;
+   if(velocityReset.hit(x,relativeY))return SettingsAction::ResetVelocity;
    if(realtimeMinus.hit(x,relativeY))return SettingsAction::RandomRealtimeDown;
    if(realtimePlus.hit(x,relativeY))return SettingsAction::RandomRealtimeUp;
    if(realtimeValue.hit(x,relativeY))return SettingsAction::RandomRealtimeDrag;
@@ -229,6 +239,14 @@ public:
         state_.expandedRow!=h.row)return Result::Ignored;
      const double relativeY=y-L::rowTop(state_.firstRow,h.row-state_.firstRow,
                                           expandedRows());
+     const auto velocityAction=velocityAt(x,relativeY);
+     if(velocityAction==SettingsAction::RandomRealtimeDrag){
+       gesture_=Gesture::RealtimeKnob;
+       knobRow_=h.row;knobAnchorY_=y;fineKnob_=fine;
+       return Result::Handled;
+     }
+     if(velocityAction!=SettingsAction::None)
+       return settingsAction(h.row,velocityAction);
      return beginLane(h.row,x,relativeY,erase);
    }
    if(h.action==L::Action::SettingsLane){
@@ -237,13 +255,6 @@ public:
      const double relativeY=y-L::rowTop(state_.firstRow,h.row-state_.firstRow,
                                           expandedRows());
      const auto settings=settingsAt(x,relativeY);
-     if(settings==SettingsAction::RandomRealtimeDrag){
-       gesture_=Gesture::RealtimeKnob;
-       knobRow_=h.row;
-       knobAnchorY_=y;
-       fineKnob_=fine;
-       return Result::Handled;
-     }
      return settingsAction(h.row,settings);
    }
    const auto out=UiV101ControllerBridge::apply(controller_,h);
@@ -362,6 +373,8 @@ private:
      case SettingsAction::Clear:ok=controller_.clearRow(row);break;
      case SettingsAction::RandomVelocity:
        ok=controller_.randomizeRowVelocity(row);break;
+     case SettingsAction::ResetVelocity:
+       ok=controller_.resetRowVelocity(row);break;
      case SettingsAction::RandomRealtimeDown:
        ok=controller_.adjustRandomVelocity(row,-10);break;
      case SettingsAction::RandomRealtimeUp:

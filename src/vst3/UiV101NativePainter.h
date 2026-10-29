@@ -51,7 +51,7 @@ struct UiV101NativePreview final {
  struct RowData final {
    std::string name;
    bool hasSample=false,muted=false,solo=false;
-   unsigned gain=100,randomRealtime=0;
+   unsigned gain=100,randomRealtime=0,outputBus=0;
    int pan=0,pitch=0;
    std::array<std::uint8_t,L::steps> velocities{};
  };
@@ -422,20 +422,20 @@ struct UiV101NativePreview final {
                         const char* title,const char* readout){
    fraction=std::clamp(fraction,0.,1.);
    label(c,title,{cx-46.,78.,cx+46.,91.},11,{207,218,229,255});
-   // Small recessed socket; must not cover SWING/HUMANIZE/MASTER labels.
-   c.setFillColor({62,58,53,255});
-   c.drawEllipse({cx-kHeaderMountRadius,cy-kHeaderMountRadius,cx+kHeaderMountRadius,cy+kHeaderMountRadius},VSTGUI::kDrawFilled);
-   c.setFrameColor({238,230,214,255});c.setLineWidth(1.);
+   // Match VOL/PAN/PITCH's neutral graphite socket. Do not draw a warm
+   // silver/tan rim on the top three controls.
+   c.setFillColor({8,16,24,255});
+   c.drawEllipse({cx-kHeaderMountRadius,cy-kHeaderMountRadius,
+                  cx+kHeaderMountRadius,cy+kHeaderMountRadius},VSTGUI::kDrawFilled);
+   c.setFrameColor({92,100,108,255});c.setLineWidth(1.);
    c.drawEllipse({cx-21.,cy-21.,cx+21.,cy+21.},VSTGUI::kDrawStroked);
-   c.setFillColor({12,15,20,255});
+   c.setFillColor({7,11,17,255});
    c.drawEllipse({cx-19.,cy-19.,cx+19.,cy+19.},VSTGUI::kDrawFilled);
-   c.setFrameColor({126,115,103,255});
-   c.drawEllipse({cx-18.,cy-18.,cx+18.,cy+18.},VSTGUI::kDrawStroked);
    constexpr double pi=3.14159265358979323846;
    for(int tick=0;tick<9;++tick){
      const double angle=(-135.+static_cast<double>(tick)*270./8.)*pi/180.;
      const double dx=std::sin(angle),dy=-std::cos(angle);
-     c.setFrameColor({135,147,158,255});
+     c.setFrameColor({92,105,118,255});
      c.drawLine({cx+dx*22.,cy+dy*22.},{cx+dx*24.,cy+dy*24.});
    }
    originalDial(c,sprite,cx,cy,fraction,44.);
@@ -674,7 +674,9 @@ struct UiV101NativePreview final {
        fill(c,{13.,y+49.,1260.,y+95.},Skin::navyWell());
        fill(c,{15.,y+50.,1258.,y+94.},Skin::navyA());
        if(ui.expansion==L::Expansion::Velocity){
-         label(c,"VELOCITY",{132.,y+55.,265.,y+88.},11,{213,227,237,255},false);
+         label(c,"VELOCITY",{132.,y+49.,400.,y+63.},9,{183,202,218,255},false);
+         cap(c,UiV101Interaction::velocityRandom,y,"RANDOM VEL",false,10,vintageButtons);
+         cap(c,UiV101Interaction::velocityReset,y,"RESET VEL",false,10,vintageButtons);
          fill(c,{417.,y+53.,1031.,y+92.},{4,13,25,255});
          for(std::size_t step=0;step<L::steps;++step){
            const auto velocity=step<scene.patternLength?
@@ -690,13 +692,6 @@ struct UiV101NativePreview final {
                   {255,201,99,255});
            }
          }
-       }else{
-         constexpr std::array<const char*,6> settingsLabels{{
-           "OUT","CHOKE","COPY ROW","PASTE ROW","CLEAR ROW","RANDOM VEL"
-         }};
-         for(std::size_t button=0;button<settingsLabels.size();++button)
-           cap(c,UiV101Interaction::settingsRect(button),y,
-               settingsLabels[button],false,10,vintageButtons);
          cap(c,UiV101Interaction::realtimeMinus,y,"-",false,13,vintageButtons);
          // Genuine numeric drag field rather than an oversized faux key.
          // Exact 112x32 bounds are shared with the interaction hit map.
@@ -709,7 +704,7 @@ struct UiV101NativePreview final {
          border(c,display,{96,113,119,255});
          fill(c,{display.left+4.,display.top+3.,
                  display.right-4.,display.top+4.},{73,102,112,255});
-         label(c,"RT RANDOM",
+         label(c,"LIVE VEL",
                {display.left+3.,display.top+3.,
                 display.right-3.,display.top+15.},
                9,{159,183,191,255});
@@ -720,6 +715,15 @@ struct UiV101NativePreview final {
                                display.right-3.,display.bottom-2.},
                12,{247,193,99,255});
          cap(c,UiV101Interaction::realtimePlus,y,"+",false,13,vintageButtons);
+       }else{
+         char busLabel[20]{};
+         std::snprintf(busLabel,sizeof(busLabel),"BUS %u",data.outputBus+1);
+         const std::array<const char*,5> settingsLabels{{
+           busLabel,"CHOKE","COPY ROW","PASTE ROW","CLEAR ROW"
+         }};
+         for(std::size_t button=0;button<settingsLabels.size();++button)
+           cap(c,UiV101Interaction::settingsRect(button),y,
+               settingsLabels[button],false,10,vintageButtons);
        }
      }
    }

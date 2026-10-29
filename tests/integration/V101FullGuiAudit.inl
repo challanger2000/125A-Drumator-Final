@@ -177,18 +177,51 @@ void testV101MenuMatrixAndGeometry(){
    check(f.c->rowOutput(0)==static_cast<unsigned>(bus),
          "GUI audit OUTPUT menu index did not set matching bus");
  }
+ // All 16 bus options must survive component serialization, not merely
+ // repaint the UI label. Then restore MAIN so subsequent tests are isolated.
+ Steinberg::ResizableMemoryIBStream routingState;
+ check(f.p->getState(&routingState)==kResultOk,
+       "GUI audit BUS routing component getState failed");
+ drumator::KitState routingKit{};
+ check(drumator::KitCodec::decode(
+         static_cast<const std::uint8_t*>(routingState.getData()),
+         routingState.getCursor(),routingKit)&&routingKit.output[0]==15,
+       "GUI audit BUS 16 selection not persisted in processor state");
+ check(drumator::v101::captureControllerScene(*f.c).rows[0].outputBus==15,
+       "GUI audit BUS label does not follow actual controller assignment");
+ popupClick(Kind::Output,0,151.,L::header+69.,L::header);
+ check(f.c->rowOutput(0)==0&&
+       drumator::v101::captureControllerScene(*f.c).rows[0].outputBus==0,
+       "GUI audit BUS routing did not return to MAIN");
  for(int group=0;group<5;++group){
    popupClick(Kind::Choke,group,280.,L::header+69.,L::header);
    check(f.c->rowChoke(0)==static_cast<unsigned>(group),
          "GUI audit CHOKE menu index did not set matching group");
  }
- // Every SET row-edit action must alter the real controller, not only
- // return Applied from a detached interaction unit test.
+ // VEL (not SET) owns one-shot random and reset, verified by clicking
+ // the real host editor and observing note occupancy + other instrument.
+ click(*view,1230.,L::header+12.); // SET -> VEL
  const auto row0Old=f.c->velocity(current,0,4);
- check(row0Old>0,"GUI audit SET Random Velocity needs an occupied note");
- click(*view,804.,L::header+69.); // SET RANDOM VELOCITY
+ const auto otherRow=f.c->velocity(current,1,4);
+ check(row0Old>0,"GUI audit VEL random needs occupied note");
+ click(*view,190.,L::header+76.); // VEL RANDOM
  check(f.c->velocity(current,0,4)!=row0Old,
-       "GUI audit SET RANDOM VELOCITY did not change occupied note");
+       "GUI audit VEL RANDOM did not change occupied note");
+ click(*view,330.,L::header+76.); // VEL RESET to 100
+ for(std::size_t step=0;step<32;++step){
+   const auto now=f.c->velocity(current,0,step);
+   check(now==0||now==100,
+         "GUI audit VEL RESET left active row velocity different from 100");
+ }
+ check(f.c->velocity(current,0,4)==100&&
+       f.c->velocity(current,1,4)==otherRow&&
+       !f.c->resetRowVelocity(16),
+       "GUI audit VEL RESET edited other row or accepted invalid row");
+ check(f.c->undoCurrentPattern()&&
+       f.c->velocity(current,0,4)!=100,
+       "GUI audit VEL RESET did not create a single undoable change");
+ click(*view,330.,L::header+76.); // restore 100 before row copy
+ click(*view,1230.,L::header+36.); // VEL -> SET
  click(*view,438.,L::header+69.); // SET COPY ROW
  const auto copied=f.c->velocity(current,0,4);
  L::Expansions setFirst{};setFirst[0]=L::Expansion::Settings;
@@ -270,13 +303,33 @@ void testV101SongAndWaveFullControlMatrix(){
    const double menuX=mid(first.x0,first.x1),menuY=mid(first.y0,first.y1);
    check(IntegrationAccess::v101Popup(*view)==drumator::UiV101Popup::Kind::Pattern,
          "GUI audit SONG menu trigger did not open the native popup");
-   // Do not sample the *center*: COPY's dark glyph is centered and is
-   // legitimately near-black even when its silver cap is fully visible.
-   // Sample the satin face inside its left rim, outside the text.
-   const auto menuFace=pixelAt(static_cast<int>(first.x0+8.),
-                               static_cast<int>(first.y0+9.));
-   check(menuFace.red>125&&menuFace.green>120,
-         "GUI audit SONG Pattern popup silver face hidden behind board");
+   // Compare actual modal pixels with the approved black hardware
+   // sprite, preventing the earlier silver fallback from passing audits.
+   using Native=drumator::v101::UiV101NativePreview;
+   const Native::ButtonSprites darkSprites{
+     IntegrationAccess::vintageButton(*view,0),
+     IntegrationAccess::vintageButton(*view,1),
+     IntegrationAccess::vintageButton(*view,2),
+     IntegrationAccess::vintageButton(*view,3)};
+   const auto isolated=VSTGUI::renderBitmapOffscreen(
+     {1280.,view->getViewSize().getHeight()},1.,
+     [&](VSTGUI::CDrawContext& dc){
+       Native::cap(dc,first,0.,"COPY",false,10,&darkSprites);
+     });
+   check(isolated!=nullptr,"GUI audit dark popup sprite oracle unavailable");
+   auto* refPixels=VSTGUI::CBitmapPixelAccess::create(isolated.get(),false);
+   const auto checkX=static_cast<std::uint32_t>(first.x0+8.);
+   const auto checkY=static_cast<std::uint32_t>(first.y0+9.);
+   check(refPixels&&refPixels->setPosition(checkX,checkY),
+         "GUI audit dark popup expected pixel unavailable");
+   VSTGUI::CColor expectedDark{};
+   refPixels->getColor(expectedDark);refPixels->forget();
+   const auto menuFace=pixelAt(static_cast<int>(checkX),static_cast<int>(checkY));
+   check(expectedDark.red<125&&expectedDark.green<125&&
+         std::abs(int(menuFace.red)-int(expectedDark.red))<=4&&
+         std::abs(int(menuFace.green)-int(expectedDark.green))<=4&&
+         std::abs(int(menuFace.blue)-int(expectedDark.blue))<=4,
+         "GUI audit SONG popup is not using dark production button artwork");
    click(*view,menuX,menuY); // overlaps SONG START minus underneath
    check(f.c->songStartBar()==2,
          "GUI audit Pattern popup click leaked to SONG START minus");

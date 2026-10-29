@@ -1077,14 +1077,20 @@ void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
                    g.y+g.rows*g.cellHeight+4.},{17,26,36,255});
  Painter::border(*c,{g.x-4.,g.y-4.,g.x+g.width+4.,
                      g.y+g.rows*g.cellHeight+4.},{100,111,120,255});
+ const Painter::ButtonSprites popupButtons{
+   v101VintageButtons_[0],v101VintageButtons_[1],
+   v101VintageButtons_[2],v101VintageButtons_[3]
+ };
  for(int i=0;i<UiV101Popup::count(v101Menu_);++i) {
-   char outputText[24]{};
+   char busText[24]{};
    const char* caption=UiV101Popup::label(v101Menu_,i);
    if(v101Menu_==UiV101Popup::Kind::Output) {
-     std::snprintf(outputText,sizeof(outputText),i==0?"MAIN":"OUT %d",i);
-     caption=outputText;
+     if(i==0)std::snprintf(busText,sizeof(busText),"MAIN");
+     else std::snprintf(busText,sizeof(busText),"BUS %d",i+1);
+     caption=busText;
    }
-   Painter::cap(*c,UiV101Popup::cell(g,i),0.,caption,false,10);
+   // Every real pop-up shares the black MAIN/SONG 4x hardware button set.
+   Painter::cap(*c,UiV101Popup::cell(g,i),0.,caption,false,10,&popupButtons);
  }
 }
 bool DrumatorView::applyV101Menu(int option) {
@@ -1107,8 +1113,20 @@ bool DrumatorView::applyV101Menu(int option) {
          RowFill::Gallop,RowFill::SnareGhost};
      return controller_.fillRow(row,patterns[option]);
    }
-   case UiV101Popup::Kind::Output:
-     return controller_.setRowOutput(row,static_cast<unsigned>(option));
+   case UiV101Popup::Kind::Output: {
+     const bool routed=controller_.setRowOutput(row,static_cast<unsigned>(option));
+     if(routed){
+       char note[96]{};
+       if(option==0)
+         std::snprintf(note,sizeof(note),"BUS 1 / MAIN SELECTED");
+       else
+         std::snprintf(note,sizeof(note),
+                       "BUS %d SELECTED - ENABLE DRUM %02d IN DAW",
+                       option+1,option+1);
+       status_=note;
+     }
+     return routed;
+   }
    case UiV101Popup::Kind::Choke:
      return controller_.setRowChoke(row,static_cast<unsigned>(option));
    case UiV101Popup::Kind::Sample:
