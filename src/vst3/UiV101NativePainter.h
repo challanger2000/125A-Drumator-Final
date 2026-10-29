@@ -151,8 +151,12 @@ struct UiV101NativePreview final {
    static_assert(kBrandLogoPaths.size()==30);
    constexpr double sourceX=340.,sourceY=103.,sourceW=1065.,sourceH=485.;
    constexpr double margin=6.;
-   const double sf=std::min((area.x1-area.x0-2.*margin)/sourceW,
-                            (area.y1-area.y0-2.*margin)/sourceH);
+   // Deliberately understated signet: 60% of the former fit size.
+   // Preserve master geometry, aspect ratio and exact area centering.
+   constexpr double signetScale=0.60;
+   const double sf=signetScale*std::min(
+       (area.x1-area.x0-2.*margin)/sourceW,
+       (area.y1-area.y0-2.*margin)/sourceH);
    const double left=(area.x0+area.x1-sourceW*sf)*0.5-sourceX*sf;
    const double top=(area.y0+area.y1-sourceH*sf)*0.5-sourceY*sf;
    for(std::size_t n=24;n<kBrandLogoPaths.size();++n){
