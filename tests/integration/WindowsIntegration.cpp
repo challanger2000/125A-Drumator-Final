@@ -1924,6 +1924,50 @@ void testV101ConnectedPatternSongExportsAndLimiter(){
          "connected hot limiter second OFF export failed");
    check(read(with)==off,
          "connected LIMIT ON->OFF must recover bit-exact original 24-bit PCM");
+   // Independent live VST3 Processor output check. The WAV renderer is a
+   // separate control-thread path, so exporting correctly is not proof
+   // that the actual host's stereo output bus applies the same limiter.
+   const auto hostBlock=[&](bool enabled){
+     Fixture live;
+     auto source=hot;
+     source.limiter=enabled?1:0;
+     live.kit(source);
+     prepareAudio(*live.p);
+     std::array<float,256> l{},r{};
+     float* channels[]{l.data(),r.data()};
+     AudioBusBuffers bus{};
+     bus.numChannels=2;bus.channelBuffers32=channels;
+     ProcessContext clock{};
+     clock.state=ProcessContext::kPlaying|
+                 ProcessContext::kTempoValid|
+                 ProcessContext::kProjectTimeMusicValid;
+     clock.tempo=120.;clock.projectTimeMusic=0.;
+     ProcessData io{};
+     io.numSamples=256;io.symbolicSampleSize=kSample32;
+     io.numOutputs=1;io.outputs=&bus;io.processContext=&clock;
+     check(live.p->process(io)==kResultOk,
+           "connected LIMIT live Processor MIDI/audio block failed");
+     return std::pair{l,r};
+   };
+   const auto [dryL,dryR]=hostBlock(false);
+   const auto [wetL,wetR]=hostBlock(true);
+   unsigned audible=0,attenuated=0;
+   for(std::size_t i=32;i<240;++i){
+     if(std::abs(dryL[i])<.01f&&std::abs(dryR[i])<.01f)continue;
+     ++audible;
+     check(std::abs(wetL[i])<=StereoPeakLimiter::kCeiling+1e-5f&&
+           std::abs(wetR[i])<=StereoPeakLimiter::kCeiling+1e-5f,
+           "connected LIMIT live VST3 main bus exceeded -0.3dBFS");
+     if(std::abs(dryL[i]-wetL[i])>.1f)++attenuated;
+     if(std::abs(wetR[i])>.01f)
+       check(std::abs(wetL[i]/wetR[i]-(.9/-.72))<.002,
+             "connected LIMIT live Processor broke original stereo ratio");
+   }
+   check(audible>150&&attenuated>150&&
+         std::abs(dryL[100])>1.f&&
+         std::abs(wetL[100])<=StereoPeakLimiter::kCeiling+1e-5f,
+         "connected LIMIT must alter actual live VST3 bus audio, not only WAV");
+   evidence("V1.0.1 connected LIVE VST3 main bus LIMIT OFF/ON: 256 stereo frames, genuine peak ceiling and stereo ratio PASS");
    for(const auto& path:{without,with}){
      std::error_code ec;std::filesystem::remove(path,ec);
    }
