@@ -14,9 +14,9 @@ struct UiV101Layout final {
   // Compact footer: exact same rectangles are used for paint and mouse hits.
   // The raised page switches stay inside the inset panel, away from the
   // exposed corner screws and the instrument counter.
-  // Widen footer to match the row fascia without covering image-backed
-  // corner screw heads (centers x=14 / 1266, radius approx. 7px).
-  static constexpr double footerPanelLeft=22.,footerPanelRight=1258.;
+  // Full-width lower chassis strip, matching the top/control fascia.
+  // Repaint both bottom screw heads ON TOP of the inset in the renderer.
+  static constexpr double footerPanelLeft=8.,footerPanelRight=1272.;
   static constexpr double footerPanelTop=4.,footerPanelBottom=38.;
 
   // Only SONG and SONG EDIT are buttons. The existing SWING, HUMANIZE,
@@ -32,6 +32,12 @@ struct UiV101Layout final {
       return x>=x0&&x<x1&&y>=y0&&y<y1;
     }
   };
+  // Keep the approved silver PNG, but render it large enough that its
+  // bottom legend can be redrawn crisply without intersecting the steps.
+  // Caption and pattern heading are separate paint-only elements.
+  static constexpr Rect badgePlate{22.,2.,199.,97.};
+  static constexpr Rect badgeCaption{48.,84.,176.,95.};
+  static constexpr Rect patternHeading{213.,80.,339.,96.};
   // Relative to the 48px footer origin. Previous keys were 120/130x31
   // and too large for the recessed strip; now both are 95x25.
   static constexpr Rect footerAdd{50.,10.,140.,35.};
