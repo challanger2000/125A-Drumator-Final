@@ -154,7 +154,11 @@ struct UiV101NativePreview final {
    // Actual bounds of the visible master paths; omit blank SVG viewBox margins.
    constexpr double sourceX=163.,sourceY=103.,sourceW=1446.,sourceH=703.;
    constexpr double margin=4.;
-   const double sf=std::min(
+   // Reserve visibly clear space from the top trim, PATTERN label and
+   // A-H caps. The source master remains exact, including both captions.
+   // The former maximum-fit logo touched the header trim at 150% zoom.
+   constexpr double opticalScale=0.80;
+   const double sf=opticalScale*std::min(
        (area.x1-area.x0-2.*margin)/sourceW,
        (area.y1-area.y0-2.*margin)/sourceH);
    const double left=(area.x0+area.x1-sourceW*sf)*0.5-sourceX*sf;
