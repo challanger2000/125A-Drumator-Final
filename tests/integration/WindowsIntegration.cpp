@@ -14,6 +14,7 @@
 #include "core/ExportFile.h"
 #include "core/FlacImport.h"
 #include "vst3/DrumatorController.h"
+#include "vst3/DrumatorAutomation.h"
 #include "vst3/DrumatorView.h"
 #include "core/UiDetailGeometry.h"
 #include "core/UiRowControls.h"
@@ -5187,6 +5188,7 @@ void testTransportJumpRetiresOldVoices(){
 #include "ReauditCases.inl"
 #include "FinalAudit20261023.inl"
 #include "V101FullGuiAudit.inl"
+#include "V101AutomationAudit.inl"
 
 struct A01SerializedConnection final:Steinberg::Vst::IConnectionPoint {
  IConnectionPoint* target;
@@ -5623,6 +5625,8 @@ int main(int argc,char** argv){
  run("V101 native commercial 4-zoom GUI evidence matrix",testV101CommercialVisualEvidence);
  run("V101 native commercial typography geometry",testV101NativeTypographyFit);
  run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
+ run("AUT01 VST3 row automation parameter contract and GUI gestures",testV101HostMixAutomationContract);
+ run("AUT02-04 VST3 sample-accurate mix automation audio",testV101HostMixAutomationPcm);
  run("V101 SONG and Wave full native button matrix",testV101SongAndWaveFullControlMatrix);
  run("F16 true pre-attach 130% host chrome size and DPI",testV101F16InitialHostChromeWidth);
  run("F14 native 5-of-5 paging escape and structural row shrink",testV101F14StrandedPageRecovery);

@@ -167,6 +167,8 @@ private:
  MeterState meterState_{};
  std::uint32_t lastClearEpoch_{0};
  void notifyViews(bool relayout);
+ void publishAutomationEdit(Steinberg::Vst::ParamID id,double normalized) noexcept;
+ void syncAutomationParameters() noexcept;
  bool processorConfirmsPattern(unsigned requested,double fallback);
  void invalidateWaveQuery() noexcept;
  void removeWaveRequest(DrumatorView* requester) noexcept;

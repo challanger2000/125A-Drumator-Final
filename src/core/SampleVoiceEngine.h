@@ -157,6 +157,18 @@ public:
            !std::isfinite(pan)||pan< -1.f||pan>1.f)return false;
         rows_[row].gain=gain;
         rows_[row].pan=pan;
+        for(auto& voice:voices_)
+            if(voice.active&&voice.row==row)refreshVoiceMix(voice);
+        return true;
+    }
+    // Mute changes inhibit new hits and smoothly silence existing one-shots.
+    // This is audio-thread-only; automation never races mutable sample assets.
+    bool setRowMute(std::size_t row,bool mute) noexcept {
+        if(row>=kRows)return false;
+        if(rows_[row].mute==mute)return true;
+        rows_[row].mute=mute;
+        for(auto& voice:voices_)
+            if(voice.active&&voice.row==row)refreshVoiceMix(voice);
         return true;
     }
     bool setRowOutput(std::size_t row,std::uint8_t bus) noexcept {
@@ -188,6 +200,18 @@ public:
 
     RenderResult render(const Trigger* triggers,std::size_t triggerCount,
                         float* left,float* right,std::uint32_t frames,
+                        float* const* stemLeft=nullptr,
+                        float* const* stemRight=nullptr) noexcept {
+        return renderWithAutomation(triggers,triggerCount,left,right,frames,
+                                    [](std::uint32_t) noexcept {},
+                                    stemLeft,stemRight);
+    }
+    // The host supplies a stack-only, nonallocating callback that applies
+    // parameter points at their exact sample offsets BEFORE same-frame hits.
+    template<class FrameAutomation>
+    RenderResult renderWithAutomation(const Trigger* triggers,std::size_t triggerCount,
+                        float* left,float* right,std::uint32_t frames,
+                        FrameAutomation&& automation,
                         float* const* stemLeft=nullptr,
                         float* const* stemRight=nullptr) noexcept {
         if((left==nullptr)!=(right==nullptr)||(triggerCount&&!triggers))return {RenderStatus::InvalidInput};
@@ -230,6 +254,7 @@ public:
         RenderResult result{};
         std::size_t event=0;
         for(std::uint32_t f=0;f<frames;++f) {
+            automation(f);
             // The same frame's convolution can be reused, never across frames.
             for(auto& entry:memo)entry.valid=false;
             while(event<triggerCount&&triggers[event].sampleOffset==f) {
@@ -333,6 +358,15 @@ public:
                 cached.valid=true;
                 }
                 }
+                if(voice.mixRampRemaining>0) {
+                    --voice.mixRampRemaining;
+                    if(voice.mixRampRemaining==0) {
+                        voice.gainL=voice.targetL;voice.gainR=voice.targetR;
+                    }else {
+                        voice.gainL+=voice.mixStepL;
+                        voice.gainR+=voice.mixStepR;
+                    }
+                }
                 double envelope=1.0;
                 if(voice.releaseLeft>0) {
                     envelope=static_cast<double>(voice.releaseLeft)/
@@ -369,7 +403,9 @@ private:
         SampleEdit edit{};
         const SincKernel* kernel{nullptr};
         double position{0.0};
-        double gainL{0.0},gainR{0.0};
+        double gainL{0.0},gainR{0.0},velocity{0.0};
+        double targetL{0.0},targetR{0.0},mixStepL{0.0},mixStepR{0.0};
+        std::uint32_t mixRampRemaining{0};
         std::uint32_t releaseLeft{0},releaseTotal{0};
         std::uint8_t group{0};
         std::uint8_t row{0};
@@ -377,6 +413,19 @@ private:
         const void* ownerToken{nullptr};
         bool active{false};
     };
+    void refreshVoiceMix(Voice& voice) noexcept {
+        const auto& row=rows_[voice.row];
+        constexpr double pi=3.141592653589793238462643383279502884;
+        const double pan=static_cast<double>(row.pan);
+        const double base=row.mute?0.0:static_cast<double>(row.gain)*voice.velocity;
+        const double left=base*(pan<=0.0?1.0:std::cos(pan*pi/2.0));
+        const double right=base*(pan>=0.0?1.0:std::cos(-pan*pi/2.0));
+        if(left==voice.targetL&&right==voice.targetR)return;
+        voice.targetL=left;voice.targetR=right;
+        voice.mixRampRemaining=fadeFrames_; // time-based, prepared by setOutputRate
+        voice.mixStepL=(left-voice.gainL)/static_cast<double>(fadeFrames_);
+        voice.mixStepR=(right-voice.gainR)/static_cast<double>(fadeFrames_);
+    }
     void fire(const Trigger& event,RenderResult& result) noexcept {
         const auto& row=rows_[event.row];
         if(row.mute||!row.sample.left||!row.sample.frames||
@@ -397,6 +446,7 @@ private:
             constexpr double pi=3.141592653589793238462643383279502884;
             const double pan=static_cast<double>(row.pan);
             const double velocity=static_cast<double>(event.velocity)/127.0;
+            v.velocity=velocity;
             v.sample=row.sample;
             v.edit=row.edit.end==0
                 ?SampleEdit::reset(static_cast<std::uint32_t>(row.sample.frames))
@@ -411,6 +461,8 @@ private:
                     (pan<=0.0?1.0:std::cos(pan*pi/2.0));
             v.gainR=static_cast<double>(row.gain)*velocity*
                     (pan>=0.0?1.0:std::cos(-pan*pi/2.0));
+            v.targetL=v.gainL;v.targetR=v.gainR;
+            v.mixStepL=0.0;v.mixStepR=0.0;v.mixRampRemaining=0;
             v.group=row.chokeGroup;
             v.row=event.row;
             v.outputBus=row.outputBus;

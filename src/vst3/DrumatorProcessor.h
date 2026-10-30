@@ -143,6 +143,9 @@ private:
  std::atomic<std::uint64_t> auditionPublishSequence_{0};
  std::uint64_t lastAudioAuditionCommand_{0};
  std::vector<float> auditionLeft_{},auditionRight_{};
+ // Setup-allocated, never resized within the audio callback. This carries
+ // the sample-exact master gain ramp from render to all active output buses.
+ std::vector<float> masterAutomationEnvelope_{};
  TriggerBatch triggers_{};
  PatternEventTimeline patternTimeline_{};
  // One-shot previews from GUI; one pending request per row, not persisted.

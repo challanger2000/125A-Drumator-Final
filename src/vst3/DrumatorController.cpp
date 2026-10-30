@@ -2,6 +2,8 @@
 #include "DrumatorView.h"
 #include "DrumatorEditor.h"
 #include "PluginIDs.h"
+#include "DrumatorAutomation.h"
+#include "public.sdk/source/vst/vstparameters.h"
 #include "core/WavPcm16Decoder.h"
 #include "core/FlacImport.h"
 #include "core/StepVelocity.h"
@@ -268,6 +270,20 @@ void Controller::invalidateTransientEditsForRecall() noexcept {
 Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     Steinberg::Vst::ParamID id,Steinberg::Vst::ParamValue value) {
  const auto result=EditController::setParamNormalized(id,value);
+ if(result==Steinberg::kResultOk) {
+   const auto a=automationAddress(id);
+   switch(a.kind){
+     case AutomationKind::Volume:
+       gain_[a.row]=static_cast<std::uint8_t>(automationPercent(value));break;
+     case AutomationKind::Pan:
+       pan_[a.row]=static_cast<std::uint8_t>(automationPercent(value));break;
+     case AutomationKind::Mute:muted_[a.row]=value>=0.5;break;
+     case AutomationKind::Master:
+       masterVolume_=static_cast<std::uint8_t>(automationPercent(value));break;
+     default:break;
+   }
+   if(a.kind!=AutomationKind::None)notifyViews(false);
+ }
  if(result==Steinberg::kResultOk&&id==kPatternParam) {
    patternRequestPending_=false;
    // Keep a newer host pattern callback when Component-state recall arrives late.
@@ -277,6 +293,31 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
    notifyViews(false);
  }
  return result;
+}
+// Only successfully committed GUI edits may be sent as host automation.
+void Controller::publishAutomationEdit(Steinberg::Vst::ParamID id,double n) noexcept {
+ try {
+   (void)EditController::setParamNormalized(id,n);
+   if(componentHandler) {
+     (void)beginEdit(id);
+     (void)performEdit(id,n);
+     (void)endEdit(id);
+   }
+ }catch(...) { /* Valid processor state is not undone by a host exception. */ }
+}
+void Controller::syncAutomationParameters() noexcept {
+ try {
+   for(std::size_t row=0;row<kRows;++row){
+     (void)EditController::setParamNormalized(kRowVolumeBase+static_cast<unsigned>(row),
+       automationNormalized(gain_[row]));
+     (void)EditController::setParamNormalized(kRowPanBase+static_cast<unsigned>(row),
+       automationNormalized(pan_[row]));
+     (void)EditController::setParamNormalized(kRowMuteBase+static_cast<unsigned>(row),
+       muted_[row]?1.0:0.0);
+   }
+   (void)EditController::setParamNormalized(kMasterVolumeParam,
+      automationNormalized(masterVolume_));
+ }catch(...) { /* Host cache refresh is best effort after a committed kit. */ }
 }
 bool Controller::processorConfirmsPattern(unsigned requested,double fallback) {
  Steinberg::Vst::IMessage* msg=nullptr;
@@ -433,12 +474,39 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
  patterns->appendString(STR16("E"));patterns->appendString(STR16("F"));
  patterns->appendString(STR16("G"));patterns->appendString(STR16("H"));
  parameters.addParameter(patterns);
+ // All 16 instruments remain automatable even when paged out or empty.
+ for(std::size_t row=0;row<kRows;++row) {
+   const auto title=[&](const char* prefix) {
+     std::array<Steinberg::TChar,64> chars{};
+     std::size_t n=0;
+     while(*prefix&&n<56)chars[n++]=static_cast<Steinberg::TChar>(*prefix++);
+     chars[n++]=static_cast<Steinberg::TChar>(' ');
+     const unsigned number=static_cast<unsigned>(row+1);
+     chars[n++]=static_cast<Steinberg::TChar>('0'+number/10);
+     chars[n++]=static_cast<Steinberg::TChar>('0'+number%10);
+     return chars;
+   };
+   const auto volumeName=title("Volume");
+   const auto panName=title("Pan");
+   const auto muteName=title("Mute");
+   parameters.addParameter(new Steinberg::Vst::RangeParameter(volumeName.data(),
+      kRowVolumeBase+static_cast<unsigned>(row),STR16("%"),0.,200.,100.));
+   parameters.addParameter(new Steinberg::Vst::RangeParameter(panName.data(),
+      kRowPanBase+static_cast<unsigned>(row),STR16("%"),-100.,100.,0.));
+   auto* mute=new Steinberg::Vst::StringListParameter(muteName.data(),
+      kRowMuteBase+static_cast<unsigned>(row));
+   mute->appendString(STR16("OFF"));mute->appendString(STR16("ON"));
+   parameters.addParameter(mute);
+ }
+ parameters.addParameter(new Steinberg::Vst::RangeParameter(
+    STR16("Master Volume"),kMasterVolumeParam,STR16("%"),0.,200.,100.));
  // Factory A alone receives the kick; B-H remain entirely blank.
  for(std::size_t step=0;step<kSteps;step+=4)
    grid_[step]=(step%8==0)?127:90;
  for(auto& name:labels_)name="EMPTY - LOAD WAV";
  gain_.fill(100);pan_.fill(100);pitch_.fill(24);choke_.fill(0);
  output_.fill(0);
+ syncAutomationParameters();
  return Steinberg::kResultOk;
 }
 Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream* state) {
@@ -521,6 +589,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
        gain_[row]=candidate.gain[row];pan_[row]=candidate.pan[row];
        pitch_[row]=candidate.pitch[row];choke_[row]=candidate.choke[row];output_[row]=candidate.output[row];
     }
+    syncAutomationParameters();
     // Native focus operations may allocate. State is already committed:
     // failure to refresh an editor must not be reported as rejected kit state.
     // Update the registered parameter independently from native editor focus.
@@ -591,6 +660,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
  songEnabled_=false;songChain_=SongChain{};songStartBar_=1;
  gain_.fill(100);pan_.fill(100);pitch_.fill(24);choke_.fill(0);
  for(std::size_t row=0;row<kRows;++row)output_[row]=static_cast<std::uint8_t>(row);
+ syncAutomationParameters();
  const auto restoredPattern=hostPatternPending_&&processorConfirmsPattern(patternFromNormalized(hostPatternValue_),static_cast<double>(next)/7.0)
      ? hostPatternValue_ : static_cast<double>(next)/7.0;
  hostPatternPending_=false;
@@ -1111,7 +1181,9 @@ bool Controller::adjustMasterVolume(int delta) {
  }
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
  
- if(ok){masterVolume_=static_cast<std::uint8_t>(value);try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
+ if(ok){masterVolume_=static_cast<std::uint8_t>(value);
+   publishAutomationEdit(kMasterVolumeParam,automationNormalized(value));
+   try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return ok;
 
  }catch(...) {return false;}
@@ -1516,7 +1588,11 @@ bool Controller::adjustRowMix(std::size_t row,bool adjustPan,int delta) {
  attrs->setInt("Gain",adjustPan?gain_[row]:proposed);
  attrs->setInt("Pan",adjustPan?proposed-100:static_cast<int>(pan_[row])-100);
  const bool accepted=sendEditMessage(msg)==Steinberg::kResultOk;
- if(accepted){values[row]=static_cast<std::uint8_t>(proposed);try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
+ if(accepted){values[row]=static_cast<std::uint8_t>(proposed);
+   publishAutomationEdit((adjustPan?kRowPanBase:kRowVolumeBase)+
+                         static_cast<unsigned>(row),
+                         automationNormalized(static_cast<unsigned>(proposed)));
+   try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return accepted;
 
  }catch(...) {return false;}
@@ -1537,7 +1613,9 @@ bool Controller::toggleRowGate(std::size_t row,bool solo) {
  attr->setInt("On",next?1:0);
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
  
- if(ok){gates[row]=next;try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
+ if(ok){gates[row]=next;
+   if(!solo)publishAutomationEdit(kRowMuteBase+static_cast<unsigned>(row),next?1.0:0.0);
+   try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return ok;
 
  }catch(...) {return false;}

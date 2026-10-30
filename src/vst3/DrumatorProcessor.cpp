@@ -1,6 +1,7 @@
 #include "DrumatorProcessor.h"
 #include "core/PatternQuantization.h"
 #include "PluginIDs.h"
+#include "DrumatorAutomation.h"
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
@@ -870,7 +871,8 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(Steinberg::Vst::Process
  // No hidden synthesized kick to confuse failed import with working audio.
  if(!auditionVoices_.setOutputRate(setup.sampleRate))return Steinberg::kResultFalse;
  try {auditionLeft_.resize(static_cast<std::size_t>(setup.maxSamplesPerBlock));
-      auditionRight_.resize(static_cast<std::size_t>(setup.maxSamplesPerBlock));}
+      auditionRight_.resize(static_cast<std::size_t>(setup.maxSamplesPerBlock));
+      masterAutomationEnvelope_.resize(static_cast<std::size_t>(setup.maxSamplesPerBlock));}
  catch(const std::bad_alloc&){return Steinberg::kOutOfMemory;}
  // Host reconfiguration is an audition discontinuity, even when no STOP
  // callback has been rendered. Old prepared asset ownership stays in the
@@ -1559,11 +1561,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
    const auto pair=rowMix_[row].snapshot(); // one coherent UI generation
    if(!voices_.setRowMix(row,AtomicRowMix::gain(pair),AtomicRowMix::pan(pair))||
       !voices_.setRowChoke(row,rowChoke_[row].load(std::memory_order_relaxed))||
-       !voices_.setRowOutput(row,rowOutput_[row].load(std::memory_order_relaxed)))
+       !voices_.setRowOutput(row,rowOutput_[row].load(std::memory_order_relaxed))||
+       !voices_.setRowMute(row,(muteMask_.load(std::memory_order_relaxed)&
+                                     (std::uint32_t{1}<<row))!=0))
      return Steinberg::kResultFalse;
  }
- triggers_.applyMuteSolo(muteMask_.load(std::memory_order_relaxed),
-                         soloMask_.load(std::memory_order_relaxed));
+ // An automated Mute OFF must allow later hits within the same buffer.
+ // SOLO remains a batch gate; Mute belongs to the per-frame voice engine.
+ triggers_.applyMuteSolo(0,soloMask_.load(std::memory_order_relaxed));
  // Apply realtime-safe per-row random velocity without touching saved steps.
  std::array<std::uint8_t,kRows> variation{};
  for(std::size_t i=0;i<kRows;++i)
@@ -1594,9 +1599,91 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
      stemsR[static_cast<std::size_t>(bus)]=stem.channelBuffers32[1];
    }
  }
- const auto rendered=voices_.render(triggers_.data(),triggers_.size(),left,right,
-                                   static_cast<std::uint32_t>(data.numSamples),
-                                   stemsL.data(),stemsR.data());
+ // Stable VST3 host automation cursors; no heap allocation in process().
+ // Apply each queued point at its actual sample offset before that frame's
+ // trigger. The core's renderWithAutomation() remains VST3-independent.
+ struct HostCursor {
+   Steinberg::Vst::IParamValueQueue* queue=nullptr;
+   Steinberg::int32 count=0,index=0,nextOffset=std::numeric_limits<Steinberg::int32>::max();
+   Steinberg::Vst::ParamValue nextValue=0.0;
+   bool advance(Steinberg::int32 frames) {
+     nextOffset=std::numeric_limits<Steinberg::int32>::max();
+     if(!queue)return false;
+     while(index<count) {
+       Steinberg::int32 offset=-1;
+       Steinberg::Vst::ParamValue n=0.0;
+       if(queue->getPoint(index++,offset,n)!=Steinberg::kResultTrue||
+          offset<0||offset>=frames||!std::isfinite(n))continue;
+       nextOffset=offset;nextValue=std::clamp(n,0.0,1.0);return true;
+     }
+     return false;
+   }
+ };
+ std::array<HostCursor,kAutomatedMixLanes> autoCursors{};
+ std::array<std::size_t,kAutomatedMixLanes> liveLanes{};
+ std::size_t liveLaneCount=0;
+ bool automatedMaster=false;
+ if(data.inputParameterChanges)
+   for(Steinberg::int32 i=0;i<data.inputParameterChanges->getParameterCount();++i) {
+     auto* q=data.inputParameterChanges->getParameterData(i);
+     if(!q)continue;
+     const auto a=automationAddress(q->getParameterId());
+     const auto lane=automationLane(a);
+     if(lane==kAutomatedMixLanes)continue;
+     auto& cursor=autoCursors[lane];
+     if(cursor.queue)continue; // one VST3 queue per registered ParamID
+     cursor.queue=q;cursor.count=q->getPointCount();
+     if(cursor.count>0&&cursor.advance(data.numSamples)) {
+       liveLanes[liveLaneCount++]=lane;
+       if(a.kind==AutomationKind::Master)automatedMaster=true;
+     }
+   }
+ if(automatedMaster)
+   masterRamp_.request(static_cast<float>(
+       masterVolume_.load(std::memory_order_relaxed))/100.f);
+ const auto applyHostPoint=[&](std::size_t lane,double n) {
+   if(lane<2*kRows) {
+     const auto row=lane%kRows;
+     const auto pair=rowMix_[row].snapshot();
+     unsigned gain=AtomicRowMix::gainPercent(pair);
+     unsigned pan=AtomicRowMix::panEncoded(pair);
+     if(lane<kRows)gain=automationPercent(n);
+     else pan=automationPercent(n);
+     rowMix_[row].store(static_cast<std::uint8_t>(gain),
+                        static_cast<std::uint8_t>(pan));
+     (void)voices_.setRowMix(row,static_cast<float>(gain)/100.f,
+                             (static_cast<int>(pan)-100)/100.f);
+   }else if(lane<3*kRows) {
+     const auto row=lane-2*kRows;
+     const auto bit=std::uint32_t{1}<<row;
+     const bool muted=n>=0.5;
+     if(muted)muteMask_.fetch_or(bit,std::memory_order_relaxed);
+     else muteMask_.fetch_and(~bit,std::memory_order_relaxed);
+     (void)voices_.setRowMute(row,muted);
+   }else {
+     const auto plain=automationPercent(n);
+     masterVolume_.store(static_cast<std::uint8_t>(plain),std::memory_order_relaxed);
+     masterRamp_.request(static_cast<float>(plain)/100.f);
+   }
+ };
+ const auto onAutomationFrame=[&](std::uint32_t frame) {
+   for(std::size_t i=0;i<liveLaneCount;++i) {
+     const auto lane=liveLanes[i];
+     auto& q=autoCursors[lane];
+     while(q.nextOffset==static_cast<Steinberg::int32>(frame)) {
+       applyHostPoint(lane,q.nextValue);
+       if(!q.advance(data.numSamples))break;
+     }
+   }
+   if(automatedMaster)masterAutomationEnvelope_[frame]=masterRamp_.next();
+ };
+ const auto rendered=liveLaneCount==0?
+     voices_.render(triggers_.data(),triggers_.size(),left,right,
+                    static_cast<std::uint32_t>(data.numSamples),
+                    stemsL.data(),stemsR.data()):
+     voices_.renderWithAutomation(triggers_.data(),triggers_.size(),left,right,
+                    static_cast<std::uint32_t>(data.numSamples),
+                    onAutomationFrame,stemsL.data(),stemsR.data());
  exchange_.audioCollect(voices_);
  if(rendered.status!=RenderStatus::Ok)return Steinberg::kResultFalse;
  (void)auditionGeneration;
@@ -1625,13 +1712,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
    left[i]+=auditionLeft_[static_cast<std::size_t>(i)];
    right[i]+=auditionRight_[static_cast<std::size_t>(i)];
  }
- const float master=static_cast<float>(masterVolume_.load(std::memory_order_relaxed))/100.f;
- masterRamp_.request(master);
- // MAIN and every active stem share one sample envelope, regardless of bus
- // count. At the usual 100% setting this path avoids all extra channel loops.
- if(!masterRamp_.settledAtUnity()){
+ if(!automatedMaster)
+   masterRamp_.request(static_cast<float>(masterVolume_.load(std::memory_order_relaxed))/100.f);
+ // MAIN and every active stem share the same smoothing envelope. The
+ // unchanged master path stays fast when there are no host sample points.
+ if(automatedMaster||!masterRamp_.settledAtUnity()){
    for(Steinberg::int32 frame=0;frame<data.numSamples;++frame){
-     const float gain=masterRamp_.next();
+     const float gain=automatedMaster?
+       masterAutomationEnvelope_[static_cast<std::size_t>(frame)]:masterRamp_.next();
      if(gain==1.f)continue;
      for(Steinberg::int32 bus=0;bus<data.numOutputs;++bus){
        const auto& outputBus=data.outputs[bus];
