@@ -64,6 +64,7 @@ private:
  Controller& controller_;
  UiV101Interaction v101_;
  bool v101Mode_{false};
+ bool v101LocalRowTransaction_{false};
  VSTGUI::CBitmap* v101TitleBitmap_{nullptr};
  // Separate image-backed V1.0.1 chassis; original V1.0.0 faceplate retained.
  VSTGUI::CBitmap* v101FaceplateBitmap_{nullptr};

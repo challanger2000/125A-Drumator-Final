@@ -38,6 +38,9 @@ public:
    L::Expansion expansion=L::Expansion::None;
    bool zoomOpen=false;
    std::size_t zoomIndex=0;
+   // A peer editor whose host refuses a height increase retains a usable
+   // footer by showing only the rows that physically fit its client area.
+   std::size_t viewportRows=L::visibleRows;
  };
  explicit UiV101Interaction(Controller& c) : controller_(c) {}
  ~UiV101Interaction(){endGesture(false);}
@@ -45,6 +48,10 @@ public:
  UiV101Interaction& operator=(const UiV101Interaction&)=delete;
 
  const State& state()const noexcept{return state_;}
+ void setViewportRows(std::size_t rows) noexcept {
+   state_.viewportRows=std::clamp(rows,std::size_t{1},L::visibleRows);
+   reconcile();
+ }
  // Revert a layout change when the real host refuses an editor resize.
  void restoreLayout(const State& prior) noexcept {
    endGesture(false);
@@ -55,7 +62,8 @@ public:
  // One expanded row max. With 9 visible + 1 expansion, 150% <=1080 px.
  std::size_t shownRows()const noexcept {
    const auto n=controller_.visibleRows();
-   const auto limit=state_.expansion==L::Expansion::None?L::visibleRows:L::visibleRows-1;
+   const auto limit=std::min(state_.viewportRows,
+           state_.expansion==L::Expansion::None?L::visibleRows:L::visibleRows-1);
    return state_.firstRow<n?std::min(limit,n-state_.firstRow):0;
  }
  L::Expansions expandedRows()const noexcept{
@@ -152,11 +160,16 @@ public:
  bool page(int direction){
    reconcile();
    const auto total=controller_.visibleRows();
-   if(total<=L::visibleRows)return false;
+   const auto limit=std::min(state_.viewportRows,L::visibleRows);
+   if(total<=limit)return false;
    endGesture(true);
    closeExpansion();
-   constexpr auto stride=L::visibleRows;
-   const auto next=direction>0?std::min(state_.firstRow+stride,total-1):
+   const auto stride=limit;
+   // Retain the original 10-row/6-row paging behavior when not constrained.
+   // In a smaller rejected peer HWND, move only as far as needed so the
+   // final row stays accessible without pushing the footer below the frame.
+   const auto maxStart=limit==L::visibleRows?total-1:total-limit;
+   const auto next=direction>0?std::min(state_.firstRow+stride,maxStart):
      (state_.firstRow>=stride?state_.firstRow-stride:0);
    if(next==state_.firstRow)return false;
    state_.firstRow=next;

@@ -899,8 +899,30 @@ void DrumatorView::refreshFromHost(bool relayout) {
      v101MenuRow_=kRows;
    }
    v101_.reconcile();
-   if(relayout&&getParentView())(void)adjustEditorHeight();
-   else invalid();
+   // Controller notifications are synchronous. The initiating view must
+   // handle its own row resize/rollback after down() returns; peers alone
+   // negotiate their HWND or fall back to a shorter but usable row page.
+   if(v101LocalRowTransaction_){invalid();return;}
+   if(getParentView()){
+     v101_.setViewportRows(UiV101Layout::visibleRows);
+     if(v101_.height()!=getViewSize().getHeight()&&
+        !adjustEditorHeight()){
+       // No host resize: never paint the footer beyond the actual HWND.
+       // The one-row minimum fits every supported V1.0.1 host baseline.
+       std::size_t fit=1;
+       const auto expansion=v101_.expandedRows();
+       const auto first=v101_.state().firstRow;
+       for(std::size_t n=1;n<=UiV101Layout::visibleRows;++n) {
+         const auto shown=std::min(n,controller_.visibleRows()-first);
+         if(UiV101Layout::editorHeight(first,shown,expansion)>
+            getViewSize().getHeight()+.01)break;
+         fit=n;
+       }
+       v101_.setViewportRows(fit);
+       status_="HOST WINDOW TOO SMALL: PAGE ROWS WITH ARROWS";
+     }
+   }
+   invalid();
    return;
  }
  if(controller_.visibleRows()>0)
@@ -1178,7 +1200,12 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
  const auto previous=v101_.state();
  const auto previousHeight=v101_.height();
  const auto previousRows=controller_.visibleRows();
- const auto result=v101_.down(x,y,erase,fine);
+ // Hold local resize transaction during synchronous Controller fan-out.
+ v101LocalRowTransaction_=true;
+ UiV101Interaction::Result result;
+ try {result=v101_.down(x,y,erase,fine);}
+ catch(...) {v101LocalRowTransaction_=false;throw;}
+ v101LocalRowTransaction_=false;
  using R=UiV101Interaction::Result;
  using K=UiV101Interaction::DeferredKind;
  if(result==R::DeferredToView) {
