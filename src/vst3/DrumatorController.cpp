@@ -278,6 +278,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
      case AutomationKind::Pan:
        pan_[a.row]=static_cast<std::uint8_t>(automationPercent(value));break;
      case AutomationKind::Mute:muted_[a.row]=value>=0.5;break;
+     case AutomationKind::Pitch:
+       pitch_[a.row]=static_cast<std::uint8_t>(automationPercent(value,48));break;
      case AutomationKind::Master:
        masterVolume_=static_cast<std::uint8_t>(automationPercent(value));break;
      default:break;
@@ -314,6 +316,8 @@ void Controller::syncAutomationParameters() noexcept {
        automationNormalized(pan_[row]));
      (void)EditController::setParamNormalized(kRowMuteBase+static_cast<unsigned>(row),
        muted_[row]?1.0:0.0);
+     (void)EditController::setParamNormalized(kRowPitchBase+static_cast<unsigned>(row),
+       automationNormalized(pitch_[row],48));
    }
    (void)EditController::setParamNormalized(kMasterVolumeParam,
       automationNormalized(masterVolume_));
@@ -489,6 +493,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
    const auto volumeName=title("Volume");
    const auto panName=title("Pan");
    const auto muteName=title("Mute");
+   const auto pitchName=title("Pitch");
    parameters.addParameter(new Steinberg::Vst::RangeParameter(volumeName.data(),
       kRowVolumeBase+static_cast<unsigned>(row),STR16("%"),0.,200.,100.));
    parameters.addParameter(new Steinberg::Vst::RangeParameter(panName.data(),
@@ -497,6 +502,9 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
       kRowMuteBase+static_cast<unsigned>(row));
    mute->appendString(STR16("OFF"));mute->appendString(STR16("ON"));
    parameters.addParameter(mute);
+   parameters.addParameter(new Steinberg::Vst::RangeParameter(pitchName.data(),
+       kRowPitchBase+static_cast<unsigned>(row),STR16("st"),
+       -24.,24.,0.,48));
  }
  parameters.addParameter(new Steinberg::Vst::RangeParameter(
     STR16("Master Volume"),kMasterVolumeParam,STR16("%"),0.,200.,100.));
@@ -1570,7 +1578,10 @@ bool Controller::adjustRowPitch(std::size_t row,int delta) {
  attrs->setInt("Semitones",proposed-24);
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
  
- if(ok){pitch_[row]=static_cast<std::uint8_t>(proposed);try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
+ if(ok){pitch_[row]=static_cast<std::uint8_t>(proposed);
+   publishAutomationEdit(kRowPitchBase+static_cast<unsigned>(row),
+                         automationNormalized(static_cast<unsigned>(proposed),48));
+   try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return ok;
 
  }catch(...) {return false;}

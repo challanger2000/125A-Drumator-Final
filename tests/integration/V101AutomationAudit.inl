@@ -30,8 +30,8 @@ void testV101HostMixAutomationContract(){
  Fixture f;
  check(f.c->setComponentHandler(&recorded)==kResultOk,
        "Automation host handler rejected");
- check(f.c->getParameterCount()==50,
-       "Automation expected Pattern+16 Volume+16 Pan+16 Mute+Master = 50");
+ check(f.c->getParameterCount()==66,
+       "Automation expected Pattern+16 Volume+16 Pan+16 Mute+16 Pitch+Master = 66");
  std::array<bool,kAutomatedMixLanes> found{};
  bool patternFound=false;
  for(int32 i=0;i<f.c->getParameterCount();++i){
@@ -45,8 +45,9 @@ void testV101HostMixAutomationContract(){
          (info.flags&ParameterInfo::kCanAutomate)!=0,
          "Automation missing/duplicate/non-automatable parameter ID");
    found[lane]=true;
-   check(info.stepCount==(a.kind==AutomationKind::Mute?1:0),
-         "Automation mute not discrete or mix not continuous");
+   check(info.stepCount==(a.kind==AutomationKind::Mute?1:
+                          a.kind==AutomationKind::Pitch?48:0),
+         "Automation pitch/mute not discrete or mix not continuous");
    const double expected=a.kind==AutomationKind::Mute?0.0:0.5;
    check(std::abs(info.defaultNormalizedValue-expected)<1e-8,
          "Automation parameter default mismatch");
@@ -70,8 +71,13 @@ void testV101HostMixAutomationContract(){
        recorded.lastId==kMasterVolumeParam&&
        f.c->masterVolume()==125,
        "Automation GUI Master did not publish host state");
- check(recorded.beginCount==4&&recorded.endCount==4&&
-       recorded.performCount==4,
+ check(f.c->adjustRowPitch(2,12)&&
+       recorded.lastId==kRowPitchBase+2&&
+       f.c->rowPitch(2)==12&&
+       std::abs(recorded.lastValue-.75)<1e-8,
+       "Automation GUI Pitch not reflected in DAW host");
+ check(recorded.beginCount==5&&recorded.endCount==5&&
+       recorded.performCount==5,
        "Automation GUI edit gestures not balanced");
  check(f.c->setParamNormalized(kRowVolumeBase+15,.75)==kResultOk&&
        f.c->rowGain(15)==150&&
@@ -80,11 +86,14 @@ void testV101HostMixAutomationContract(){
        f.c->setParamNormalized(kRowMuteBase+1,0.)==kResultOk&&
        !f.c->isRowMuted(1)&&
        f.c->setParamNormalized(kMasterVolumeParam,.25)==kResultOk&&
-       f.c->masterVolume()==50,
+       f.c->masterVolume()==50&&
+       f.c->setParamNormalized(kRowPitchBase+15,0.)==kResultOk&&
+       f.c->rowPitch(15)==-24,
        "Automation host->Controller value feedback disconnected");
- check(automationAddress(kRowPitchBase).kind==AutomationKind::None,
-       "Automation premature unsafe pitch host parameter");
- evidence("AUT01 VST3 50 stable parameters, 16x gain/pan/mute, master, GUI host gestures and feedback PASS");
+ check(automationAddress(kRowPitchBase).kind==AutomationKind::Pitch&&
+       automationAddress(kRowPitchBase+15).row==15,
+       "Automation missing row-specific pitch address");
+ evidence("AUT01 VST3 66 stable parameters, 16x gain/pan/mute/pitch, master, GUI host gestures and feedback PASS");
 }
 
 void testV101HostMixAutomationPcm(){
@@ -159,5 +168,39 @@ void testV101HostMixAutomationPcm(){
          "AUT04 Master ramp missing or started before offset 64");
    f.p->setProcessing(false);f.p->setActive(false);
  }
- evidence("AUT02-04 actual VST3 host sample points Pan/Mute/Volume/Master, fade PCM, persistence, no audio-thread allocations PASS");
+ // Pitch +12 semitones doubles the source-frame advance rate. The same
+ // 1024-frame WAV therefore ends in two 256-frame audio blocks, whereas
+ // neutral pitch would still be audible. Check real rendered PCM and state.
+ {
+   Fixture f;
+   KitState kit{};kit.visible=1;kit.grid.fill(0);
+   kit.names[0]="host-pitch.wav";kit.wav[0]=constantStereo(.5f,-.25f);
+   f.kit(kit);prepareAudio(*f.p);
+   AuditAudioBlock b;EventList notes;makeBlock(b,notes);
+   ParameterChanges changed;int32 index=0;
+   changed.addParameterData(kRowPitchBase,index)->addPoint(0,.75,index);
+   b.data.inputParameterChanges=&changed;
+   allocationFail=0;
+   const auto first=f.p->process(b.data);
+   allocationFail=-1;
+   check(first==kResultOk&&std::abs(b.left[100]-.5f)<1e-5f,
+         "AUT05 pitch bank allocation or audible sample failed");
+   b.data.inputEvents=nullptr;b.data.inputParameterChanges=nullptr;
+   check(f.p->process(b.data)==kResultOk,
+         "AUT05 pitch+12 second block failed");
+   check(f.p->process(b.data)==kResultOk&&
+         std::abs(b.left[100])<1e-5f&&std::abs(b.right[100])<1e-5f,
+         "AUT05 +12 semitone pitch did not double playback rate");
+   ResizableMemoryIBStream saved;KitState state{};
+   check(f.p->getState(&saved)==kResultOk&&
+         KitCodec::decode(static_cast<const std::uint8_t*>(saved.getData()),
+                          saved.getCursor(),state)&&state.pitch[0]==36,
+         "AUT05 host Pitch automation not persisted at +12 semitones");
+   saved.rewind();
+   check(f.c->setComponentState(&saved)==kResultOk&&
+         f.c->rowPitch(0)==12,
+         "AUT05 Pitch project restore not reflected in Controller");
+   f.p->setProcessing(false);f.p->setActive(false);
+ }
+ evidence("AUT02-05 real VST3 host Pan/Mute/Volume/Master/Pitch PCM, sample-accurate points, persistence and no audio allocation PASS");
 }

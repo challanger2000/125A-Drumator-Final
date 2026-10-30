@@ -35,6 +35,7 @@ Processor::Processor() {
  setControllerClass(kControllerCID);
  for(auto& length:patternLengths_)length.store(32,std::memory_order_relaxed);
  for(auto& output:rowOutput_)output.store(0,std::memory_order_relaxed);
+ for(auto& pitch:rowPitch_)pitch.store(24,std::memory_order_relaxed);
  // AtomicPatternBank supplies factory A; B-H start empty.
 }
 Processor::~Processor(){unregisterMeter(meterId_);}
@@ -670,24 +671,12 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
       rowIndex<0||rowIndex>=static_cast<Steinberg::int64>(kRows)||
       semitones< -24||semitones>24)return Steinberg::kInvalidArgument;
    const auto idx=static_cast<std::size_t>(rowIndex);
-   std::lock_guard<std::mutex> guard(kitMutex_);
-   const auto rate=outputRate_.load(std::memory_order_acquire);
-   if(!(rate>0.0)||!std::isfinite(rate))return Steinberg::kResultFalse;
-   std::unique_ptr<PreparedSample> candidate;
-   if(kit_.wav[idx].empty()) {
-     try {candidate=PreparedSample::silence(rate);}
-     catch(const std::bad_alloc&) {return Steinberg::kOutOfMemory;}
-   }else if(PreparedSample::fromWav(
-       kit_.wav[idx].data(),kit_.wav[idx].size(),rate,
-       static_cast<double>(semitones),1.f,0.f,0,false,candidate,
-       kit_.sampleEdits[idx])!=
-       PrepareStatus::Ok)return Steinberg::kResultFalse;
-   if(!candidate)return Steinberg::kResultFalse;
-   for(;;) {auto unused=exchange_.pollReclaim();if(!unused)break;}
-   auto pending=exchange_.withdraw(idx);
-   (void)pending;
-   if(!exchange_.publish(idx,candidate))return Steinberg::kResultFalse;
-   kit_.pitch[idx]=static_cast<std::uint8_t>(semitones+24);
+   // The immutable pitch bank was precomputed off audio on sample import.
+   {
+     std::lock_guard<std::mutex> guard(kitMutex_);
+     kit_.pitch[idx]=static_cast<std::uint8_t>(semitones+24);
+     rowPitch_[idx].store(kit_.pitch[idx],std::memory_order_release);
+   }
    return Steinberg::kResultOk;
  }
  if(std::strcmp(id,"Drumator.RowMix")==0) {
@@ -815,7 +804,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
      static_cast<const std::uint8_t*>(bytes),
      static_cast<std::size_t>(size),rate,
      static_cast<double>(static_cast<int>(kit_.pitch[static_cast<std::size_t>(row)])-24),
-     1.f,0.f,0,false,candidate,SampleEdit{});
+     1.f,0.f,0,false,candidate,SampleEdit{},true);
  if(prepared!=PrepareStatus::Ok)return Steinberg::kResultFalse;
  {
     std::size_t total=size;
@@ -1563,7 +1552,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
       !voices_.setRowChoke(row,rowChoke_[row].load(std::memory_order_relaxed))||
        !voices_.setRowOutput(row,rowOutput_[row].load(std::memory_order_relaxed))||
        !voices_.setRowMute(row,(muteMask_.load(std::memory_order_relaxed)&
-                                     (std::uint32_t{1}<<row))!=0))
+                                     (std::uint32_t{1}<<row))!=0)||
+       !voices_.setRowPitch(row,rowPitch_[row].load(std::memory_order_relaxed)))
      return Steinberg::kResultFalse;
  }
  // An automated Mute OFF must allow later hits within the same buffer.
@@ -1660,6 +1650,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
      if(muted)muteMask_.fetch_or(bit,std::memory_order_relaxed);
      else muteMask_.fetch_and(~bit,std::memory_order_relaxed);
      (void)voices_.setRowMute(row,muted);
+   }else if(lane<4*kRows) {
+     const auto row=lane-3*kRows;
+     const auto index=static_cast<std::uint8_t>(automationPercent(n,48));
+     rowPitch_[row].store(index,std::memory_order_relaxed);
+     (void)voices_.setRowPitch(row,index);
    }else {
      const auto plain=automationPercent(n);
      masterVolume_.store(static_cast<std::uint8_t>(plain),std::memory_order_relaxed);
@@ -1769,7 +1764,7 @@ bool Processor::publishRestoredKit(const KitState& kit,double rate) {
     }else if(PreparedSample::fromWav(
          kit.wav[row].data(),kit.wav[row].size(),rate,
          static_cast<double>(static_cast<int>(kit.pitch[row])-24),1.f,0.f,0,false,
-         fresh[row],kit.sampleEdits[row])!=PrepareStatus::Ok)return false;
+         fresh[row],kit.sampleEdits[row],true)!=PrepareStatus::Ok)return false;
  }
  for(;;) {auto unused=exchange_.pollReclaim();if(!unused)break;}
  for(std::size_t row=0;row<kRows;++row) {
@@ -1803,6 +1798,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
      const auto pair=rowMix_[row].snapshot();
      kit_.gain[row]=AtomicRowMix::gainPercent(pair);
      kit_.pan[row]=AtomicRowMix::panEncoded(pair);
+     kit_.pitch[row]=rowPitch_[row].load(std::memory_order_relaxed);
    }
    // The regular per-cell getter is safe but not a transaction: a
    // simultaneous PatternReplace could otherwise serialize a torn kit.
@@ -1905,8 +1901,10 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     for(std::size_t row=0;row<kRows;++row)
        randomVelocity_[row].store(kit_.randomVelocity[row],std::memory_order_relaxed);
     for(std::size_t row=0;row<kRows;++row){rowChoke_[row].store(kit_.choke[row]);rowOutput_[row].store(kit_.output[row]);}
-    for(std::size_t row=0;row<kRows;++row)
+    for(std::size_t row=0;row<kRows;++row) {
       rowMix_[row].store(kit_.gain[row],kit_.pan[row]);
+      rowPitch_[row].store(kit_.pitch[row],std::memory_order_relaxed);
+    }
     // Kit selection CAS above cannot overwrite newer host automation.
     kitRevision_.fetch_add(1,std::memory_order_release);
  }

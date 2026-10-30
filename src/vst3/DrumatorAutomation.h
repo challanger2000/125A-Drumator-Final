@@ -14,10 +14,9 @@ constexpr Steinberg::Vst::ParamID kRowVolumeBase=2000;
 constexpr Steinberg::Vst::ParamID kRowPanBase=2100;
 constexpr Steinberg::Vst::ParamID kRowMuteBase=2200;
 constexpr Steinberg::Vst::ParamID kMasterVolumeParam=2300;
-// Reserved for subsequent separately verified RT pitch automation.
 constexpr Steinberg::Vst::ParamID kRowPitchBase=2400;
 
-enum class AutomationKind : std::uint8_t { None, Volume, Pan, Mute, Master };
+enum class AutomationKind : std::uint8_t { None, Volume, Pan, Mute, Pitch, Master };
 struct AutomationAddress {
  AutomationKind kind=AutomationKind::None;
  std::size_t row=kRows;
@@ -29,16 +28,19 @@ constexpr AutomationAddress automationAddress(Steinberg::Vst::ParamID id) noexce
    return {AutomationKind::Pan,id-kRowPanBase};
  if(id>=kRowMuteBase&&id<kRowMuteBase+kRows)
    return {AutomationKind::Mute,id-kRowMuteBase};
+ if(id>=kRowPitchBase&&id<kRowPitchBase+kRows)
+   return {AutomationKind::Pitch,id-kRowPitchBase};
  if(id==kMasterVolumeParam)return {AutomationKind::Master,kRows};
  return {};
 }
-constexpr std::size_t kAutomatedMixLanes=3*kRows+1;
+constexpr std::size_t kAutomatedMixLanes=4*kRows+1;
 constexpr std::size_t automationLane(AutomationAddress a) noexcept {
  switch(a.kind){
   case AutomationKind::Volume:return a.row;
   case AutomationKind::Pan:return kRows+a.row;
   case AutomationKind::Mute:return 2*kRows+a.row;
-  case AutomationKind::Master:return 3*kRows;
+  case AutomationKind::Pitch:return 3*kRows+a.row;
+  case AutomationKind::Master:return 4*kRows;
   default:return kAutomatedMixLanes;
  }
 }

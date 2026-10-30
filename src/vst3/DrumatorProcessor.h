@@ -169,6 +169,8 @@ private:
  std::atomic<std::uint32_t> muteMask_{0};
  std::atomic<std::uint32_t> soloMask_{0};
  std::array<AtomicRowMix,kRows> rowMix_{};
+ // Signed semitone offsets encoded +24, shared with nonallocating audio owner.
+ std::array<std::atomic<std::uint8_t>,kRows> rowPitch_{};
  std::array<std::atomic<std::uint8_t>,kRows> rowChoke_{};
  std::array<std::atomic<std::uint8_t>,kRows> rowOutput_{};
  std::atomic<std::uint8_t> swingPercent_{0};
