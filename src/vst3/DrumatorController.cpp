@@ -1281,6 +1281,50 @@ bool Controller::sampleEditorSnapshot(std::size_t row,SampleEdit& edit,
    return true;
  }catch(const std::bad_alloc&){return false;}
 }
+bool Controller::sendLiveEditMessage(const char* id,std::size_t row,
+                                     std::uint32_t revision,std::uint64_t session,
+                                     const SampleEdit* edit) noexcept {
+ if(row>=kRows||session==0||session>static_cast<std::uint64_t>(INT64_MAX))return false;
+ try {
+   ScopedActionMessage m{allocateMessage()};
+   if(!m.p)return false;
+   m.p->setMessageID(id);
+   auto* a=m.p->getAttributes();
+   if(!a||a->setInt("Row",static_cast<Steinberg::int64>(row))!=Steinberg::kResultOk||
+      a->setInt("Session",static_cast<Steinberg::int64>(session))!=Steinberg::kResultOk)
+     return false;
+   if(edit||std::strcmp(id,"Drumator.EditorLiveEnd")!=0)
+     if(a->setInt("Revision",revision)!=Steinberg::kResultOk)return false;
+   if(edit){
+     std::uint32_t bits=0;std::memcpy(&bits,&edit->gain,sizeof(bits));
+     if(a->setInt("Start",edit->start)!=Steinberg::kResultOk||
+        a->setInt("End",edit->end)!=Steinberg::kResultOk||
+        a->setInt("FadeIn",edit->fadeIn)!=Steinberg::kResultOk||
+        a->setInt("FadeOut",edit->fadeOut)!=Steinberg::kResultOk||
+        a->setInt("GainBits",bits)!=Steinberg::kResultOk)return false;
+   }
+   return sendMessage(m.p)==Steinberg::kResultOk;
+ }catch(...){return false;}
+}
+bool Controller::beginLiveSampleEdit(std::size_t row,std::uint32_t revision,
+                                    std::uint64_t& session) noexcept {
+ session=0;
+ if(nextLiveSession_>=static_cast<std::uint64_t>(INT64_MAX))return false;
+ const auto candidate=++nextLiveSession_;
+ if(!sendLiveEditMessage("Drumator.EditorLiveBegin",row,revision,candidate,nullptr))
+   return false;
+ session=candidate;return true;
+}
+bool Controller::updateLiveSampleEdit(std::size_t row,std::uint32_t revision,
+                                     std::uint64_t session,const SampleEdit& edit) noexcept {
+ return sendLiveEditMessage("Drumator.EditorLiveUpdate",row,revision,session,&edit);
+}
+bool Controller::endLiveSampleEdit(std::size_t row,std::uint64_t session) noexcept {
+ if(!session)return true;
+ for(int attempt=0;attempt<2;++attempt)
+   if(sendLiveEditMessage("Drumator.EditorLiveEnd",row,0,session,nullptr))return true;
+ return false;
+}
 bool Controller::commitSampleEdit(std::size_t row,const SampleEdit& edit,
                                   std::uint32_t revision) {
  if(row>=kRows||!edit.end)return false;

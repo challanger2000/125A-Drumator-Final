@@ -746,6 +746,7 @@ DrumatorView::~DrumatorView() {
    if(bmp){bmp->forget();bmp=nullptr;}
  }
  if(sampleEditorOpen_)controller_.stopSampleEditPreview();
+ if(sampleEditorLive_) (void)stopSampleEditorLive();
  controller_.unregisterView(this);
 }
 bool DrumatorView::removed(VSTGUI::CView* parent) {
@@ -753,8 +754,9 @@ bool DrumatorView::removed(VSTGUI::CView* parent) {
  controller_.cancelSampleEditorRequestsForView(this);
  pendingEditorRow_=kRows;pendingViewport_=false;pendingMarkerKind_=0;
  draggingScroll_=false;
- if(sampleEditorOpen_){controller_.stopSampleEditPreview();sampleEditorOpen_=false;
-   sampleEditorRow_=kRows;sampleEditorDrag_=0;}
+ if(sampleEditorOpen_){controller_.stopSampleEditPreview();
+   if(sampleEditorLive_)(void)stopSampleEditorLive();
+   sampleEditorOpen_=false;sampleEditorRow_=kRows;sampleEditorDrag_=0;}
  if(laneDragActive_){controller_.endVelocityStroke(false,this);laneDragActive_=false;}
  detailDragControl_=-1;detailDragRow_=kRows;
  activeKnob_=-1;knobRow_=kRows;
@@ -840,6 +842,7 @@ void DrumatorView::onTextEditPlatformControlLostFocus(VSTGUI::CTextEdit* edit) {
 void DrumatorView::discardTransientEditsForRecall() noexcept {
  if(v101Mode_){v101_.discardForRecall();v101Menu_=UiV101Popup::Kind::None;v101MenuRow_=kRows;}
  if(sampleEditorOpen_)controller_.stopSampleEditPreview();
+ if(sampleEditorLive_)(void)stopSampleEditorLive();
  sampleEditorOpen_=false;sampleEditorRow_=kRows;sampleEditorDrag_=0;
  pendingEditorRow_=kRows;pendingViewport_=false;pendingMarkerKind_=0;
  // Nothrow logical invalidation before the new kit commit. Do not call
@@ -959,6 +962,8 @@ void DrumatorView::refreshFromHost(bool relayout) {
  }
 }
 void DrumatorView::pollMeter() noexcept {
+ if(sampleEditorOpen_&&sampleEditorLive_&&sampleEditorLivePending_)
+   publishSampleEditorLive();
  // Each View reads the same controller cache. No destructive exchange by
  // individual GUI windows; generation ensures host Stop/no callbacks decays.
  if(pendingEditorRow_<kRows &&
@@ -1478,6 +1483,11 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
      v101VintageButtons_[0],v101VintageButtons_[1],
      v101VintageButtons_[2],v101VintageButtons_[3]
    };
+   // The optional live monitoring key sits in the header, outside the
+   // standard eight-key action toolbar and inside the modal metal face.
+   P::cap(*c,{UiV101WaveLayout::liveToggle.left,UiV101WaveLayout::liveToggle.top,
+              UiV101WaveLayout::liveToggle.right,UiV101WaveLayout::liveToggle.bottom},
+          0.,sampleEditorLive_?"LIVE ON":"LIVE OFF",sampleEditorLive_,10,&waveButtons);
    for(std::size_t i=0;i<UiV101WaveLayout::toolbar.size();++i){
      const auto& r=UiV101WaveLayout::toolbar[i];
      P::cap(*c,{r.left,r.top,r.right,r.bottom},0.,captions[i],
@@ -2079,7 +2089,7 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
    c->setFrameColor(VSTGUI::CColor{91,102,111,255});
    c->drawRect({230,100,1050,605},VSTGUI::kDrawStroked);
    c->setFont(VSTGUI::kNormalFont,18);c->setFontColor(letters);
-   c->drawString("SAMPLE EDITOR",{260,114,1000,148});
+   c->drawString("SAMPLE EDITOR",{260,114,780,148});
    // Wide, filled peak envelope: adjacent interpolated columns preserve
    // transients without inventing audio or filtering source PCM.
    c->setFillColor(VSTGUI::CColor{5,19,36,255});
@@ -2191,6 +2201,8 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
    c->drawRect(editorRect(UiWaveEditorLayout::previewGroup),VSTGUI::kDrawStroked);
    drawControl(c,editorRect(UiWaveEditorLayout::cancel),"CANCEL");
    drawControl(c,editorRect(UiWaveEditorLayout::apply),"APPLY");
+   drawControl(c,editorRect(UiV101WaveLayout::liveToggle),
+               sampleEditorLive_?"LIVE ON":"LIVE OFF");
    if(sampleEditorPressed_>=0&&
       sampleEditorPressed_<static_cast<int>(UiWaveEditorLayout::toolbar.size())){
      c->setFrameColor(on);c->setLineWidth(2.);
@@ -2405,13 +2417,48 @@ bool DrumatorView::openSampleEditor(std::size_t row) {
  sampleEditorRate_=controller_.editorWaveSampleRate();sampleEditorWave_=wave;
  sampleEditorRow_=row;sampleEditorFirst_=0;sampleEditorLast_=frames;
  sampleEditorDrag_=0;sampleEditorPressed_=-1;sampleEditorOpen_=true;
- status_="SAMPLE READY FOR EDITING";
+ sampleEditorLivePending_=false;
+ status_=startSampleEditorLive()?"LIVE ON: SONG/PATTERN MONITORING":
+                             "LIVE OFF: PREVIEW/EDIT STILL AVAILABLE";
  invalid();return true;
+}
+bool DrumatorView::startSampleEditorLive() noexcept {
+ if(!sampleEditorOpen_||sampleEditorRow_>=kRows)return false;
+ if(sampleEditorLive_)return true;
+ std::uint64_t session=0;
+ if(!controller_.beginLiveSampleEdit(sampleEditorRow_,sampleEditorRevision_,session))
+   return false;
+ sampleEditorLive_=true;sampleEditorLiveSession_=session;
+ sampleEditorLivePending_=true;
+ publishSampleEditorLive(true);
+ return true;
+}
+bool DrumatorView::stopSampleEditorLive() noexcept {
+ if(!sampleEditorLive_)return true;
+ if(!controller_.endLiveSampleEdit(sampleEditorRow_,sampleEditorLiveSession_))return false;
+ sampleEditorLive_=false;sampleEditorLiveSession_=0;
+ sampleEditorLivePending_=false;
+ return true;
+}
+void DrumatorView::publishSampleEditorLive(bool force) noexcept {
+ if(!sampleEditorOpen_||!sampleEditorLive_)return;
+ sampleEditorLivePending_=true;
+ const auto now=std::chrono::steady_clock::now();
+ if(!force&&now-sampleEditorLiveSentAt_<std::chrono::milliseconds(33))return;
+ if(!sampleEditorEdit_.valid(sampleEditorFrames_)){
+   status_="LIVE: INVALID EDIT RANGE";return;
+ }
+ if(!controller_.updateLiveSampleEdit(sampleEditorRow_,sampleEditorRevision_,
+                                      sampleEditorLiveSession_,sampleEditorEdit_)){
+   status_="LIVE UPDATE REJECTED (SOURCE CHANGED?)";return;
+ }
+ sampleEditorLiveSentAt_=now;sampleEditorLivePending_=false;
 }
 void DrumatorView::setSampleEditorGain(double x) {
  if(!sampleEditorOpen_)return;
  const auto value=std::clamp((x-615.)/285.,0.,1.);
  sampleEditorEdit_.gain=static_cast<float>(std::round(value*400.)/100.);
+ publishSampleEditorLive();
  invalid();
 }
 bool DrumatorView::refreshSampleViewport(std::uint32_t first,std::uint32_t last) {
@@ -2446,6 +2493,7 @@ void DrumatorView::applySampleMarkerAt(double x,bool endMarker) {
  sampleEditorEdit_.fadeIn=std::min(sampleEditorEdit_.fadeIn,span);
  sampleEditorEdit_.fadeOut=std::min(sampleEditorEdit_.fadeOut,
                                    span-sampleEditorEdit_.fadeIn);
+ publishSampleEditorLive();
  invalid();
 }
 bool DrumatorView::zoomSampleEditor(bool in,bool full) {
@@ -2488,6 +2536,7 @@ void DrumatorView::moveSampleFade(double x,bool fadeOut) {
    const auto bounded=std::clamp(frame,e.start,e.end-e.fadeOut);
    sampleEditorEdit_.fadeIn=bounded-e.start;
  }
+ publishSampleEditorLive();
  invalid();
 }
 bool DrumatorView::scrollEditorWave(double x) {
@@ -2597,6 +2646,16 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    invalid();return done;
  }
  if(sampleEditorOpen_) {
+   if(UiV101WaveLayout::liveToggle.hit(x,y)){
+     if(sampleEditorLive_){
+       if(stopSampleEditorLive())status_="LIVE OFF: COMMITTED SOUND RESTORED";
+       else status_="LIVE OFF FAILED: EDIT STILL ACTIVE";
+     }else{
+       if(startSampleEditorLive())status_="LIVE ON: MONITOR NEXT PATTERN HIT";
+       else status_="LIVE UNAVAILABLE: OTHER EDITOR OR SOURCE CHANGED";
+     }
+     invalid();return done;
+   }
    if(UiWaveEditorLayout::scrollbar.hit(x,y)){
      sampleEditorDrag_=3;scrollEditorWave(x);return VSTGUI::kMouseEventHandled;
    }
@@ -2631,7 +2690,8 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    }
    if(UiWaveEditorLayout::gain.hit(x,y)){
      if((buttons&VSTGUI::kControl)||(buttons&VSTGUI::kDoubleClick)){
-       sampleEditorEdit_.gain=1.f;sampleEditorDrag_=0;invalid();return done;
+       sampleEditorEdit_.gain=1.f;sampleEditorDrag_=0;
+       publishSampleEditorLive(true);invalid();return done;
      }
      sampleEditorDrag_=6;setSampleEditorGain(x);
      return VSTGUI::kMouseEventHandled;
@@ -2652,9 +2712,13 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
        case 4:
          status_=controller_.stopSampleEditPreview()?"PREVIEW STOPPED":"PREVIEW STOP FAILED";break;
        case 5:
-         sampleEditorEdit_=SampleEdit::reset(sampleEditorFrames_);break;
+         sampleEditorEdit_=SampleEdit::reset(sampleEditorFrames_);
+         publishSampleEditorLive(true);break;
        case 6:
          if(!controller_.stopSampleEditPreview()){status_="PREVIEW STOP FAILED";break;}
+         if(!stopSampleEditorLive()){
+           status_="LIVE ROLLBACK FAILED: CANCEL BLOCKED";break;
+         }
          sampleEditorOpen_=false;sampleEditorDrag_=0;sampleEditorRow_=kRows;
          pendingViewport_=false;pendingMarkerKind_=0;
          controller_.cancelSampleEditorRequestsForView(this);
@@ -2664,6 +2728,9 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
          // leave a committed edit behind an apparently unfinished modal.
          if(!controller_.stopSampleEditPreview()){
            status_="PREVIEW STOP FAILED; EDIT NOT APPLIED";break;
+         }
+         if(!stopSampleEditorLive()){
+           status_="LIVE ROLLBACK FAILED: APPLY BLOCKED";break;
          }
          if(controller_.commitSampleEdit(sampleEditorRow_,sampleEditorEdit_,sampleEditorRevision_)){
            sampleEditorOpen_=false;sampleEditorDrag_=0;sampleEditorRow_=kRows;
@@ -3173,7 +3240,9 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
    (void)v101_.up();invalid();return VSTGUI::kMouseEventHandled;
  }
  if(draggingScroll_){draggingScroll_=false;return VSTGUI::kMouseEventHandled;}
- if(sampleEditorOpen_){sampleEditorDrag_=0;sampleEditorPressed_=-1;
+ if(sampleEditorOpen_){
+   if(sampleEditorLivePending_)publishSampleEditorLive(true);
+   sampleEditorDrag_=0;sampleEditorPressed_=-1;
    invalid();return VSTGUI::kMouseEventHandled;}
  if(activeKnob_>=0){
    activeKnob_=-1;knobRow_=kRows;

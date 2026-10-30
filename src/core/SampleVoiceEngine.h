@@ -134,8 +134,21 @@ public:
                 return false;
         }
         rows_[row]=sound;
+        committedEdits_[row]=sound.edit;
         rows_[row].outputBus=static_cast<std::uint8_t>(row); // legacy output mapping
         return true;
+    }
+    // Transient WAV editor: future one-shots use this draft, existing voices
+    // retain their captured edit. Neither PCM nor interpolation is rebuilt.
+    bool setRowLiveEdit(std::size_t row,const SampleEdit& edit) noexcept {
+        if(row>=kRows||!rows_[row].sample.frames||
+           rows_[row].sample.frames>UINT32_MAX||
+           !edit.valid(static_cast<std::uint32_t>(rows_[row].sample.frames)))
+            return false;
+        rows_[row].edit=edit;return true;
+    }
+    void restoreRowCommittedEdit(std::size_t row) noexcept {
+        if(row<kRows)rows_[row].edit=committedEdits_[row];
     }
     // Called only by the audio-thread owner at block boundaries.
     // Existing one-shot voices retain their launch gain/pan.
@@ -410,6 +423,7 @@ private:
         }
     }
     std::array<RowSound,kRows> rows_{};
+    std::array<SampleEdit,kRows> committedEdits_{};
     std::array<Voice,kVoiceLimit> voices_{};
     std::uint32_t fadeFrames_{88}; // default only before setOutputRate()
 };

@@ -30,6 +30,9 @@ struct UiV101WaveLayout final {
    {737.,453.,829.,494.},
    {831.,453.,1017.,494.}
  }};
+ // Dedicated toggle above waveform: doesn't compress the eight approved
+ // toolbar keys or obscure their 8-pixel gutters.
+ static constexpr Rect liveToggle{886.,114.,1010.,146.};
  static constexpr int buttonAt(double x,double y) noexcept {
    for(std::size_t i=0;i<toolbar.size();++i)
      if(toolbar[i].hit(x,y))return static_cast<int>(i);
@@ -43,6 +46,8 @@ struct UiV101WaveLayout final {
  }
 };
 static_assert(UiV101WaveLayout::toolbar.size()==8);
+static_assert(UiV101WaveLayout::liveToggle.width()==124.);
+static_assert(UiV101WaveLayout::liveToggle.bottom<156.);
 static_assert(UiV101WaveLayout::toolbar[0].width()==86.);
 static_assert(UiV101WaveLayout::toolbar[7].width()==86.);
 static_assert(UiV101WaveLayout::toolbar[7].right<1050.);

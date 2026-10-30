@@ -356,6 +356,67 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    auditionPublishSequence_.fetch_add(1,std::memory_order_seq_cst); // even
    return Steinberg::kResultOk;
  }
+ // Live editor control IPC. Only the edit parameters cross to audio in a
+ // bounded atomic mailbox: no decode, lock, heap or deletion in process().
+ if(std::strcmp(id,"Drumator.EditorLiveBegin")==0||
+    std::strcmp(id,"Drumator.EditorLiveUpdate")==0||
+    std::strcmp(id,"Drumator.EditorLiveEnd")==0) {
+   const bool begin=std::strcmp(id,"Drumator.EditorLiveBegin")==0;
+   const bool endLive=std::strcmp(id,"Drumator.EditorLiveEnd")==0;
+   auto* a=msg->getAttributes();
+   Steinberg::int64 row=-1,session=0,revision=-1;
+   if(!a||a->getInt("Row",row)!=Steinberg::kResultOk||
+      a->getInt("Session",session)!=Steinberg::kResultOk||
+      row<0||row>=static_cast<Steinberg::int64>(kRows)||session<=0)
+     return Steinberg::kInvalidArgument;
+   const auto index=static_cast<std::size_t>(row);
+   std::lock_guard<std::mutex> guard(kitMutex_);
+   if(endLive){
+     // A stale editor must never cancel a newer editor's session.
+     if(liveSessions_[index]==static_cast<std::uint64_t>(session)){
+       liveSessions_[index]=0;liveFrameCounts_[index]=0;
+       liveEdits_[index].publish(false,SampleEdit{});
+     }
+     return Steinberg::kResultOk;
+   }
+   if(a->getInt("Revision",revision)!=Steinberg::kResultOk||
+      revision<0||revision!=editorRevisions_[index]||
+      kit_.wav[index].empty())return Steinberg::kResultFalse;
+   if(begin){
+     if(liveSessions_[index])return Steinberg::kResultFalse;
+     // Decode once at editor activation, never on drag or audio callback.
+     DecodedWav decoded;
+     if(WavPcm16Decoder::decode(kit_.wav[index].data(),
+         kit_.wav[index].size(),decoded)!=WavError::Ok||
+         decoded.left.empty()||decoded.left.size()>UINT32_MAX)
+       return Steinberg::kResultFalse;
+     liveFrameCounts_[index]=static_cast<std::uint32_t>(decoded.left.size());
+     liveSessions_[index]=static_cast<std::uint64_t>(session);
+     const auto committed=kit_.sampleEdits[index].end==0?
+         SampleEdit::reset(liveFrameCounts_[index]):kit_.sampleEdits[index];
+     liveEdits_[index].publish(true,committed);
+     return Steinberg::kResultOk;
+   }
+   if(liveSessions_[index]!=static_cast<std::uint64_t>(session))
+     return Steinberg::kResultFalse;
+   Steinberg::int64 start=-1,finish=-1,fi=-1,fo=-1,bits=-1;
+   if(a->getInt("Start",start)!=Steinberg::kResultOk||
+      a->getInt("End",finish)!=Steinberg::kResultOk||
+      a->getInt("FadeIn",fi)!=Steinberg::kResultOk||
+      a->getInt("FadeOut",fo)!=Steinberg::kResultOk||
+      a->getInt("GainBits",bits)!=Steinberg::kResultOk||
+      start<0||finish<0||fi<0||fo<0||bits<0||
+      start>UINT32_MAX||finish>UINT32_MAX||fi>UINT32_MAX||
+      fo>UINT32_MAX||bits>UINT32_MAX)return Steinberg::kInvalidArgument;
+   SampleEdit edit{static_cast<std::uint32_t>(start),
+       static_cast<std::uint32_t>(finish),static_cast<std::uint32_t>(fi),
+       static_cast<std::uint32_t>(fo),1.f};
+   const auto raw=static_cast<std::uint32_t>(bits);
+   std::memcpy(&edit.gain,&raw,sizeof(raw));
+   if(!edit.valid(liveFrameCounts_[index]))return Steinberg::kInvalidArgument;
+   liveEdits_[index].publish(true,edit);
+   return Steinberg::kResultOk;
+ }
  if(std::strcmp(id,"Drumator.SampleEditorCommit")==0) {
    auto* attrs=msg->getAttributes();
    Steinberg::int64 index=-1,start=-1,end=-1,fadeIn=-1,fadeOut=-1,gainBits=-1,expectedRevision=-1;
@@ -392,7 +453,10 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    if(kit_.sampleEdits[row].start==edit.start&&kit_.sampleEdits[row].end==edit.end&&
       kit_.sampleEdits[row].fadeIn==edit.fadeIn&&
       kit_.sampleEdits[row].fadeOut==edit.fadeOut&&
-      kit_.sampleEdits[row].gain==edit.gain)return Steinberg::kResultOk;
+      kit_.sampleEdits[row].gain==edit.gain){
+     liveSessions_[row]=0;liveEdits_[row].publish(false,SampleEdit{});
+     return Steinberg::kResultOk;
+   }
    const auto rate=outputRate_.load(std::memory_order_acquire);
    if(!(rate>0.)||!std::isfinite(rate))return Steinberg::kResultFalse;
    std::unique_ptr<PreparedSample> prepared;
@@ -405,6 +469,8 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    (void)previous;
    if(!exchange_.publish(row,prepared))return Steinberg::kResultFalse;
    kit_.sampleEdits[row]=edit;
+   liveSessions_[row]=0;liveFrameCounts_[row]=0;
+   liveEdits_[row].publish(false,SampleEdit{});
    ++editorRevisions_[row];
    return Steinberg::kResultOk;
  }
@@ -501,6 +567,9 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    kit_.names[static_cast<std::size_t>(index)].clear();
    kit_.sampleEdits[static_cast<std::size_t>(index)]=SampleEdit{};
    ++editorRevisions_[static_cast<std::size_t>(index)];
+   liveSessions_[static_cast<std::size_t>(index)]=0;
+   liveFrameCounts_[static_cast<std::size_t>(index)]=0;
+   liveEdits_[static_cast<std::size_t>(index)].publish(false,SampleEdit{});
    return Steinberg::kResultOk;
  }
  if(std::strcmp(id,"Drumator.SongConfig")==0) {
@@ -756,6 +825,9 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
     kit_.wav[static_cast<std::size_t>(row)].swap(retained);
     kit_.sampleEdits[static_cast<std::size_t>(row)]=SampleEdit{};
     ++editorRevisions_[static_cast<std::size_t>(row)];
+    liveSessions_[static_cast<std::size_t>(row)]=0;
+    liveFrameCounts_[static_cast<std::size_t>(row)]=0;
+    liveEdits_[static_cast<std::size_t>(row)].publish(false,SampleEdit{});
     kit_.names[static_cast<std::size_t>(row)].swap(fileName);
  }
  return Steinberg::kResultOk;
@@ -1137,6 +1209,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
  }
  // Adopt only complete prepared assets, without deleting on audio.
  exchange_.audioAdopt(voices_,processSetup.sampleRate);
+ // LIVE edits change future sequenced voices without altering the serialized
+ // sample or existing tails. The reader never retries indefinitely.
+ for(std::size_t row=0;row<kRows;++row){
+   LiveEditMailbox::Snapshot snap{};
+   if(!liveEdits_[row].snapshot(snap))continue;
+   if(snap.active)(void)voices_.setRowLiveEdit(row,snap.edit);
+   else voices_.restoreRowCommittedEdit(row);
+ }
  const auto auditionGeneration=auditionStopGeneration_.load(std::memory_order_acquire);
  const bool fireAudition=auditionStart_.exchange(false,std::memory_order_acq_rel);
  // Keep the legacy probe point for existing FA23/FR01 instrumentation.
@@ -1687,6 +1767,10 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     previewPending_.store(0,std::memory_order_release);
     kit_=std::move(candidate);
     for(auto& revision:editorRevisions_)++revision;
+    for(std::size_t row=0;row<kRows;++row){
+      liveSessions_[row]=0;liveFrameCounts_[row]=0;
+      liveEdits_[row].publish(false,SampleEdit{});
+    }
     for(std::size_t i=0;i<kPatterns;++i)
       patternLengths_[i].store(kit_.patternLengths[i],std::memory_order_relaxed);
     songMailbox_.publish(kit_.chain,kit_.songEnabled!=0,kit_.songStartBar);

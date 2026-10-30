@@ -117,6 +117,7 @@ namespace drumator {
 // including Undo/clipboard/paths, rather than mirroring the commit algorithm.
 struct IntegrationAccess {
  static bool sampleEditorOpen(const DrumatorView& view){return view.sampleEditorOpen_;}
+ static bool sampleEditorLive(const DrumatorView& view){return view.sampleEditorLive_;}
  static bool songEditorOpen(const DrumatorView& view){return view.songEditorOpen_;}
  static std::size_t v101SelectedRow(const DrumatorView& view){return view.v101_.state().selectedRow;}
  static std::size_t v101FirstRow(const DrumatorView& view){return view.v101_.state().firstRow;}
@@ -424,8 +425,51 @@ void testWavEditorPreviewAndRecall(){
  SampleEdit candidate{64,512,0,0,.5f};
  SampleEdit observed{};std::uint32_t frames=0;
  std::array<WaveformRange,256> peaks{};
- check(f.c->sampleEditorSnapshot(0,observed,frames,peaks)&&frames==1024&&
-       observed.start==0&&observed.end==1024,"WE01 embedded editor snapshot");
+ std::uint32_t liveRevision=UINT32_MAX;
+ check(f.c->sampleEditorSnapshot(0,observed,frames,peaks,0,0,&liveRevision)&&
+       frames==1024&&observed.start==0&&observed.end==1024,
+       "WE01 embedded editor snapshot with source revision");
+ // WEL1: actual sequenced-row PCM, not the separate audition voice.
+ std::uint64_t liveSession=0,contendingSession=0;
+ check(f.c->beginLiveSampleEdit(0,liveRevision,liveSession)&&liveSession>0,
+       "WEL1 LIVE session could not be opened for embedded WAV");
+ check(!f.c->beginLiveSampleEdit(0,liveRevision,contendingSession)&&
+       contendingSession==0,
+       "WEL2 competing editor was allowed to steal the active LIVE session");
+ check(f.c->updateLiveSampleEdit(0,liveRevision,liveSession,candidate),
+       "WEL1 provisional edit was rejected");
+ check(f.p->process(block)==kResultOk,"WEL1 prepare audio block");
+ check(f.c->previewSample(0),"WEL1 real sequenced row trigger failed");
+ check(f.p->process(block)==kResultOk&&
+       std::abs(left[100]-.25f)<.005f&&
+       std::abs(right[100]+.125f)<.005f,
+       "WEL1 LIVE gain/trim did not affect actual drum engine PCM");
+ check(getKit().sampleEdits[0].end==0,
+       "WEL1 LIVE changed serialized kit before APPLY");
+ check(f.c->endLiveSampleEdit(0,liveSession),
+       "WEL3 CANCEL release of live edit rejected");
+ for(int n=0;n<5;++n)
+   check(f.p->process(block)==kResultOk,"WEL3 drain prior voice");
+ check(f.c->previewSample(0),"WEL3 trigger after CANCEL rejected");
+ check(f.p->process(block)==kResultOk&&
+       std::abs(left[100]-.5f)<.005f&&
+       std::abs(right[100]+.25f)<.005f,
+       "WEL3 cancel did not restore original drum-engine PCM");
+ check(!f.c->updateLiveSampleEdit(0,liveRevision,liveSession,candidate),
+       "WEL4 stale closed LIVE session modified audio");
+ std::uint64_t nextLive=0;
+ check(f.c->beginLiveSampleEdit(0,liveRevision,nextLive)&&nextLive>liveSession,
+       "WEL4 could not acquire a new LIVE session after cancel");
+ check(f.c->endLiveSampleEdit(0,liveSession),
+       "WEL4 stale editor close must be harmless to newer session");
+ check(f.c->updateLiveSampleEdit(0,liveRevision,nextLive,candidate),
+       "WEL4 stale stop canceled the newer session");
+ check(f.c->endLiveSampleEdit(0,nextLive),
+       "WEL4 newer LIVE session failed to exit");
+ check(getKit().sampleEdits[0].end==0,
+       "WEL4 LIVE session lifecycle dirtied project");
+ for(int n=0;n<5;++n)
+   check(f.p->process(block)==kResultOk,"WEL4 release prior voice");
  check(f.c->previewSampleEdit(0,candidate),"WE01 provisional preview rejected");
  check(f.p->process(block)==kResultOk,"WE01 stopped-transport preview render");
  check(std::abs(left[100]-.25f)<.005f&&
@@ -1733,6 +1777,17 @@ void testV101LiveEditor(){
          "V101 WAV editor source not ready for native rendering verification");
  check(IntegrationAccess::sampleEditorOpen(*view),
        "V101 real Wave editor did not open for rendering verification");
+ check(IntegrationAccess::sampleEditorLive(*view),
+       "WEL5 new Wave editor did not default to LIVE ON");
+ const auto liveKey=drumator::UiV101WaveLayout::liveToggle;
+ const auto liveX=(liveKey.left+liveKey.right)*.5;
+ const auto liveY=(liveKey.top+liveKey.bottom)*.5;
+ click(*view,liveX,liveY);
+ check(!IntegrationAccess::sampleEditorLive(*view),
+       "WEL5 Wave LIVE OFF key failed to disable monitoring");
+ click(*view,liveX,liveY);
+ check(IntegrationAccess::sampleEditorLive(*view),
+       "WEL5 Wave LIVE ON key failed to reacquire monitoring");
  check(view->zoomMatches(1.0)&&
        std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
        "V101 Wave 100 percent raster did not use real 100 percent zoom");

@@ -6,6 +6,7 @@
 #include "core/StereoPeakLimiter.h"
 #include "core/SampleVoiceEngine.h"
 #include "core/SampleExchange.h"
+#include "core/LiveEditMailbox.h"
 #include "core/TriggerBatch.h"
 #include "core/KitRestoreGate.h"
 #include "core/AtomicPatternSelection.h"
@@ -123,6 +124,11 @@ private:
  SampleVoiceEngine voices_;
 
  SampleExchange exchange_{};
+ // Transient LIVE edits are not part of the serialized KitState.
+ // All session/revision checks are on the control actor under kitMutex_.
+ std::array<LiveEditMailbox,kRows> liveEdits_{};
+ std::array<std::uint64_t,kRows> liveSessions_{};
+ std::array<std::uint32_t,kRows> liveFrameCounts_{};
  SampleExchange auditionExchange_{};
  SampleVoiceEngine auditionVoices_{};
  std::atomic<bool> auditionStart_{false},auditionStop_{false};

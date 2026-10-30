@@ -52,6 +52,12 @@ public:
  bool previewSampleEdit(std::size_t row,const SampleEdit& edit,
                         std::uint32_t revision=UINT32_MAX);
  bool stopSampleEditPreview();
+ // GUI-only LIVE sessions; never serialized or declared to the host as edits.
+ bool beginLiveSampleEdit(std::size_t row,std::uint32_t revision,
+                          std::uint64_t& session) noexcept;
+ bool updateLiveSampleEdit(std::size_t row,std::uint32_t revision,
+                           std::uint64_t session,const SampleEdit& edit) noexcept;
+ bool endLiveSampleEdit(std::size_t row,std::uint64_t session) noexcept;
  bool sampleEditorSnapshot(std::size_t row,SampleEdit& edit,std::uint32_t& frames,
                            std::array<WaveformRange,256>& envelope,
                            std::uint32_t first=0,std::uint32_t last=0,
@@ -212,6 +218,10 @@ private:
  };
  std::vector<WaveRequest> waveRequests_; // control actor; independently keyed by View
  std::uint64_t nextRequestId_{0};
+ std::uint64_t nextLiveSession_{0};
+ bool sendLiveEditMessage(const char* id,std::size_t row,
+                          std::uint32_t revision,std::uint64_t session,
+                          const SampleEdit* edit) noexcept;
  unsigned waveSendDepth_{0}; // prevents synchronous host-delivery reentrancy
  std::uint64_t patternRequestId_{0};
  unsigned patternReplyRequested_{0};
