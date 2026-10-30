@@ -2,7 +2,7 @@
 
 Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style interface.
 
-**Version:** 1.0.1 · **Status:** Commercial customer package prepared; not yet published.
+**Version:** 1.0.1 · **Status:** Updated 1.0.1 Gumroad package prepared from verified Windows build; not yet published.
 **Canonical source branch:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main). **Synchronized development branch:** [`develop/v1.0.1-gui-redesign`](https://github.com/challanger2000/125A-Drumator-Final/tree/develop/v1.0.1-gui-redesign). Both branches now contain the same 1.0.1 source and documentation. The previously separate 1.0.0 branch history is preserved in Git.
 
 ## Features
@@ -17,13 +17,14 @@ Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style
 
 ## Verified product build
 
-- **Executable source commit:** `c18091ab3bdb0c80f7753ea6e3339463b26ad800` (factory metadata excludes personal repository URL).
-- **Windows Actions:** [#41133162498](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41133162498), **SUCCESS**.
-- **QA:** 29/29 CTests, official Steinberg Validator 47/47, independent 125A Plugin Tester v0.3.2 58 PASS / 0 WARNING / 0 FAIL.
-- Automation regressions AV01–AV05 and original Wave Editor/Pitch regression AUT08: PASS.
-- **GUI fixes:** WAVE EDITOR heading, sample name and LIVE ON/OFF key are non-overlapping at all 100–150% zoom levels; long names are clipped/ellipsized. Cyan Velocity bars are distinct from amber Pattern step keys, with a real raster oracle and layout regression.
-- **Authoritative release status:** [CURRENT.md](CURRENT.md); [documentation guide](docs/INDEX.md) separates active instructions and historical audits.
-- **Current customer ZIP:** `125A_Drumator_1.0.1_Gumroad_GUI_korrigiert.zip` (the older customer ZIP is superseded; the ZIP is not hosted in this repository).
+- **Executable source commit:** [`e630602a634bbd0773352a5235eb8b3c2a4cb7ab`](https://github.com/challanger2000/125A-Drumator-Final/commit/e630602a634bbd0773352a5235eb8b3c2a4cb7ab).
+- **Windows Actions:** [#41140679693](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41140679693), **SUCCESS**.
+- **QA:** 29/29 CTests, Steinberg Validator 47/47, independent 125A Plugin Tester v0.3.2 **58 PASS / 0 WARNING / 0 FAIL**.
+- **Executable DLL SHA256:** `a76d9dca83e96b547eaa1cd2699be358108e0dc576f15b8fa160b89eb9f2efe2`.
+- **Latest GUI refinements:** instrument row order PLAY — FILL — EDIT, including updated hitboxes and popup; LIMIT/ZOOM aligned to common right edge; 15px footer gaps between EXPORT/PREV PAGE/NEXT PAGE; complete 125A branding aligned with PATTERN A.
+- **Previous fixes retained:** WAVE EDITOR header labels and LIVE ON/OFF do not overlap, filenames are clipped, and cyan Velocity bars remain visibly distinct from Pattern steps.
+- **Current customer ZIP:** `125A_Drumator_v1.0.1_Gumroad_Final_GUI_Fixes.zip`, 26 files, SHA256 `f455403523951bdc829c73eaca41437f1ed351ec374c93dd0c291cf774e136d7`. Prepared outside the repository; includes exactly the successful Windows product DLL, native VST3 resources, current GUI illustrations in bilingual PDF guides, installation, license notices and SHA256 manifest. Supersedes the previous `125A_Drumator_1.0.1_Gumroad_GUI_korrigiert.zip` package.
+- **Authoritative status:** [CURRENT.md](CURRENT.md).
 
 ## Distribution
 
