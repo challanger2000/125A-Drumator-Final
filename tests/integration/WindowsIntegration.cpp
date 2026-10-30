@@ -2216,6 +2216,16 @@ void testCodexV101PeerWindowFooterFallback(){
  check(peer->getViewSize().getHeight()==original&&
        IntegrationAccess::v101ShownRows(*peer)==4,
        "Codex05 refused peer editor must preserve four-row viewport");
+ // VEL must replace a row rather than push the footer below the host HWND.
+ click(*peer,1235.,L::header+12.);
+ check(IntegrationAccess::v101Expansion(*peer)==L::Expansion::Velocity&&
+       IntegrationAccess::v101ShownRows(*peer)==3&&
+       peer->getViewSize().getHeight()==original,
+       "Codex05 expanded peer VEL clips footer in refused host HWND");
+ click(*peer,1235.,L::header+12.);
+ check(IntegrationAccess::v101Expansion(*peer)==L::Expansion::None&&
+       IntegrationAccess::v101ShownRows(*peer)==4,
+       "Codex05 peer VEL collapse failed to restore paging state");
  const auto bottom=peer->getViewSize().getHeight()-L::footer;
  click(*peer,1175.,bottom+22.);
  check(IntegrationAccess::v101FirstRow(*peer)==1&&
