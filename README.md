@@ -2,7 +2,7 @@
 
 Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style interface.
 
-**Version:** 1.0.1 · **Status:** Updated 1.0.1 Gumroad package prepared from verified Windows build; not yet published.
+**Version:** 1.0.1 · **Status:** Released on Gumroad (owner-confirmed); current Windows build additionally tested in Studio One by the owner.
 **Canonical source branch:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main). **Synchronized development branch:** [`develop/v1.0.1-gui-redesign`](https://github.com/challanger2000/125A-Drumator-Final/tree/develop/v1.0.1-gui-redesign). Both branches now contain the same 1.0.1 source and documentation. The previously separate 1.0.0 branch history is preserved in Git.
 
 ## Features
@@ -32,6 +32,6 @@ Windows x64 VST3 only. Close the host, copy the complete `125A Drumator.vst3` bu
 
 The Gumroad customer package is **not built from miscellaneous repository files**. It contains the exact validated executable, pixel-equivalent resource PNGs with nonessential image metadata removed, German/English PDF manuals, install guides, license/support notices, changelog and file checksums. Personal repository links, private paths, development reports, QA logs and Release_Review folders are excluded.
 
-Do not equate a green CI with owner approval, legal redistribution clearance or actual storefront publication.
+**Release status:** On 30 October 2026 the owner confirmed completing the current-binary Studio One hands-on test and publishing the updated customer ZIP on Gumroad. These owner reports are distinct from the independently recorded Windows CI results. No Gumroad listing URL or independent storefront verification is recorded here.
 
 [German manual](docs/BEDIENUNGSANLEITUNG-DE.md) · [Contributor rules](AGENTS.md)
