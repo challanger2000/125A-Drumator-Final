@@ -1752,14 +1752,19 @@ int main(int argc,char** argv) {
                   static_cast<double>(controllerRecallKit.selected)/7.0)<1e-9,
          "F03 controller parameter not synchronized after recall");
  // F03: create/destroy editor views around host-driven parameter updates
- // and state recall. Checks controller/editor lifetime without a native HWND.
+ // and state recall. F15 previously restored 150% user zoom, which must
+ // survive component recall and every fresh pre-attach editor creation.
+ // The 100% base geometry is 1280x300; do not assert that unscaled size.
+ require(std::abs(ctrl->preferredZoom()-1.5)<1e-9,
+         "F03 recalled 150 percent user zoom was lost");
  for(int repeat=0;repeat<3;++repeat) {
    auto* view=ctrl->createView(ViewType::kEditor);
    require(view!=nullptr,"F03 editor reopen returned null");
    ViewRect bounds{};
    require(view->getSize(&bounds)==kResultOk&&
-           bounds.right-bounds.left==1280,
-           "F03 reopened editor geometry");
+           bounds.right-bounds.left==1920&&
+           bounds.bottom-bounds.top==450,
+           "F03 reopened editor geometry at restored 150 percent");
    require(ctrl->setParamNormalized(drumator::kPatternParam,
             static_cast<double>(repeat)/7.0)==kResultOk,
            "F03 parameter update with live editor object");
