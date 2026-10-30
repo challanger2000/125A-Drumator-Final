@@ -2753,8 +2753,10 @@ void testWaveEditor11FFlacAndStatus(){
          "W11F normal import status missing");
    check(IntegrationAccess::openSampleEditorForCapture(*view,0),
          "W11F imported sample editor could not open");
-   check(IntegrationAccess::sampleEditorStatus(*view)=="SAMPLE READY FOR EDITING",
-         "W11F imported editor displayed stale status");
+   check(IntegrationAccess::sampleEditorLive(*view)&&
+         IntegrationAccess::sampleEditorStatus(*view).find(
+           "LIVE ON: SONG/PATTERN MONITORING")!=std::string::npos,
+         "W11F refreshed WAV must start a new LIVE session");
    check(IntegrationAccess::editorFrameCount(*view)==(imported==wav?1024u:4096u)&&
          IntegrationAccess::editorStereo(*view),"W11F imported sample length/stereo");
    for(std::size_t bin=0;bin<256;++bin){
@@ -5575,6 +5577,7 @@ int main(int argc,char** argv){
  run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
  run("V101 SONG and Wave full native button matrix",testV101SongAndWaveFullControlMatrix);
  run("F14 native 5-of-5 paging escape and structural row shrink",testV101F14StrandedPageRecovery);
+ run("F15 1-16 rows x 1-10 capacities exhaustive navigation",testV101F15ExhaustivePageMatrix);
  run("V101 16-row pointer isolation and real WAV sample browse",testV101AllRowMouseIsolationAndSampleBrowse);
  run("VSTGUI native pixel render set",testVisualRender);
  run("GUI49 musical four-sample native 130pct capture",testGui49MusicalFourSampleCapture);

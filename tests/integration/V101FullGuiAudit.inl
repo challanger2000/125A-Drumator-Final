@@ -547,6 +547,63 @@ void testV101F14StrandedPageRecovery(){
        "F14 small native window lost PREV PAGE");
 }
 
+
+void testV101F15ExhaustivePageMatrix(){
+ using L=drumator::UiV101Layout;
+ Fixture f;
+ auto kit=namedKit('X',16);f.kit(kit);prepareAudio(*f.p);
+ f.openV101();
+ auto* v=IntegrationAccess::view(*f.c,0);
+ const auto clickPage=[&](L::Rect button){
+   const double y=v->getViewSize().getHeight()-L::footer+
+       (button.y0+button.y1)*.5;
+   click(*v,(button.x0+button.x1)*.5,y);
+ };
+ clickPage(L::footerNext);
+ check(IntegrationAccess::v101FirstRow(*v)==10,
+       "F15 NEXT must move 16-row kit to rows 11-16");
+ clickPage(L::footerNext);
+ check(IntegrationAccess::v101FirstRow(*v)==10,
+       "F15 second NEXT must never advance beyond final 11-16 page");
+ clickPage(L::footerPrev);
+ check(IntegrationAccess::v101FirstRow(*v)==0,
+       "F15 PREV from last page must return directly to row 1");
+ for(std::size_t total=16;total>=1;--total){
+   check(f.c->restoreVisibleRows(total),
+         "F15 cannot change real Controller row count");
+   for(std::size_t capacity=1;capacity<=L::visibleRows;++capacity){
+     drumator::UiV101Interaction pager(*f.c);
+     pager.setViewportRows(capacity);
+     const auto last=((total-1)/capacity)*capacity;
+     for(std::size_t first=0;first<=last;first+=capacity){
+       check(pager.state().firstRow==first,
+             "F15 forward page did not land on canonical start row");
+       check(pager.shownRows()==std::min(capacity,total-first),
+             "F15 shown row count disagrees with page capacity");
+       const bool advanced=pager.page(1);
+       check(advanced==(first<last),
+             "F15 NEXT enabled outside valid page range");
+     }
+     check(pager.state().firstRow==last,
+           "F15 page end must be canonical final page");
+     for(std::size_t first=last;first>0;first-=capacity){
+       check(pager.page(-1)&&pager.state().firstRow==first-capacity,
+             "F15 PREV must reverse every forward page");
+     }
+     check(pager.state().firstRow==0&&!pager.page(-1),
+           "F15 previous page cannot underflow row zero");
+     // Build a formerly stranded/corrupt page and enforce safe recovery
+     // on the next structural Controller notification.
+     auto stray=pager.state();
+     stray.firstRow=total-1;stray.selectedRow=total-1;
+     pager.restoreLayout(stray);
+     pager.reconcileRowCountChange();
+     check(pager.state().firstRow==last,
+           "F15 structural reconciliation did not clamp to final valid page");
+   }
+   if(total==1)break;
+ }
+}
 // Independent end-to-end pointer audit for every visible instrument, including
 // the six rows on page 2. Tests the actual VSTGUI editor, Controller gates and
 // step state; verifies a gesture cannot accidentally mutate the wrong row.

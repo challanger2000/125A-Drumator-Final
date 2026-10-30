@@ -166,10 +166,13 @@ public:
  void reconcileRowCountChange(){
    reconcile();
    const auto total=controller_.visibleRows();
-   if(total>0&&total<=state_.viewportRows&&state_.firstRow!=0){
+   if(total==0)return;
+   const auto limit=std::min(state_.viewportRows,L::visibleRows);
+   const auto lastPage=((total-1)/limit)*limit;
+   if(state_.firstRow>lastPage){
      endGesture(true);
      closeExpansion();
-     state_.firstRow=0;
+     state_.firstRow=lastPage;
      state_.zoomOpen=false;
    }
  }
@@ -187,7 +190,9 @@ public:
    // Retain the original 10-row/6-row paging behavior when not constrained.
    // In a smaller rejected peer HWND, move only as far as needed so the
    // final row stays accessible without pushing the footer below the frame.
-   const auto maxStart=limit==L::visibleRows?total-1:total-limit;
+   // Exactly ceil(total/limit) real pages; never navigate to a singleton
+   // tail after the final valid page (16 rows / 10 visible => firstRow 10).
+   const auto maxStart=((total-1)/limit)*limit;
    const auto next=direction>0?std::min(state_.firstRow+stride,maxStart):
      (state_.firstRow>=stride?state_.firstRow-stride:0);
    if(next==state_.firstRow)return false;

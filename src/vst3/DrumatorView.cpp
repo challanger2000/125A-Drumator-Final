@@ -2390,6 +2390,11 @@ void DrumatorView::onSampleEditorReady(std::size_t row,bool ok) {
  }
 }
 bool DrumatorView::openSampleEditor(std::size_t row) {
+ // A new WAV import invalidates the previous LIVE session and revision.
+ // Never reuse a prior source's local ON state for another PCM revision.
+ if(sampleEditorLive_&&!stopSampleEditorLive()){
+   status_="LIVE PREVIOUS SESSION COULD NOT BE CLOSED";invalid();return false;
+ }
  SampleEdit edit;std::uint32_t frames=0;
  std::array<WaveformRange,256> wave{};
  // Register continuation before sending: the host may reply immediately.
