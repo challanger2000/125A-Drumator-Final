@@ -1014,6 +1014,56 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
  }
  // Hosts may flush discrete automation without providing any audio buffers.
  if(data.numSamples==0||data.numOutputs==0) {
+   // Host state changes must survive parameter-only flushes or periods with
+   // inactive output buses. Capture the latest valid point without touching
+   // voices, installing samples, allocating or taking a control mutex.
+   // Reverse lookup is bounded (32 points per lane) against hostile queues.
+   if(data.inputParameterChanges)
+     for(Steinberg::int32 i=0;i<data.inputParameterChanges->getParameterCount();++i){
+       auto* q=data.inputParameterChanges->getParameterData(i);
+       if(!q)continue;
+       const auto address=automationAddress(q->getParameterId());
+       if(address.kind==AutomationKind::None)continue;
+       const auto count=q->getPointCount();
+       for(Steinberg::int32 back=0;back<count&&back<32;++back){
+         Steinberg::int32 offset=-1;
+         Steinberg::Vst::ParamValue value=0;
+         if(q->getPoint(count-1-back,offset,value)!=Steinberg::kResultTrue||
+            !std::isfinite(value)||offset<0||
+            (data.numSamples==0?offset!=0:offset>=data.numSamples))continue;
+         value=std::clamp(value,0.0,1.0);
+         const auto row=address.row;
+         switch(address.kind){
+           case AutomationKind::Volume:
+           case AutomationKind::Pan: {
+             const auto pair=rowMix_[row].snapshot();
+             const auto gain=address.kind==AutomationKind::Volume?
+               automationPercent(value):AtomicRowMix::gainPercent(pair);
+             const auto pan=address.kind==AutomationKind::Pan?
+               automationPercent(value):AtomicRowMix::panEncoded(pair);
+             rowMix_[row].store(static_cast<std::uint8_t>(gain),
+                                static_cast<std::uint8_t>(pan));
+             break;
+           }
+           case AutomationKind::Mute:{
+             const auto bit=std::uint32_t{1}<<row;
+             if(value>=0.5)muteMask_.fetch_or(bit,std::memory_order_relaxed);
+             else muteMask_.fetch_and(~bit,std::memory_order_relaxed);
+             break;
+           }
+           case AutomationKind::Pitch:
+             rowPitch_[row].store(static_cast<std::uint8_t>(
+                automationPercent(value,48)),std::memory_order_relaxed);
+             break;
+           case AutomationKind::Master:
+             masterVolume_.store(static_cast<std::uint8_t>(
+                automationPercent(value)),std::memory_order_relaxed);
+             break;
+           default:break;
+         }
+         break;
+       }
+     }
    // A nonzero block without output buses still carries genuine host and
    // MIDI pattern-selection events. Keep sample-offset/host-tie ordering.
    if(data.numSamples>0&&data.numOutputs==0) {

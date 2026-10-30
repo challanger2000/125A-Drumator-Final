@@ -202,5 +202,42 @@ void testV101HostMixAutomationPcm(){
          "AUT05 Pitch project restore not reflected in Controller");
    f.p->setProcessing(false);f.p->setActive(false);
  }
- evidence("AUT02-05 real VST3 host Pan/Mute/Volume/Master/Pitch PCM, sample-accurate points, persistence and no audio allocation PASS");
+ // Flush paths: Studio One may send parameter-only callbacks with no
+ // samples or temporarily disable outputs. The last valid values must not
+ // disappear while the audio renderer is inactive.
+ {
+   Fixture f;KitState kit{};kit.visible=1;kit.grid.fill(0);f.kit(kit);
+   prepareAudio(*f.p);
+   ParameterChanges changes;int32 index=0;
+   changes.addParameterData(kRowVolumeBase,index)->addPoint(0,.75,index);
+   changes.addParameterData(kRowPanBase,index)->addPoint(0,1.,index);
+   changes.addParameterData(kRowMuteBase,index)->addPoint(0,1.,index);
+   changes.addParameterData(kRowPitchBase,index)->addPoint(0,.75,index);
+   changes.addParameterData(kMasterVolumeParam,index)->addPoint(0,.25,index);
+   ProcessData flush{};flush.numSamples=0;flush.numOutputs=0;
+   flush.inputParameterChanges=&changes;
+   allocationFail=0;const auto zeroResult=f.p->process(flush);allocationFail=-1;
+   check(zeroResult==kResultOk,
+         "AUT06 zero-frame host mix automation failed or allocated");
+   ResizableMemoryIBStream saved;KitState state{};
+   check(f.p->getState(&saved)==kResultOk&&
+         KitCodec::decode(static_cast<const std::uint8_t*>(saved.getData()),
+                           saved.getCursor(),state)&&
+         state.gain[0]==150&&state.pan[0]==200&&state.pitch[0]==36&&
+         (state.muted&1u)!=0&&state.masterVolume==50,
+         "AUT06 zero-frame parameter-only host updates did not persist");
+   ParameterChanges outputless;index=0;
+   outputless.addParameterData(kRowPitchBase,index)->addPoint(192,.5,index);
+   flush.numSamples=256;flush.inputParameterChanges=&outputless;
+   check(f.p->process(flush)==kResultOk,
+         "AUT06 256-frame inactive-output host automation failed");
+   ResizableMemoryIBStream second;KitState secondState{};
+   check(f.p->getState(&second)==kResultOk&&
+         KitCodec::decode(static_cast<const std::uint8_t*>(second.getData()),
+                           second.getCursor(),secondState)&&
+         secondState.pitch[0]==24&&secondState.gain[0]==150,
+         "AUT06 outputless automation lost new Pitch or other parameters");
+   f.p->setProcessing(false);f.p->setActive(false);
+ }
+ evidence("AUT02-06 real VST3 Pan/Mute/Volume/Master/Pitch PCM, automation at sample positions, zero/outputless flush, project recall, no audio allocation PASS");
 }
