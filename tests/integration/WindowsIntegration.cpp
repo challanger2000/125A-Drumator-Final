@@ -11,6 +11,7 @@
 #include "ResultLog.h"
 #include "core/PatternQuantization.h"
 #include "core/Utf8Path.h"
+#include "core/ExportFile.h"
 #include "core/FlacImport.h"
 #include "vst3/DrumatorController.h"
 #include "vst3/DrumatorView.h"
@@ -121,6 +122,12 @@ struct IntegrationAccess {
  static std::size_t v101FirstRow(const DrumatorView& view){return view.v101_.state().firstRow;}
  static UiV101Layout::Expansion v101Expansion(const DrumatorView& view){return view.v101_.state().expansion;}
  static bool v101ZoomPopupOpen(const DrumatorView& view){return view.v101_.state().zoomOpen;}
+ static std::size_t v101ShownRows(const DrumatorView& view){return view.v101_.shownRows();}
+ static float primeAndMeasureLimiter(Processor& processor,float level){
+   float l=level,r=-level*.75f;
+   processor.limiterBuses_[0].process(l,r,true);
+   return l;
+ }
  static UiV101Popup::Kind v101Popup(const DrumatorView& view){return view.v101Menu_;}
  static std::string sampleEditorStatus(const DrumatorView& v){return v.status_;}
  static bool openSampleEditorForCapture(DrumatorView& view,std::size_t row){return view.openSampleEditor(row);}
@@ -2048,6 +2055,182 @@ void testV101ConnectedPatternSongExportsAndLimiter(){
  }
  evidence("V1.0.1 connected LIMIT end-to-end: ON -0.3dBFS, stereo link, OFF exact PCM, Processor state ON/OFF PASS");
  evidence("V1.0.1 connected Controller/Processor: PATTERN+SONG MIDI, PATTERN+SONG 24bit PCM WAV, LIMIT ON/OFF, file rollback PASS");
+}
+
+
+void testCodexLegacyControllerExportReset(){
+ for(const std::uint32_t magic:{0x31524d44u,0x32524d44u,0x33524d44u}){
+   Fixture f;KitState kit{};
+   kit.visible=4;kit.grid.fill(0);kit.grid[0]=127;kit.limiter=1;
+   kit.names[0]="before.wav";kit.wav[0]=constantStereo(.7f,-.4f);
+   kit.sampleEdits[0].gain=.5f;
+   f.kit(kit);
+   check(f.c->limiterEnabled(),"Codex01 pre-legacy Controller LIMIT not ON");
+   const auto path=std::filesystem::temp_directory_path()/"125a-codex-legacy-export.wav";
+   check(f.c->exportWav(false,path.string()),"Codex01 populated pre-legacy WAV export failed");
+   std::vector<std::uint8_t> b;
+   for(auto n:{magic,std::uint32_t{0}})
+     for(int i=0;i<4;++i)b.push_back(static_cast<std::uint8_t>(n>>(8*i)));
+   if(magic==0x33524d44u)b.push_back(4);
+   if(magic!=0x31524d44u)b.insert(b.end(),kCells,0);
+   qa::ByteStream input(b.data(),b.size());
+   check(f.p->setState(&input)==kResultOk&&f.recall(b)==kResultOk,
+         "Codex01 genuine paired DMR1/2/3 restore failed");
+   check(!f.c->limiterEnabled()&&!f.c->hasSample(0),
+         "Codex01 legacy must reset visible limiter and sample state");
+   check(f.c->exportWav(false,path.string()),
+         "Codex01 post-legacy WAV export failed");
+   std::ifstream reader(path,std::ios::binary);
+   const std::vector<std::uint8_t> bytes{
+      std::istreambuf_iterator<char>(reader),std::istreambuf_iterator<char>()};
+   check(bytes.size()>44,"Codex01 legacy output invalid WAV");
+   check(std::all_of(bytes.begin()+44,bytes.end(),
+                     [](std::uint8_t v){return v==0;}),
+         "Codex01 stale sample PCM survived DMR legacy recall");
+   ResizableMemoryIBStream saved;KitState restored;
+   check(f.p->getState(&saved)==kResultOk&&
+         KitCodec::decode(static_cast<const std::uint8_t*>(saved.getData()),
+                          static_cast<std::size_t>(saved.getCursor()),restored)&&
+         restored.wav[0].empty()&&restored.limiter==0,
+         "Codex01 processor and controller disagree after DMR recall");
+   std::error_code ec;std::filesystem::remove(path,ec);
+ }
+ evidence("Codex01 paired DMR1/DMR2/DMR3: no stale exported PCM, LIMIT OFF and matching Processor state PASS");
+}
+void testCodexForeignExportFileOwnership(){
+ const auto path=std::filesystem::temp_directory_path()/"125a-codex-owned-export.mid";
+ auto foreign=path;foreign+=".125a-export-part";
+ {
+   std::ofstream out(foreign,std::ios::binary|std::ios::trunc);
+   const char guard[]="PRESERVE FOREIGN SCRATCH";
+   out.write(guard,sizeof(guard));
+ }
+ const auto read=[](const std::filesystem::path& p){
+   std::ifstream stream(p,std::ios::binary);
+   return std::vector<char>(std::istreambuf_iterator<char>(stream),
+                            std::istreambuf_iterator<char>());
+ };
+ const auto original=read(foreign);
+ check(!original.empty(),"Codex03 scratch sentinel missing");
+ {
+   ExportFile invalid{std::filesystem::path{}};
+   check(!invalid.open(),"Codex03 empty path accepted");
+ }
+ check(read(foreign)==original,
+       "Codex03 failed exporter removed another process's scratch file");
+ {
+   ExportFile one{path},two{path};
+   const char a[]="A MIDI payload",b[]="B MIDI payload";
+   check(one.open()&&two.open(),
+         "Codex03 concurrent exporters must reserve distinct scratch files");
+   check(one.write(a,sizeof(a))&&two.write(b,sizeof(b)),
+         "Codex03 concurrent scratch writes");
+   check(one.finish(),"Codex03 first transaction did not commit");
+   check(read(foreign)==original,
+         "Codex03 first commit overwrote foreign scratch");
+   check(two.finish(),"Codex03 second transaction did not commit");
+ }
+ check(read(foreign)==original,
+       "Codex03 another export destructor deleted preexisting scratch");
+ std::error_code ec;
+ std::filesystem::remove(foreign,ec);std::filesystem::remove(path,ec);
+ evidence("Codex03 foreign .125a-export-part byte-exact preservation and simultaneous scratch ownership PASS");
+}
+void testCodexControllerActionOOM(){
+ enum class Op{Limiter,Rename,Song,AddRow,RemoveRow};
+ for(const auto op:{Op::Limiter,Op::Rename,Op::Song,Op::AddRow,Op::RemoveRow}){
+   unsigned injected=0;
+   for(long fault=0;fault<12;++fault){
+     Fixture f;KitState state{};state.visible=4;f.kit(state);
+     const auto before=IntegrationAccess::snapshot(*f.c);
+     const auto oldRows=f.c->visibleRows();
+     const auto oldLimiter=f.c->limiterEnabled();
+     const auto oldName=f.c->customName(0);
+     const auto oldSong=f.c->songEnabled();
+     bool accepted=false,escaped=false;
+     allocationFail=fault;
+     try {
+       switch(op){
+         case Op::Limiter:accepted=f.c->setLimiterEnabled(true);break;
+         case Op::Rename:accepted=f.c->renameRow(0,"Codex Rename");break;
+         case Op::Song:{
+           SongChain chain{};
+           accepted=f.c->configureSong(true,chain.count(),chain,1);
+           break;
+         }
+         case Op::AddRow:accepted=f.c->addRow();break;
+         case Op::RemoveRow:accepted=f.c->hideLastEmptyRow();break;
+       }
+     }catch(...){escaped=true;}
+     const bool triggered=allocationFail==-1;
+     allocationFail=-1;
+     check(!escaped,"Codex02 bad_alloc escaped actual Controller button action");
+     if(triggered)++injected;
+     if(!accepted){
+       check(IntegrationAccess::snapshot(*f.c)==before&&
+             f.c->visibleRows()==oldRows&&
+             f.c->limiterEnabled()==oldLimiter&&
+             f.c->customName(0)==oldName&&
+             f.c->songEnabled()==oldSong,
+             "Codex02 rejected action mutated Controller state");
+     }
+   }
+   check(injected>=1,"Codex02 allocation fault failed to intercept action");
+ }
+ evidence("Codex02 forced OOM in LIMIT, rename, SONG, ADD and REMOVE; no exception or rejected-state mutation PASS");
+}
+void testCodexLimiterSameProcessorOnOffOn(){
+ Fixture f;KitState kit{};kit.visible=2;f.kit(kit);
+ prepareAudio(*f.p);
+ check(f.c->setLimiterEnabled(true),"Codex04 enable LIMIT");
+ const auto compressed=IntegrationAccess::primeAndMeasureLimiter(*f.p,2.f);
+ check(compressed<StereoPeakLimiter::kCeiling+.001f,
+       "Codex04 did not prime strong gain reduction in actual Processor");
+ check(f.c->setLimiterEnabled(false),"Codex04 disable LIMIT");
+ std::array<float,256> left{},right{};float* channels[]{left.data(),right.data()};
+ AudioBusBuffers bus{};bus.numChannels=2;bus.channelBuffers32=channels;
+ ProcessData io{};io.numSamples=256;io.numOutputs=1;io.outputs=&bus;
+ io.symbolicSampleSize=kSample32;
+ for(int i=0;i<5;++i)
+   check(f.p->process(io)==kResultOk,"Codex04 actual Processor bypass block");
+ check(f.c->setLimiterEnabled(true),"Codex04 reenable LIMIT");
+ const auto after=IntegrationAccess::primeAndMeasureLimiter(*f.p,.1f);
+ check(std::abs(after-.1f)<1e-6f,
+       "Codex04 stale gain attenuation returned on first sample after OFF->ON");
+ evidence("Codex04 SAME connected VST3 Processor: hot ON, 5 OFF blocks, quiet ON unattenuated PASS");
+}
+void testCodexV101PeerWindowFooterFallback(){
+ using L=UiV101Layout;
+ Fixture f;KitState kit{};kit.visible=4;f.kit(kit);
+ (void)f.openV101();(void)f.openV101();
+ auto* first=IntegrationAccess::view(*f.c,0);
+ auto* peer=IntegrationAccess::view(*f.c,1);
+ const auto original=L::editorHeight(0,4,L::Expansions{});
+ check(first->getViewSize().getHeight()==original&&
+       peer->getViewSize().getHeight()==original,
+       "Codex05 two attached V101 initial editor heights mismatch");
+ f.frames[1].accept=false; // second host refuses a height increase
+ click(*first,95.,original-L::footer+22.);
+ check(f.c->visibleRows()==5&&first->getViewSize().getHeight()==original+48.,
+       "Codex05 initiating editor failed to grow five-row kit");
+ check(peer->getViewSize().getHeight()==original&&
+       IntegrationAccess::v101ShownRows(*peer)==4,
+       "Codex05 refused peer editor must preserve four-row viewport");
+ const auto bottom=peer->getViewSize().getHeight()-L::footer;
+ click(*peer,1175.,bottom+22.);
+ check(IntegrationAccess::v101FirstRow(*peer)==1&&
+       IntegrationAccess::v101ShownRows(*peer)==4&&
+       peer->getViewSize().getHeight()==original,
+       "Codex05 peer NEXT PAGE footer is inaccessible after resize refusal");
+ click(*peer,1070.,bottom+22.);
+ check(IntegrationAccess::v101FirstRow(*peer)==0,
+       "Codex05 peer PREV PAGE footer failed after resize refusal");
+ f.frames[1].accept=true;
+ click(*first,95.,first->getViewSize().getHeight()-L::footer+22.);
+ check(f.c->visibleRows()==6&&IntegrationAccess::v101ShownRows(*peer)==6&&
+       peer->getViewSize().getHeight()==L::editorHeight(0,6,L::Expansions{}),
+       "Codex05 peer failed to recover full viewport after host accepts");
+ evidence("Codex05 two attached real V1.0.1 editors: peer rejected resize + live footer paging + recovery PASS");
 }
 
 // Commercial visual matrix: every capture is generated from the attached
@@ -5294,6 +5477,11 @@ int main(int argc,char** argv){
  run("V101 native interactive controller, lane and zoom actions",testV101Interaction);
  run("V101 real VST3 editor attach, mouse dispatch, dialogs and zoom",testV101LiveEditor);
  run("V101 connected Controller/Processor exports and limiter",testV101ConnectedPatternSongExportsAndLimiter);
+ run("Codex01 paired legacy recall clears Export and LIMIT",testCodexLegacyControllerExportReset);
+ run("Codex02 Controller IPC actions OOM-safe",testCodexControllerActionOOM);
+ run("Codex03 foreign export scratch ownership",testCodexForeignExportFileOwnership);
+ run("Codex04 same-instance limiter ON OFF ON reset",testCodexLimiterSameProcessorOnOffOn);
+ run("Codex05 real dual V101 editor resize refusal",testCodexV101PeerWindowFooterFallback);
  run("V101 native commercial 4-zoom GUI evidence matrix",testV101CommercialVisualEvidence);
  run("V101 native commercial typography geometry",testV101NativeTypographyFit);
  run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
