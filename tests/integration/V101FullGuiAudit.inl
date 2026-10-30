@@ -211,11 +211,71 @@ void testV101MenuMatrixAndGeometry(){
  check(f.c->rowOutput(0)==0&&
        drumator::v101::captureControllerScene(*f.c).rows[0].outputBus==0,
        "GUI audit BUS routing did not return to MAIN");
+ // CHOKE 1 -> 2 must visibly change NATIVE text pixels, not merely
+ // change the Controller and leave a static "CHOKE" label.
+ const auto chokeInk=[&](){
+   auto bmp=VSTGUI::renderBitmapOffscreen(
+     {L::width,view->getViewSize().getHeight()},1.,
+     [&](VSTGUI::CDrawContext& dc){view->draw(&dc);});
+   check(bmp!=nullptr,"GUI audit CHOKE native raster unavailable");
+   auto* pixels=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
+   check(pixels!=nullptr,"GUI audit CHOKE pixels unavailable");
+   const auto key=drumator::UiV101Interaction::settingsRect(1);
+   std::vector<std::uint32_t> values;
+   for(auto y=static_cast<std::uint32_t>(L::header+key.y0+6.);
+       y<static_cast<std::uint32_t>(L::header+key.y1-6.);++y)
+     for(auto x=static_cast<std::uint32_t>(key.x0+8.);
+         x<static_cast<std::uint32_t>(key.x1-8.);++x){
+       check(pixels->setPosition(x,y),
+             "GUI audit CHOKE text region outside native editor");
+       VSTGUI::CColor c{};pixels->getColor(c);
+       values.push_back((std::uint32_t(c.red)<<16)|
+                        (std::uint32_t(c.green)<<8)|c.blue);
+     }
+   pixels->forget();
+   return values;
+ };
+ std::vector<std::uint32_t> chokeOneInk;
+ constexpr const char* chokeLabels[]{
+   "CHOKE OFF","CHOKE 1","CHOKE 2","CHOKE 3","CHOKE 4"
+ };
  for(int group=0;group<5;++group){
    popupClick(Kind::Choke,group,setCenter(1),L::header+69.,L::header);
-   check(f.c->rowChoke(0)==static_cast<unsigned>(group),
-         "GUI audit CHOKE menu index did not set matching group");
+   const auto scene=drumator::v101::captureControllerScene(*f.c);
+   check(f.c->rowChoke(0)==static_cast<unsigned>(group)&&
+         scene.rows[0].chokeGroup==static_cast<unsigned>(group)&&
+         std::string(drumator::v101::UiV101NativePreview::chokeCaption(
+             scene.rows[0].chokeGroup))==chokeLabels[group],
+         "GUI audit CHOKE value not reflected in native caption");
+   if(group==1)chokeOneInk=chokeInk();
+   if(group==2){
+     const auto chokeTwoInk=chokeInk();
+     check(chokeOneInk.size()==chokeTwoInk.size()&&!chokeOneInk.empty(),
+           "GUI audit CHOKE native comparison has invalid dimensions");
+     unsigned changed=0;
+     for(std::size_t i=0;i<chokeOneInk.size();++i)
+       if(chokeOneInk[i]!=chokeTwoInk[i])++changed;
+     check(changed>8,
+           "GUI audit CHOKE 1 and CHOKE 2 paint identical native text");
+   }
  }
+ // Project recall must restore both actual CHOKE group and its visible label.
+ Steinberg::ResizableMemoryIBStream chokeSaved;
+ check(f.p->getState(&chokeSaved)==kResultOk,
+       "GUI audit CHOKE project snapshot failed");
+ drumator::KitState chokeKit{};
+ check(drumator::KitCodec::decode(
+         static_cast<const std::uint8_t*>(chokeSaved.getData()),
+         chokeSaved.getCursor(),chokeKit)&&chokeKit.choke[0]==4,
+       "GUI audit CHOKE 4 missing from processor project state");
+ check(f.c->setRowChoke(0,0),"GUI audit CHOKE reset before recall failed");
+ chokeSaved.rewind();
+ check(f.p->setState(&chokeSaved)==kResultOk,
+       "GUI audit CHOKE processor project recall failed");
+ chokeSaved.rewind();
+ check(f.c->setComponentState(&chokeSaved)==kResultOk&&
+       drumator::v101::captureControllerScene(*f.c).rows[0].chokeGroup==4,
+       "GUI audit CHOKE group not restored to rendered scene after recall");
  // VEL (not SET) owns one-shot random and reset, verified by clicking
  // the real host editor and observing note occupancy + other instrument.
  click(*view,1230.,L::header+12.); // SET -> VEL

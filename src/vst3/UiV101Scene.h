@@ -24,6 +24,7 @@ inline UiV101NativePreview::Scene captureControllerScene(Controller& controller)
    dst.gain=controller.rowGain(row);
    dst.randomRealtime=controller.rowRandomVelocity(row);
    dst.outputBus=controller.rowOutput(row);
+   dst.chokeGroup=controller.rowChoke(row);
    dst.pan=controller.rowPan(row);
    dst.pitch=controller.rowPitch(row);
    for(std::size_t step=0;step<dst.velocities.size();++step)

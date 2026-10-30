@@ -51,7 +51,7 @@ struct UiV101NativePreview final {
  struct RowData final {
    std::string name;
    bool hasSample=false,muted=false,solo=false;
-   unsigned gain=100,randomRealtime=0,outputBus=0;
+   unsigned gain=100,randomRealtime=0,outputBus=0,chokeGroup=0;
    int pan=0,pitch=0;
    std::array<std::uint8_t,L::steps> velocities{};
  };
@@ -67,6 +67,13 @@ struct UiV101NativePreview final {
    unsigned swing=0,humanize=0,master=100;
    std::array<RowData,L::instruments> rows{};
  };
+ // Live controller-backed CHOKE group caption, including explicit OFF state.
+ static const char* chokeCaption(unsigned group) noexcept {
+   static constexpr const char* captions[]{
+     "CHOKE OFF","CHOKE 1","CHOKE 2","CHOKE 3","CHOKE 4"
+   };
+   return group<=4?captions[group]:"CHOKE ?";
+ }
  static void fill(VSTGUI::CDrawContext& c,Box r,Color color){
    c.setFillColor(color);c.drawRect(r,VSTGUI::kDrawFilled);
  }
@@ -789,11 +796,11 @@ struct UiV101NativePreview final {
          char busLabel[20]{};
          std::snprintf(busLabel,sizeof(busLabel),"BUS %u",data.outputBus+1);
          const std::array<const char*,5> settingsLabels{{
-           busLabel,"CHOKE","COPY ROW","PASTE ROW","CLEAR ROW"
+           busLabel,chokeCaption(data.chokeGroup),"COPY ROW","PASTE ROW","CLEAR ROW"
          }};
          for(std::size_t button=0;button<settingsLabels.size();++button)
            cap(c,UiV101Interaction::settingsRect(button),y,
-               settingsLabels[button],false,10,vintageButtons,
+               settingsLabels[button],button==1&&data.chokeGroup!=0,10,vintageButtons,
                false,scene.settingsPressedRow==row&&
                      scene.settingsPressedButton==static_cast<int>(button));
        }
