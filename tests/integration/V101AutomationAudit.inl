@@ -308,16 +308,26 @@ void testV101AutomationAuditAV04FractionalUnity(){
  // first 287 glide frames the last source position is 686.5.
  const auto* unity=bank.kernel(24);
  check(unity&&unity->ready(),"AV04 unity kernel missing");
- const auto* weights=unity->phase(kSincPhases/2);
+ // A 288-frame pitch glide finishes mathematically at position 686.5.
+ // Repeated binary64 additions may place it infinitesimally below 686.5,
+ // mapping to phase 511 rather than 512 under the engine's floor quantizer.
+ // Both adjacent sinc phases are valid; neither is the old raw-frame bug.
  const std::int64_t center=686;
  const auto first=center-static_cast<std::int64_t>(unity->taps()/2-1);
- double reference=0.;
- for(std::size_t j=0;j<unity->taps();++j)
-   reference+=static_cast<double>(signal[static_cast<std::size_t>(first+j)])*
-              weights[j];
- check(std::abs(glideL[287]-reference)<2e-4&&
+ const auto interpolate=[&](std::size_t phase) {
+   const auto* weights=unity->phase(phase);
+   double sum=0.;
+   for(std::size_t j=0;j<unity->taps();++j)
+     sum+=static_cast<double>(signal[static_cast<std::size_t>(first+j)])*
+          static_cast<double>(weights[j]);
+   return sum;
+ };
+ const auto referenceBelow=interpolate(kSincPhases/2-1);
+ const auto referenceAbove=interpolate(kSincPhases/2);
+ check(std::min(std::abs(glideL[287]-referenceBelow),
+                std::abs(glideL[287]-referenceAbove))<2e-4&&
        std::abs(glideL[287]-signal[686])>.02,
-       "AV04 returned to unity ratio but skipped fractional source interpolation");
+       "AV04 neutral glide must use fractional sinc, never raw floor sample");
  evidence("AV04 10-kHz sinus +12 to 0 fractional-unity sine interpolation oracle PASS");
 }
 
