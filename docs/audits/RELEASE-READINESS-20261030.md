@@ -43,3 +43,17 @@ Windows x64 VST3 instrument. 16 rows (up to 10 visible), 32 steps, A-H patterns,
 4. Review native GUI renders and buyer manuals one last time. Only then tag `v1.0.1` / FINAL and upload to Gumroad; no premature release/tag.
 
 **Documentation-only change:** this status document and the root status banners alter no product source or VST3 package and do not invalidate the product binary SHA above.
+
+## 30 October 2026 — product RC close-out of RA-01 / RA-02
+
+**Current tested PRODUCT code:** `c90297b5ab9f44716e4d06f49dc913c643560705`; [Windows QA #41000904184](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41000904184) **SUCCESS**. Precisely **29/29 CTests, 47/47 Steinberg Validator, 58 PASS / 0 WARNING / 0 FAIL** in independent Plugin Tester v0.3.2. Tester-verified DLL SHA-256 `c7e07da90f9263560854e2ad5801263ffebd74a5b5687d4ca326088f11fc2164`.
+
+**RA-01 — code mitigation and automated test PASS; live host-failure recreation NOT RUN.** `LiveEditLease` (audio callback only) expires unrenewed LIVE edits after 4 seconds of processed audio. The View periodically renews at approx. 400 ms using existing VST3 message transport; a crashed/detached editor cannot hold provisional audio indefinitely when `EditorLiveEnd` fails. The control actor allows a new session once a prior orphan has exceeded its wall-clock timeout. No audio-thread file I/O, lock, allocation or wall-clock call is introduced. `LiveEditMailboxTests` simulates no more END/renewal, checks forced expiry and subsequent renewal; the complete audio integration and independent tester pass. Real permanently rejected Studio One `EditorLiveEnd` was not provoked; expiry occurs after processed-audio time rather than instantaneous host destruction.
+
+**RA-02 — scoped cleanup implemented and automated test PASS; DAW media ownership NOT PROVEN.** Before a new drag export, `DragExportFile::pruneStale` can remove at most 32 own folders per pass after 14 days, only with an exact three-decimal-field `125A-Drumator-Drag-...` directory and a single recognized matching regular file. Recent, symlink, foreign-content and malformed folders are excluded. The test sets 30-day old fixtures and verifies untouched recent/unrelated entries. **Important user caveat:** Windows/OLE drag does not tell the plug-in whether a DAW copied the file into a permanent project folder or still references the temp path. For releases, instruct customers to **copy/consolidate all dragged media** into their project before 14 days. Real Studio One copy/reference test remains required.
+
+**RA-03 — top-level product status clearly superseded.** Current banner added above historical headings in README, CURRENT and AGENTS. Historic audit evidence is retained for traceability, not applicable as current FINAL status.
+
+**RA-04 / RA-05 / RA-06 remain owner release gates:** exact-build Studio One/ASIO final matrix, active external outputs and four MIDI/WAV Save-and-Drag paths with DAW media ownership, rights/license/support terms, decision about signed/unsigned binary and actual customer ZIP verification.
+
+The bilingual PDF manuals and prerelease Gumroad ZIP are generated as conversation artifacts, not committed as binaries into GitHub. The new exact DLL was included and the package ZIP CRC verified. No release tag or Gumroad listing has been published. **FINAL remains on hold.**

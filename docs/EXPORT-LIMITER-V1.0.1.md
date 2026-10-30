@@ -47,3 +47,7 @@
 - Fix: PREV always accepts a nonzero firstRow, independently of total row count; a structural row-count notification automatically rebases to firstRow 0 when the entire reduced kit fits. Host resize transaction and bounded small-viewport fallback are preserved.
 - Native regression F14 checks a 16-row attached editor paged to rows 11..16, genuine controller reduction to five rows and resulting 1..5 viewport/size; it independently recreates stranded 5-5/5 state and validates PREV escape, no false NEXT and one-row-host navigation.
 - Real Studio One reenactment on this commit requires a manual owner check; previous version is known FAILED by screenshot.
+
+## Release-candidate safety maintenance (30 October 2026; product c90297b)
+
+Successful drag-created temp folders are retained for up to **14 days** to avoid racing delayed host imports. A conservatively scoped prune on the next drag deletes only one-file, correctly named, old Drumator export folders; it cannot prove whether a host still references an original temp path. Users must copy or consolidate MIDI/WAV into their DAW project's permanent media folder. Windows negative tests cover recent, foreign and malformed directories; a Studio One real project reopen test is still required. Exact run #41000904184: 29/29, Validator 47/47, Tester 58/0/0.
