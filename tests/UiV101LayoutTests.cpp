@@ -193,8 +193,9 @@ int main(){
   CHECK(action(200,y+20)==L::Action::Load);
   CHECK(action(267,y+20)==L::Action::Next);
   CHECK(action(290,y+20)==L::Action::SampleMenu);
-  CHECK(action(257.,y+20)==L::Action::Load); // boundary; see shared hit map
-  CHECK(action(281.,y+20)==L::Action::Next);
+  CHECK(action(256.99,y+20)==L::Action::Load);
+  CHECK(action(257.,y+20)==L::Action::Next); // half-open boundary
+  CHECK(action(281.,y+20)==L::Action::SampleMenu);
   CHECK(action(303.9,y+20)==L::Action::SampleMenu);
   CHECK(action(304.01,y+20)==L::Action::None);
   CHECK(action(320,y+20)==L::Action::Preview);
