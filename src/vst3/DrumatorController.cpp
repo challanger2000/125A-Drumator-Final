@@ -572,6 +572,11 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
  rowClipboardValid_=false;
  for(auto& path:samplePaths_)path.clear();
  samplePresent_.fill(false);
+ // Legacy DMR1/2/3 has no embedded PCM, sample edits or limiter. Reset
+ // the export mirror as well as the processor's sound to avoid ghost WAVs.
+ for(auto& wav:exportWavs_)wav.clear();
+ exportEdits_.fill(SampleEdit{});
+ limiterEnabled_=false;
  muted_.fill(false);solo_.fill(false);swingPercent_=0;humanizePercent_=0;
  randomVelocity_.fill(0);masterVolume_=100;
  songEnabled_=false;songChain_=SongChain{};songStartBar_=1;

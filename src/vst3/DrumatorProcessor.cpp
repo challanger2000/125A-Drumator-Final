@@ -1553,6 +1553,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
  // The OFF path skips the limiter entirely and preserves legacy sample
  // timing and PCM bit-for-bit across transport, notes and project recall.
  const bool limitOn=limiterEnabled_.load(std::memory_order_relaxed)!=0;
+ // Reset the previous peak attenuation when bypassing. Do not touch the
+ // output buffers in OFF mode: bypass stays bit-exact and latency-free.
+ if(!limitOn)for(auto& limiter:limiterBuses_)limiter.reset();
  if(limitOn)for(Steinberg::int32 bus=0;bus<data.numOutputs&&
          bus<static_cast<Steinberg::int32>(kRows);++bus){
    auto& outputBus=data.outputs[bus];

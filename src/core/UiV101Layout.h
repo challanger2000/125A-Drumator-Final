@@ -120,7 +120,9 @@ struct UiV101Layout final {
   struct Hit {std::size_t row=instruments;Action action=Action::None;int step=-1;};
   using Expansions=std::array<Expansion,instruments>;
   static constexpr Rect stepRect(std::size_t i) noexcept{
-    const double x=stepX+i*stepPitch;
+    // First and last painted edges are x+1 and x+18, respectively.
+    // Half-open hit bounds must match this physical step cap exactly.
+    const double x=stepX+1.+i*stepPitch;
     return {x,9.,x+17.,40.};
   }
   // Actual paint is stepCap(x+1..x+18). Quarter captions use exactly

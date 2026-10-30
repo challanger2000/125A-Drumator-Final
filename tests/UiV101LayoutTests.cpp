@@ -9,6 +9,11 @@ int main(){
   for(std::size_t step=0;step<L::steps;step+=4){
     const auto number=L::stepNumberRect(step);
     const auto painted=L::stepRect(step);
+    CHECK(painted.x0==L::stepX+1.+step*L::stepPitch);
+    CHECK(painted.x1==L::stepX+18.+step*L::stepPitch);
+    CHECK(!painted.hit(painted.x0-.01,20.));
+    CHECK(painted.hit(painted.x0,20.)&&painted.hit(painted.x1-.01,20.));
+    CHECK(!painted.hit(painted.x1,20.));
     // These are compile-time geometry invariants; do not instantiate the
     // CHECK macro here (MSVC C4127 under the /WX CI contract).
     if(number.x1-number.x0!=17.||number.y0!=140.||number.y1!=157.||
