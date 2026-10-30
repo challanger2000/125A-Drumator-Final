@@ -91,8 +91,12 @@ int main(int argc,char** argv) {
         fail("Editor getSize failed");
     std::cout << "Actual editor size: "
               <<rect.right-rect.left<<" x "<<rect.bottom-rect.top<<"\n";
-    if(rect.left!=0||rect.top!=0||rect.right!=1280||rect.bottom!=300)
-        fail("GUI resource or template was not loaded as 1280 x 300");
+    // F16: the default plugin is 130% zoom. The real VST3 host reads
+    // getSize BEFORE attached() when building its own title/close bar.
+    // Exactly 1280x300 here would recreate the 384px Studio One gap.
+    if(rect.left!=0||rect.top!=0||rect.getWidth()!=1664||
+       rect.getHeight()!=390)
+        fail("F16 packaged editor must report 1664 x 390 at 130%");
     Steinberg::IPlugViewContentScaleSupport* scale=nullptr;
     if(editor->queryInterface(
          Steinberg::IPlugViewContentScaleSupport::iid,
@@ -100,12 +104,12 @@ int main(int argc,char** argv) {
         fail("N10 editor lacks IPlugViewContentScaleSupport");
     if(scale->setContentScaleFactor(1.5)!=Steinberg::kResultTrue||
        editor->getSize(&rect)!=Steinberg::kResultOk||
-       rect.getWidth()!=1920||rect.getHeight()!=450)
-        fail("N10 preattach 150-percent host DPI did not resize getSize");
+       rect.getWidth()!=2496||rect.getHeight()!=585)
+        fail("F16 preattach 130% user zoom plus 150% host DPI size wrong");
     if(scale->setContentScaleFactor(1.0)!=Steinberg::kResultTrue||
        editor->getSize(&rect)!=Steinberg::kResultOk||
-       rect.getWidth()!=1280||rect.getHeight()!=300)
-        fail("N10 preattach DPI reset did not restore editor dimensions");
+       rect.getWidth()!=1664||rect.getHeight()!=390)
+        fail("F16 preattach DPI reset did not restore 130% editor dimensions");
     // Actual packaged DLL: attach a native frame, then exercise controller
     // restore and host refusal. This complements the source-instrumented QA.
     NativeFrame hostFrame;
@@ -140,7 +144,7 @@ int main(int argc,char** argv) {
     drumator::qa::result("Z02 packaged DLL PASS: native HWND attach, controller zoom 100/150 and resize rejection");
     std::cout<<"Z02 packaged DLL native attach, 100/150 controller recall and IPlugFrame refusals PASS\n";
     scale->release();
-    std::cout<<"N10 preattach 100/150 percent host DPI geometry PASS\\n";
+    std::cout<<"F16 preattach 130% user zoom and 100/150% host DPI geometry PASS\\n";
     editor->release();
     controller->terminate();
     controller->release();
