@@ -8,19 +8,19 @@ using L=drumator::UiV101Layout;
 int main(){
   using S=drumator::UiSongLayout;
   // F10-F13: eight columns fill the common SONG panel with true 8px gaps.
-  CHECK(S::columns==8&&S::cellWidth==149.&&S::columnPitch==157.);
-  CHECK(S::cellX(0)==L::surfaceLeft);
-  CHECK(S::cellX(7)+S::cellWidth==L::surfaceRight);
+  static_assert(S::columns==8&&S::cellWidth==149.&&S::columnPitch==157.);
+  static_assert(S::cellX(0)==L::surfaceLeft);
+  static_assert(S::cellX(7)+S::cellWidth==L::surfaceRight);
   for(std::size_t k=1;k<S::columns;++k){
     CHECK(S::cellX(k)-S::cellX(k-1)-S::cellWidth==8.);
     CHECK(S::slotAt(S::cellX(k)+5.,S::cellY(0)+4.,0)==k);
     CHECK(S::slotAt(S::cellX(k)-4.,S::cellY(0)+4.,0)==
           drumator::SongChain::kCapacity);
   }
-  CHECK(S::slotAt(S::cellX(7)+S::cellWidth,S::cellY(0)+10.,0)==
-        drumator::SongChain::kCapacity);
-  CHECK(S::removeRight==S::nextRight&&S::removeRight<L::surfaceRight);
-  CHECK(L::songFooterExport.x1==S::nextRight);
+  static_assert(S::slotAt(S::cellX(7)+S::cellWidth,S::cellY(0)+10.,0)==
+                drumator::SongChain::kCapacity);
+  static_assert(S::removeRight==S::nextRight&&S::removeRight<L::surfaceRight);
+  static_assert(L::songFooterExport.x1==S::nextRight);
   const auto songPopup=drumator::UiV101Popup::geometry(
       drumator::UiV101Popup::Kind::Export,L::header,432.,true);
   const auto mainPopup=drumator::UiV101Popup::geometry(
