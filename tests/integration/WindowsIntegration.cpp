@@ -2620,9 +2620,12 @@ void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
          "V101 expanded row sample pixel inaccessible");
    VSTGUI::CColor sample{};access->getColor(sample);
    if(mode==V101CaptureMode::Velocity){
-     check(sample.red>175&&sample.red>sample.green+55&&
-           sample.red>sample.blue+80,
-           "V101 Velocity screenshot lacks actual bright orange velocity bar");
+     // Pixel at an occupied velocity bar: the new velocity-strength
+     // palette MUST be cyan (distinct from amber on/off Pattern keys).
+     // Keep this an actual raster oracle, not merely a source-color check.
+     check(sample.blue>145&&sample.green>115&&
+           sample.blue>sample.red+45&&sample.green>sample.red+20,
+           "V101 Velocity screenshot lacks actual cyan velocity bar");
    }else{
      check(sample.red>120&&sample.green>120&&sample.blue>105&&
            std::abs(static_cast<int>(sample.red)-static_cast<int>(sample.green))<28,
