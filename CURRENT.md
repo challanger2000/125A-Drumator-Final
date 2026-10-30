@@ -1,13 +1,14 @@
-# 125A Drumator — Current
+# 125A Drumator — Status auf dem älteren Standardbranch
 
-- Target Windows VST3 version: **1.0.0**
-- Status: **V1.0.0 Windows QA passed; owner field test in Studio One in progress; no public release yet**
-- Source repo: `challanger2000/125A-Drumator`
-- Audited product commit: `a14d9e67470ad0af94a8250baca13fa3a15fb70e`
-- Source export (docs-only additional commit): `91afadfd643fd32fa49e3d0fdb4ec9e39c9e106b`
-- Windows original source QA: [run 40425541707](https://github.com/challanger2000/125A-Drumator/actions/runs/40425541707), 23/23 CTests, 47/47 Validator, 58/0/0 Tester
-- Final repository Windows QA: **PASS** at [Actions #40430043280](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40430043280), commit `69d2e24ff0311516d20e274da95ad69f50e75692`: **23/23 CTests; 47/47 Steinberg Validator; packaged VST3 audio/host PASS; 125A Plugin Tester v0.3.2: 58 PASS / 0 WARNING / 0 FAIL**; exact candidate DLL SHA-256 `3366e1a0bdff3553cad4cabec3b24780b0414ddf0e16299e4d7c86e616dcbcb4`
-- Owner-local release-candidate ZIP: `125A_Drumator_v1.0.0_Windows_x64_FINAL.zip` (manually renamed by owner; public package upload/Gumroad release **NOT DONE**)
-- Final packaging fix (unused background excluded, moduleinfo 1.0.0): [Windows QA #40432613982](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40432613982), source commit `e84df4ea8c317e12bf792a0a2396c810ed2d6f02`, **SUCCESS**
-- Publication: **ON HOLD** pending several days of Studio One use and owner decision; do not change audio, GUI, resource files, or publish without explicit approval
-- Git submodules: **none** in the copied source tree; third-party VST3 SDK is fetched at build time
+> **ACHTUNG: `main` enthält den älteren 1.0.0-Quellcode. Die aktuelle Produktversion ist 1.0.1 im Branch [develop/v1.0.1-gui-redesign](https://github.com/challanger2000/125A-Drumator-Final/tree/develop/v1.0.1-gui-redesign).**
+
+**Verbindliche aktuelle Statusdatei:** [`CURRENT.md` der Version 1.0.1](https://github.com/challanger2000/125A-Drumator-Final/blob/develop/v1.0.1-gui-redesign/CURRENT.md).
+
+- **Produkt-Build-SHA:** `1acfe3698bcbe6eb88e1faee6ff8e538edbc390d`.
+- **Windows QA:** [#41125370883, Versuch 2](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41125370883) — SUCCESS, 29/29 CTests, 47/47 Validator, 58/0/0 Plugin Tester.
+- **Kundenpaket:** 1.0.1 vorbereitet und außerhalb Git geprüft; inkl. Drittanbieter-Lizenzhinweisen.
+- **Veröffentlichung:** kein GitHub-Release/Tag, keine bestätigte Gumroad-Veröffentlichung.
+
+**Wichtig:** Für 1.0.1 nicht den alten `main`-Quellcode bauen. `main` wurde **nicht** heimlich mit dem Produktbranch zusammengeführt. Ein dafür nötiger Merge und die Synchronisierung des Standardbranches bleiben getrennte, kontrollierte Aufgaben.
+
+Der alte 1.0.0-Status wurde [historisch archiviert](docs/history/main-v100-CURRENT-archive.md).

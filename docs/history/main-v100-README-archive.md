@@ -1,0 +1,74 @@
+> **HISTORISCHES ORIGINAL AUS DEM VERALTETEN MAIN 1.0.0.** Diese Datei wurde zur Archivierung am 30.10.2026 abgelegt. Bitte keine Freigabe-/Versionsaussagen daraus als aktuell verwenden. Maßgeblich: [aktuelle 1.0.1-Statusdatei](https://github.com/challanger2000/125A-Drumator-Final/blob/develop/v1.0.1-gui-redesign/CURRENT.md).
+
+---
+
+# 125A Drumator v1.0.0 — Final repository
+
+**Current release candidate (27.10.2026):** Owner-approved GUI/design, full imported source from verified product commit `a14d9e67470ad0af94a8250baca13fa3a15fb70e` plus documentation-only commit `91afadfd643fd32fa49e3d0fdb4ec9e39c9e106b`. Version 1.0.0 has passed Final-repository Windows QA at [run #40430043280](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40430043280): 23/23 CTests, 47/47 Steinberg Validator and 58/0/0 independent Plugin Tester. Final packaged VST3 QA also passed [run #40432613982](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40432613982) (unused PNG excluded; moduleinfo v1.0.0). Owner testing the candidate in Studio One; no public release or Gumroad upload is approved. The old development milestones below are historical.
+
+---
+
+**Historisches Entwicklungsprotokoll (bis 26.10.2026):** Alle folgenden damaligen Versions-, QA- und Freigabehinweise beschreiben frühere Entwicklungsstände und sind nicht der aktuelle V1.0.0-Status. Maßgeblich sind die Angaben oben und `CURRENT.md`.
+
+---
+
+**Entwicklungskandidat (24.10.2026):** Letzter vollständig Windows-geprüfter Stand vor dieser Reparaturrunde: `7d0054289bc2630250afeeb75c1a57f0b86d465f` ([Actions #40040298588](https://github.com/challanger2000/125A-Drumator/actions/runs/40040298588), 23/23 CTests, 47/47 Steinberg Validator). Neuere Änderungen gelten erst mit Windows-QA für ihren exakten Commit als geprüft. **KEIN V1-FINAL:** Studio-One-/ASIO-Aussetzerfreiheit und 125A Plugin Tester sind noch nicht abgenommen. Die alten Auditangaben vom 22.10. sind historisch. `kPluginVersion=0.1.0` kennzeichnet den Entwicklungsstand, keine V1-Freigabe.
+
+# 125A Drumator
+
+**Windows-geprüfter Reparaturstand 20.10.2026:** `62f10a4edade31217c90a32eba3d4e39eefc54ee`, [Actions #39347442164](https://github.com/challanger2000/125A-Drumator/actions/runs/39347442164): **17/17 CTests**, Validator **47/47**, paketierte VST3-Editor- und Audio-Host-Smokes PASS. Z01–Z03 technisch repariert; [genauer Reparaturbericht](docs/CODEX-Z01-Z03-REPAIR-2026-10-20.md). Unabhängiger Codex-Recheck, echte Studio-One-Interaktion und Skin noch offen. Mehrfach-View-Zoom-Recall bei mehr als einer erforderlichen Fensteränderung wird derzeit ohne Teiländerung abgewiesen. **NOT FINAL.**
+
+**Neuester reparierter Windows-Stand (20.10.2026):** `d984188457882a4463b9263593d88f7bf1fffb71`, [Actions #39341195970](https://github.com/challanger2000/125A-Drumator/actions/runs/39341195970) **SUCCESS**: 16/16 aktive CTests, Steinberg Validator 47/47 und paketierte Editor-/Audio-Hosttests PASS. Codex RC01–RC04 repariert: Kit/Edit-Generation, Zoom-Priorität, Rename-Stale-Edit, korrekte Drop-Diagnose. [Reparaturnachweis](docs/CODEX-RC01-RC04-REPAIR-2026-10-20.md). Die darunterliegenden M- und A01–A09-Stände sind historisch. **Noch keine native Studio-One-QA, keine finale Grafik, NOT FINAL.**
+
+**Neuester Windows-geprüfter Code (19.10.2026):** `dbd9106f7af48b23ad4874a1a4c74395baa14173`. [Actions #39335925418](https://github.com/challanger2000/125A-Drumator/actions/runs/39335925418): **15/15 CTests**, **47/47 Validator**, paketierte GUI-/Audio-Hosttests PASS. Codex-Befunde A01–A09 wurden im Code bearbeitet; [Reparaturnachweis](docs/CODEX-FINDINGS-REPAIR-2026-10-19.md). Native Studio-One-Abnahme und finaler Skin bleiben **OFFEN**. **NOT FINAL.**
+
+**Latest verified development source (19.10.2026):** `b6c40d0c918f92c0d63e343dc72caa0793528fb5`; [Windows Actions #39324490951](https://github.com/challanger2000/125A-Drumator/actions/runs/39324490951) **SUCCESS**, 13/13 active CTests (including intentional negative test), Steinberg Validator 47/47, packaged GUI/audio host PASS. Fixed SongChain Release testing, header click boundaries, UIDESC maximum height, Undo disabled state, two own MSVC warnings. **This is a functional technical VSTGUI handoff, not final graphics and not a Studio One release.** See [Audit addendum](docs/SELF-AUDIT-FOR-CODEX-2026-10-19.md).
+
+**Current development checkpoint (2026-10-19):** The expandable per-row **32-bar velocity editor** now supports clicking and painting velocity 1–127, Ctrl+click/drag OFF (0), plus row selection. Source `3944ed2`; [Windows Actions #39314206625](https://github.com/challanger2000/125A-Drumator/actions/runs/39314206625) SUCCESS: 11/11 CTests, 47/47 Validator, packaged GUI/audio smoke PASS. Native Studio One interactive/mouse/zoom acceptance and final-branded GUI outstanding. [Velocity Lane](docs/FEATURE-VELOCITY-LANE.md). **Not FINAL.**
+
+**Current development checkpoint (2026-10-19):** A-H patterns now independently switch **1T/2T** via **Shift+pattern button**, without erasing steps 17–32. DM15 project state remains backward-compatible with DM14. Source `1d6f543`, [Windows Actions #39312446384](https://github.com/challanger2000/125A-Drumator/actions/runs/39312446384) SUCCESS: 10/10 CTests, 47/47 Validator, packaged one-bar/two-bar host audio PASS. Manual Studio One QA and final GUI remain open. Details: [DM15 Patterns](docs/FEATURE-PATTERN-LENGTH-DM15.md). **Not FINAL.**
+
+**Current development checkpoint (2026-10-19):** Clickable per-row sample preview added in [source `959ce18`](https://github.com/challanger2000/125A-Drumator/commit/959ce183ba8b55637c66ac8d77f076eba5e44a22). [Windows Actions #39310135488](https://github.com/challanger2000/125A-Drumator/actions/runs/39310135488) SUCCESS: 10/10 CTests, 47/47 Steinberg Validator, packaged VST3 one-shot stopped-transport audio-host smoke PASS. Use the **P** button beside an instrument name. Host-specific Studio One UI/stop state requires manual QA; not final. Details: [Sample Preview](docs/FEATURE-SAMPLE-PREVIEW.md).
+
+**Current development checkpoint (2026-10-19):** Independent per-instrument naming implemented in DM14 source `c62b8fa`, [Windows Actions #39307595099](https://github.com/challanger2000/125A-Drumator/actions/runs/39307595099) SUCCESS: 10/10 CTests, Steinberg Validator 47/47, packaged GUI/audio host smoke PASS. Use **Shift+click on row name** to rename. Manual Studio One text editing and project-open tests remain outstanding. Details: [DM14 Row Names](docs/FEATURE-ROW-NAMES-DM14.md). **Not final.**
+
+Vintage-inspired multi-format drum sampler with a 32-step running-light sequencer. Focus: **drop a sample onto a drum row, program steps, play.**
+
+**M08 Windows-verified technical candidate (2026-10-16):** removes the misleading internal kick (empty sample rows are silent), supports mono/stereo WAV PCM 8/16/24/32-bit, IEEE float32 and common WAVE_FORMAT_EXTENSIBLE variants, and keeps recorded level at center pan (unity per channel, no normalization). GUI distinguishes load failure causes, and VSTGUI file-path drag/drop targets individual rows. **CI VERIFIED; real Studio Pro loading and dragged-file confirmation remain unverified until user test.** No release or FINAL label.
+
+M08 **verified Windows QA** at source commit `73b0430c673ea86d7133ca6ebd75a56c7515c3bd`, [Actions #38952896083](https://github.com/challanger2000/125A-Drumator/actions/runs/38952896083) **SUCCESS**: MSVC Windows x64 compiled, six CTests **6/6 PASS**, official Steinberg Validator **47/47 PASS**, actual packaged editor smoke **1100×600 PASS**. Delivered artifact `125A-Drumator-M08-Windows-x64-WAV-Drop-Audition` (ID 12069382610): ZIP was downloaded, its three expected paths inspected, PE x64 confirmed, `moduleinfo.json` and `Drumator.uidesc` parsed as valid JSON, ZIP integrity clean. In Studio Pro user tests for PCM24/float WAV loading and OS/browser drag/drop **remain unverified**.
+
+**M09 verified Windows QA:** source `c7e8a08eac6ab8fd2392d23151d44d18c2b81586`, [Actions #38956743559](https://github.com/challanger2000/125A-Drumator/actions/runs/38956743559) SUCCESS. Seven CTests **7/7 PASS**, official Steinberg Validator **47/47 PASS**, packaged editor geometry **1100x300 PASS**, actual packaged VST3 host simulation PASS for silence before load, PCM16 +0.50/+0.50, PCM24 +0.25/+0.25 and FLOAT32 -0.50/-0.50 L/R amplitude; corrupt WAV rejection preserves prior sound; unloaded row 2 silent. Artifact `125A-Drumator-M09-4-Rows-Host-Audio-QA` id `12070159256`, downloaded as ZIP, verified exact `125A Drumator.vst3` tree (3 nonempty files), valid JSON resources, PE x64 signature and ZIP integrity. NO claim of real Studio Pro browser drag/drop, GUI plus/minus interaction, recalled sample assets, prolonged paced realtime load or V1 final.
+
+**M09 candidate:** compact 4-row GUI expanding up to 16; stored row visibility; real packaged Windows VST3 MIDI/WAV/audio host smoke to reduce repeated manual DAW tests. Source Windows CI and packaged VST3 host simulation verified; proprietary DAW interaction unverified.
+
+**M10 VERIFIED Windows host state recall**: source commit `eb11d3f4fdacf557aa48940395616fbeda79caaa`, [Actions #38960037594](https://github.com/challanger2000/125A-Drumator/actions/runs/38960037594) SUCCESS. CTests **8/8 PASS**; official Steinberg Validator **47/47 PASS**; packaged editor 1100x300 PASS; packaged audio-host smoke full DMR4 save → **new VST3 processor/controller instance** → state restore **before** setupProcessing → same FLOAT32 WAV at measured **−0.5 per channel** PASS. PCM16/24/FLOAT32 amplitude, corrupt input, silent unloaded row also PASS. Artifact ID `12072750795` (125A-Drumator-M10-Embedded-Kit-Recall-QA), ZIP `125A_Drumator_M10_Windows_x64.zip` independently inspected; three correct bundle files, no corrupt ZIP members, x64 PE machine 0x8664, strict JSON resources, DLL SHA256 `87d7254382901ccf2d8053e7440bbfdb801618cfd71bda3ca8faf9dbde5b4dd8`. **Studio Pro 8.1.2 project reopen/GUI/drag-drop, all 16 rows loaded concurrently, kit limit handling under 64 MiB, and long-term realtime still need independent QA. Not FINAL.**
+
+**M10 verified technical candidate:** portable embedded-kit project recall (WAV bytes + basename + 8 patterns + visible rows); total kit WAV limit 64 MiB; Windows CI and actual fresh-instance host recall test PASS; host-specific GUI/project reopening remains unverified.
+
+**Status:** development; **first VSTGUI prototype built in Windows CI, not yet DAW-tested**. 16x32 clickable step grid, pattern buttons and PCM16 WAV picker exist in source, but independent DAW GUI/audio behavior and restored sample references are NOT verified. **NOT a Drumator release.**
+
+**GUI resource fix / verified source:** commit `7097bc5a9a6fa6178ffde7fa706aa9be94de280c`, Windows Actions [#38944959865](https://github.com/challanger2000/125A-Drumator/actions/runs/38944959865), 6/6 CTests PASS, Steinberg Validator 47/47 PASS, and new **editor geometry smoke 1100 × 600 PASS** on the packaged VST3. Downloaded artifact `125A-Drumator-M07-Windows-x64-GUI-PROTOTYPE` (ID 12064249354) has been independently ZIP-verified. Studio Pro GUI rendering and click/WAV playback are NOT yet confirmed.
+
+**Previous, faulty M07 Windows package (DO NOT INSTALL):** [GitHub Actions #38943169799](https://github.com/challanger2000/125A-Drumator/actions/runs/38943169799), source commit `e071e5892c6d68771318559931881d501d8a0256`: **Windows x64 build PASS, six CTests 6/6 PASS, Steinberg Validator 47/47 PASS**. Artifact `125A-Drumator-M07-Windows-x64-GUI-PROTOTYPE` (ID `12063164348`) independently downloaded and ZIP-structure verified: **`125A Drumator.vst3/Contents/x86_64-win/125A Drumator.vst3`**, resource files present, strict moduleinfo JSON valid. Not yet manually Studio Pro tested and NOT FINAL.
+
+**Verified M06 technical build:** source `9f223c0f6c4d8e65a8ce368afd08a0387643af57`, [GitHub Actions #38919501529](https://github.com/challanger2000/125A-Drumator/actions/runs/38919501529) **SUCCESS**: Windows MSVC x64 VST3 build PASS; five CTests **5/5 PASS**; moduleinfotool PASS; official Steinberg Validator **47/47 PASS** on assembled bundle. Engineering-only artifact `Drumator-M06-INTERIM-VST3-UNTESTED` (ID `12053822596`). No DAW WAV-import/GUI/audio test or final release.
+
+**Previous verified technical milestone:** Verified at source commit `8b2b41eb1feb8dca09a325e7d649841a34ce58af`, [Windows Actions #38917602904](https://github.com/challanger2000/125A-Drumator/actions/runs/38917602904): MSVC x64 Release build PASS; CTest **4/4 PASS** (`drumator_core_tests`, `drumator_voice_tests`, `drumator_wav_tests`, `drumator_exchange_tests`); official moduleinfotool creation and validation PASS; assembled Windows VST3 bundle official Steinberg Validator **47/47 PASS**. Engineering-only artifact `Drumator-M03-VST3-UNTESTED`, id `12052789021` (still temporary synthesized kick and no editor).
+
+**Latest Windows evidence:** [Actions #38923496070](https://github.com/challanger2000/125A-Drumator/actions/runs/38923496070) / compiled commit `d1055c1b59aba15b6a7c9d594e5f882b13fd630d`: **6/6 CTest PASS**, Steinberg Validator **47/47 PASS**, engineering-only GUI candidate ZIP available. Not manual host tested.
+
+Development: `develop/v1.0.0`.
+
+- [SDK baseline](docs/SDK-BASELINE.md) — official Steinberg VST3 SDK **3.8.1**, pinned tag and commit
+- [Milestone 01](docs/MILESTONE-01.md) — deterministic step scheduler and state storage
+- [Milestone 02](docs/MILESTONE-02.md) — sample voices, choke, pitch interpolation and tests
+- [Milestone 03](docs/MILESTONE-03.md) — pinned SDK integration and verifiable Windows VST3 prototype
+- [Milestone 04](docs/MILESTONE-04.md) — strict WAV PCM16 decoder (test coverage under verification)
+- [Milestone 05](docs/MILESTONE-05.md) — prepared-sample ownership handoff and deferred reclamation
+- [Milestone 06](docs/MILESTONE-06.md) — candidate VST3 sample-message receiver and 16-row MIDI audition; no GUI yet
+- [Milestone 07](docs/MILESTONE-07.md) — VSTGUI 16-row/32-step prototype, initial WAV file chooser and atomic step state (CI/host verification pending)
+- [V1 concept/scope](docs/V1-SCOPE.md) — user workflow and technical requirements
+- [Contributor/agent rules](AGENTS.md) — mandatory 125A Engineering entry and Windows-only policy
+
+Engineering authority: [125A-Engineering / START-HERE.md](https://github.com/challanger2000/125A-Engineering/blob/main/START-HERE.md).
