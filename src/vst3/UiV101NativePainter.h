@@ -511,9 +511,10 @@ struct UiV101NativePreview final {
    const auto cream=Skin::steel();
    auto expanded=L::Expansions{};
    if(ui.expandedRow<L::instruments)expanded[ui.expandedRow]=ui.expansion;
-   const auto limit=std::min(ui.viewportRows,
-           ui.expansion==L::Expansion::None?
-                    L::visibleRows:L::visibleRows-1);
+   const auto limit=ui.expansion==L::Expansion::None?
+       ui.viewportRows:std::min(
+         ui.viewportRows>1?ui.viewportRows-1:std::size_t{1},
+         L::visibleRows-1);
    const auto shown=ui.firstRow<scene.visibleRows?
                     std::min(limit,scene.visibleRows-ui.firstRow):std::size_t{0};
    const double total=L::editorHeight(ui.firstRow,shown,expanded);
