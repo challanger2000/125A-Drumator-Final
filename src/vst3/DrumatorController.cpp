@@ -28,6 +28,15 @@
 #include <vector>
 
 namespace drumator {
+// Own every control-action message from allocation until delivery returns.
+// If SDK setMessageID or attribute packing throws, release still runs.
+struct ScopedActionMessage final {
+ Steinberg::Vst::IMessage* p{};
+ explicit ScopedActionMessage(Steinberg::Vst::IMessage* message)noexcept:p(message){}
+ ~ScopedActionMessage(){if(p)p->release();}
+ ScopedActionMessage(const ScopedActionMessage&)=delete;
+ ScopedActionMessage& operator=(const ScopedActionMessage&)=delete;
+};
 void Controller::requestMeterSnapshot(){
  // Called by DrumatorView::pollMeter() noexcept. No allocation/host
  // exception may escape the VSTGUI timer or Windows host callback.
@@ -640,46 +649,46 @@ const std::string& Controller::label(std::size_t row) const noexcept {
 bool Controller::renameRow(std::size_t row,const std::string& name) {
  if(row>=kRows||!validRowLabel(name))return false;
  if(customNames_[row]==name)return true;
- // Allocate BEFORE asking the processor to commit. Updating the controller
- // after success must be noexcept, or an OOM leaves both sides inconsistent.
- std::string prepared;
- try {prepared=name;}catch(const std::bad_alloc&) {return false;}
- auto* msg=allocateMessage();if(!msg)return false;
- msg->setMessageID("Drumator.RenameRow");
- auto* attrs=msg->getAttributes();
- if(!attrs||attrs->setInt("Row",static_cast<Steinberg::int64>(row))!=Steinberg::kResultOk||
-    attrs->setBinary("DisplayName",name.data(),static_cast<Steinberg::uint32>(name.size()))!=Steinberg::kResultOk){
-   msg->release();return false;
- }
- const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
- if(ok){customNames_[row].swap(prepared);notifyViews(false);}
- return ok;
+ try {
+   std::string staged=name; // stage before Processor commit
+   ScopedActionMessage msg{allocateMessage()};
+   if(!msg.p)return false;
+   msg.p->setMessageID("Drumator.RenameRow");
+   auto* a=msg.p->getAttributes();
+   if(!a||a->setInt("Row",static_cast<Steinberg::int64>(row))!=Steinberg::kResultOk||
+      a->setBinary("DisplayName",name.data(),
+        static_cast<Steinberg::uint32>(name.size()))!=Steinberg::kResultOk||
+      sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+   customNames_[row].swap(staged);
+   try {notifyViews(false);}catch(...){}
+   return true;
+ }catch(...){return false;}
 }
 bool Controller::configureSong(bool enabled,std::size_t count,const SongChain& chain,std::uint16_t startBar) {
  if(startBar==0)startBar=songStartBar_;
- if(startBar<1||startBar>9999)return false;
- if(count==0||count>SongChain::kCapacity||chain.count()!=count)return false;
+ if(startBar<1||startBar>9999||count==0||count>SongChain::kCapacity||
+    chain.count()!=count)return false;
  std::array<std::uint8_t,2*SongChain::kCapacity> bytes{};
  for(std::size_t i=0;i<count;++i){
    const auto entry=chain.entry(i);
    if(entry.pattern>SongChain::kRest||!SongChain::validLength(entry.steps))return false;
    bytes[2*i]=entry.pattern;bytes[2*i+1]=entry.steps;
  }
- auto* msg=allocateMessage();
- if(!msg)return false;
- msg->setMessageID("Drumator.SongConfig");
- auto* a=msg->getAttributes();
- if(!a||a->setInt("Enabled",enabled?1:0)!=Steinberg::kResultOk||
-    a->setInt("Count",static_cast<Steinberg::int64>(count))!=Steinberg::kResultOk||
-    a->setInt("StartBar",startBar)!=Steinberg::kResultOk||
-    a->setBinary("Entries",bytes.data(),static_cast<Steinberg::uint32>(count*2))!=Steinberg::kResultOk){
-   msg->release();return false;
- }
- const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
- if(ok){songEnabled_=enabled;songChain_=chain;songStartBar_=startBar;notifyViews(false);}
- return ok;
+ try {
+   ScopedActionMessage msg{allocateMessage()};
+   if(!msg.p)return false;
+   msg.p->setMessageID("Drumator.SongConfig");
+   auto* a=msg.p->getAttributes();
+   if(!a||a->setInt("Enabled",enabled?1:0)!=Steinberg::kResultOk||
+      a->setInt("Count",static_cast<Steinberg::int64>(count))!=Steinberg::kResultOk||
+      a->setInt("StartBar",startBar)!=Steinberg::kResultOk||
+      a->setBinary("Entries",bytes.data(),
+          static_cast<Steinberg::uint32>(count*2))!=Steinberg::kResultOk||
+      sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+   songEnabled_=enabled;songChain_=chain;songStartBar_=startBar;
+   try {notifyViews(false);}catch(...){}
+   return true;
+ }catch(...){return false;}
 }
 bool Controller::setSongStartBar(unsigned bar){
  return bar>=1&&bar<=9999&&configureSong(songEnabled_,songChain_.count(),songChain_,static_cast<std::uint16_t>(bar));
@@ -960,43 +969,48 @@ bool Controller::canHideLast() const noexcept {
 }
 bool Controller::addRow() {
  if(visibleRows_>=kRows)return false;
- auto* message=allocateMessage();
- if(!message)return false;
- message->setMessageID("Drumator.VisibleRows");
- auto* attrs=message->getAttributes();
- if(!attrs){message->release();return false;}
- attrs->setInt("Count",static_cast<Steinberg::int64>(visibleRows_+1));
- const auto good=sendEditMessage(message)==Steinberg::kResultOk;
- message->release();
- if(good){++visibleRows_;notifyViews(false);}
- return good;
+ try {
+   ScopedActionMessage msg{allocateMessage()};
+   if(!msg.p)return false;
+   msg.p->setMessageID("Drumator.VisibleRows");
+   auto* a=msg.p->getAttributes();
+   if(!a||a->setInt("Count",
+           static_cast<Steinberg::int64>(visibleRows_+1))!=Steinberg::kResultOk||
+      sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+   ++visibleRows_;
+   try {notifyViews(false);}catch(...){}
+   return true;
+ }catch(...){return false;}
 }
 bool Controller::restoreVisibleRows(std::size_t previous) {
  if(previous<1||previous>kRows)return false;
  if(previous==visibleRows_)return true;
- auto* message=allocateMessage();
- if(!message)return false;
- message->setMessageID("Drumator.VisibleRows");
- auto* attrs=message->getAttributes();
- if(!attrs){message->release();return false;}
- attrs->setInt("Count",static_cast<Steinberg::int64>(previous));
- const bool good=sendEditMessage(message)==Steinberg::kResultOk;
- message->release();
- if(good){visibleRows_=static_cast<std::uint8_t>(previous);notifyViews(false);}
- return good;
+ try {
+   ScopedActionMessage msg{allocateMessage()};
+   if(!msg.p)return false;
+   msg.p->setMessageID("Drumator.VisibleRows");
+   auto* a=msg.p->getAttributes();
+   if(!a||a->setInt("Count",static_cast<Steinberg::int64>(previous))!=Steinberg::kResultOk||
+      sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+   visibleRows_=static_cast<std::uint8_t>(previous);
+   try {notifyViews(false);}catch(...){}
+   return true;
+ }catch(...){return false;}
 }
 bool Controller::hideLastEmptyRow() {
  if(!canHideLast())return false;
- auto* message=allocateMessage();
- if(!message)return false;
- message->setMessageID("Drumator.VisibleRows");
- auto* attrs=message->getAttributes();
- if(!attrs){message->release();return false;}
- attrs->setInt("Count",static_cast<Steinberg::int64>(visibleRows_-1));
- const auto good=sendEditMessage(message)==Steinberg::kResultOk;
- message->release();
- if(good){--visibleRows_;notifyViews(false);}
- return good;
+ try {
+   ScopedActionMessage msg{allocateMessage()};
+   if(!msg.p)return false;
+   msg.p->setMessageID("Drumator.VisibleRows");
+   auto* a=msg.p->getAttributes();
+   if(!a||a->setInt("Count",
+           static_cast<Steinberg::int64>(visibleRows_-1))!=Steinberg::kResultOk||
+      sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+   --visibleRows_;
+   try {notifyViews(false);}catch(...){}
+   return true;
+ }catch(...){return false;}
 }
 void Controller::beginVelocityStroke(std::size_t p,const void* owner) {
  if(p>=kPatterns)return;
@@ -1561,14 +1575,17 @@ Controller::LoadStatus Controller::loadWav(std::size_t row,const std::string& pa
 }
 bool Controller::setLimiterEnabled(bool enabled){
  if(limiterEnabled_==enabled)return true;
- auto* msg=allocateMessage();if(!msg)return false;
- msg->setMessageID("Drumator.Limiter");
- auto* a=msg->getAttributes();
- const bool success=a&&a->setInt("Enabled",enabled?1:0)==Steinberg::kResultOk&&
-     sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
- if(success){limiterEnabled_=enabled;notifyViews(false);}
- return success;
+ try {
+   ScopedActionMessage msg{allocateMessage()};
+   if(!msg.p)return false;
+   msg.p->setMessageID("Drumator.Limiter");
+   auto* attrs=msg.p->getAttributes();
+   if(!attrs||attrs->setInt("Enabled",enabled?1:0)!=Steinberg::kResultOk||
+      sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+   limiterEnabled_=enabled; // accepted by Processor: cannot roll back
+   try {notifyViews(false);}catch(...) {/* redraw on next host pulse */ }
+   return true;
+ }catch(...){return false;} // SDK may throw bad_alloc before commitment
 }
 bool Controller::exportMidi(bool song,const std::string& path){
  try {
