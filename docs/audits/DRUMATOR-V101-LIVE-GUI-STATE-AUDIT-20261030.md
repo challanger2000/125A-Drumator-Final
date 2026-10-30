@@ -59,3 +59,9 @@ The former F14 navigation test used only a successful click sequence with 16 row
 - Offline Windows timing (CI) is not hard-real-time ASIO certification; p95/p99 and max have to be measured under the user's actual project conditions.
 
 **Disposition:** At this stage it is *not* a certified FULL AUDIT or V1.0.1 FINAL. The automated suite is substantial but the above unresolved DAW/fault gates must remain visible. A completely green CI result cannot override this section.
+
+## 30 October 2026 — audit follow-up: constrained peer viewport regression
+
+The comprehensive F15 boundary pass exposed a compatibility conflict under genuine VSTGUI peer HWND resize refusal. Run [#40996629622](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/40996629622) compiled and passed 28/29 CTests, including F15's original matrix, LIVE actual drum PCM and the WAV/FLAC source-refresh lifecycle. The existing dual-editor host regression **Codex05 FAILED**: a refused host height increase with 5 instruments and a 4-row viewport must navigate from 1..4 to **2..5**, preserving 4 visible rows and the actual footer y-coordinate, rather than jumping to a 1-row final page and attempting an impossible resize.
+
+Root correction: preserve **overlapping final page** only for host-constrained viewports (`limit<10`), while using canonical non-overlapping pages for the full ten-row window. Reverse navigation correctly returns to the previous actual start (e.g. for 16/6: 0→6→10→6→0). F15's 160 combination checks now compute the actual forward history and then reverse it; Codex05 continues to check real native peer View/resize denial. Neither user-facing audio nor LIVE exchange is changed by this follow-up. This run remains NOT VERIFIED until its own Windows QA and tester complete.

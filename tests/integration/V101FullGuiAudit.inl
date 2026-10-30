@@ -574,21 +574,30 @@ void testV101F15ExhaustivePageMatrix(){
    for(std::size_t capacity=1;capacity<=L::visibleRows;++capacity){
      drumator::UiV101Interaction pager(*f.c);
      pager.setViewportRows(capacity);
-     const auto last=((total-1)/capacity)*capacity;
-     for(std::size_t first=0;first<=last;first+=capacity){
+     const auto last=total<=capacity?std::size_t{0}:
+       capacity==L::visibleRows?((total-1)/capacity)*capacity:total-capacity;
+     std::vector<std::size_t> forwardStarts{0};
+     for(std::size_t n=0;n<=L::instruments;++n){
+       const auto first=forwardStarts.back();
        check(pager.state().firstRow==first,
-             "F15 forward page did not land on canonical start row");
+             "F15 forward page did not land on actual page start row");
        check(pager.shownRows()==std::min(capacity,total-first),
              "F15 shown row count disagrees with page capacity");
+       const auto next=std::min(first+capacity,last);
        const bool advanced=pager.page(1);
-       check(advanced==(first<last),
+       check(advanced==(next!=first),
              "F15 NEXT enabled outside valid page range");
+       if(!advanced)break;
+       check(pager.state().firstRow==next,
+             "F15 NEXT failed canonical/overlapping final-page position");
+       forwardStarts.push_back(next);
+       check(n<L::instruments,"F15 NEXT entered unbounded navigation cycle");
      }
      check(pager.state().firstRow==last,
-           "F15 page end must be canonical final page");
-     for(std::size_t first=last;first>0;first-=capacity){
-       check(pager.page(-1)&&pager.state().firstRow==first-capacity,
-             "F15 PREV must reverse every forward page");
+           "F15 page end must be final accessible page");
+     for(std::size_t i=forwardStarts.size();i>1;--i){
+       check(pager.page(-1)&&pager.state().firstRow==forwardStarts[i-2],
+             "F15 PREV must reverse entire forward page history");
      }
      check(pager.state().firstRow==0&&!pager.page(-1),
            "F15 previous page cannot underflow row zero");

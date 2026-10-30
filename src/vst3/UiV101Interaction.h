@@ -168,7 +168,11 @@ public:
    const auto total=controller_.visibleRows();
    if(total==0)return;
    const auto limit=std::min(state_.viewportRows,L::visibleRows);
-   const auto lastPage=((total-1)/limit)*limit;
+   // Normal 10-row pages stop at a canonical last partial page (11..16).
+   // A host-refused *smaller* viewport must keep exactly 'limit' visible:
+   // its final page intentionally overlaps previous rows (2..5 for 5/4).
+   const auto lastPage=total<=limit?0:
+     limit==L::visibleRows?((total-1)/limit)*limit:total-limit;
    if(state_.firstRow>lastPage){
      endGesture(true);
      closeExpansion();
@@ -190,11 +194,19 @@ public:
    // Retain the original 10-row/6-row paging behavior when not constrained.
    // In a smaller rejected peer HWND, move only as far as needed so the
    // final row stays accessible without pushing the footer below the frame.
-   // Exactly ceil(total/limit) real pages; never navigate to a singleton
-   // tail after the final valid page (16 rows / 10 visible => firstRow 10).
-   const auto maxStart=((total-1)/limit)*limit;
-   const auto next=direction>0?std::min(state_.firstRow+stride,maxStart):
-     (state_.firstRow>=stride?state_.firstRow-stride:0);
+   // Full-height 10-row viewport: canonical page starts 0,10.
+   // Constrained peer viewport: final page overlaps so a rejected host
+   // resize cannot move the footer or make PREV inaccessible (5/4 => 0,1).
+   const auto maxStart=total<=limit?0:
+       limit==L::visibleRows?((total-1)/limit)*limit:total-limit;
+   const auto forward=std::min(state_.firstRow+stride,maxStart);
+   // Reverse overlapping final pages to the previous *canonical* start:
+   // 16 rows / 6 visible: 0 -> 6 -> 10 -> 6 -> 0, never 10 -> 4.
+   const auto backward=state_.firstRow==maxStart&&
+                        maxStart%stride!=0?
+       (maxStart/stride)*stride:
+       (state_.firstRow>=stride?state_.firstRow-stride:0);
+   const auto next=direction>0?forward:backward;
    if(next==state_.firstRow)return false;
    state_.firstRow=next;
    state_.selectedRow=next;
