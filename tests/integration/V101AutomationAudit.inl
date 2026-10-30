@@ -239,5 +239,33 @@ void testV101HostMixAutomationPcm(){
          "AUT06 outputless automation lost new Pitch or other parameters");
    f.p->setProcessing(false);f.p->setActive(false);
  }
- evidence("AUT02-06 real VST3 Pan/Mute/Volume/Master/Pitch PCM, automation at sample positions, zero/outputless flush, project recall, no audio allocation PASS");
+ // Editor/headphone audition must use the live host Pitch, not the
+ // last control-thread kit value. Regression: Pitch +12 (ratio 2.0)
+ // should end a 1024-frame WAV in 512 output samples.
+ {
+   Fixture f;KitState kit{};kit.visible=1;kit.grid.fill(0);
+   kit.names[0]="autom-preview.wav";kit.wav[0]=constantStereo(.5f,-.25f);
+   f.kit(kit);prepareAudio(*f.p);
+   AuditAudioBlock b;ParameterChanges pitch;int32 index=0;
+   pitch.addParameterData(kRowPitchBase,index)->addPoint(0,.75,index);
+   b.data.inputParameterChanges=&pitch;
+   check(f.p->process(b.data)==kResultOk,
+         "AUT07 host Pitch automation did not reach Processor");
+   b.data.inputParameterChanges=nullptr;
+   check(f.c->previewSampleEdit(0,SampleEdit::reset(1024)),
+         "AUT07 audition after host Pitch rejected");
+   check(f.p->process(b.data)==kResultOk&&
+         std::abs(b.left[100]-.5f)<1e-4f,
+         "AUT07 MIDI-independent editor audition silent/wrong pitch");
+   check(f.p->process(b.data)==kResultOk,
+         "AUT07 audition second 256-frame block failed");
+   check(f.p->process(b.data)==kResultOk&&
+         std::abs(b.left[100])<1e-5f&&
+         std::abs(b.right[100])<1e-5f,
+         "AUT07 editor preview ignored host Pitch and played at old rate");
+   check(f.c->stopSampleEditPreview(),
+         "AUT07 audition STOP cleanup failed");
+   f.p->setProcessing(false);f.p->setActive(false);
+ }
+ evidence("AUT02-07 actual VST3 mix/Pitch PCM, sample-accurate points, zero/outputless flush, editor audition, project recall and no audio allocations PASS");
 }

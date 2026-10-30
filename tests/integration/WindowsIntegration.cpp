@@ -5626,7 +5626,7 @@ int main(int argc,char** argv){
  run("V101 native commercial typography geometry",testV101NativeTypographyFit);
  run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
  run("AUT01 VST3 row automation parameter contract and GUI gestures",testV101HostMixAutomationContract);
- run("AUT02-06 VST3 full mix and pitch automation, flush/PCM",testV101HostMixAutomationPcm);
+ run("AUT02-07 VST3 full mix and pitch automation, flush/PCM/audition",testV101HostMixAutomationPcm);
  run("V101 SONG and Wave full native button matrix",testV101SongAndWaveFullControlMatrix);
  run("F16 true pre-attach 130% host chrome size and DPI",testV101F16InitialHostChromeWidth);
  run("F14 native 5-of-5 paging escape and structural row shrink",testV101F14StrandedPageRecovery);

@@ -338,7 +338,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    if(!(rate>0.)||!std::isfinite(rate))return Steinberg::kResultFalse;
    std::unique_ptr<PreparedSample> prepared;
    if(PreparedSample::fromWav(wav.data(),wav.size(),rate,
-      static_cast<double>(static_cast<int>(kit_.pitch[static_cast<std::size_t>(row)])-24),
+      static_cast<double>(static_cast<int>(rowPitch_[static_cast<std::size_t>(row)].load(std::memory_order_relaxed))-24),
       1.f,0.f,0,false,prepared,edit)!=PrepareStatus::Ok)
        return Steinberg::kInvalidArgument;
    for(;;){auto old=auditionExchange_.pollReclaim();if(!old)break;}
@@ -474,7 +474,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    if(!(rate>0.)||!std::isfinite(rate))return Steinberg::kResultFalse;
    std::unique_ptr<PreparedSample> prepared;
    if(PreparedSample::fromWav(wav.data(),wav.size(),rate,
-       static_cast<double>(static_cast<int>(kit_.pitch[row])-24),
+       static_cast<double>(static_cast<int>(rowPitch_[row].load(std::memory_order_relaxed))-24),
        1.f,0.f,0,false,prepared,edit)!=PrepareStatus::Ok)
      return Steinberg::kResultFalse;
    for(;;){auto unused=exchange_.pollReclaim();if(!unused)break;}
@@ -803,7 +803,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
  const auto prepared=PreparedSample::fromWav(
      static_cast<const std::uint8_t*>(bytes),
      static_cast<std::size_t>(size),rate,
-     static_cast<double>(static_cast<int>(kit_.pitch[static_cast<std::size_t>(row)])-24),
+     static_cast<double>(static_cast<int>(rowPitch_[static_cast<std::size_t>(row)].load(std::memory_order_relaxed))-24),
      1.f,0.f,0,false,candidate,SampleEdit{},true);
  if(prepared!=PrepareStatus::Ok)return Steinberg::kResultFalse;
  {
