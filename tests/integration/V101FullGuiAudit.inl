@@ -736,6 +736,17 @@ void testV101AllRowMouseIsolationAndSampleBrowse(){
  clickArrow(L::next,0);
  check(IntegrationAccess::paths(*f.c)[0]==aPath,
        "V101 sample NEXT arrow failed to wrap around folder");
+ // F17: native mouse tests the user's new "< sample > ..." order.
+ // The right arrow must browse, not open the sample menu; conversely the
+ // separate ellipsis must open its popup without changing the WAV.
+ clickArrow(L::sampleMenu,0);
+ check(IntegrationAccess::v101Popup(*view)==drumator::UiV101Popup::Kind::Sample&&
+       IntegrationAccess::paths(*f.c)[0]==aPath,
+       "F17 trailing ellipsis did not open Sample popup safely");
+ click(*view,1100.,210.); // modal dismiss must not step to another WAV
+ check(IntegrationAccess::v101Popup(*view)==drumator::UiV101Popup::Kind::None&&
+       IntegrationAccess::paths(*f.c)[0]==aPath,
+       "F17 popup dismiss changed the loaded sample");
  // Clicking the neighboring instrument's arrow must not change row 0.
  clickArrow(L::next,1);
  check(IntegrationAccess::paths(*f.c)[0]==aPath,

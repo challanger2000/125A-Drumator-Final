@@ -191,8 +191,12 @@ int main(){
   CHECK(action(90,y+20)==L::Action::Fill);
   CHECK(action(140,y+20)==L::Action::Previous);
   CHECK(action(200,y+20)==L::Action::Load);
-  CHECK(action(267,y+20)==L::Action::SampleMenu);
-  CHECK(action(290,y+20)==L::Action::Next);
+  CHECK(action(267,y+20)==L::Action::Next);
+  CHECK(action(290,y+20)==L::Action::SampleMenu);
+  CHECK(action(257.,y+20)==L::Action::Load); // boundary; see shared hit map
+  CHECK(action(281.,y+20)==L::Action::Next);
+  CHECK(action(303.9,y+20)==L::Action::SampleMenu);
+  CHECK(action(304.01,y+20)==L::Action::None);
   CHECK(action(320,y+20)==L::Action::Preview);
   CHECK(action(380,y+20)==L::Action::Edit);
   CHECK(action(1062,y+20)==L::Action::Volume);

@@ -65,3 +65,7 @@ The bilingual PDF manuals and prerelease Gumroad ZIP are generated as conversati
 **Regression F16:** initial 130% VST3 `getSize=1664×390`; repeated 100/120/130/150% pre-attach scale transitions; optional 150% DPI composition and reset; real attached Win32 VSTGUI zoom invariants. **Real Studio One screenshot before/after required for a FULL closure**; the official CI host does not draw Studio One's proprietary wrapper.
 
 FINAL/Gumroad release remains STOPPED until F16 is validated on actual Studio One.
+
+## F17 — sample picker ordering to prevent missed clicks (owner report 2026-10-30)
+
+The previous main-row order `< [sample label] [...] >` was counterintuitive, since the next-sample arrow sat to the right of the ellipsis sample menu. Owner repeatedly clicked the wrong target. Change the shared `UiV101Layout` hit/paint geometry to `< [sample label] > [...]` with existing sizes (23px previous/next, 24px ellipsis); no changes to source WAV browsing, rendering code, or processor state. Existing N12 and full native 16-row sample browsing remain; add F17 actual native click on the moved trailing ellipsis confirming its popup opens and doesn't change loaded WAV. **Needs new CI and Studio One GUI confirmation.**

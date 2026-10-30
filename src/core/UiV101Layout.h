@@ -107,7 +107,7 @@ struct UiV101Layout final {
   static constexpr Rect select{8.,4.,19.,45.},mute{20.,8.,47.,40.},
     solo{52.,8.,79.,40.},fill{84.,8.,124.,40.},
     sample{132.,8.,304.,40.},previous{132.,8.,155.,40.},
-    load{155.,8.,257.,40.},sampleMenu{257.,8.,281.,40.},next{281.,8.,304.,40.},
+    load{155.,8.,257.,40.},next{257.,8.,281.,40.},sampleMenu{281.,8.,304.,40.},
     preview{310.,8.,347.,40.},edit{354.,8.,406.,40.},
     stepWell{417.,4.,1031.,44.},
     velocity{1221.,4.,1258.,24.},settings{1221.,26.,1258.,46.};
@@ -192,8 +192,10 @@ struct UiV101Layout final {
   static_assert(knobCenters[0]+knobRadius<knobCenters[1]-knobRadius);
   static_assert(knobCenters[1]+knobRadius<knobCenters[2]-knobRadius);
   static_assert(knobCenters[2]+knobRadius+18.<=velocity.x0);
-  static_assert(previous.x1==load.x0&&load.x1==sampleMenu.x0&&
-                sampleMenu.x1==next.x0);
+  // F17: intuitive "< sample-name > ..." left-to-right order, no hidden
+  // overlapping hit targets; all visual keys share these same rectangles.
+  static_assert(previous.x1==load.x0&&load.x1==next.x0&&
+                next.x1==sampleMenu.x0&&sampleMenu.x1==sample.x1);
 };
 // MSVC evaluates constexpr function bodies reliably after the class is complete.
 static_assert(UiV101Layout::patternMenu.x1-UiV101Layout::patternMenu.x0==
