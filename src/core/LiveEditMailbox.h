@@ -6,10 +6,11 @@
 #include <atomic>
 #include <cstdint>
 #include <cstring>
+#include <cmath>
 namespace drumator {
 class LiveEditMailbox final {
 public:
- struct Snapshot {bool active=false;SampleEdit edit{};};
+ struct Snapshot {bool active=false;SampleEdit edit{};std::uint64_t generation=0;};
  void publish(bool active,const SampleEdit& edit) noexcept {
    sequence_.fetch_add(1,std::memory_order_acq_rel); // odd
    edges_.store((std::uint64_t{edit.start}<<32)|edit.end,std::memory_order_relaxed);
@@ -33,7 +34,7 @@ public:
      edit.fadeIn=static_cast<std::uint32_t>(fades>>32);
      edit.fadeOut=static_cast<std::uint32_t>(fades);
      std::memcpy(&edit.gain,&gain,sizeof(gain));
-     out={active!=0,edit};return true;
+     out={active!=0,edit,before};return true;
    }
    return false;
  }
@@ -42,4 +43,31 @@ private:
  std::atomic<std::uint32_t> gain_{0};
  std::atomic<std::uint8_t> active_{0};
 };
+// An orphaned GUI session cannot hold a temporary sound indefinitely,
+ // even if the host permanently refuses the EditorLiveEnd message.
+ // Leases advance only on the real audio callback; no wall-clock or mutex
+ // access is performed from the realtime thread.
+ class LiveEditLease final {
+ public:
+  static constexpr double kSeconds=4.0;
+  bool useDraft(const LiveEditMailbox::Snapshot* snap,
+                std::uint32_t frames,double sampleRate) noexcept {
+   if(snap&&snap->generation!=generation_){
+    generation_=snap->generation;
+    edit_=snap->edit;
+    active_=snap->active;
+    ageFrames_=0;
+   }else{
+    ageFrames_+=frames; // within bounded process() block sizes
+   }
+   const double ceiling=sampleRate*kSeconds;
+   return active_&&sampleRate>0.0&&std::isfinite(ceiling)&&
+          static_cast<double>(ageFrames_)<ceiling;
+  }
+  const SampleEdit& edit()const noexcept{return edit_;}
+ private:
+  std::uint64_t generation_{0},ageFrames_{0};
+  bool active_{false};
+  SampleEdit edit_{};
+ };
 } // namespace drumator

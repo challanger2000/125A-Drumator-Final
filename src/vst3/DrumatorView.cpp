@@ -962,8 +962,12 @@ void DrumatorView::refreshFromHost(bool relayout) {
  }
 }
 void DrumatorView::pollMeter() noexcept {
- if(sampleEditorOpen_&&sampleEditorLive_&&sampleEditorLivePending_)
-   publishSampleEditorLive();
+ if(sampleEditorOpen_&&sampleEditorLive_){
+   const auto now=std::chrono::steady_clock::now();
+   if(sampleEditorLivePending_)publishSampleEditorLive();
+   else if(now-sampleEditorLiveSentAt_>=std::chrono::milliseconds(400))
+     publishSampleEditorLive(true); // renew lease even without mouse motion
+ }
  // Each View reads the same controller cache. No destructive exchange by
  // individual GUI windows; generation ensures host Stop/no callbacks decays.
  if(pendingEditorRow_<kRows &&

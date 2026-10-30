@@ -18,6 +18,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <chrono>
 #include <vector>
 #include <mutex>
 #include <memory>
@@ -127,8 +128,10 @@ private:
  // Transient LIVE edits are not part of the serialized KitState.
  // All session/revision checks are on the control actor under kitMutex_.
  std::array<LiveEditMailbox,kRows> liveEdits_{};
+ std::array<LiveEditLease,kRows> liveAudioLeases_{}; // audio actor only
  std::array<std::uint64_t,kRows> liveSessions_{};
  std::array<std::uint32_t,kRows> liveFrameCounts_{};
+ std::array<std::chrono::steady_clock::time_point,kRows> liveControlRenewed_{}; // control actor only
  SampleExchange auditionExchange_{};
  SampleVoiceEngine auditionVoices_{};
  std::atomic<bool> auditionStart_{false},auditionStop_{false};

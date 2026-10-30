@@ -383,7 +383,16 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
       revision<0||revision!=editorRevisions_[index]||
       kit_.wav[index].empty())return Steinberg::kResultFalse;
    if(begin){
-     if(liveSessions_[index])return Steinberg::kResultFalse;
+     // If a previous View vanished while the host rejected END, its
+     // live session becomes reclaimable after the same 4-second lease.
+     // Active Views renew with bounded, low-rate UI heartbeats.
+     const auto now=std::chrono::steady_clock::now();
+     if(liveSessions_[index]){
+       if(now-liveControlRenewed_[index] <= std::chrono::seconds(4))
+         return Steinberg::kResultFalse;
+       liveSessions_[index]=0;liveFrameCounts_[index]=0;
+       liveEdits_[index].publish(false,SampleEdit{});
+     }
      // Decode once at editor activation, never on drag or audio callback.
      DecodedWav decoded;
      if(WavPcm16Decoder::decode(kit_.wav[index].data(),
@@ -392,6 +401,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
        return Steinberg::kResultFalse;
      liveFrameCounts_[index]=static_cast<std::uint32_t>(decoded.left.size());
      liveSessions_[index]=static_cast<std::uint64_t>(session);
+     liveControlRenewed_[index]=now;
      const auto committed=kit_.sampleEdits[index].end==0?
          SampleEdit::reset(liveFrameCounts_[index]):kit_.sampleEdits[index];
      liveEdits_[index].publish(true,committed);
@@ -414,6 +424,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    const auto raw=static_cast<std::uint32_t>(bits);
    std::memcpy(&edit.gain,&raw,sizeof(raw));
    if(!edit.valid(liveFrameCounts_[index]))return Steinberg::kInvalidArgument;
+   liveControlRenewed_[index]=std::chrono::steady_clock::now();
    liveEdits_[index].publish(true,edit);
    return Steinberg::kResultOk;
  }
@@ -1213,8 +1224,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
  // sample or existing tails. The reader never retries indefinitely.
  for(std::size_t row=0;row<kRows;++row){
    LiveEditMailbox::Snapshot snap{};
-   if(!liveEdits_[row].snapshot(snap))continue;
-   if(snap.active)(void)voices_.setRowLiveEdit(row,snap.edit);
+   const bool valid=liveEdits_[row].snapshot(snap);
+   const auto frames=static_cast<std::uint32_t>(data.numSamples);
+   if(liveAudioLeases_[row].useDraft(valid?&snap:nullptr,frames,
+                                     processSetup.sampleRate))
+     (void)voices_.setRowLiveEdit(row,liveAudioLeases_[row].edit());
    else voices_.restoreRowCommittedEdit(row);
  }
  const auto auditionGeneration=auditionStopGeneration_.load(std::memory_order_acquire);
