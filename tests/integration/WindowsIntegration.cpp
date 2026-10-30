@@ -1611,16 +1611,17 @@ void testV101LiveEditor(){
  check(UiSongLayout::addRight-UiSongLayout::addLeft==98.&&
        UiSongLayout::removeRight-UiSongLayout::removeLeft==98.,
        "V101 SONG action keys have unequal widths");
- check(UiSongLayout::removeLastHit(1175.,352.)&&
-       !UiSongLayout::removeLastHit(1220.,352.),
-       "V101 SONG REMOVE LAST retained its old oversized hit zone");
- click(*view,1050.,352.);
+ check(UiSongLayout::removeLastHit(
+         (UiSongLayout::removeLeft+UiSongLayout::removeRight)*.5,352.)&&
+       !UiSongLayout::removeLastHit(UiSongLayout::removeRight+4.,352.),
+       "V101 SONG REMOVE LAST hit region must match visible key and right edge");
+ click(*view,(UiSongLayout::addLeft+UiSongLayout::addRight)*.5,352.);
  check(f.c->songCount()==songCount+1,
        "V101 SONG ADD ENTRY lost count or layout");
- click(*view,1220.,352.);
+ click(*view,UiSongLayout::removeRight+4.,352.);
  check(f.c->songCount()==songCount+1,
-       "V101 SONG REMOVE LAST obsolete wide hot zone still removes an entry");
- click(*view,1175.,352.);
+       "V101 SONG REMOVE LAST must reject clicks beyond new 1244px right edge");
+ click(*view,(UiSongLayout::removeLeft+UiSongLayout::removeRight)*.5,352.);
  check(f.c->songCount()==songCount,
        "V101 SONG REMOVE LAST failed to undo added position");
  const auto startBar=f.c->songStartBar();
