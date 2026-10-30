@@ -40,3 +40,10 @@
 - 27/28 CTests passed, the native integration executable was terminated by its 300-second CTest watchdog after the N12 scenario; full suite did not finish.
 - Three stale image / rollback oracles incorrectly assumed 100% was still the initial host zoom after F09. Tests now first VERIFY 130% in the real attached VST3 editor and explicitly select the historical 100% screenshot baseline through the real zoom popup, while standalone rollback requires 130%.
 - Integration watchdog was adjusted to 600 seconds as an observed full-suite duration budget, not as a skipped test or a replacement for source-level assertions. Full CI and host verification remain necessary; never count run 40984238869 as PASS.
+
+## F14 — PREV PAGE deadlock after instrument-row reduction (30.10.2026)
+- Owner reproducer in Studio One: footer shows `ROWS 5-5 / 5`, NEXT disabled, clicking PREV fails to return to rows 1..5.
+- Root cause: `UiV101Interaction::page()` returned false whenever `total <= viewportRows`, even if `firstRow > 0`. `reconcile()` only constrained firstRow to `total-1`, leaving a stranded trailing page after rows were removed.
+- Fix: PREV always accepts a nonzero firstRow, independently of total row count; a structural row-count notification automatically rebases to firstRow 0 when the entire reduced kit fits. Host resize transaction and bounded small-viewport fallback are preserved.
+- Native regression F14 checks a 16-row attached editor paged to rows 11..16, genuine controller reduction to five rows and resulting 1..5 viewport/size; it independently recreates stranded 5-5/5 state and validates PREV escape, no false NEXT and one-row-host navigation.
+- Real Studio One reenactment on this commit requires a manual owner check; previous version is known FAILED by screenshot.

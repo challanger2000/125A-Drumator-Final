@@ -497,6 +497,56 @@ void testV101SongAndWaveFullControlMatrix(){
 }
 
 
+
+void testV101F14StrandedPageRecovery(){
+ using L=drumator::UiV101Layout;
+ // Reproduce the real report: page 2 of 16 rows, shrink to 5, then
+ // recover a saved stranded 5-5/5 viewport via PREV. Both the native host
+ // and the page state machine are checked; audio/project state is untouched.
+ Fixture f;
+ auto kit=namedKit('X',16);
+ f.kit(kit);
+ prepareAudio(*f.p);
+ f.openV101();
+ auto* v=IntegrationAccess::view(*f.c,0);
+ check(v->isV101()&&f.c->visibleRows()==16,
+       "F14 native 16-row test editor failed to initialize");
+ const auto pressPage=[&](L::Rect button){
+   click(*v,(button.x0+button.x1)*.5,
+         v->getViewSize().getHeight()-L::footer+(button.y0+button.y1)*.5);
+ };
+ pressPage(L::footerNext);
+ check(IntegrationAccess::v101FirstRow(*v)==10&&
+       IntegrationAccess::v101ShownRows(*v)==6,
+       "F14 cannot navigate to 16-row final page");
+ check(f.c->restoreVisibleRows(5),
+       "F14 unable to emulate external row-count reduction");
+ check(IntegrationAccess::v101FirstRow(*v)==0&&
+       IntegrationAccess::v101ShownRows(*v)==5&&
+       v->getViewSize().getHeight()==L::editorHeight(0,5,L::Expansions{}),
+       "F14 16-to-5 row shrink did not rebase native View to ROWS 1-5 / 5");
+ // Independently recreate the former bug even without row-count callback:
+ // old State could retain firstRow=4 although total=5 fits on page one.
+ drumator::UiV101Interaction state(*f.c);
+ auto old=state.state();
+ old.firstRow=4;
+ old.selectedRow=4;
+ state.restoreLayout(old);
+ check(state.shownRows()==1&&state.state().firstRow==4,
+       "F14 legacy stranded ROWS 5-5 / 5 state could not be reproduced");
+ check(state.page(-1)&&state.state().firstRow==0&&state.shownRows()==5,
+       "F14 PREV PAGE failed to recover stranded ROWS 5-5 / 5");
+ check(!state.page(-1)&&!state.page(1),
+       "F14 five fully visible rows must have no further pages");
+ // Negative/boundary: with host-constrained 1-row height the user still
+ // needs both arrows for a five-row kit.
+ state.setViewportRows(1);
+ check(state.page(1)&&state.state().firstRow==1&&state.shownRows()==1,
+       "F14 small native window lost NEXT PAGE");
+ check(state.page(-1)&&state.state().firstRow==0,
+       "F14 small native window lost PREV PAGE");
+}
+
 // Independent end-to-end pointer audit for every visible instrument, including
 // the six rows on page 2. Tests the actual VSTGUI editor, Controller gates and
 // step state; verifies a gesture cannot accidentally mutate the wrong row.

@@ -160,11 +160,27 @@ public:
        (state_.expandedRow<state_.firstRow||
         state_.expandedRow>=state_.firstRow+count))closeExpansion();
  }
+ // Rebase a stranded trailing page only on structural row-count changes,
+ // while the owning View can still negotiate the corresponding host resize.
+ // Ordinary mouse hit testing must not silently alter footer coordinates.
+ void reconcileRowCountChange(){
+   reconcile();
+   const auto total=controller_.visibleRows();
+   if(total>0&&total<=state_.viewportRows&&state_.firstRow!=0){
+     endGesture(true);
+     closeExpansion();
+     state_.firstRow=0;
+     state_.zoomOpen=false;
+   }
+ }
  bool page(int direction){
    reconcile();
    const auto total=controller_.visibleRows();
    const auto limit=std::min(state_.viewportRows,L::visibleRows);
-   if(total<=limit)return false;
+   // PREV must always be able to recover a stale nonzero page, even when
+   // the instrument count has dropped below the normal ten-row capacity.
+   if(direction==0||(direction>0&&total<=limit)||
+      (direction<0&&state_.firstRow==0))return false;
    endGesture(true);
    closeExpansion();
    const auto stride=limit;

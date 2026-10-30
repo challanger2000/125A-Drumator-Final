@@ -5519,6 +5519,7 @@ int main(int argc,char** argv){
  run("V101 native commercial typography geometry",testV101NativeTypographyFit);
  run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
  run("V101 SONG and Wave full native button matrix",testV101SongAndWaveFullControlMatrix);
+ run("F14 native 5-of-5 paging escape and structural row shrink",testV101F14StrandedPageRecovery);
  run("V101 16-row pointer isolation and real WAV sample browse",testV101AllRowMouseIsolationAndSampleBrowse);
  run("VSTGUI native pixel render set",testVisualRender);
  run("GUI49 musical four-sample native 130pct capture",testGui49MusicalFourSampleCapture);

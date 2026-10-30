@@ -902,7 +902,8 @@ void DrumatorView::refreshFromHost(bool relayout) {
      v101Menu_=UiV101Popup::Kind::None;
      v101MenuRow_=kRows;
    }
-   v101_.reconcile();
+   if(v101RowsChanged)v101_.reconcileRowCountChange();
+   else v101_.reconcile();
    // Controller notifications are synchronous. The initiating view must
    // handle its own row resize/rollback after down() returns; peers alone
    // negotiate their HWND or fall back to a shorter but usable row page.
