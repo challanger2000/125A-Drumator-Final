@@ -17,7 +17,7 @@ int main(){
     // These are compile-time geometry invariants; do not instantiate the
     // CHECK macro here (MSVC C4127 under the /WX CI contract).
     if(number.x1-number.x0!=17.||number.y0!=140.||number.y1!=157.||
-       (number.x0+number.x1)*.5!=(painted.x0+painted.x1)*.5+1.||
+       (number.x0+number.x1)*.5!=(painted.x0+painted.x1)*.5||
        (step&&number.x0-L::stepNumberRect(step-4).x0!=4.*L::stepPitch))
        return 1;
   }
@@ -174,14 +174,15 @@ int main(){
   CHECK(action(1230,y+12)==L::Action::Velocity);
   CHECK(action(1230,y+32)==L::Action::Settings);
   CHECK(action(419.9,y+20)==L::Action::None);
-  CHECK(action(420,y+20)==L::Action::Step);
-  CHECK(L::hit(420,y+20,0,10,e).step==0);
-  CHECK(L::hit(420+31*19,y+20,0,10,e).step==31);
+  CHECK(action(420,y+20)==L::Action::None);
+  CHECK(action(421,y+20)==L::Action::Step);
+  CHECK(L::hit(421,y+20,0,10,e).step==0);
+  CHECK(L::hit(421+31*19,y+20,0,10,e).step==31);
   CHECK(action(1027.9,y+20)==L::Action::None);
   CHECK(action(1028,y+20)==L::Action::None);
-  CHECK(L::hit(420,y+9*L::rowHeight+20,0,10,e).row==9);
+  CHECK(L::hit(421,y+9*L::rowHeight+20,0,10,e).row==9);
   CHECK(action(420,y+10*L::rowHeight+20)==L::Action::None);
-  CHECK(L::hit(420,y+20,10,6,e).row==10);
+  CHECK(L::hit(421,y+20,10,6,e).row==10);
   CHECK(L::toggle(L::Expansion::None,L::Expansion::Velocity)==L::Expansion::Velocity);
   CHECK(L::toggle(L::Expansion::Velocity,L::Expansion::Velocity)==L::Expansion::None);
   CHECK(L::toggle(L::Expansion::Velocity,L::Expansion::Settings)==L::Expansion::Settings);
@@ -190,7 +191,7 @@ int main(){
   CHECK(L::hit(500,y+L::rowHeight*2+10,0,10,e).action==L::Action::VelocityLane);
   e[1]=L::Expansion::Settings;
   CHECK(L::hit(500,y+L::rowHeight*2+10,0,10,e).action==L::Action::SettingsLane);
-  CHECK(L::hit(420,L::rowTop(0,2,e)+20,0,10,e).row==2);
+  CHECK(L::hit(421,L::rowTop(0,2,e)+20,0,10,e).row==2);
   // Every step has an isolated 17 px clickable cap and a 2 px non-clickable gutter.
   for(std::size_t i=0;i<32;++i){
     const double x=L::stepX+L::stepPitch*i;
