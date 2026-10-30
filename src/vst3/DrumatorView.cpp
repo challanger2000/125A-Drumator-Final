@@ -1134,20 +1134,20 @@ void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
    v101VintageButtons_[2],v101VintageButtons_[3]
  };
  for(int i=0;i<UiV101Popup::count(v101Menu_);++i) {
-   char busText[24]{};
    const char* caption=UiV101Popup::label(v101Menu_,i);
-   if(v101Menu_==UiV101Popup::Kind::Output) {
-     if(i==0)std::snprintf(busText,sizeof(busText),"MAIN");
-     else std::snprintf(busText,sizeof(busText),"BUS %d",i+1);
-     caption=busText;
-   }
+   if(v101Menu_==UiV101Popup::Kind::Output)
+     caption=Painter::outputCaption(static_cast<unsigned>(i));
+   // Keep both bus assignment and choke group visibly selected in their menus.
+   const bool selectedOutput=v101Menu_==UiV101Popup::Kind::Output&&
+       v101MenuRow_<controller_.visibleRows()&&
+       controller_.rowOutput(v101MenuRow_)==static_cast<unsigned>(i);
    // The selected CHOKE group stays indicated when reopening the popup.
    const bool selectedChoke=v101Menu_==UiV101Popup::Kind::Choke&&
        v101MenuRow_<controller_.visibleRows()&&
        controller_.rowChoke(v101MenuRow_)==static_cast<unsigned>(i);
    // Every real pop-up shares the black MAIN/SONG 4x hardware button set.
    const auto cell=UiV101Popup::cell(g,i);
-   Painter::cap(*c,cell,0.,caption,selectedChoke,10,&popupButtons);
+   Painter::cap(*c,cell,0.,caption,selectedOutput||selectedChoke,10,&popupButtons);
    if(v101Menu_==UiV101Popup::Kind::Export){
      c->setFont(VSTGUI::kNormalFont,9.);
      c->setFontColor(VSTGUI::CColor{160,205,220,255});
@@ -1181,7 +1181,7 @@ bool DrumatorView::applyV101Menu(int option) {
      if(routed){
        char note[96]{};
        if(option==0)
-         std::snprintf(note,sizeof(note),"BUS 1 / MAIN SELECTED");
+         std::snprintf(note,sizeof(note),"MAIN SELECTED");
        else
          std::snprintf(note,sizeof(note),
                        "BUS %d SELECTED - ENABLE DRUM %02d IN DAW",

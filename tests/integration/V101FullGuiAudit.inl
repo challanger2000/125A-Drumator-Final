@@ -190,10 +190,50 @@ void testV101MenuMatrixAndGeometry(){
  }
  // Mouse-open SET must expose every Output (16) and Choke (5) entry.
  click(*view,1230.,L::header+36.);
+ // Read ONLY native painted pixels inside a SET button. A controller
+ // value assertion alone would miss static or wrong text (MAIN -> BUS 1).
+ const auto settingInk=[&](std::size_t button){
+   auto bmp=VSTGUI::renderBitmapOffscreen(
+     {L::width,view->getViewSize().getHeight()},1.,
+     [&](VSTGUI::CDrawContext& dc){view->draw(&dc);});
+   check(bmp!=nullptr,"GUI audit SET native raster unavailable");
+   auto* pixels=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
+   check(pixels!=nullptr,"GUI audit SET pixels unavailable");
+   const auto key=drumator::UiV101Interaction::settingsRect(button);
+   std::vector<std::uint32_t> values;
+   for(auto y=static_cast<std::uint32_t>(L::header+key.y0+6.);
+       y<static_cast<std::uint32_t>(L::header+key.y1-6.);++y)
+     for(auto x=static_cast<std::uint32_t>(key.x0+8.);
+         x<static_cast<std::uint32_t>(key.x1-8.);++x){
+       check(pixels->setPosition(x,y),
+             "GUI audit SET text region outside native editor");
+       VSTGUI::CColor color{};pixels->getColor(color);
+       values.push_back((std::uint32_t(color.red)<<16)|
+                        (std::uint32_t(color.green)<<8)|color.blue);
+     }
+   pixels->forget();
+   return values;
+ };
+ const auto differentPixels=[&](const std::vector<std::uint32_t>& a,
+                                const std::vector<std::uint32_t>& b){
+   check(!a.empty()&&a.size()==b.size(),
+         "GUI audit SET pixel comparison dimensions invalid");
+   unsigned changed=0;
+   for(std::size_t i=0;i<a.size();++i)if(a[i]!=b[i])++changed;
+   return changed;
+ };
+ std::vector<std::uint32_t> bus16Ink;
  for(int bus=0;bus<16;++bus){
    popupClick(Kind::Output,bus,setCenter(0),L::header+69.,L::header);
    check(f.c->rowOutput(0)==static_cast<unsigned>(bus),
          "GUI audit OUTPUT menu index did not set matching bus");
+   const auto actual=drumator::v101::captureControllerScene(*f.c).rows[0].outputBus;
+   const auto* caption=drumator::v101::UiV101NativePreview::outputCaption(actual);
+   const auto expected=bus==0?std::string("MAIN"):
+                              "BUS "+std::to_string(bus+1);
+   check(actual==static_cast<unsigned>(bus)&&expected==caption,
+         "GUI audit OUTPUT visual label diverges from routing target");
+   if(bus==15)bus16Ink=settingInk(0);
  }
  // All 16 bus options must survive component serialization, not merely
  // repaint the UI label. Then restore MAIN so subsequent tests are isolated.
@@ -209,32 +249,14 @@ void testV101MenuMatrixAndGeometry(){
        "GUI audit BUS label does not follow actual controller assignment");
  popupClick(Kind::Output,0,setCenter(0),L::header+69.,L::header);
  check(f.c->rowOutput(0)==0&&
-       drumator::v101::captureControllerScene(*f.c).rows[0].outputBus==0,
-       "GUI audit BUS routing did not return to MAIN");
+       drumator::v101::captureControllerScene(*f.c).rows[0].outputBus==0&&
+       std::string(drumator::v101::UiV101NativePreview::outputCaption(
+           f.c->rowOutput(0)))=="MAIN"&&
+       differentPixels(bus16Ink,settingInk(0))>8,
+       "GUI audit MAIN selection was still painted as BUS 1/16");
  // CHOKE 1 -> 2 must visibly change NATIVE text pixels, not merely
  // change the Controller and leave a static "CHOKE" label.
- const auto chokeInk=[&](){
-   auto bmp=VSTGUI::renderBitmapOffscreen(
-     {L::width,view->getViewSize().getHeight()},1.,
-     [&](VSTGUI::CDrawContext& dc){view->draw(&dc);});
-   check(bmp!=nullptr,"GUI audit CHOKE native raster unavailable");
-   auto* pixels=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
-   check(pixels!=nullptr,"GUI audit CHOKE pixels unavailable");
-   const auto key=drumator::UiV101Interaction::settingsRect(1);
-   std::vector<std::uint32_t> values;
-   for(auto y=static_cast<std::uint32_t>(L::header+key.y0+6.);
-       y<static_cast<std::uint32_t>(L::header+key.y1-6.);++y)
-     for(auto x=static_cast<std::uint32_t>(key.x0+8.);
-         x<static_cast<std::uint32_t>(key.x1-8.);++x){
-       check(pixels->setPosition(x,y),
-             "GUI audit CHOKE text region outside native editor");
-       VSTGUI::CColor c{};pixels->getColor(c);
-       values.push_back((std::uint32_t(c.red)<<16)|
-                        (std::uint32_t(c.green)<<8)|c.blue);
-     }
-   pixels->forget();
-   return values;
- };
+ const auto chokeInk=[&](){return settingInk(1);};
  std::vector<std::uint32_t> chokeOneInk;
  constexpr const char* chokeLabels[]{
    "CHOKE OFF","CHOKE 1","CHOKE 2","CHOKE 3","CHOKE 4"
@@ -250,12 +272,7 @@ void testV101MenuMatrixAndGeometry(){
    if(group==1)chokeOneInk=chokeInk();
    if(group==2){
      const auto chokeTwoInk=chokeInk();
-     check(chokeOneInk.size()==chokeTwoInk.size()&&!chokeOneInk.empty(),
-           "GUI audit CHOKE native comparison has invalid dimensions");
-     unsigned changed=0;
-     for(std::size_t i=0;i<chokeOneInk.size();++i)
-       if(chokeOneInk[i]!=chokeTwoInk[i])++changed;
-     check(changed>8,
+     check(differentPixels(chokeOneInk,chokeTwoInk)>8,
            "GUI audit CHOKE 1 and CHOKE 2 paint identical native text");
    }
  }
@@ -268,14 +285,20 @@ void testV101MenuMatrixAndGeometry(){
          static_cast<const std::uint8_t*>(chokeSaved.getData()),
          chokeSaved.getCursor(),chokeKit)&&chokeKit.choke[0]==4,
        "GUI audit CHOKE 4 missing from processor project state");
- check(f.c->setRowChoke(0,0),"GUI audit CHOKE reset before recall failed");
- chokeSaved.rewind();
- check(f.p->setState(&chokeSaved)==kResultOk,
-       "GUI audit CHOKE processor project recall failed");
- chokeSaved.rewind();
- check(f.c->setComponentState(&chokeSaved)==kResultOk&&
-       drumator::v101::captureControllerScene(*f.c).rows[0].chokeGroup==4,
-       "GUI audit CHOKE group not restored to rendered scene after recall");
+ // Use an independent VST3 host fixture for recall. Recalling the live
+ // GUI test fixture can revert its selected pattern and invalidate the
+ // following VEL RANDOM check despite valid GUI behavior.
+ {
+   Fixture recallHost;
+   chokeSaved.rewind();
+   check(recallHost.p->setState(&chokeSaved)==kResultOk,
+         "GUI audit CHOKE processor project recall failed");
+   chokeSaved.rewind();
+   check(recallHost.c->setComponentState(&chokeSaved)==kResultOk&&
+         recallHost.c->rowChoke(0)==4&&
+         drumator::v101::captureControllerScene(*recallHost.c).rows[0].chokeGroup==4,
+         "GUI audit CHOKE group not restored to rendered scene after recall");
+ }
  // VEL (not SET) owns one-shot random and reset, verified by clicking
  // the real host editor and observing note occupancy + other instrument.
  click(*view,1230.,L::header+12.); // SET -> VEL

@@ -68,6 +68,16 @@ struct UiV101NativePreview final {
    std::array<RowData,L::instruments> rows{};
  };
  // Live controller-backed CHOKE group caption, including explicit OFF state.
+ // One canonical name for the 16 host output buses, consistent in
+ // the SET readout and its popup. Bus index 0 is always MAIN, not BUS 1.
+ static const char* outputCaption(unsigned bus) noexcept {
+   static constexpr const char* captions[]{
+     "MAIN","BUS 2","BUS 3","BUS 4","BUS 5","BUS 6",
+     "BUS 7","BUS 8","BUS 9","BUS 10","BUS 11","BUS 12",
+     "BUS 13","BUS 14","BUS 15","BUS 16"
+   };
+   return bus<16?captions[bus]:"BUS ?";
+ }
  static const char* chokeCaption(unsigned group) noexcept {
    static constexpr const char* captions[]{
      "CHOKE OFF","CHOKE 1","CHOKE 2","CHOKE 3","CHOKE 4"
@@ -793,10 +803,9 @@ struct UiV101NativePreview final {
                12,{247,193,99,255});
          cap(c,UiV101Interaction::realtimePlus,y,"+",false,13,vintageButtons);
        }else{
-         char busLabel[20]{};
-         std::snprintf(busLabel,sizeof(busLabel),"BUS %u",data.outputBus+1);
          const std::array<const char*,5> settingsLabels{{
-           busLabel,chokeCaption(data.chokeGroup),"COPY ROW","PASTE ROW","CLEAR ROW"
+           outputCaption(data.outputBus),chokeCaption(data.chokeGroup),
+           "COPY ROW","PASTE ROW","CLEAR ROW"
          }};
          for(std::size_t button=0;button<settingsLabels.size();++button)
            cap(c,UiV101Interaction::settingsRect(button),y,
