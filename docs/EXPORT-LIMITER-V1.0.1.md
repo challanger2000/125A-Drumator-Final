@@ -7,3 +7,12 @@
 - Controller stores a control-thread PCM mirror after successful imports/recalls, so offline export does not read or allocate on the audio thread. WAV rendering runs synchronously on the GUI/control thread; large songs can temporarily block the editor until complete. No truncated export is reported as successful. A staged file and backup/rollback scheme protect existing destinations.
 - DM18 state adds persistent limiter ON/OFF; DM17 and earlier recall OFF. Sample edits are mirrored on successful commit.
 - QA: MIDI parser/count/event tests, PCM header/tail/limiting tests, limiter bypass/peak/stereo tests, all existing CTests, Steinberg Validator and independent plugin tester required. Native GUI screenshots and actual Studio One MIDI/WAV imports and recalled limiter still need final user confirmation; no FINAL release yet.
+
+## Drag & Drop export candidate — 30.10.2026
+
+- In the four existing EXPORT popup choices, **click/release** still opens the usual Save As file picker.
+- **Press and move at least 4 logical pixels** from PATTERN MIDI, PATTERN WAV, SONG MIDI or SONG WAV initiates VSTGUI CDropSource with a real UTF-8 kFilePath (Windows CF_HDROP). The popup presents DRAG affordances; no DSP, limiter, MIDI or saved state has changed.
+- The existing controller MIDI/WAV exports write a unique temporary file only on actual drag, not when opening the menu. No GUI/DAW file picker is necessary for dragging.
+- Every drag owns a separate exclusively created temporary directory. Failed exporter attempts discard only their own files. Successful exported files remain after the OLE drag session completes, because a host may read a path asynchronously. **No automatic temp cleanup yet**: Studio One's copy/reference behaviour must be verified before adding a safe retention policy.
+- Drop onto a matching Studio One instrument track (MIDI) or audio track (WAV). The host decides whether to accept, import or reference a file; VSTGUI returning drag-started does **not** prove a DAW drop succeeded.
+- Automated filesystem lifecycle and existing MIDI/WAV export validation are required. The four actual VSTGUI→Windows CF_HDROP→Studio One drops (and project save/reopen afterward), source package inspection in a native host and temporary file disposal after real import are **NOT RUN until independently measured**. No FINAL release.

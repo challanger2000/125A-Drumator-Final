@@ -82,6 +82,9 @@ private:
  bool v101MouseDown(double x,double y,bool erase,bool fine);
  void drawV101Menu(VSTGUI::CDrawContext* c);
  bool exportSelection(int option);
+ bool startExportDrag(int option);
+ int dragExportOption_{-1};
+ VSTGUI::CPoint dragExportStart_{};
  bool applyV101Menu(int item);
 
  VSTGUI::CBitmap* backgroundBitmap_{nullptr};

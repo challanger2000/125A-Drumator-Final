@@ -19,6 +19,8 @@
 #include "core/UiSongLayout.h"
 #include "core/UiOverlayHitZones.h"
 #include "core/DropFeedback.h"
+#include "core/DragExportFile.h"
+#include "vstgui/lib/cdropsource.h"
 #include "core/UiHeaderHitZones.h"
 #include "core/RowMixControl.h"
 #include "core/ClipWarning.h"
@@ -1126,7 +1128,13 @@ void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
      caption=busText;
    }
    // Every real pop-up shares the black MAIN/SONG 4x hardware button set.
-   Painter::cap(*c,UiV101Popup::cell(g,i),0.,caption,false,10,&popupButtons);
+   const auto cell=UiV101Popup::cell(g,i);
+   Painter::cap(*c,cell,0.,caption,false,10,&popupButtons);
+   if(v101Menu_==UiV101Popup::Kind::Export){
+     c->setFont(VSTGUI::kNormalFont,9.);
+     c->setFontColor(VSTGUI::CColor{160,205,220,255});
+     c->drawString("DRAG",{cell.x1-48.,cell.y0+3.,cell.x1-4.,cell.y1-3.});
+   }
  }
 }
 bool DrumatorView::applyV101Menu(int option) {
@@ -2240,6 +2248,48 @@ void DrumatorView::load(std::size_t row) {
 }
 
 
+bool DrumatorView::startExportDrag(int option) {
+ if(option<0||option>=4||!getFrame())return false;
+ // Prepare only after a real mouse drag; ordinary clicks keep Save As.
+ try {
+  const auto output=DragExportFile::create(option);
+  if(output.empty()){status_="DRAG: TEMP FOLDER UNAVAILABLE";return false;}
+  const bool wav=option==1||option==3;
+  const bool song=option>=2;
+  const auto path=pathToUtf8(output);
+  const bool exported=wav?controller_.exportWav(song,path):
+                          controller_.exportMidi(song,path);
+  std::error_code ec;
+  if(!exported||!std::filesystem::is_regular_file(output,ec)||ec||
+     std::filesystem::file_size(output,ec)==0||ec){
+    DragExportFile::discardFailed(output);
+    status_="DRAG: EXPORT FAILED";
+    return false;
+  }
+  // CFilePath is a UTF-8 NUL-terminated path. VSTGUI translates it to
+  // Windows CF_HDROP, which Studio One can accept on its arrange tracks.
+  const auto source=VSTGUI::CDropSource::create(
+      path.c_str(),static_cast<std::uint32_t>(path.size()+1),
+      VSTGUI::IDataPackage::kFilePath);
+  if(!source){
+    // The output must remain available to the host if a drag was started,
+    // but at this point no drag has been published.
+    DragExportFile::discardFailed(output);
+    status_="DRAG: FILE PACKAGE UNAVAILABLE";
+    return false;
+  }
+  const bool started=doDrag(VSTGUI::DragDescription(source));
+  // A started OLE drag is not proof that the DAW actually accepted the file.
+  status_=started?"DRAG STARTED - DROP INTO DAW":"DRAG NOT STARTED";
+  // Retain even on an unsuccessful drag: VSTGUI/host might have seen the path.
+  return started;
+ } catch(const std::exception&) {
+  status_="DRAG: FILESYSTEM ERROR";return false;
+ } catch(...) {
+  status_="DRAG: UNEXPECTED ERROR";return false;
+ }
+}
+
 bool DrumatorView::exportSelection(int option){
  if(option<0||option>=4)return false;
  auto* frame=getFrame();if(!frame)return false;
@@ -2420,6 +2470,18 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
  const double x=pos.x,y=pos.y;
  if(!(buttons&VSTGUI::kLButton))return VSTGUI::kMouseEventNotHandled;
+ // Export menu uses a real press/drag/release lifecycle. All other menus
+ // preserve their current immediate action; a normal export click still
+ // opens the existing Save dialog on release.
+ if(v101Mode_&&v101Menu_==UiV101Popup::Kind::Export){
+   const auto g=UiV101Popup::geometry(v101Menu_,UiV101Layout::header,
+                                        getViewSize().getHeight());
+   const int option=UiV101Popup::hit(v101Menu_,g,x,y);
+   if(option>=0){
+     dragExportOption_=option;dragExportStart_=pos;
+     return VSTGUI::kMouseEventHandled;
+   }
+ }
  // A Pattern/Zoom popup originating in the shared header can extend into
  // the SONG board. Give it first refusal on ALL Y, never route its cells to
  // the underlying SONG Pattern A-H or entry editor.
@@ -2980,6 +3042,19 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseMoved(
     VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
+ if(dragExportOption_>=0){
+   if(!(buttons&VSTGUI::kLButton)){
+     dragExportOption_=-1;invalid();return VSTGUI::kMouseEventHandled;
+   }
+   if(VSTGUI::shouldStartDrag(dragExportStart_,pos)){
+     const int option=dragExportOption_;
+     dragExportOption_=-1;
+     v101Menu_=UiV101Popup::Kind::None;v101MenuRow_=kRows;
+     (void)startExportDrag(option);
+     invalid();return VSTGUI::kMouseEventHandled;
+   }
+   return VSTGUI::kMouseEventHandled;
+ }
  if(v101Mode_&&songEditorOpen_){
    if(buttons&VSTGUI::kLButton)(void)v101_.move(pos.x,pos.y);
    else (void)v101_.up();
@@ -3044,7 +3119,17 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseMoved(
  invalid();return VSTGUI::kMouseEventHandled;
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
-    VSTGUI::CPoint&,const VSTGUI::CButtonState&) {
+    VSTGUI::CPoint& pos,const VSTGUI::CButtonState&) {
+ if(dragExportOption_>=0){
+   const int option=dragExportOption_;
+   dragExportOption_=-1;
+   const auto g=UiV101Popup::geometry(UiV101Popup::Kind::Export,
+                                       UiV101Layout::header,getViewSize().getHeight());
+   const bool same=UiV101Popup::hit(UiV101Popup::Kind::Export,g,pos.x,pos.y)==option;
+   v101Menu_=UiV101Popup::Kind::None;v101MenuRow_=kRows;
+   if(same&&!exportSelection(option))status_="EXPORT FILE NOT SAVED";
+   invalid();return VSTGUI::kMouseEventHandled;
+ }
  if(v101Mode_&&songEditorOpen_){
    (void)v101_.up();invalid();return VSTGUI::kMouseEventHandled;
  }
@@ -3067,6 +3152,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
  return VSTGUI::kMouseEventHandled;
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseCancel(){
+ dragExportOption_=-1;
  if(v101Mode_){v101_.cancel();v101Menu_=UiV101Popup::Kind::None;}
  sampleEditorDrag_=0;sampleEditorPressed_=-1;
  draggingScroll_=false;
