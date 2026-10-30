@@ -36,6 +36,26 @@ struct UiCompactLayout final {
    next{332.,358.},preview{362.,398.},fill{403.,452.},mute{457.,491.},
    solo{496.,530.},choke{570.,615.},output{535.,615.},
    velocityToggle{1233.,1259.},rowAdd{16.,110.},rowRemove{116.,210.};
+ // V1.0.1 layout feasibility: shared geometry contract for the intended
+ // unbroken instrument strips. This is a PROPOSAL only; original working
+ // coordinates above remain active until draw and hit testing migrate together.
+ struct V101RowPlan final {
+  static constexpr double left=16.,right=1260.;
+  static constexpr double controlStart=20.,controlEnd=412.;
+  static constexpr double stepStart=420.,stepPitch=19.;
+  static constexpr double stepEnd=stepStart+32.*stepPitch; // 1028 px
+  static constexpr std::array<double,3> knobCenters{{1066.,1134.,1202.}};
+  static constexpr double knobMountRadius=30.;
+  static constexpr double expandLeft=1234.,expandRight=1258.;
+  static constexpr double clearance=8.;
+  static_assert(controlEnd+clearance<=stepStart);
+  static_assert(stepEnd+clearance<=knobCenters[0]-knobMountRadius);
+  static_assert(knobCenters[0]+knobMountRadius+clearance<=knobCenters[1]-knobMountRadius);
+  static_assert(knobCenters[1]+knobMountRadius+clearance<=knobCenters[2]-knobMountRadius);
+  static_assert(knobCenters[2]+knobMountRadius<expandLeft);
+  static_assert(expandRight<=right);
+  static_assert(stepEnd-stepStart==608.);
+ };
  static constexpr std::array<double,4> rowKnobCenters{{133.,254.,375.,496.}};
  static_assert(rowMenu.right < rowKnobCenters[0]-rowKnobMountRadius);
  static constexpr std::array<double,3> globalKnobCenters{{79.,177.,1180.+headerRightShift}};

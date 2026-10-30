@@ -77,20 +77,38 @@ int main() {
           copy.chain.entry(1).steps==8&&copy.chain.entry(2).steps==32,
           "DM12 chain roundtrip");
     check(copy.songStartBar==2,"DM17 SONG START lost during roundtrip");
+    check(copy.limiter==0,"DM18 new kit must default limiter OFF");
+    // Genuine DM17 fixture: the new one-byte limiter extension is absent.
+    auto beforeDM17=encoded;
+    beforeDM17.erase(beforeDM17.end()-5,beforeDM17.end()-4);
+    for(unsigned i=0;i<4;++i){
+       beforeDM17[i]=static_cast<std::uint8_t>(kKitMagicV17>>(i*8));
+       beforeDM17[4+i]=static_cast<std::uint8_t>((beforeDM17.size()-8)>>(i*8));
+    }
+    const auto previous17Hash=KitCodec::hash(beforeDM17.data()+8,beforeDM17.size()-12);
+    for(unsigned i=0;i<4;++i)
+       beforeDM17[beforeDM17.size()-4+i]=static_cast<std::uint8_t>(previous17Hash>>(i*8));
+    KitState migrated17;
+    check(KitCodec::decode(beforeDM17.data(),beforeDM17.size(),migrated17)&&
+          migrated17.songStartBar==2&&migrated17.limiter==0&&
+          migrated17.grid==original.grid,
+          "DM17 legacy SONG START / limiter OFF migration failed");
     check(copy.randomVelocity==original.randomVelocity&&copy.masterVolume==73,
           "DM13 random velocity/master roundtrip");
     check(copy.grid==original.grid,"Step matrix not byte-identical");
     check(copy.names==original.names,"Sample names not restored");
     check(copy.patternLengths==original.patternLengths,"DM15 pattern lengths lost");
     // DM16 stored no SONG START and could not contain REST. Reproduce
-    // authentic predecessor layout by stripping DM17's trailing uint16,
+    // authentic predecessor layout by stripping DM18's trailing 3 bytes,
     // adjusting version/length/CRC, then verify backward read compatibility.
     auto legacy16Source=original;
     legacy16Source.songStartBar=1;
     check(legacy16Source.chain.configure(1,1,8),"DM16 fixture pattern");
     std::vector<std::uint8_t> beforeDM16;
-    check(KitCodec::encode(legacy16Source,beforeDM16),"DM17 migration fixture");
-    beforeDM16.erase(beforeDM16.end()-6,beforeDM16.end()-4);
+    check(KitCodec::encode(legacy16Source,beforeDM16),"DM18-to-DM16 migration fixture");
+    // DM18 has a two-byte SONG START plus one-byte LIMIT flag before CRC.
+    // Remove all three extension bytes to reconstruct authentic DM16.
+    beforeDM16.erase(beforeDM16.end()-7,beforeDM16.end()-4);
     for(unsigned i=0;i<4;++i){
        beforeDM16[i]=static_cast<std::uint8_t>(kKitMagicV16>>(i*8));
        beforeDM16[4+i]=static_cast<std::uint8_t>((beforeDM16.size()-8)>>(i*8));
@@ -188,7 +206,7 @@ int main() {
     // Corrupt display-label length with a corrected checksum, rejecting
     // the state without mutating its previous successful contents.
     auto badDisplay=encoded;
-    const auto labelsBegin=badDisplay.size()-4-2-kRows*kSampleEditBytes-kPatterns-labelsSize;
+    const auto labelsBegin=badDisplay.size()-4-3-kRows*kSampleEditBytes-kPatterns-labelsSize;
     badDisplay[labelsBegin]=static_cast<std::uint8_t>(kMaxRowLabel+1);
     const auto badDisplayHash=KitCodec::hash(badDisplay.data()+8,badDisplay.size()-12);
     for(int i=0;i<4;++i)badDisplay[badDisplay.size()-4+static_cast<std::size_t>(i)]=

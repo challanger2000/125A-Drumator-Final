@@ -14,3 +14,6 @@ Edits are non-destructive. Imported FLAC is converted into embedded WAV. A full 
 6. Test sample drops while modal is open, reopened editors, MIDI, Song, multi-output and ASIO/transport-loop transitions. Record build commit, host version, case and PASS/FAIL.
 
 This documentation update does not establish real Studio One acceptance.
+## LIVE safety lease (30 October 2026; product c90297b)
+
+The View refreshes the active LIVE draft approximately every 400 ms through the existing control-thread IPC. The audio actor tracks an atomic mailbox generation with a four-second *processed-audio* lease. If the host refuses END and the View closes, no further refresh occurs; subsequent drum hits revert to the committed SampleEdit after expiry. No audio-thread timers, heap allocations or locks are added. A stalled host can still leave draft sound temporarily active until the four-second audio lease expires; existing in-flight voices preserve their previously captured parameters. Automated expiry and lifecycle tests pass; a real Studio One intentionally broken IPC host test is not claimed.

@@ -1,25 +1,40 @@
 #pragma once
 #include <cstddef>
 #include "core/SongChain.h"
+#include "core/UiV101Layout.h"
 
 namespace drumator {
 // One geometry contract shared by painting and pointer hit testing.
 // Shows 16 meaningful song entries at a time instead of 64 tiny buttons.
 struct UiSongLayout final {
  static constexpr std::size_t columns=8, perPage=16, pages=SongChain::kCapacity/perPage;
- static constexpr double left=16., top=207., columnPitch=154., rowPitch=52.;
- static constexpr double cellWidth=150.,cellHeight=45.;
- static constexpr double navTop=166.,navBottom=196.;
- static constexpr double previousLeft=988.,previousRight=1102.;
- static constexpr double nextLeft=1110.,nextRight=1244.;
+ // 8*149px slots plus 7*8px gaps = exact 1248px inner width.
+ static constexpr double left=UiV101Layout::surfaceLeft,top=207.;
+ static constexpr double columnPitch=157.,rowPitch=52.;
+ static constexpr double cellWidth=149.,cellHeight=45.;
+ static_assert(left+columns*cellWidth+(columns-1)*8.==UiV101Layout::surfaceRight);
+ static_assert(columnPitch-cellWidth==8.);
+ static constexpr double navTop=168.,navBottom=194.;
+ static constexpr double previousLeft=1036.,previousRight=1136.;
+ static constexpr double nextLeft=1144.,nextRight=1244.;
+ static_assert(previousRight-previousLeft==100.&&
+               nextRight-nextLeft==100.);
+ static_assert(nextLeft-previousRight==8.&&navBottom-navTop==26.);
  // Shared rendering/hit geometry for the global SONG START header cluster.
- static constexpr double startTop=169.,startBottom=194.;
+ static constexpr double startTop=168.,startBottom=194.;
+ static_assert(startBottom-startTop==navBottom-navTop);
  static constexpr double startMinusLeft=438.,startMinusRight=472.;
  static constexpr double startBarLeft=479.,startBarRight=584.;
  static constexpr double startPlusLeft=591.,startPlusRight=625.;
  static constexpr double startResetLeft=632.,startResetRight=717.;
+ // Match the two SONG action keys: one hardware width, one hitbox width.
+ static constexpr double addLeft=1040.,addRight=1138.;
+ static constexpr double removeLeft=1146.,removeRight=1244.;
+ static_assert(addRight-addLeft==removeRight-removeLeft);
+ static_assert(removeLeft-addRight==8.);
  // A-H and REST form one row; REST is a sentinel, not a pattern.
  static constexpr double choiceTop=339.,choiceBottom=365.;
+ static_assert(choiceBottom-choiceTop==navBottom-navTop);
  static constexpr double patternLeft=115.,patternPitch=46.,patternWidth=42.;
  static constexpr double restLeft=484.,restRight=568.;
  static constexpr double lengthTitleLeft=582.,lengthTitleRight=673.;
@@ -68,10 +83,10 @@ struct UiSongLayout final {
    return first(page)+row*columns+column;
  }
  static constexpr bool addHit(double x,double y) noexcept {
-   return x>=1012.&&x<1110.&&y>=choiceTop&&y<choiceBottom;
+   return x>=addLeft&&x<addRight&&y>=choiceTop&&y<choiceBottom;
  }
  static constexpr bool removeLastHit(double x,double y) noexcept {
-   return x>=1118.&&x<1239.&&y>=choiceTop&&y<choiceBottom;
+   return x>=removeLeft&&x<removeRight&&y>=choiceTop&&y<choiceBottom;
  }
  static constexpr bool canNext(std::size_t page,std::size_t count) noexcept {
    return page+1<pages&&count>first(page+1);

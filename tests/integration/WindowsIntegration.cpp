@@ -11,13 +11,20 @@
 #include "ResultLog.h"
 #include "core/PatternQuantization.h"
 #include "core/Utf8Path.h"
+#include "core/ExportFile.h"
 #include "core/FlacImport.h"
 #include "vst3/DrumatorController.h"
+#include "vst3/DrumatorAutomation.h"
 #include "vst3/DrumatorView.h"
 #include "core/UiDetailGeometry.h"
 #include "core/UiRowControls.h"
 #include "core/UiCompactLayout.h"
 #include "core/UiSongLayout.h"
+#include "vst3/UiV101Scene.h"
+#include "vst3/BrandLogoGeometry.h"
+#include "vst3/UiV101WaveLayout.h"
+#include "UiV101NativePreview.h"
+#include "vst3/UiV101ControllerBridge.h"
 #include "vst3/DrumatorProcessor.h"
 #include "vst3/DrumatorEditor.h"
 #include "vst3/PluginIDs.h"
@@ -111,6 +118,19 @@ namespace drumator {
 // including Undo/clipboard/paths, rather than mirroring the commit algorithm.
 struct IntegrationAccess {
  static bool sampleEditorOpen(const DrumatorView& view){return view.sampleEditorOpen_;}
+ static bool sampleEditorLive(const DrumatorView& view){return view.sampleEditorLive_;}
+ static bool songEditorOpen(const DrumatorView& view){return view.songEditorOpen_;}
+ static std::size_t v101SelectedRow(const DrumatorView& view){return view.v101_.state().selectedRow;}
+ static std::size_t v101FirstRow(const DrumatorView& view){return view.v101_.state().firstRow;}
+ static UiV101Layout::Expansion v101Expansion(const DrumatorView& view){return view.v101_.state().expansion;}
+ static bool v101ZoomPopupOpen(const DrumatorView& view){return view.v101_.state().zoomOpen;}
+ static std::size_t v101ShownRows(const DrumatorView& view){return view.v101_.shownRows();}
+ static float primeAndMeasureLimiter(Processor& processor,float level){
+   float l=level,r=-level*.75f;
+   processor.limiterBuses_[0].process(l,r,true);
+   return l;
+ }
+ static UiV101Popup::Kind v101Popup(const DrumatorView& view){return view.v101Menu_;}
  static std::string sampleEditorStatus(const DrumatorView& v){return v.status_;}
  static bool openSampleEditorForCapture(DrumatorView& view,std::size_t row){return view.openSampleEditor(row);}
  static bool importPathViaView(DrumatorView& view,std::size_t row,const std::string& path){return view.loadPath(row,path);}
@@ -125,6 +145,37 @@ struct IntegrationAccess {
  static std::array<double,3> rotaryImageStatus(const DrumatorView& view){
    const auto* bmp=view.knobBitmap_;
    return {bmp&&bmp->isLoaded()?1.:0.,bmp?bmp->getWidth():-1.,bmp?bmp->getHeight():-1.};
+ }
+ static VSTGUI::CBitmap* vintageButton(const DrumatorView& v,std::size_t index){
+   return index<v.v101VintageButtons_.size()?v.v101VintageButtons_[index]:nullptr;
+ }
+ // All 30 official master paths are present: exact SYSTEMS and AUDIO
+ // SOFTWARE contours (0..23), silver signet (24..28), red A stroke (29).
+ static bool officialMasterLogoAvailable(){
+   if(kBrandLogoPaths.size()!=30||!kBrandLogoPaths[29].red)return false;
+   for(std::size_t i=0;i<29;++i)if(kBrandLogoPaths[i].red)return false;
+   return std::string(kBrandLogoPaths[0].path).rfind("M 1387 769",0)==0&&
+          std::string(kBrandLogoPaths[24].path).rfind("M 1236 588",0)==0&&
+          std::string(kBrandLogoPaths[29].path).rfind("M 1014 103 L 1162 103",0)==0;
+ }
+ static bool modernTitleLoaded(const DrumatorView& v){
+   return v.v101TitleBitmap_&&v.v101TitleBitmap_->isLoaded()&&
+          v.v101TitleBitmap_->getWidth()>=300.&&
+          v.v101TitleBitmap_->getHeight()>=100.;
+ }
+ static bool vintageButtonsLoaded(const DrumatorView& v){
+   for(const auto* bmp:v.v101VintageButtons_)
+     if(!bmp||!bmp->isLoaded()||bmp->getWidth()!=332.||
+        bmp->getHeight()!=128.)return false;
+   return true;
+ }
+ static bool vintageFaceplateLoaded(const DrumatorView& v){
+   return v.v101FaceplateBitmap_&&v.v101FaceplateBitmap_->isLoaded()&&
+          v.v101FaceplateBitmap_->getWidth()>=300.&&
+          v.v101FaceplateBitmap_->getHeight()>=300.;
+ }
+ static VSTGUI::CBitmap* vintageFaceplate(const DrumatorView& v){
+   return v.v101FaceplateBitmap_;
  }
  static bool bundledBrandingLoaded(const DrumatorView& v){
    return v.productLogoBitmap_&&v.productLogoBitmap_->isLoaded()&&
@@ -203,6 +254,7 @@ struct IntegrationAccess {
  static std::uint64_t hostValid(const Processor& p){return p.validHostNotes_.load(std::memory_order_acquire);}
  static std::uint64_t hostUninspected(const Processor& p){return p.uninspectedHostEvents_.load(std::memory_order_acquire);}
  static void pendingPreview(Processor& p,unsigned row){p.previewPending_.fetch_or(1u<<row,std::memory_order_release);}
+ static std::uint32_t queuedPreviewBits(const Processor& p){return p.previewPending_.load(std::memory_order_acquire);}
  static bool waveCacheEmpty(const Controller& c){return c.editorWaveRow_==kRows;}
  static std::size_t cachedWaveRow(const Controller& c){return c.editorWaveRow_;}
 };
@@ -245,11 +297,33 @@ struct Fixture {
  }
  DrumatorEditor& open(){
    const auto n=editors.size();check(n<frames.size(),"too many fixture views");
-   auto* e=dynamic_cast<DrumatorEditor*>(c->createView(ViewType::kEditor));check(e!=nullptr,"create real editor");
+   // Legacy regression fixtures continue exercising the original V1.0.0
+   // template. Do not weaken or rewrite their historic hit coordinates.
+   auto* e=new DrumatorEditor(c,"DrumatorView","Drumator.uidesc");
+   e->setAllowedZoomFactors({});
+   e->setZoomChecked(c->preferredZoom());
    auto& h=frames[n];h.hwnd=CreateWindowExW(0,L"STATIC",L"Drumator native QA",WS_OVERLAPPEDWINDOW|WS_VISIBLE,
      0,0,1280,850,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
    check(h.hwnd!=nullptr,"create parent HWND");static_cast<IPlugView*>(e)->setFrame(&h);
    check(static_cast<IPlugView*>(e)->attached(h.hwnd,kPlatformTypeHWND)==kResultOk,"attach actual VSTGUI editor");
+   editors.push_back(e);pump();return *e;
+ }
+ // Attach the V1.0.1 template through a real Win32 IPlugFrame. This is
+ // deliberately a separate test editor until DAW-facing activation passes.
+ DrumatorEditor& openV101(){
+   const auto n=editors.size();check(n<frames.size(),"too many V101 fixture editors");
+   // This is the actual currently selected factory default, not a separate
+   // test-only editor constructor.
+   auto* e=dynamic_cast<DrumatorEditor*>(c->createView(ViewType::kEditor));
+   check(e!=nullptr,"V101 production default factory returned no editor");
+   auto& h=frames[n];
+   h.hwnd=CreateWindowExW(0,L"STATIC",L"Drumator V1.0.1 native QA",
+                           WS_OVERLAPPEDWINDOW|WS_VISIBLE,0,0,1280,850,
+                           nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
+   check(h.hwnd!=nullptr,"create V101 native parent HWND");
+   static_cast<IPlugView*>(e)->setFrame(&h);
+   check(static_cast<IPlugView*>(e)->attached(h.hwnd,kPlatformTypeHWND)==kResultOk,
+         "attach native V101 editor template to actual Windows host frame");
    editors.push_back(e);pump();return *e;
  }
  static std::vector<std::uint8_t> encode(const KitState& kit){std::vector<std::uint8_t> b;check(KitCodec::encode(kit,b),"valid kit encode");return b;}
@@ -352,8 +426,51 @@ void testWavEditorPreviewAndRecall(){
  SampleEdit candidate{64,512,0,0,.5f};
  SampleEdit observed{};std::uint32_t frames=0;
  std::array<WaveformRange,256> peaks{};
- check(f.c->sampleEditorSnapshot(0,observed,frames,peaks)&&frames==1024&&
-       observed.start==0&&observed.end==1024,"WE01 embedded editor snapshot");
+ std::uint32_t liveRevision=UINT32_MAX;
+ check(f.c->sampleEditorSnapshot(0,observed,frames,peaks,0,0,&liveRevision)&&
+       frames==1024&&observed.start==0&&observed.end==1024,
+       "WE01 embedded editor snapshot with source revision");
+ // WEL1: actual sequenced-row PCM, not the separate audition voice.
+ std::uint64_t liveSession=0,contendingSession=0;
+ check(f.c->beginLiveSampleEdit(0,liveRevision,liveSession)&&liveSession>0,
+       "WEL1 LIVE session could not be opened for embedded WAV");
+ check(!f.c->beginLiveSampleEdit(0,liveRevision,contendingSession)&&
+       contendingSession==0,
+       "WEL2 competing editor was allowed to steal the active LIVE session");
+ check(f.c->updateLiveSampleEdit(0,liveRevision,liveSession,candidate),
+       "WEL1 provisional edit was rejected");
+ check(f.p->process(block)==kResultOk,"WEL1 prepare audio block");
+ check(f.c->previewSample(0),"WEL1 real sequenced row trigger failed");
+ check(f.p->process(block)==kResultOk&&
+       std::abs(left[100]-.25f)<.005f&&
+       std::abs(right[100]+.125f)<.005f,
+       "WEL1 LIVE gain/trim did not affect actual drum engine PCM");
+ check(getKit().sampleEdits[0].end==0,
+       "WEL1 LIVE changed serialized kit before APPLY");
+ check(f.c->endLiveSampleEdit(0,liveSession),
+       "WEL3 CANCEL release of live edit rejected");
+ for(int n=0;n<5;++n)
+   check(f.p->process(block)==kResultOk,"WEL3 drain prior voice");
+ check(f.c->previewSample(0),"WEL3 trigger after CANCEL rejected");
+ check(f.p->process(block)==kResultOk&&
+       std::abs(left[100]-.5f)<.005f&&
+       std::abs(right[100]+.25f)<.005f,
+       "WEL3 cancel did not restore original drum-engine PCM");
+ check(!f.c->updateLiveSampleEdit(0,liveRevision,liveSession,candidate),
+       "WEL4 stale closed LIVE session modified audio");
+ std::uint64_t nextLive=0;
+ check(f.c->beginLiveSampleEdit(0,liveRevision,nextLive)&&nextLive>liveSession,
+       "WEL4 could not acquire a new LIVE session after cancel");
+ check(f.c->endLiveSampleEdit(0,liveSession),
+       "WEL4 stale editor close must be harmless to newer session");
+ check(f.c->updateLiveSampleEdit(0,liveRevision,nextLive,candidate),
+       "WEL4 stale stop canceled the newer session");
+ check(f.c->endLiveSampleEdit(0,nextLive),
+       "WEL4 newer LIVE session failed to exit");
+ check(getKit().sampleEdits[0].end==0,
+       "WEL4 LIVE session lifecycle dirtied project");
+ for(int n=0;n<5;++n)
+   check(f.p->process(block)==kResultOk,"WEL4 release prior voice");
  check(f.c->previewSampleEdit(0,candidate),"WE01 provisional preview rejected");
  check(f.p->process(block)==kResultOk,"WE01 stopped-transport preview render");
  check(std::abs(left[100]-.25f)<.005f&&
@@ -616,17 +733,72 @@ void captureVstgui(DrumatorView& v,const std::string& title,double scale){
  const auto width=access->getBitmapWidth(),height=access->getBitmapHeight();
  check(width>0&&height>0&&width<=4096&&height<=4096,"invalid VSTGUI screenshot pixel dimensions");
  if(title=="packaged-vst3-resources-silver-100"){
-    unsigned bright=0,dark=0;
-    for(std::uint32_t y=0;y<std::min(height,80u);++y)
-      for(std::uint32_t x=450;x<std::min(width,825u);++x){
-        check(access->setPosition(x,y),"packaged silver pixel out of bounds");
-        VSTGUI::CColor p{};access->getColor(p);
-        if(p.red>140&&p.green>140&&p.blue>140&&
-           std::abs(int(p.red)-int(p.green))<45)++bright;
-        if(int(p.red)+int(p.green)+int(p.blue)<270)++dark;
-      }
-    check(bright>500&&dark>4000,
-          "real packaged resource VSTGUI image lacks dark header/silver logo");
+   // Historical screenshot filename retained. The current packaged editor
+   // has a dark graphite plate and an alpha-composited DRUMATOR title.
+   // Compare actual native title pixels to an unadorned plate. This will
+   // fail if the logo disappears or the packaged V1.0.1 panel is too bright.
+   using P=drumator::v101::UiV101NativePreview;
+   const auto rawPlate=VSTGUI::renderBitmapOffscreen(
+     {1280.,static_cast<double>(height)},1.,
+     [&](VSTGUI::CDrawContext& dc){
+       check(P::drawVintageFaceplate(dc,
+         IntegrationAccess::vintageFaceplate(v),
+         static_cast<double>(height)),
+         "packaged graphite faceplate failed to render");
+     });
+   check(rawPlate!=nullptr,"packaged plate reference capture failed");
+   auto* platePixels=VSTGUI::CBitmapPixelAccess::create(rawPlate.get(),false);
+   check(platePixels!=nullptr,"packaged plate reference pixels unavailable");
+   unsigned dark=0,wordmarkVisible=0;
+   for(std::uint32_t y=12;y<76;y+=2)
+     for(std::uint32_t x=240;x<1118;x+=2){
+       check(access->setPosition(x,y)&&platePixels->setPosition(x,y),
+             "packaged logo pixel compare outside header");
+       VSTGUI::CColor actual{},background{};
+       access->getColor(actual);platePixels->getColor(background);
+       if(int(background.red)+int(background.green)+int(background.blue)<300)
+         ++dark;
+       const int difference=
+         std::abs(int(actual.red)-int(background.red))+
+         std::abs(int(actual.green)-int(background.green))+
+         std::abs(int(actual.blue)-int(background.blue));
+       if(difference>36)++wordmarkVisible;
+     }
+   // Verify BOTH original SVG captions are really painted at their new
+   // header-interior positions (not only that their vector data exist).
+   // The tiny AUDIO SOFTWARE strokes may be only 2-3 pixels at 100%.
+   unsigned systemsPixels=0,audioPixels=0,bevelBleedPixels=0;
+   for(std::uint32_t y=45;y<59;++y)
+     for(std::uint32_t x=65;x<157;++x){
+       check(access->setPosition(x,y)&&platePixels->setPosition(x,y),
+             "125A master caption comparison outside the real header");
+       VSTGUI::CColor actual{},background{};
+       access->getColor(actual);platePixels->getColor(background);
+       const bool lighter=int(actual.red)>int(background.red)+30&&
+                          int(actual.green)>int(background.green)+30&&
+                          int(actual.blue)>int(background.blue)+30;
+       if(lighter){if(y<53)++systemsPixels;else ++audioPixels;}
+     }
+   // On the horizontal stepped bevel itself the raw faceplate and final
+   // editor must be identical: the 125A artwork must not paint this edge.
+   for(std::uint32_t y=68;y<77;++y)
+     for(std::uint32_t x=67;x<155;++x){
+       check(access->setPosition(x,y)&&platePixels->setPosition(x,y),
+             "125A bevel comparison outside header");
+       VSTGUI::CColor actual{},background{};
+       access->getColor(actual);platePixels->getColor(background);
+       const int diff=std::abs(int(actual.red)-int(background.red))+
+                      std::abs(int(actual.green)-int(background.green))+
+                      std::abs(int(actual.blue)-int(background.blue));
+       if(diff>9)++bevelBleedPixels;
+     }
+   platePixels->forget();
+   check(systemsPixels>12&&audioPixels>2,
+         "V101 complete master SYSTEMS/AUDIO SOFTWARE letterforms missing on graphite");
+   check(bevelBleedPixels==0,
+         "V101 125A branding must not overpaint the horizontal metal bevel");
+   check(dark>6000&&wordmarkVisible>160,
+         "packaged V1.0.1 lacks dark graphite faceplate or DRUMATOR text overlay");
  }
  if(title=="v2-song-board"){
    // Regression: the Song overlay must erase the entire row UI, INCLUDING
@@ -673,6 +845,1840 @@ void captureVstgui(DrumatorView& v,const std::string& title,double scale){
  evidence("Native VSTGUI render "+title+" "+std::to_string(width)+"x"+
           std::to_string(height)+" pixel checksum "+std::to_string(checksum));
 }
+
+// One-directional V1.0.1 view model: real controller getters only.
+// Does not mutate the released controller, audio or original editor.
+drumator::qa::UiV101NativePreview::Scene captureV101ControllerScene(Controller& c){
+ return drumator::v101::captureControllerScene(c);
+}
+
+// Deterministic actual embedded-kit fixture. All visible labels and parameter
+// readouts flow through real KitCodec -> real Controller -> Scene -> VSTGUI.
+KitState v101PreviewKit(){
+ KitState kit;
+ constexpr std::array<const char*,10> names{{
+   "Kick 01","Snare 01","HiHat Closed","HiHat Open","Tom Low",
+   "Tom Mid","Tom High","Clap 01","Rim 01","Perc 01"
+ }};
+ kit.visible=10;
+ kit.selected=2; // pattern C, assertion checks C is lit, not hard-coded A
+ kit.swing=15;
+ kit.humanize=10;
+ kit.masterVolume=105;
+ kit.gain[0]=135;
+ kit.pan[1]=65;
+ kit.pitch[2]=30; // +6 semitones
+ kit.muted=std::uint16_t{1u<<5};
+ kit.solo=std::uint16_t{1u<<8};
+ const auto wav=constantStereo(.12f,-.10f);
+ for(std::size_t row=0;row<names.size();++row){
+   kit.displayNames[row]=names[row];
+   kit.names[row]=std::string(names[row])+".wav";
+   kit.wav[row]=wav;
+   for(std::size_t step=0;step<kSteps;++step){
+     const bool active=(row%3==0&&step%4==0)||
+                       (row%3==1&&step%4==2)||
+                       (row%3==2&&step%8==4);
+     kit.grid[2*kRows*kSteps+row*kSteps+step]=active?static_cast<std::uint8_t>(95+row):0;
+   }
+ }
+ return kit;
+}
+void testV101ControllerScene(){
+ Fixture f;
+ const auto kit=v101PreviewKit();
+ f.kit(kit);
+ const auto s=captureV101ControllerScene(*f.c);
+ check(s.pattern==2&&s.visibleRows==10&&s.patternLength==32,
+       "V101 controller scene pattern / viewport not real");
+ check(s.swing==15&&s.humanize==10&&s.master==105,
+       "V101 controller scene global knobs not real");
+ check(s.rows[0].name=="Kick 01"&&s.rows[9].name=="Perc 01",
+       "V101 controller scene sample labels not real");
+ check(s.rows[0].hasSample&&s.rows[9].hasSample,
+       "V101 controller scene embedded sample presence lost");
+ check(s.rows[5].muted&&s.rows[8].solo&&
+       !s.rows[4].muted&&!s.rows[4].solo,
+       "V101 controller scene gate states wrong");
+ check(s.rows[0].gain==135&&s.rows[1].pan==-35&&s.rows[2].pitch==6,
+       "V101 controller scene mix controls wrong");
+ check(s.rows[0].velocities[0]==95&&s.rows[0].velocities[1]==0&&
+       s.rows[1].velocities[2]==96&&s.rows[2].velocities[4]==97,
+       "V101 controller scene step data mismatch");
+ check(f.c->toggleStep(2,0,0),"V101 controller step toggle failed");
+ const auto updated=captureV101ControllerScene(*f.c);
+ check(updated.rows[0].velocities[0]==0&&s.rows[0].velocities[0]==95,
+       "V101 scene stale or mutates previous snapshot");
+ // The new geometry -> bridge -> actual Controller path must work with real
+ // mouse coordinates; popup-only controls must NOT silently mutate state.
+ using L=drumator::UiV101Layout;
+ using Bridge=drumator::UiV101ControllerBridge;
+ constexpr L::Expansions noExpansion{};
+ const auto stepHit=L::hit(L::stepX+L::stepPitch+8.,L::header+20.,0,10,noExpansion);
+ check(stepHit.row==0&&stepHit.step==1&&stepHit.action==L::Action::Step,
+       "V101 pixel-row step hit geometry incorrect");
+ check(Bridge::apply(*f.c,stepHit)==Bridge::Route::Applied&&
+       f.c->velocity(2,0,1)==100,
+       "V101 step hit -> real Controller toggle path failed");
+ const auto muteHit=L::hit(30.,L::header+5.*L::rowHeight+20.,0,10,noExpansion);
+ check(muteHit.row==5&&muteHit.action==L::Action::Mute,
+       "V101 mute physical hit geometry wrong");
+ check(Bridge::apply(*f.c,muteHit)==Bridge::Route::Applied&&
+       !f.c->isRowMuted(5),
+       "V101 mute hit -> real Controller state failed");
+ const auto fillHit=L::hit(90.,L::header+20.,0,10,noExpansion);
+ check(fillHit.action==L::Action::Fill&&
+       Bridge::apply(*f.c,fillHit)==Bridge::Route::DeferredToView,
+       "V101 FILL popup must be left to the actual view");
+ const auto gainBefore=f.c->rowGain(0);
+ const auto rotaryHit=L::hit(L::knobCenters[0],L::header+24.,0,10,noExpansion);
+ check(rotaryHit.action==L::Action::Volume&&
+       Bridge::apply(*f.c,rotaryHit)==Bridge::Route::DeferredToView&&
+       f.c->rowGain(0)==gainBefore,
+       "V101 rotary requires mouse-drag lifecycle and must not change gain on click");
+ check(Bridge::apply(*f.c,{0,L::Action::Step,32})==Bridge::Route::Ignored,
+       "V101 out-of-range step bridge should not mutate Controller");
+ check(Bridge::apply(*f.c,{10,L::Action::Mute,-1})==Bridge::Route::Ignored,
+       "V101 hidden row bridge must not mutate Controller");
+
+ // A genuine VSTGUI pixel must change when a real controller Step flips.
+ // Checking the Scene struct alone would miss a disconnected paint function.
+ auto* knob=new VSTGUI::CMultiFrameBitmap(
+   VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
+ check(knob->getWidth()==125.&&knob->getHeight()==12625.,
+       "V101 controller pixel test original knob resource decode failed");
+ auto* pngTitle=new VSTGUI::CBitmap(
+   VSTGUI::CResourceDescription("DRUMATOR_Logo_Modern_Transparent.png"));
+ const auto titleBounds=drumator::qa::UiV101NativePreview::measureTitle(pngTitle);
+ check(titleBounds.valid()&&titleBounds.width>2000.&&titleBounds.height>250.&&titleBounds.height<350.,
+       "V101 native controller scene must load the corrected transparent DRUMATOR plaque");
+ const auto stepPixel=[&](const drumator::qa::UiV101NativePreview::Scene& state){
+   auto bmp=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+     [&](VSTGUI::CDrawContext& dc){
+       drumator::qa::UiV101NativePreview::draw(dc,knob,pngTitle,titleBounds,state);
+     });
+   check(bmp!=nullptr,"V101 controller pixel test native raster missing");
+   auto* a=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
+   check(a!=nullptr&&a->setPosition(428,178),
+         "V101 controller pixel test key pixel missing");
+   VSTGUI::CColor color{};a->getColor(color);a->forget();
+   return std::array<int,3>{{color.red,color.green,color.blue}};
+ };
+ const auto beforePixel=stepPixel(s),afterPixel=stepPixel(updated);
+ // Dynamic L/R and clip LEDs must be driven by numeric scene values.
+ // A decorative/static meter would fail this exact same native paint test.
+ const auto meterPixels=[&](float gain,bool clip){
+   auto measured=s;
+   measured.meterLeft=gain;
+   measured.meterRight=gain;
+   measured.clipped=clip;
+   auto bmp=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+     [&](VSTGUI::CDrawContext& dc){
+       drumator::qa::UiV101NativePreview::draw(dc,knob,pngTitle,titleBounds,
+                                                 measured);
+     });
+   check(bmp!=nullptr,"V101 real meter bitmap unavailable");
+   auto* a=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
+   check(a!=nullptr,"V101 meter pixels unavailable");
+   VSTGUI::CColor level{},clipLed{};
+   check(a->setPosition(1139,106),"V101 L meter pixel out of bounds");
+   a->getColor(level);
+   check(a->setPosition(1234,109),"V101 clip LED pixel out of bounds");
+   a->getColor(clipLed);a->forget();
+   return std::array<int,2>{{level.green,clipLed.red}};
+ };
+ const auto meterOff=meterPixels(0.f,false);
+ const auto meterOn=meterPixels(1.f,true);
+ check(meterOn[0]>meterOff[0]+80&&meterOn[1]>meterOff[1]+120,
+       "V101 L/R or CLIP painter is still decorative instead of live");
+ knob->forget();
+ pngTitle->forget();
+ check(beforePixel!=afterPixel&&beforePixel[0]>afterPixel[0]+70,
+       "V101 actual Controller -> renderer step pixel did not change");
+ evidence("V101 controller-backed GUI model: PCM kit/labels, pattern C, step mutation, gates, actual mix and globals PASS");
+}
+
+// Minimal VST3 host edit handler, used only by the isolated GUI input test.
+// Pattern selector changes are host-automatable, and require a valid
+// IComponentHandler::performEdit. The generic Fixture does not install one.
+struct V101PatternEditHost final : Steinberg::Vst::IComponentHandler {
+ bool editing=false;
+ unsigned calls=0;
+ Steinberg::Vst::ParamValue last=-1.;
+ Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID interfaceId,void** ptr) override{
+   if(!ptr)return Steinberg::kInvalidArgument;
+   *ptr=nullptr;
+   if(Steinberg::FUnknownPrivate::iidEqual(interfaceId,Steinberg::FUnknown::iid)||
+      Steinberg::FUnknownPrivate::iidEqual(interfaceId,Steinberg::Vst::IComponentHandler::iid)){
+     *ptr=static_cast<Steinberg::Vst::IComponentHandler*>(this);
+     addRef();
+     return Steinberg::kResultOk;
+   }
+   return Steinberg::kResultFalse;
+ }
+ Steinberg::uint32 PLUGIN_API addRef() override{return 1;}
+ Steinberg::uint32 PLUGIN_API release() override{return 1;}
+ Steinberg::tresult PLUGIN_API beginEdit(Steinberg::Vst::ParamID id) override {
+   if(id!=drumator::kPatternParam)return Steinberg::kResultFalse;
+   editing=true;return Steinberg::kResultOk;
+ }
+ Steinberg::tresult PLUGIN_API performEdit(Steinberg::Vst::ParamID id,
+                                         Steinberg::Vst::ParamValue value) override {
+   if(!editing||id!=drumator::kPatternParam)return Steinberg::kResultFalse;
+   ++calls;last=value;return Steinberg::kResultOk;
+ }
+ Steinberg::tresult PLUGIN_API endEdit(Steinberg::Vst::ParamID id) override {
+   if(!editing||id!=drumator::kPatternParam)return Steinberg::kResultFalse;
+   editing=false;return Steinberg::kResultOk;
+ }
+ Steinberg::tresult PLUGIN_API restartComponent(Steinberg::int32) override{
+   return Steinberg::kResultOk;
+ }
+};
+
+void testV101Interaction(){
+ using L=drumator::UiV101Layout;
+ using UI=drumator::UiV101Interaction;
+ V101PatternEditHost hostHandler;
+ Fixture f;f.kit(v101PreviewKit());
+ // PITCH is a real PreparedSample rebuild. The processor deliberately rejects
+ // pitch changes until a valid output sample rate is established; unlike
+ // VOL/PAN, pitch cannot be tested on an unprepared audio component.
+ prepareAudio(*f.p);
+ check(f.c->setComponentHandler(&hostHandler)==kResultOk,
+       "V101 test host automation callback installation failed");
+ UI ui(*f.c);
+ check(ui.userZoom()==1.3&&std::abs(f.c->preferredZoom()-1.3)<.0001,
+       "F09 new controller and standalone UI must default to 130 percent");
+ check(ui.shownRows()==10&&ui.height()==686.,
+       "V101 initial page size/150-percent height incorrect");
+ // Every raised key uses identical physical y-bounds and the old low
+ // positions must not receive invisible clicks under the hardware bezel.
+ check(L::patternButton(0).y0==L::barsButton.y0&&
+       L::patternMenu.y0==L::barsButton.y0&&
+       L::headerGroup(0).y0==L::barsButton.y0&&
+       L::headerGroup(1).y1==L::barsButton.y1&&
+       L::patternButton(7).y1==L::barsButton.y1,
+       "V101 raised PATTERN/BARS/SONG button family misaligned");
+ check(ui.down(40.,135.)==UI::Result::Ignored,
+       "V101 obsolete low header click area remains active");
+ check(ui.down(382.,115.)==UI::Result::DeferredToView,
+       "V101 raised PTNR MENU must defer to a real popup");
+ check(ui.takeDeferredRequest().kind==UI::DeferredKind::PatternMenu&&
+       ui.takeDeferredRequest().kind==UI::DeferredKind::None,
+       "V101 pattern popup request must be precise and consume once");
+ // The four large actions now have one 83px family with 8px gutters.
+ // The wider MENU must activate at the new far-right position; the
+ // obsolete irregular spacing must not leave invisible hot zones.
+ check(ui.down(440.,115.)==UI::Result::DeferredToView &&
+       ui.takeDeferredRequest().kind==UI::DeferredKind::PatternMenu,
+       "V101 83px MENU right edge does not open real popup");
+ check(ui.down(451.,115.)==UI::Result::Ignored &&
+       ui.down(542.,115.)==UI::Result::Ignored &&
+       ui.down(633.,115.)==UI::Result::Ignored,
+       "V101 8px uniform header key gaps remain clickable");
+ // Real host/controller pattern and song commands, not UI-only highlights.
+ check(ui.down(170.,120.)==UI::Result::Applied&&f.c->currentPattern()==3&&
+       hostHandler.calls==1&&std::abs(hostHandler.last-3./7.)<.00001,
+       "V101 header pattern D did not commit through host edit callback");
+ check(ui.down(130.,120.)==UI::Result::Applied&&f.c->currentPattern()==2,
+       "V101 header pattern C restore failed");
+ check(ui.down(460.,120.)==UI::Result::Applied&&f.c->patternLength(2)==16,
+       "V101 one-bar header button did not reach controller");
+ const auto protectedNote=f.c->velocity(2,0,16);
+ check(ui.down(L::stepX+16*L::stepPitch+8.,L::header+20.)==
+          UI::Result::Ignored&&f.c->velocity(2,0,16)==protectedNote,
+       "V101 Step beyond 1-bar length must be inert");
+ check(ui.down(460.,120.)==UI::Result::Applied&&f.c->patternLength(2)==32,
+       "V101 two-bar restore failed");
+ const auto song=f.c->songEnabled();
+ check(ui.down(560.,120.)==UI::Result::Applied&&f.c->songEnabled()!=song,
+       "V101 SONG button not routed to Controller");
+ check(ui.down(650.,120.)==UI::Result::DeferredToView,
+       "V101 SONG EDIT must defer to actual editor");
+ check(ui.takeDeferredRequest().kind==UI::DeferredKind::SongEditor,
+       "V101 SONG EDIT view intent was lost");
+ const auto beforeStep=f.c->velocity(2,0,0);
+ check(ui.down(428.,L::header+20.)==UI::Result::Applied&&
+       f.c->velocity(2,0,0)!=(beforeStep),
+       "V101 Step from physical hit not applied");
+ check(ui.down(30.,L::header+5*L::rowHeight+20.)==UI::Result::Applied&&
+       !f.c->isRowMuted(5),"V101 physical Mute hit failed");
+ check(ui.down(60.,L::header+8*L::rowHeight+20.)==UI::Result::Applied&&
+       !f.c->isRowSolo(8),"V101 physical Solo hit failed");
+ // Pointer captures real hardware rotaries; mouse down must not change value.
+ const auto oldSwing=f.c->swingPercent();
+ check(ui.down(L::headerKnobCenters[0],L::headerKnobY)==UI::Result::Handled&&
+       f.c->swingPercent()==oldSwing,"V101 knob down changed value");
+ check(ui.move(L::headerKnobCenters[0],L::headerKnobY-8.)==UI::Result::Applied&&
+       f.c->swingPercent()==oldSwing+2,"V101 SWING drag wrong");
+ check(ui.up()==UI::Result::Handled,"V101 knob release not handled");
+ const auto oldGain=f.c->rowGain(0);
+ check(ui.down(L::knobCenters[0],L::header+24.)==UI::Result::Handled,
+       "V101 row volume capture failed");
+ check(ui.move(L::knobCenters[0],L::header+8.)==UI::Result::Applied&&
+       f.c->rowGain(0)==oldGain+4,"V101 volume gesture didn't reach Controller");
+ (void)ui.up();
+ const auto oldPan=f.c->rowPan(1);
+ check(ui.down(L::knobCenters[1],L::header+L::rowHeight+24.)==UI::Result::Handled,
+       "V101 row pan capture failed");
+ check(ui.move(L::knobCenters[1],L::header+L::rowHeight+16.)==UI::Result::Applied&&
+       f.c->rowPan(1)==oldPan+2,"V101 PAN drag wrong");
+ (void)ui.up();
+ const auto oldPitch=f.c->rowPitch(2);
+ check(ui.down(L::knobCenters[2],L::header+2*L::rowHeight+24.)==UI::Result::Handled,
+       "V101 row pitch capture failed");
+ check(ui.move(L::knobCenters[2],L::header+2*L::rowHeight+18.)==UI::Result::Applied&&
+       f.c->rowPitch(2)==oldPitch+1,"V101 PITCH drag wrong");
+ (void)ui.up();
+ // Expand the tenth row: viewport scrolls one row to stay <=1080 at 150%.
+ check(ui.down(1230.,L::header+9*L::rowHeight+12.)==UI::Result::Handled,
+       "V101 VEL open failed");
+ check(ui.state().expandedRow==9&&ui.state().firstRow==1&&
+       ui.shownRows()==9&&ui.height()==686.,
+       "V101 expanded last row hidden or exceeds 150-percent ceiling");
+ const double expandedTop=L::rowTop(ui.state().firstRow,8,ui.expandedRows());
+ const auto initialVel=f.c->velocity(2,9,0);
+ check(initialVel>0&&f.c->velocity(2,9,1)==0,
+       "V101 expected source notes for velocity gesture absent");
+ check(ui.down(L::stepX+8.,expandedTop+72.)==UI::Result::Applied&&
+       f.c->velocity(2,9,0)!=initialVel,
+       "V101 Velocity lane did not change occupied step");
+ ui.cancel();
+ check(f.c->velocity(2,9,0)==initialVel,
+       "V101 cancel must rollback entire velocity gesture");
+ check(ui.down(L::stepX+L::stepPitch+8.,expandedTop+72.)==
+       UI::Result::Ignored&&f.c->velocity(2,9,1)==0,
+       "V101 lane activated empty note");
+ check(ui.down(L::stepX+8.,expandedTop+72.)==UI::Result::Applied,
+       "V101 second velocity begin failed");
+ check(ui.up()==UI::Result::Handled&&f.c->velocity(2,9,0)==64,
+       "V101 velocity commit did not retain edited value");
+ // VEL owns both row-local one-shot operations, not SET. Validate live
+ // controller contents, note occupancy and non-selected instrument isolation.
+ check(UI::velocityAt(190.,76.)==UI::SettingsAction::RandomVelocity&&
+       UI::velocityAt(330.,76.)==UI::SettingsAction::ResetVelocity&&
+       UI::settingsAt(190.,76.)==UI::SettingsAction::None&&
+       UI::settingsAt(392.,76.)==UI::SettingsAction::Output,
+       "V101 random/reset one-shot hit regions are not Velocity-only");
+ const auto otherRowBefore=f.c->velocity(2,8,0);
+ check(ui.down(190.,expandedTop+76.)==UI::Result::Applied&&
+       f.c->velocity(2,9,0)!=64,
+       "V101 VEL random did not vary occupied row note");
+ check(ui.down(330.,expandedTop+76.)==UI::Result::Applied&&
+       f.c->velocity(2,9,0)==100&&f.c->velocity(2,9,1)==0&&
+       f.c->velocity(2,8,0)==otherRowBefore,
+       "V101 VEL reset failed, created a note or edited a different row");
+ // LIVE VEL has isolated +/-/drag controls beyond the Step bars, and
+ // no corresponding hit area in SET.
+ static_assert(UI::realtimeValue.x1-UI::realtimeValue.x0==124.);
+ check(UI::velocityAt(1077.,69.)==UI::SettingsAction::None&&
+       UI::velocityAt(1230.,69.)==UI::SettingsAction::RandomRealtimeUp&&
+       UI::settingsAt(1230.,69.)==UI::SettingsAction::None,
+       "V101 LIVE VEL hit regions overlap or leaked back into SET");
+ const auto randomRealtime=f.c->rowRandomVelocity(9);
+ check(ui.down(1230.,expandedTop+69.)==UI::Result::Applied&&
+       f.c->rowRandomVelocity(9)==randomRealtime+10,
+       "V101 live velocity increase not connected");
+ check(ui.down(1050.,expandedTop+69.)==UI::Result::Applied&&
+       f.c->rowRandomVelocity(9)==randomRealtime,
+       "V101 live velocity decrease not connected");
+ check(ui.down(1140.,expandedTop+69.)==UI::Result::Handled,
+       "V101 live velocity readout did not start drag");
+ check(ui.move(1140.,expandedTop+57.)==UI::Result::Applied&&
+       f.c->rowRandomVelocity(9)==3,
+       "V101 live velocity drag cannot reach fine values");
+ check(ui.up()==UI::Result::Handled,
+       "V101 live velocity drag failed to release");
+ // Exactly one VEL or SET expansion at a time.
+ check(ui.down(1230.,expandedTop+36.)==UI::Result::Handled&&
+       ui.state().expansion==L::Expansion::Settings,
+       "V101 VEL/SET exclusion failed");
+ const unsigned outBefore=f.c->rowOutput(9);
+ check(ui.down(392.,expandedTop+69.)==UI::Result::DeferredToView&&
+       f.c->rowOutput(9)==outBefore,
+       "V101 OUTPUT selector silently mutated Controller");
+ const auto outputRequest=ui.takeDeferredRequest();
+ check(outputRequest.kind==UI::DeferredKind::OutputMenu&&outputRequest.row==9,
+       "V101 OUTPUT view request lost exact instrument target");
+ check(ui.down(514.,expandedTop+69.)==UI::Result::DeferredToView,
+       "V101 CHOKE menu not deferred");
+ const auto chokeRequest=ui.takeDeferredRequest();
+ check(chokeRequest.kind==UI::DeferredKind::ChokeMenu&&chokeRequest.row==9,
+       "V101 CHOKE view request lost exact instrument target");
+ check(ui.down(636.,expandedTop+69.)==UI::Result::Applied,
+       "V101 SET copy row failed");
+ const double row8Top=L::rowTop(ui.state().firstRow,7,ui.expandedRows());
+ check(ui.down(1230.,row8Top+36.)==UI::Result::Handled&&
+       ui.state().expandedRow==8,"V101 settings switch row failed");
+ check(ui.down(758.,row8Top+69.)==UI::Result::Applied&&
+       f.c->velocity(2,8,0)==100,
+       "V101 SET paste row did not modify pattern");
+ check(ui.down(880.,row8Top+69.)==UI::Result::Applied&&
+       f.c->velocity(2,8,0)==0,"V101 SET clear row failed");
+ // Modal zoom selection cannot click through; host rejection rolls back.
+ check(ui.down(1200.,24.)==UI::Result::Handled&&ui.state().zoomOpen,
+       "V101 zoom menu did not open");
+ check(ui.down(1200.,139.)==UI::Result::DeferredToView&&
+       ui.userZoom()==1.5,"V101 150 percent selection not proposed");
+ check(ui.takeDeferredRequest().kind==UI::DeferredKind::Zoom,
+       "V101 zoom view request not distinguishable from popup actions");
+ ui.confirmZoom(false);
+ check(ui.userZoom()==1.3,
+       "V101 host-rejected zoom did not roll back to actual 130 percent default");
+ check(ui.down(1200.,24.)==UI::Result::Handled,
+       "V101 zoom menu didn't reopen");
+ check(ui.down(1200.,139.)==UI::Result::DeferredToView,
+       "V101 zoom option not routed");
+ ui.confirmZoom(true);
+ check(ui.userZoom()==1.5,"V101 host-approved zoom not retained");
+ check(ui.down(1200.,110.)==UI::Result::Applied,
+       "V101 real main meter clip-reset hit not wired to Controller");
+ // Page navigation across all 16 rows must return to the original first page.
+ Fixture all;auto kit=v101PreviewKit();kit.visible=16;all.kit(kit);
+ UI pages(*all.c);
+ // Compact 95x25 caps: the renderer and hit handler share these bounds.
+ static_assert(L::footerPrev.x1-L::footerPrev.x0==95.&&
+               L::footerNext.x1-L::footerNext.x0==95.&&
+               L::footerPrev.y1-L::footerPrev.y0==25.&&
+               L::footerNext.y1-L::footerNext.y0==25.,
+               "V101 footer buttons have mismatched or oversized hit rectangles");
+ const double footerY=pages.height()-L::footer;
+ check(pages.down(1175.,footerY+22.)==UI::Result::Handled&&
+       pages.state().firstRow==10&&pages.shownRows()==6,
+       "V101 compact next page did not reveal final six rows");
+ check(pages.down(985.,footerY+22.)==UI::Result::Ignored&&
+       pages.state().firstRow==10,
+       "V101 old oversized PREV click hotspot still active");
+ // Page two contains only six rows, so its footer moves UP by
+ // four row-heights. Always click the CURRENT viewport's footer.
+ const double secondFooterY=pages.height()-L::footer;
+ check(pages.down(1070.,secondFooterY+22.)==UI::Result::Handled&&
+       pages.state().firstRow==0&&pages.shownRows()==10,
+       "V101 compact previous page not symmetrical");
+ Fixture emptyRows;KitState noSamples{};noSamples.visible=9;emptyRows.kit(noSamples);
+ UI countControls(*emptyRows.c);
+ check(countControls.height()==L::editorHeight(0,9,L::Expansions{}),
+       "V101 empty 9-row height contract");
+ check(countControls.down(95.,countControls.height()-L::footer+22.)==
+          UI::Result::Applied&&emptyRows.c->visibleRows()==10,
+       "V101 ADD ROW did not change Controller count");
+ check(countControls.down(195.,countControls.height()-L::footer+22.)==
+          UI::Result::Applied&&emptyRows.c->visibleRows()==9,
+       "V101 REMOVE ROW did not restore Controller count");
+ evidence("V101 interactive controller routing: header, patterns, knob drag, VEL rollback, SETTINGS, zoom modal and 16-row paging PASS");
+}
+
+// This is the actual CView attached through a Windows VST3 editor and host
+// frame. The earlier V101 tests cover only a detached interaction object.
+void testV101LiveEditor(){
+ using L=drumator::UiV101Layout;
+ V101PatternEditHost automation;
+ Fixture f;auto kit=v101PreviewKit();kit.visible=16;f.kit(kit);
+ prepareAudio(*f.p);
+ check(f.c->setComponentHandler(&automation)==kResultOk,
+       "V101 host test cannot install automatable Pattern callback");
+ auto& hostEditor=f.openV101();
+ check(IntegrationAccess::viewCount(*f.c)==1,
+       "V101 native host did not register exactly one Controller view");
+ auto* view=IntegrationAccess::view(*f.c,0);
+ check(view->zoomMatches(1.3)&&
+       std::abs(hostEditor.getZoomFactor()-1.3)<.0001,
+       "F09 new VST3 factory View must attach at real 130 percent zoom");
+ // Historical screenshot oracle below explicitly requests 100% through
+ // the real header picker. Never assume the newly configured default.
+ click(*view,1200.,25.);
+ click(*view,1200.,61.);
+ check(view->zoomMatches(1.0)&&
+       std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
+       "V101 screenshot baseline 100 percent was not applied in real host");
+ check(view->isV101(),"V101 host loaded legacy painter instead of candidate");
+ check(IntegrationAccess::vintageFaceplateLoaded(*view),
+       "V101 dark user PNG was not actually loaded in native editor");
+ check(IntegrationAccess::vintageButtonsLoaded(*view),
+       "V101 4x dark button states missing, corrupt or wrong dimensions");
+ check(IntegrationAccess::modernTitleLoaded(*view),
+       "V101 new DRUMATOR-only logo not packaged or wrong dimensions");
+ // Authoritative Branding master is compiled into the native VST3 View.
+ // Neither the removed badge resource nor its captions may be required.
+ check(IntegrationAccess::officialMasterLogoAvailable(),
+       "V101 complete official 125A SVG master missing or its red/silver paths changed");
+ // The bitmap-backed cap must visibly differ from the procedural fallback
+ // while remaining an 83x32 overlay with the original live text.
+ const auto verifyVintageCap=[&](VSTGUI::CBitmap* sprite,
+                                double width,const char* caption){
+   using P=drumator::v101::UiV101NativePreview;
+   const auto raster=[&](bool withImage){
+     return VSTGUI::renderBitmapOffscreen({width,32.},1.,
+       [&](VSTGUI::CDrawContext& ctx){
+         P::fill(ctx,{0.,0.,width,32.},{85,72,61,255});
+         P::ButtonSprites material{sprite,sprite,nullptr,nullptr};
+         P::cap(ctx,{0.,0.,width,32.},0.,caption,false,10,
+                withImage?&material:nullptr);
+       });
+   };
+   const auto oldKey=raster(false),newKey=raster(true);
+   check(oldKey!=nullptr&&newKey!=nullptr,"V101 cap pixel capture failed");
+   auto* a=VSTGUI::CBitmapPixelAccess::create(oldKey.get(),false);
+   auto* b=VSTGUI::CBitmapPixelAccess::create(newKey.get(),false);
+   check(a&&b,"V101 cap pixels unavailable");
+   unsigned different=0;
+   for(std::uint32_t yy=0;yy<32;yy+=2)
+     for(std::uint32_t xx=0;xx<static_cast<std::uint32_t>(width);xx+=2){
+       check(a->setPosition(xx,yy)&&b->setPosition(xx,yy),
+             "V101 cap pixels outside expected bounds");
+       VSTGUI::CColor before{},after{};
+       a->getColor(before);b->getColor(after);
+       if(std::abs(int(before.red)-int(after.red))+
+          std::abs(int(before.green)-int(after.green))+
+          std::abs(int(before.blue)-int(after.blue))>18)++different;
+     }
+   a->forget();b->forget();
+   check(different>static_cast<unsigned>(width*1.35),
+         "V101 generated bitmap did not change actual native cap pixels");
+ };
+ verifyVintageCap(IntegrationAccess::vintageButton(*view,0),83.,"MENU");
+ verifyVintageCap(IntegrationAccess::vintageButton(*view,1),83.,"MENU");
+ // A-H must use the same photographic material with the 35x32 corners
+ // preserved. This rejects accidentally falling back to the old squares.
+ verifyVintageCap(IntegrationAccess::vintageButton(*view,0),35.,"A");
+ verifyVintageCap(IntegrationAccess::vintageButton(*view,1),35.,"A");
+ // Verify representative small/large footprint and actual pressed/disabled
+ // image. The old procedural renderer would be visibly different.
+ const auto variableCap=[&](double width,double height,const char* caption,
+                            bool pressed,bool disabled){
+   using P=drumator::v101::UiV101NativePreview;
+   const auto render=[&](bool vintage){
+     return VSTGUI::renderBitmapOffscreen({width,height},1.,
+       [&](VSTGUI::CDrawContext& ctx){
+         P::fill(ctx,{0.,0.,width,height},{42,43,44,255});
+         const P::ButtonSprites sprites{
+           IntegrationAccess::vintageButton(*view,0),
+           IntegrationAccess::vintageButton(*view,1),
+           IntegrationAccess::vintageButton(*view,2),
+           IntegrationAccess::vintageButton(*view,3)};
+         P::cap(ctx,{0.,0.,width,height},0.,caption,false,10,
+                vintage?&sprites:nullptr,disabled,pressed);
+       });
+   };
+   auto a=render(false),b=render(true);
+   check(a&&b,"V101 button family bitmap capture not available");
+   auto* pa=VSTGUI::CBitmapPixelAccess::create(a.get(),false);
+   auto* pb=VSTGUI::CBitmapPixelAccess::create(b.get(),false);
+   check(pa&&pb,"V101 button family actual pixel access failed");
+   unsigned different=0;
+   for(std::uint32_t yy=0;yy<static_cast<std::uint32_t>(height);yy+=2)
+     for(std::uint32_t xx=0;xx<static_cast<std::uint32_t>(width);xx+=2){
+       check(pa->setPosition(xx,yy)&&pb->setPosition(xx,yy),
+             "V101 button family pixel outside geometry");
+       VSTGUI::CColor oldColor{},newColor{};
+       pa->getColor(oldColor);pb->getColor(newColor);
+       if(std::abs(int(oldColor.red)-int(newColor.red))+
+          std::abs(int(oldColor.green)-int(newColor.green))+
+          std::abs(int(oldColor.blue)-int(newColor.blue))>18)++different;
+     }
+   pa->forget();pb->forget();
+   check(different>static_cast<unsigned>(width*.30),
+         "V101 custom button size fell back to old flat hardware paint");
+ };
+ variableCap(23.,32.,"<",false,false);
+ variableCap(27.,32.,"M",false,false);
+ variableCap(34.,26.,"+",false,false);
+ variableCap(42.,26.,"A",false,false);
+ variableCap(37.,20.,"VEL",false,false);
+ variableCap(37.,20.,"SET",true,false);
+ variableCap(86.,32.,"PREVIEW",true,false);
+ variableCap(90.,25.,"ADD ROW",false,false);
+ variableCap(95.,25.,"PREV PAGE",false,true);
+ variableCap(98.,26.,"ADD ENTRY",false,false);
+ variableCap(100.,26.,"NEXT",false,false);
+ // Read genuine raster pixels from the attached native VSTGUI editor.
+ // This checks optical state changes, not merely constants in the painter.
+ const auto viewPixel=[&](std::uint32_t x,std::uint32_t y){
+   const auto rect=view->getViewSize();
+   auto bitmap=VSTGUI::renderBitmapOffscreen(
+       VSTGUI::CPoint(rect.getWidth(),rect.getHeight()),1.,
+       [&](VSTGUI::CDrawContext& ctx){view->draw(&ctx);});
+   check(bitmap!=nullptr,"V101 design audit raster unavailable");
+   auto* pixels=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
+   check(pixels!=nullptr&&pixels->setPosition(x,y),
+         "V101 design audit pixel outside host bounds");
+   VSTGUI::CColor color{};
+   pixels->getColor(color);pixels->forget();
+   return std::array<int,3>{{color.red,color.green,color.blue}};
+ };
+ check(view->getViewSize().getWidth()==1280.&&
+       view->getViewSize().getHeight()==686.,
+       "V101 native host has wrong initial editor bounds");
+ // Edge pixel outside the old 80x28 cap must activate the new 83x32 ZOOM
+ // hit rectangle. Use the actual attached view, not only a constexpr check.
+ check(!IntegrationAccess::v101ZoomPopupOpen(*view),
+       "V101 ZOOM popup unexpectedly open at start");
+ click(*view,1166.,14.);
+ check(IntegrationAccess::v101ZoomPopupOpen(*view),
+       "V101 ZOOM enlarged 83x32 edge did not open its real popup");
+ click(*view,1166.,14.);
+ check(!IntegrationAccess::v101ZoomPopupOpen(*view),
+       "V101 ZOOM enlarged edge did not close popup symmetrically");
+ // The actual pixels behind the controls must be precisely those of
+ // the original full-size faceplate, not a new VSTGUI-drawn light/charcoal
+ // panel. Test three untouched places across the complete control row.
+ auto faceplateOnly=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+   [&](VSTGUI::CDrawContext& ctx){
+     check(drumator::v101::UiV101NativePreview::drawVintageFaceplate(
+       ctx,IntegrationAccess::vintageFaceplate(*view),686.),
+       "V101 source faceplate could not render for header pixel audit");
+   });
+ check(faceplateOnly!=nullptr,"V101 isolated photo backing raster missing");
+ auto* faceplatePixels=VSTGUI::CBitmapPixelAccess::create(faceplateOnly.get(),false);
+ check(faceplatePixels!=nullptr,"V101 photo backing pixel access unavailable");
+ for(const auto& pt:std::array<std::array<std::uint32_t,2>,3>{{
+       {{20u,85u}},{{746u,94u}},{{1101u,91u}}
+     }}){
+   check(faceplatePixels->setPosition(pt[0],pt[1]),
+         "V101 photo reference pixel outside header bounds");
+   VSTGUI::CColor original{};
+   faceplatePixels->getColor(original);
+   const auto rendered=viewPixel(pt[0],pt[1]);
+   check(std::abs(rendered[0]-int(original.red))<=3&&
+         std::abs(rendered[1]-int(original.green))<=3&&
+         std::abs(rendered[2]-int(original.blue))<=3,
+         "V101 header is still overpainted by artificial VSTGUI control panel");
+ }
+ // Pixel-oracle for the ACTUAL VST3 painter and the actual photograph.
+ // The faceplate is not blank, so compare against its untouched pixel data:
+ // only the PATTERN glyphs may differ in this x=33..341, y=80..96 bank.
+ // Checking only the rectangle's center did not catch left-aligned text.
+ {
+   const auto current=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+       [&](VSTGUI::CDrawContext& dc){view->draw(&dc);});
+   check(current!=nullptr,"PATTERN heading actual native raster missing");
+   auto* actual=VSTGUI::CBitmapPixelAccess::create(current.get(),false);
+   check(actual!=nullptr,"PATTERN heading pixels inaccessible");
+   int low=999,high=-1,inkCount=0;
+   for(std::uint32_t yy=82;yy<94;++yy)
+     for(std::uint32_t xx=33;xx<=341;++xx){
+       check(actual->setPosition(xx,yy)&&
+             faceplatePixels->setPosition(xx,yy),
+             "PATTERN title raster location out of bounds");
+       VSTGUI::CColor ink{},background{};
+       actual->getColor(ink);faceplatePixels->getColor(background);
+       const int brighter=int(ink.red)-int(background.red)+
+                          int(ink.green)-int(background.green)+
+                          int(ink.blue)-int(background.blue);
+       if(brighter>90){
+         low=std::min(low,static_cast<int>(xx));
+         high=std::max(high,static_cast<int>(xx));
+         ++inkCount;
+       }
+     }
+   actual->forget();
+   check(inkCount>22&&high>=low,
+         "V101 PATTERN heading not visible on actual graphite header");
+   const double actualCenter=(low+high)*.5;
+   const double buttonBankCenter=(L::patternButton(0).x0+
+                                  L::patternButton(7).x1)*.5;
+   check(std::abs(actualCenter-buttonBankCenter)<=3.,
+         "V101 PATTERN visible glyphs must center over all eight A-H keys");
+ }
+ faceplatePixels->forget();
+ // The new graphite artwork must remain visible without ivory fallback.
+ const auto graphiteMetal=viewPixel(1200,53);
+ check(graphiteMetal[0]<195&&graphiteMetal[1]<195&&
+       graphiteMetal[2]<195,
+       "V101 new graphite artwork is missing or excessively light");
+ const auto fullFooterPixel=viewPixel(17,658);
+ // All rack seams must have the same dark backing, not reveal the
+ // diagonal silver bevel of the source graphite photograph at y~580.
+ // Read pixels from the ACTUAL native VSTGUI editor in a single raster.
+ {
+   const auto bitmap=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+       [&](VSTGUI::CDrawContext& dc){view->draw(&dc);});
+   check(bitmap!=nullptr,"V101 seam raster missing");
+   auto* px=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
+   check(px!=nullptr,"V101 seam raster has no native pixel access");
+   for(std::uint32_t row=1;row<10;++row){
+     const auto y=static_cast<std::uint32_t>(
+         L::header+row*L::rowHeight);
+     check(px->setPosition(650u,y),
+           "V101 channel seam outside native raster");
+     VSTGUI::CColor seam{};px->getColor(seam);
+     check(seam.red<45&&seam.green<50&&seam.blue<65,
+           "V101 background photo bevel leaks into channel seam");
+   }
+   px->forget();
+ }
+ check(view->sampleDropTargetAt(200.,L::header+22.),
+       "V101 real view did not expose sample field for WAV/FLAC drop");
+ check(!view->sampleDropTargetAt(420.,L::header+22.),
+       "V101 real view accepted sample drop on Step bank");
+ // Real VSTGUI::CView pixels, not the isolated hardware fixture.
+ const auto currentStepPixel=[&](){
+   const auto bmp=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+       [&](VSTGUI::CDrawContext& dc){view->draw(&dc);});
+   check(bmp!=nullptr,"V101 live attached editor offscreen draw failed");
+   auto* px=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
+   check(px&&px->setPosition(428,178),"V101 live key raster unavailable");
+   VSTGUI::CColor color{};px->getColor(color);px->forget();
+   return std::array<int,3>{{color.red,color.green,color.blue}};
+ };
+ const auto pixelBefore=currentStepPixel();
+ const auto original=f.c->velocity(2,0,0);
+ click(*view,428.,L::header+20.);
+ check(f.c->velocity(2,0,0)!=original,
+       "V101 actual attached mouse Step did not reach Controller");
+ const auto pixelAfter=currentStepPixel();
+ check(pixelBefore!=pixelAfter&&pixelBefore[0]>pixelAfter[0]+70,
+       "V101 attached real painter did not follow mouse Step edit");
+ click(*view,L::knobCenters[0],L::header+24.,
+       VSTGUI::kLButton|VSTGUI::kControl);
+ check(f.c->rowGain(0)==100,
+       "V101 real Ctrl-click Volume default reset lost");
+ VSTGUI::CPoint knobStart(L::knobCenters[0],L::header+24.);
+ (void)view->onMouseDown(knobStart,
+        VSTGUI::CButtonState(VSTGUI::kLButton|VSTGUI::kShift));
+ VSTGUI::CPoint knobMove(L::knobCenters[0],L::header+12.);
+ (void)view->onMouseMoved(knobMove,
+        VSTGUI::CButtonState(VSTGUI::kLButton|VSTGUI::kShift));
+ (void)view->onMouseUp(knobMove,VSTGUI::CButtonState(VSTGUI::kLButton));
+ check(f.c->rowGain(0)==101,
+       "V101 real Shift-fine Volume drag wrong or silently cancelled");
+ click(*view,170.,115.);
+ check(f.c->currentPattern()==3&&automation.calls>=1,
+       "V101 actual host Pattern D did not execute automation");
+ click(*view,130.,115.);
+ check(f.c->currentPattern()==2,"V101 actual host Pattern C restore failed");
+ click(*view,90.,L::header+20.);
+ const auto fillGeometry=drumator::UiV101Popup::geometry(
+     drumator::UiV101Popup::Kind::Fill,L::header,view->getViewSize().getHeight());
+ const auto every2=drumator::UiV101Popup::cell(fillGeometry,0);
+ click(*view,(every2.x0+every2.x1)/2.,(every2.y0+every2.y1)/2.);
+ check(f.c->velocity(2,0,2)>0,
+       "V101 attached FILL menu did not edit the real row");
+ // Mouse-only SET row; OUTPUT and CHOKE popups use the painted hit geometry.
+ click(*view,1230.,L::header+36.);
+ click(*view,392.,L::header+69.);
+ const auto outputGeometry=drumator::UiV101Popup::geometry(
+     drumator::UiV101Popup::Kind::Output,L::header,view->getViewSize().getHeight());
+ const auto output2=drumator::UiV101Popup::cell(outputGeometry,2);
+ click(*view,(output2.x0+output2.x1)/2.,(output2.y0+output2.y1)/2.);
+ check(f.c->rowOutput(0)==2,"V101 host OUTPUT menu did not set bus 2");
+ click(*view,514.,L::header+69.);
+ const auto chokeGeometry=drumator::UiV101Popup::geometry(
+     drumator::UiV101Popup::Kind::Choke,L::header,view->getViewSize().getHeight());
+ const auto choke3=drumator::UiV101Popup::cell(chokeGeometry,3);
+ click(*view,(choke3.x0+choke3.x1)/2.,(choke3.y0+choke3.y1)/2.);
+ check(f.c->rowChoke(0)==3,"V101 host CHOKE menu did not set group 3");
+ // Sample options are reachable without holding Shift/Alt.
+ // SET expansion is 48 px high, so the second physical row
+ // begins after both the first 48 px lane and its expanded controls.
+ L::Expansions openSet{};
+ openSet[0]=L::Expansion::Settings;
+ const double secondRowTop=L::rowTop(0,1,openSet);
+ click(*view,(L::sampleMenu.x0+L::sampleMenu.x1)*.5,secondRowTop+20.);
+ check(IntegrationAccess::v101Popup(*view)==drumator::UiV101Popup::Kind::Sample,
+       "F17 moved sample-menu key failed to open before REMOVE SAMPLE");
+ const auto sampleGeometry=drumator::UiV101Popup::geometry(
+     drumator::UiV101Popup::Kind::Sample,secondRowTop,
+     view->getViewSize().getHeight());
+ const auto remove=drumator::UiV101Popup::cell(sampleGeometry,2);
+ click(*view,(remove.x0+remove.x1)/2.,(remove.y0+remove.y1)/2.);
+ check(!f.c->hasSample(1),"V101 host sample-menu REMOVE targeted wrong row");
+ const auto rowFooterY=view->getViewSize().getHeight()-L::footer;
+ check(f.c->canHideLast(),"V101 host fixture last instrument unexpectedly occupied");
+ click(*view,195.,rowFooterY+22.);
+ check(f.c->visibleRows()==15,"V101 real host REMOVE ROW not connected");
+ click(*view,95.,rowFooterY+22.);
+ check(f.c->visibleRows()==16,"V101 real host ADD ROW not connected");
+ // V1.0.1 real SONG editor uses the shared hardware paint family but
+ // the exact original UiSongLayout click targets (no behavior regression).
+ click(*view,650.,115.);
+ check(IntegrationAccess::songEditorOpen(*view)&&
+       view->getViewSize().getHeight()==UiCompactLayout::songEditorHeight,
+       "V101 SONG board did not open at its real native height");
+ check(view->zoomMatches(1.0)&&
+       std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
+       "V101 SONG 100 percent screenshot has different actual host zoom");
+ captureVstgui(*view,"v101-song-board-hardware-100",1.0);
+ // An unoccupied Song cell must be visibly less prominent than an entry.
+ // The fixture starts with 8 real entries; both samples avoid title glyphs.
+ check(f.c->songCount()==8,"V101 inactive-slot pixel fixture changed");
+ const auto populatedSongPixel=viewPixel(153,226);
+ const auto vacantSongPixel=viewPixel(153,278);
+ check(vacantSongPixel[0]>populatedSongPixel[0]+25&&
+       vacantSongPixel[1]>populatedSongPixel[1]+25&&
+       vacantSongPixel[0]<75&&vacantSongPixel[1]<75&&
+       vacantSongPixel[2]<80,
+       "V101 inactive SONG cell must be visibly distinct but dark navy, not light gray");
+ click(*view,1200.,25.);click(*view,1200.,113.); // real 130% popup
+ check(view->zoomMatches(1.3)&&
+       std::abs(hostEditor.getZoomFactor()-1.3)<.0001,
+       "V101 SONG 130 percent screenshot does not use actual 130 percent host zoom");
+ captureVstgui(*view,"v101-song-board-hardware-130",1.3);
+ // Screenshot every actual user zoom for design review, not scaled mockups.
+ click(*view,1200.,25.);click(*view,1200.,87.);
+ check(view->zoomMatches(1.2),"V101 SONG 120% host zoom mismatch");
+ captureVstgui(*view,"v101-song-board-hardware-120",1.2);
+ click(*view,1200.,25.);click(*view,1200.,139.);
+ check(view->zoomMatches(1.5),"V101 SONG 150% host zoom mismatch");
+ captureVstgui(*view,"v101-song-board-hardware-150",1.5);
+ // Regression: zoom 100% lies above the old LIMIT click rectangle.
+ const bool limiterBeforeZoom=f.c->limiterEnabled();
+ click(*view,1200.,25.);click(*view,1200.,61.); // restore 100%
+ check(view->zoomMatches(1.0)&&
+       std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
+       "V101 SONG zoom restore from 150 to 100 failed");
+ check(f.c->limiterEnabled()==limiterBeforeZoom,
+       "V101 zoom 100% must never toggle limiter");
+ const double songExportY=view->getViewSize().getHeight()-L::footer+22.;
+ click(*view,(L::songFooterExport.x0+L::songFooterExport.x1)*.5,songExportY);
+ check(IntegrationAccess::v101Popup(*view)==UiV101Popup::Kind::Export,
+       "SONG footer EXPORT did not open real menu");
+ captureVstgui(*view,"v101-song-export-menu-100",1.0);
+ click(*view,1100.,210.);
+ check(IntegrationAccess::v101Popup(*view)==UiV101Popup::Kind::None,
+       "SONG EXPORT outside click did not dismiss");
+ const auto songCount=f.c->songCount();
+ click(*view,181.,352.); // Pattern B for selected entry
+ check(f.c->songEntry(0).pattern==1,
+       "V101 SONG Pattern B hardware button disconnected");
+ click(*view,716.,352.); // 1/2 BAR for same entry
+ check(f.c->songEntry(0).steps==8,
+       "V101 SONG 1/2 BAR hardware button disconnected");
+ check(UiSongLayout::previousRight-UiSongLayout::previousLeft==100.&&
+       UiSongLayout::nextRight-UiSongLayout::nextLeft==100.&&
+       UiSongLayout::navBottom-UiSongLayout::navTop==26.&&
+       UiSongLayout::startBottom-UiSongLayout::startTop==26.&&
+       UiSongLayout::choiceBottom-UiSongLayout::choiceTop==26.,
+       "V101 SONG keys must share 26px height and equal nav widths");
+ check(!UiSongLayout::previousHit(1032.,181.)&&
+       UiSongLayout::previousHit(1086.,181.)&&
+       UiSongLayout::nextHit(1194.,181.),
+       "V101 SONG navigation mouse zones are not aligned with narrow keys");
+ check(UiSongLayout::addRight-UiSongLayout::addLeft==98.&&
+       UiSongLayout::removeRight-UiSongLayout::removeLeft==98.,
+       "V101 SONG action keys have unequal widths");
+ check(UiSongLayout::removeLastHit(
+         (UiSongLayout::removeLeft+UiSongLayout::removeRight)*.5,352.)&&
+       !UiSongLayout::removeLastHit(UiSongLayout::removeRight+4.,352.),
+       "V101 SONG REMOVE LAST hit region must match visible key and right edge");
+ click(*view,(UiSongLayout::addLeft+UiSongLayout::addRight)*.5,352.);
+ check(f.c->songCount()==songCount+1,
+       "V101 SONG ADD ENTRY lost count or layout");
+ click(*view,UiSongLayout::removeRight+4.,352.);
+ check(f.c->songCount()==songCount+1,
+       "V101 SONG REMOVE LAST must reject clicks beyond new 1244px right edge");
+ click(*view,(UiSongLayout::removeLeft+UiSongLayout::removeRight)*.5,352.);
+ check(f.c->songCount()==songCount,
+       "V101 SONG REMOVE LAST failed to undo added position");
+ const auto startBar=f.c->songStartBar();
+ click(*view,606.,180.);
+ check(f.c->songStartBar()==startBar+1,
+       "V101 SONG START + lost exact increment");
+ click(*view,675.,180.);
+ check(f.c->songStartBar()==1,
+       "V101 SONG START RESET not connected");
+ click(*view,650.,115.);
+ check(!IntegrationAccess::songEditorOpen(*view)&&view->isV101()&&
+       view->getViewSize().getHeight()==686.,
+       "V101 SONG close did not return to native main GUI and height");
+ // Real VST3/Controller long-label visual stress, not manually drawn text.
+ // Restore the fixture before the remaining main/wave interaction tests.
+ const std::string longRowLabel=
+     "Kick Industrial Distorted Underground Layer Twenty Four";
+ const auto originalStatus=IntegrationAccess::sampleEditorStatus(*view);
+ const auto beforeLongNameMenu=viewPixel(273,181);
+ const auto beforeLongNamePreview=viewPixel(308,181);
+ check(f.c->renameRow(0,longRowLabel),
+       "V101 long-name visual stress could not rename sample row");
+ check(f.c->label(0)==longRowLabel,
+       "V101 long-name visual stress was not reflected in Controller");
+ check(viewPixel(273,181)==beforeLongNameMenu&&
+       viewPixel(308,181)==beforeLongNamePreview,
+       "V101 long sample name overpaints adjacent hardware controls");
+ IntegrationAccess::setStatusText(*view,
+     "SAMPLE IMPORT FAILED: INVALID OR UNSUPPORTED AUDIO FILE");
+ captureVstgui(*view,"v101-main-long-label-and-status-100",1.0);
+ // Adversarial dynamic diagnostics must never overlap adjacent buttons.
+ IntegrationAccess::setStatusText(*view,std::string(256,'W'));
+ captureVstgui(*view,"v101-main-status-overflow-100",1.0);
+ {
+   auto metrics=VSTGUI::renderBitmapOffscreen({380.,24.},1.,
+       [&](VSTGUI::CDrawContext& dc){
+         const auto fitted=drumator::v101::UiV101NativePreview::fitStatusText(
+             dc,std::string(256,'W'),{0.,0.,380.,24.},10);
+         dc.setFont(VSTGUI::kNormalFont,10);
+         check(fitted.size()<256&&fitted.size()>=3&&
+               fitted.compare(fitted.size()-3,3,"...")==0&&
+               dc.getStringWidth(fitted.c_str())<=374.,
+               "V101 dynamic status must ellipsize using actual native font metrics");
+       });
+   check(metrics!=nullptr,"V101 native status font oracle not available");
+ }
+ IntegrationAccess::setStatusText(*view,originalStatus);
+ check(f.c->renameRow(0,"Kick 01"),
+       "V101 long-name visual stress did not restore original sample name");
+ const auto limiterX=(L::limiterTrigger.x0+L::limiterTrigger.x1)*.5;
+ const auto limiterY=(L::limiterTrigger.y0+L::limiterTrigger.y1)*.5;
+ const bool beforeLimiter=f.c->limiterEnabled();
+ click(*view,limiterX,limiterY);
+ check(f.c->limiterEnabled()!=beforeLimiter,
+       "MAIN LIMIT ON/OFF not connected to processor");
+ captureVstgui(*view,"v101-main-limiter-on-100",1.0);
+ click(*view,limiterX,limiterY);
+ check(f.c->limiterEnabled()==beforeLimiter,"MAIN limiter toggle restore");
+ const double mainExportY=view->getViewSize().getHeight()-L::footer+22.;
+ click(*view,(L::footerExport.x0+L::footerExport.x1)*.5,mainExportY);
+ check(IntegrationAccess::v101Popup(*view)==UiV101Popup::Kind::Export,
+       "MAIN footer EXPORT did not open native menu");
+ captureVstgui(*view,"v101-main-export-menu-100",1.0);
+ click(*view,1100.,210.);
+ check(IntegrationAccess::v101Popup(*view)==UiV101Popup::Kind::None,
+       "MAIN EXPORT outside-click dismissal failed");
+ click(*view,1200.,25.);click(*view,1200.,87.);
+ check(view->zoomMatches(1.2),"V101 MAIN 120% host zoom mismatch");
+ captureVstgui(*view,"v101-layout-native-main-120",1.2);
+ click(*view,1200.,25.);click(*view,1200.,139.);
+ check(view->zoomMatches(1.5),"V101 MAIN 150% host zoom mismatch");
+ captureVstgui(*view,"v101-layout-native-main-150",1.5);
+ click(*view,1200.,25.);click(*view,1200.,61.);
+ check(view->zoomMatches(1.0),"V101 MAIN 100% host zoom restore mismatch");
+ // Compact 95x25 footer keys must page in the actual host, resizing
+ // from ten to six rows and back without stale click areas.
+ const auto initialHeight=view->getViewSize().getHeight();
+ click(*view,1175.,initialHeight-L::footer+22.);
+ check(view->getViewSize().getHeight()==
+           L::editorHeight(10,6,L::Expansions{}),
+       "V101 attached host NEXT PAGE did not resize to six rows");
+ captureVstgui(*view,"v101-vintage-faceplate-six-row-100",1.0);
+ const auto shortFooterPixel=viewPixel(17,
+      static_cast<std::uint32_t>(view->getViewSize().getHeight()-28.));
+ for(std::size_t component=0;component<3;++component)
+   check(std::abs(fullFooterPixel[component]-shortFooterPixel[component])<=8,
+         "V101 image-backed fixed-size footer warped after paging");
+ click(*view,1070.,view->getViewSize().getHeight()-L::footer+22.);
+ check(view->getViewSize().getHeight()==686.,
+       "V101 attached host PREV PAGE did not return to ten rows");
+ // 80x28 real zoom, with preset selection and host resize negotiation.
+ click(*view,1200.,25.);click(*view,1200.,139.);
+ check(std::abs(hostEditor.getZoomFactor()-1.5)<0.0001,
+       "V101 host zoom selector did not apply the 150 percent zoom");
+ check(f.frames[0].calls>0,"V101 native host did not receive any resize calls");
+ click(*view,1200.,25.);click(*view,1200.,61.); // actual 100% before Wave
+ check(view->zoomMatches(1.0)&&
+       std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
+       "V101 Wave capture entered with stale 150 percent host zoom");
+ // Wave editor: a direct EDIT click must request the correct real sample,
+ // either immediately or through the existing async snapshot pipeline.
+ const auto normalBackgroundPixel=viewPixel(96,173);
+ click(*view,380.,L::header+24.);
+ check(IntegrationAccess::sampleEditorOpen(*view)||
+       f.c->sampleEditorRequestPending(0,view),
+       "V101 live EDIT click did not reach sample editor snapshot");
+ if(!IntegrationAccess::sampleEditorOpen(*view))
+   check(IntegrationAccess::openSampleEditorForCapture(*view,0),
+         "V101 WAV editor source not ready for native rendering verification");
+ check(IntegrationAccess::sampleEditorOpen(*view),
+       "V101 real Wave editor did not open for rendering verification");
+ check(IntegrationAccess::sampleEditorLive(*view),
+       "WEL5 new Wave editor did not default to LIVE ON");
+ const auto liveKey=drumator::UiV101WaveLayout::liveToggle;
+ const auto liveX=(liveKey.left+liveKey.right)*.5;
+ const auto liveY=(liveKey.top+liveKey.bottom)*.5;
+ click(*view,liveX,liveY);
+ check(!IntegrationAccess::sampleEditorLive(*view),
+       "WEL5 Wave LIVE OFF key failed to disable monitoring");
+ click(*view,liveX,liveY);
+ check(IntegrationAccess::sampleEditorLive(*view),
+       "WEL5 Wave LIVE ON key failed to reacquire monitoring");
+ check(view->zoomMatches(1.0)&&
+       std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
+       "V101 Wave 100 percent raster did not use real 100 percent zoom");
+ captureVstgui(*view,"v101-wave-editor-hardware-100",1.0);
+ // The actual WAVE modal must expose the owner-approved source PNG at its
+ // native brightness. A generic dark rectangle, fallback satin fill or
+ // an unrequested translucent darkening pass must FAIL this pixel oracle.
+ // Only sample unpainted metal below the readouts; no overlay text or knobs.
+ auto* waveMetal=IntegrationAccess::vintageFaceplate(*view);
+ check(waveMetal&&waveMetal->isLoaded()&&waveMetal->getWidth()>=820.&&
+       waveMetal->getHeight()>=505.,
+       "V101 Wave original metal faceplate source not loaded");
+ auto expectedWaveMetal=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+   [&](VSTGUI::CDrawContext& dc){
+     waveMetal->draw(&dc,{230.,100.,1050.,605.},
+       {(waveMetal->getWidth()-820.)*.5,(waveMetal->getHeight()-505.)*.5});
+   });
+ check(expectedWaveMetal!=nullptr,"V101 Wave source metal reference unavailable");
+ auto* waveMetalPixels=VSTGUI::CBitmapPixelAccess::create(expectedWaveMetal.get(),false);
+ check(waveMetalPixels!=nullptr,"V101 Wave original faceplate pixels unavailable");
+ for(const auto& point:std::array<std::array<std::uint32_t,2>,5>{{
+       {{250u,558u}},{{410u,565u}},{{800u,570u}},
+       {{902u,585u}},{{1001u,594u}}}}){
+   check(waveMetalPixels->setPosition(point[0],point[1]),
+         "V101 Wave original metal reference outside bitmap");
+   VSTGUI::CColor referenceMetalPixel{};
+   waveMetalPixels->getColor(referenceMetalPixel);
+   const auto actual=viewPixel(point[0],point[1]);
+   const int rgbDifference=std::abs(actual[0]-int(referenceMetalPixel.red))+
+                           std::abs(actual[1]-int(referenceMetalPixel.green))+
+                           std::abs(actual[2]-int(referenceMetalPixel.blue));
+   check(rgbDifference<=15,
+         "V101 WAVE interior must show undarkened original metal image");
+ }
+ waveMetalPixels->forget();
+ // Assert that the modal scrim actually darkens a control outside the dialog.
+ const auto modalBackgroundPixel=viewPixel(96,173);
+ const auto rgbTotal=[](const std::array<int,3>& rgb){
+   return rgb[0]+rgb[1]+rgb[2];
+ };
+ // On a near-black panel, a 50%-opaque modal scrim cannot remove the
+ // former ivory-skin 60 RGB-sum units. Still require visible darkening
+ // and correct per-channel direction using actual editor pixels.
+ check(rgbTotal(modalBackgroundPixel)+18<rgbTotal(normalBackgroundPixel)&&
+       modalBackgroundPixel[0]<normalBackgroundPixel[0]&&
+       modalBackgroundPixel[1]<normalBackgroundPixel[1]&&
+       modalBackgroundPixel[2]<normalBackgroundPixel[2],
+       "V101 Wave modal scrim failed to darken actual drum controls");
+ check(hostEditor.setZoomChecked(1.3),
+       "V101 host rejected Wave-editor zoom change to 130 percent");
+ view->refreshFromHost(false);
+ check(view->zoomMatches(1.3)&&
+       std::abs(hostEditor.getZoomFactor()-1.3)<.0001,
+       "V101 Wave 130 percent raster did not update the actual editor zoom state");
+ captureVstgui(*view,"v101-wave-editor-hardware-130",1.3);
+ check(hostEditor.setZoomChecked(1.2),"V101 Wave host rejected 120%");
+ view->refreshFromHost(false);
+ check(view->zoomMatches(1.2),"V101 Wave 120% host zoom mismatch");
+ captureVstgui(*view,"v101-wave-editor-hardware-120",1.2);
+ check(hostEditor.setZoomChecked(1.5),"V101 Wave host rejected 150%");
+ view->refreshFromHost(false);
+ check(view->zoomMatches(1.5),"V101 Wave 150% host zoom mismatch");
+ captureVstgui(*view,"v101-wave-editor-hardware-150",1.5);
+ check(hostEditor.setZoomChecked(1.0),"V101 Wave host rejected 100% restore");
+ view->refreshFromHost(false);
+ check(view->zoomMatches(1.0),"V101 Wave host zoom restore mismatch");
+ // Mounting groups are a unified paint-only 41px-deep navy family;
+ // zoom/fit, preview/stop, reset and cancel/apply share one blue border.
+ const auto& bezelGroups=drumator::UiV101WaveLayout::toolbarGroups;
+ check(bezelGroups.size()==4,
+       "V101 Wave toolbar must have four logical mounting bezels");
+ for(std::size_t k=0;k<bezelGroups.size();++k){
+   const auto& rect=bezelGroups[k];
+   check(rect.bottom-rect.top==41.&&rect.top==453.&&
+         rect.bottom<drumator::UiV101WaveLayout::readout(0).top,
+         "V101 Wave group bezel overlaps value displays");
+   if(k)
+     check(rect.left-bezelGroups[k-1].right==2.,
+           "V101 Wave blue group bezels must have identical separation");
+ }
+ // Every original key is still in exactly one display bezel.
+ for(std::size_t k=0;k<drumator::UiV101WaveLayout::toolbar.size();++k){
+   const auto& key=drumator::UiV101WaveLayout::toolbar[k];
+   const std::size_t group=k<3?0:k<5?1:k==5?2:3;
+   const auto& border=bezelGroups[group];
+   check(border.left<key.left&&border.right>key.right&&
+         border.top<key.top&&border.bottom>key.bottom,
+         "V101 Wave button has no matching blue mounting bezel");
+ }
+ // On the real native editor, every new Wave key must agree with its
+ // exact hitbox; clicks in the eight-pixel gutters must be inert.
+ check(drumator::UiV101WaveLayout::buttonAt(360.,473.)==-1&&
+       drumator::UiV101WaveLayout::buttonAt(971.,473.)==7,
+       "V101 Wave hardware toolbar hit map differs from the painted keys");
+ const auto beforeGap=IntegrationAccess::sampleEditorDraft(*view);
+ click(*view,360.,473.);
+ check(IntegrationAccess::sampleEditorOpen(*view)&&
+       IntegrationAccess::sampleEditorDraft(*view).start==beforeGap.start&&
+       IntegrationAccess::sampleEditorDraft(*view).end==beforeGap.end&&
+       IntegrationAccess::sampleEditorDraft(*view).fadeIn==beforeGap.fadeIn&&
+       IntegrationAccess::sampleEditorDraft(*view).fadeOut==beforeGap.fadeOut&&
+       IntegrationAccess::sampleEditorDraft(*view).gain==beforeGap.gain,
+       "V101 Wave obsolete toolbar gap still changes the edit");
+ const auto preEdit=IntegrationAccess::sampleEditorDraft(*view);
+ click(*view,300.,210.);
+ check(IntegrationAccess::sampleEditorDraft(*view).start!=preEdit.start,
+       "V101 Wave START marker stopped responding after redraw");
+ click(*view,875.,473.); // CANCEL
+ check(!IntegrationAccess::sampleEditorOpen(*view)&&view->isV101(),
+       "V101 Wave CANCEL failed to return to hardware main GUI");
+ f.closeLast();
+ check(IntegrationAccess::viewCount(*f.c)==0,
+       "V101 real host closing editor leaked a Controller view");
+ // Host resize refusal must rollback BOTH the native window and the
+ // processor/Controller instrument count (not just the UI's page state).
+ Fixture refusal;KitState empty{};empty.visible=9;refusal.kit(empty);
+ (void)refusal.openV101();
+ auto* refusedView=IntegrationAccess::view(*refusal.c,0);
+ const double nineRowHeight=L::editorHeight(0,9,L::Expansions{});
+ check(refusedView->getViewSize().getHeight()==nineRowHeight,
+       "V101 native nine-row fixture wrong initial height");
+ refusal.frames[0].accept=false;
+ click(*refusedView,95.,nineRowHeight-L::footer+22.);
+ check(refusal.c->visibleRows()==9&&
+       refusedView->getViewSize().getHeight()==nineRowHeight,
+       "V101 rejected host ADD ROW left changed processor or view state");
+ refusal.frames[0].accept=true;
+ click(*refusedView,95.,nineRowHeight-L::footer+22.);
+ check(refusal.c->visibleRows()==10&&
+       refusedView->getViewSize().getHeight()==686.,
+       "V101 accepted host ADD ROW failed after rollback");
+ refusal.closeLast();
+ check(IntegrationAccess::viewCount(*refusal.c)==0,
+       "V101 rejected-resize fixture leaked editor view");
+ evidence("V101 attached native VST3 editor: live raster, Step/Pattern/FILL, OUTPUT/CHOKE, sample menu, SONG return, 16-row paging, zoom, WAV edit request and teardown PASS");
+}
+
+
+// E2E host fixture: Controller is connected to the real Processor. Unlike
+// encoder-only unit tests, this exercises the UI-side kit mirror, processor
+// IPC, native file path handling, staged output and actual disk bytes.
+void testV101ConnectedPatternSongExportsAndLimiter(){
+ Fixture f;
+ auto kit=v101PreviewKit(); // contains ten genuine, playable PCM samples
+ kit.chain.setCount(2);
+ check(kit.chain.configure(0,2,32)&&kit.chain.configure(1,2,32),
+       "connected EXPORT SONG fixture setup");
+ f.kit(kit);
+ const auto base=std::filesystem::temp_directory_path();
+ const auto pm=base/"125a-v101-connected-pattern.mid";
+ const auto sm=base/"125a-v101-connected-song.mid";
+ const auto pw=base/"125a-v101-connected-pattern.wav";
+ const auto sw=base/"125a-v101-connected-song.wav";
+ const auto lw=base/"125a-v101-connected-limited.wav";
+ const auto read=[](const std::filesystem::path& p){
+   std::ifstream stream(p,std::ios::binary);
+   return std::vector<std::uint8_t>(
+     (std::istreambuf_iterator<char>(stream)),std::istreambuf_iterator<char>());
+ };
+ const auto validMidi=[](const std::vector<std::uint8_t>& b){
+   return b.size()>48&&b[0]=='M'&&b[1]=='T'&&b[2]=='h'&&b[3]=='d'&&
+          b[8]==0&&b[9]==1&&b[10]==0&&b[11]==17&&
+          b[12]==3&&b[13]==0xc0;
+ };
+ const auto validWav=[](const std::vector<std::uint8_t>& b){
+   return b.size()>44&&b[0]=='R'&&b[1]=='I'&&b[2]=='F'&&b[3]=='F'&&
+          b[8]=='W'&&b[9]=='A'&&b[10]=='V'&&b[11]=='E'&&
+          b[20]==1&&b[22]==2&&b[34]==24&&
+          b[24]==0x80&&b[25]==0xbb&&b[26]==0&&b[27]==0;
+ };
+ check(f.c->exportMidi(false,pm.string()),"connected PATTERN MIDI disk export");
+ check(f.c->exportMidi(true,sm.string()),"connected SONG MIDI disk export");
+ const auto midiPattern=read(pm),midiSong=read(sm);
+ check(validMidi(midiPattern)&&validMidi(midiSong),
+       "connected MIDI files must parse as 17-track 960-PPQ type-1 SMF");
+ check(midiSong.size()>midiPattern.size(),
+       "connected SONG MIDI must contain more musical events than PATTERN");
+ check(f.c->exportWav(false,pw.string()),"connected PATTERN WAV disk export");
+ check(f.c->exportWav(true,sw.string()),"connected SONG WAV disk export");
+ const auto wavPattern=read(pw),wavSong=read(sw);
+ check(validWav(wavPattern)&&validWav(wavSong),
+       "connected WAV files must be playable stereo 48kHz/24bit PCM");
+ check(wavSong.size()>wavPattern.size(),
+       "connected SONG WAV must extend beyond single PATTERN");
+ if(validWav(wavPattern))
+   check(std::any_of(wavPattern.begin()+44,wavPattern.end(),
+                     [](std::uint8_t b){return b!=0;}),
+         "connected pattern WAV contains no playable sample audio");
+ check(!f.c->limiterEnabled(),"connected LIMIT initial OFF");
+ check(f.c->setLimiterEnabled(true)&&f.c->limiterEnabled(),
+       "connected LIMIT ON message/Controller failed");
+ check(f.c->exportWav(false,lw.string()),
+       "connected LIMIT ON 24bit WAV export");
+ const auto limited=read(lw);
+ check(validWav(limited),"connected limited WAV header");
+ check(f.c->setLimiterEnabled(false)&&!f.c->limiterEnabled(),
+       "connected LIMIT OFF message/Controller failed");
+ const auto saved=read(pw);
+ check(!f.c->exportMidi(false,""),
+       "connected invalid MIDI destination must be rejected");
+ check(read(pw)==saved,
+       "connected rejected output must preserve existing WAV bytes");
+ for(const auto& p:{pm,sm,pw,sw,lw}){
+   std::error_code ec;
+   std::filesystem::remove(p,ec);
+   check(!std::filesystem::exists(p.string()+".125a-export-part",ec),
+         "connected export left a partial file");
+ }
+ // Audio-level E2E: two simultaneous floating-point stereo sample voices
+ // deliberately exceed 0 dBFS. The connected GUI Controller must propagate
+ // LIMIT into the real Processor and the offline WAV mixer, not only report ON.
+ {
+   Fixture hotFixture;
+   KitState hot{};
+   hot.visible=2;hot.selected=0;hot.patternLengths.fill(16);
+   hot.grid.fill(0);
+   hot.grid[0]=127;hot.grid[kSteps]=127;
+   hot.names[0]="hot-left.wav";hot.names[1]="hot-right.wav";
+   hot.wav[0]=constantStereo(.9f,-.72f);
+   hot.wav[1]=constantStereo(.9f,-.72f);
+   hotFixture.kit(hot);
+   const auto without=base/"125a-v101-hot-limiter-off.wav";
+   const auto with=base/"125a-v101-hot-limiter-on.wav";
+   const auto pcm24=[](const std::vector<std::uint8_t>& b,std::size_t p){
+     std::int32_t n=static_cast<std::int32_t>(b[p])|
+                    (static_cast<std::int32_t>(b[p+1])<<8)|
+                    (static_cast<std::int32_t>(b[p+2])<<16);
+     if(n&0x800000)n|=static_cast<std::int32_t>(0xff000000u);
+     return static_cast<double>(n)/8388608.;
+   };
+   auto processorLimiter=[&](unsigned expected){
+     ResizableMemoryIBStream saved;
+     KitState observed{};
+     check(hotFixture.p->getState(&saved)==kResultOk&&
+           KitCodec::decode(static_cast<const std::uint8_t*>(saved.getData()),
+                            static_cast<std::size_t>(saved.getCursor()),observed),
+           "connected LIMIT processor state could not be decoded");
+     check(observed.limiter==expected,
+           "connected LIMIT GUI control did not reach Processor state");
+   };
+   check(!hotFixture.c->limiterEnabled(),
+         "connected hot limiter fixture must start OFF");
+   processorLimiter(0);
+   check(hotFixture.c->exportWav(false,without.string()),
+         "connected hot LIMIT OFF WAV creation failed");
+   const auto off=read(without);
+   check(hotFixture.c->setLimiterEnabled(true)&&
+         hotFixture.c->limiterEnabled(),
+         "connected hot LIMIT ON Controller command failed");
+   processorLimiter(1);
+   check(hotFixture.c->exportWav(false,with.string()),
+         "connected hot LIMIT ON WAV creation failed");
+   const auto on=read(with);
+   check(validWav(off)&&validWav(on)&&off.size()==on.size(),
+         "connected hot LIMIT WAV pair must share valid timing and header");
+   if(validWav(off)&&validWav(on)&&off.size()==on.size()){
+     double peakOff=0.,peakOn=0.;
+     unsigned meaningful=0;
+     const std::size_t last=std::min<std::size_t>(off.size(),44u+1024u*6u);
+     for(std::size_t p=44;p+5<last;p+=6){
+       const double ol=pcm24(off,p),orr=pcm24(off,p+3);
+       const double nl=pcm24(on,p),nrr=pcm24(on,p+3);
+       peakOff=std::max({peakOff,std::abs(ol),std::abs(orr)});
+       peakOn=std::max({peakOn,std::abs(nl),std::abs(nrr)});
+       if(std::abs(ol-nl)>.03)++meaningful;
+       check(std::abs(nl)<=StereoPeakLimiter::kCeiling+.000001 &&
+             std::abs(nrr)<=StereoPeakLimiter::kCeiling+.000001,
+             "connected LIMIT ON audio exceeded -0.3dBFS ceiling");
+       if(std::abs(nl)>.001&&std::abs(nrr)>.001)
+         // OFF WAV values may be hard-clipped by PCM24 packing; compare the
+         // ON channels against the independent source ratio, not OFF clipping.
+         check(std::abs(nl/nrr-(.9/-.72))<.002,
+               "connected LIMIT ON changed source stereo channel balance");
+     }
+     check(peakOff>.99&&peakOn<=StereoPeakLimiter::kCeiling+.000001&&
+           meaningful>100&&off!=on,
+           "connected LIMIT OFF and ON must produce independently distinct PCM");
+   }
+   check(hotFixture.c->setLimiterEnabled(false)&&
+         !hotFixture.c->limiterEnabled(),
+         "connected hot LIMIT OFF Controller command failed");
+   processorLimiter(0);
+   check(hotFixture.c->exportWav(false,with.string()),
+         "connected hot limiter second OFF export failed");
+   check(read(with)==off,
+         "connected LIMIT ON->OFF must recover bit-exact original 24-bit PCM");
+   // Independent live VST3 Processor output check. The WAV renderer is a
+   // separate control-thread path, so exporting correctly is not proof
+   // that the actual host's stereo output bus applies the same limiter.
+   const auto hostBlock=[&](bool enabled){
+     Fixture live;
+     auto source=hot;
+     source.limiter=enabled?1:0;
+     live.kit(source);
+     prepareAudio(*live.p);
+     std::array<float,256> l{},r{};
+     float* channels[]{l.data(),r.data()};
+     AudioBusBuffers bus{};
+     bus.numChannels=2;bus.channelBuffers32=channels;
+     ProcessContext clock{};
+     clock.state=ProcessContext::kPlaying|
+                 ProcessContext::kTempoValid|
+                 ProcessContext::kProjectTimeMusicValid;
+     clock.tempo=120.;clock.projectTimeMusic=0.;
+     ProcessData io{};
+     io.numSamples=256;io.symbolicSampleSize=kSample32;
+     io.numOutputs=1;io.outputs=&bus;io.processContext=&clock;
+     check(live.p->process(io)==kResultOk,
+           "connected LIMIT live Processor MIDI/audio block failed");
+     return std::pair{l,r};
+   };
+   const auto [dryL,dryR]=hostBlock(false);
+   const auto [wetL,wetR]=hostBlock(true);
+   unsigned audible=0,attenuated=0;
+   for(std::size_t i=32;i<240;++i){
+     if(std::abs(dryL[i])<.01f&&std::abs(dryR[i])<.01f)continue;
+     ++audible;
+     check(std::abs(wetL[i])<=StereoPeakLimiter::kCeiling+1e-5f&&
+           std::abs(wetR[i])<=StereoPeakLimiter::kCeiling+1e-5f,
+           "connected LIMIT live VST3 main bus exceeded -0.3dBFS");
+     if(std::abs(dryL[i]-wetL[i])>.1f)++attenuated;
+     if(std::abs(wetR[i])>.01f)
+       check(std::abs(wetL[i]/wetR[i]-(.9/-.72))<.002,
+             "connected LIMIT live Processor broke original stereo ratio");
+   }
+   check(audible>150&&attenuated>150&&
+         std::abs(dryL[100])>1.f&&
+         std::abs(wetL[100])<=StereoPeakLimiter::kCeiling+1e-5f,
+         "connected LIMIT must alter actual live VST3 bus audio, not only WAV");
+   evidence("V1.0.1 connected LIVE VST3 main bus LIMIT OFF/ON: 256 stereo frames, genuine peak ceiling and stereo ratio PASS");
+   for(const auto& path:{without,with}){
+     std::error_code ec;std::filesystem::remove(path,ec);
+   }
+ }
+ evidence("V1.0.1 connected LIMIT end-to-end: ON -0.3dBFS, stereo link, OFF exact PCM, Processor state ON/OFF PASS");
+ evidence("V1.0.1 connected Controller/Processor: PATTERN+SONG MIDI, PATTERN+SONG 24bit PCM WAV, LIMIT ON/OFF, file rollback PASS");
+}
+
+
+void testCodexLegacyControllerExportReset(){
+ for(const std::uint32_t magic:{0x31524d44u,0x32524d44u,0x33524d44u}){
+   Fixture f;KitState kit{};
+   kit.visible=4;kit.grid.fill(0);kit.grid[0]=127;kit.limiter=1;
+   kit.names[0]="before.wav";kit.wav[0]=constantStereo(.7f,-.4f);
+   kit.sampleEdits[0].gain=.5f;
+   f.kit(kit);
+   check(f.c->limiterEnabled(),"Codex01 pre-legacy Controller LIMIT not ON");
+   const auto path=std::filesystem::temp_directory_path()/"125a-codex-legacy-export.wav";
+   check(f.c->exportWav(false,path.string()),"Codex01 populated pre-legacy WAV export failed");
+   std::vector<std::uint8_t> b;
+   for(auto n:{magic,std::uint32_t{0}})
+     for(int i=0;i<4;++i)b.push_back(static_cast<std::uint8_t>(n>>(8*i)));
+   if(magic==0x33524d44u)b.push_back(4);
+   if(magic!=0x31524d44u)b.insert(b.end(),kCells,0);
+   qa::ByteStream input(b.data(),b.size());
+   check(f.p->setState(&input)==kResultOk&&f.recall(b)==kResultOk,
+         "Codex01 genuine paired DMR1/2/3 restore failed");
+   check(!f.c->limiterEnabled()&&!f.c->hasSample(0),
+         "Codex01 legacy must reset visible limiter and sample state");
+   check(f.c->exportWav(false,path.string()),
+         "Codex01 post-legacy WAV export failed");
+   std::ifstream reader(path,std::ios::binary);
+   const std::vector<std::uint8_t> bytes{
+      std::istreambuf_iterator<char>(reader),std::istreambuf_iterator<char>()};
+   check(bytes.size()>44,"Codex01 legacy output invalid WAV");
+   check(std::all_of(bytes.begin()+44,bytes.end(),
+                     [](std::uint8_t v){return v==0;}),
+         "Codex01 stale sample PCM survived DMR legacy recall");
+   ResizableMemoryIBStream saved;KitState restored;
+   check(f.p->getState(&saved)==kResultOk&&
+         KitCodec::decode(static_cast<const std::uint8_t*>(saved.getData()),
+                          static_cast<std::size_t>(saved.getCursor()),restored)&&
+         restored.wav[0].empty()&&restored.limiter==0,
+         "Codex01 processor and controller disagree after DMR recall");
+   std::error_code ec;std::filesystem::remove(path,ec);
+ }
+ evidence("Codex01 paired DMR1/DMR2/DMR3: no stale exported PCM, LIMIT OFF and matching Processor state PASS");
+}
+void testCodexForeignExportFileOwnership(){
+ const auto path=std::filesystem::temp_directory_path()/"125a-codex-owned-export.mid";
+ auto foreign=path;foreign+=".125a-export-part";
+ {
+   std::ofstream out(foreign,std::ios::binary|std::ios::trunc);
+   const char guard[]="PRESERVE FOREIGN SCRATCH";
+   out.write(guard,sizeof(guard));
+ }
+ const auto read=[](const std::filesystem::path& p){
+   std::ifstream stream(p,std::ios::binary);
+   return std::vector<char>(std::istreambuf_iterator<char>(stream),
+                            std::istreambuf_iterator<char>());
+ };
+ const auto original=read(foreign);
+ check(!original.empty(),"Codex03 scratch sentinel missing");
+ {
+   ExportFile invalid{std::filesystem::path{}};
+   check(!invalid.open(),"Codex03 empty path accepted");
+ }
+ check(read(foreign)==original,
+       "Codex03 failed exporter removed another process's scratch file");
+ {
+   ExportFile one{path},two{path};
+   const char a[]="A MIDI payload",b[]="B MIDI payload";
+   check(one.open()&&two.open(),
+         "Codex03 concurrent exporters must reserve distinct scratch files");
+   check(one.write(a,sizeof(a))&&two.write(b,sizeof(b)),
+         "Codex03 concurrent scratch writes");
+   check(one.finish(),"Codex03 first transaction did not commit");
+   check(read(foreign)==original,
+         "Codex03 first commit overwrote foreign scratch");
+   check(two.finish(),"Codex03 second transaction did not commit");
+ }
+ check(read(foreign)==original,
+       "Codex03 another export destructor deleted preexisting scratch");
+ std::error_code ec;
+ std::filesystem::remove(foreign,ec);std::filesystem::remove(path,ec);
+ evidence("Codex03 foreign .125a-export-part byte-exact preservation and simultaneous scratch ownership PASS");
+}
+void testCodexControllerActionOOM(){
+ enum class Op{Limiter,Rename,Song,AddRow,RemoveRow};
+ for(const auto op:{Op::Limiter,Op::Rename,Op::Song,Op::AddRow,Op::RemoveRow}){
+   unsigned injected=0;
+   for(long fault=0;fault<12;++fault){
+     Fixture f;KitState state{};state.visible=4;f.kit(state);
+     const auto before=IntegrationAccess::snapshot(*f.c);
+     const auto oldRows=f.c->visibleRows();
+     const auto oldLimiter=f.c->limiterEnabled();
+     const auto oldName=f.c->customName(0);
+     const auto oldSong=f.c->songEnabled();
+     bool accepted=false,escaped=false;
+     allocationFail=fault;
+     try {
+       switch(op){
+         case Op::Limiter:accepted=f.c->setLimiterEnabled(true);break;
+         case Op::Rename:accepted=f.c->renameRow(0,"Codex Rename");break;
+         case Op::Song:{
+           SongChain chain{};
+           accepted=f.c->configureSong(true,chain.count(),chain,1);
+           break;
+         }
+         case Op::AddRow:accepted=f.c->addRow();break;
+         case Op::RemoveRow:accepted=f.c->hideLastEmptyRow();break;
+       }
+     }catch(...){escaped=true;}
+     const bool triggered=allocationFail==-1;
+     allocationFail=-1;
+     check(!escaped,"Codex02 bad_alloc escaped actual Controller button action");
+     if(triggered)++injected;
+     if(!accepted){
+       check(IntegrationAccess::snapshot(*f.c)==before&&
+             f.c->visibleRows()==oldRows&&
+             f.c->limiterEnabled()==oldLimiter&&
+             f.c->customName(0)==oldName&&
+             f.c->songEnabled()==oldSong,
+             "Codex02 rejected action mutated Controller state");
+     }
+   }
+   check(injected>=1,"Codex02 allocation fault failed to intercept action");
+ }
+ evidence("Codex02 forced OOM in LIMIT, rename, SONG, ADD and REMOVE; no exception or rejected-state mutation PASS");
+}
+void testCodexLimiterSameProcessorOnOffOn(){
+ Fixture f;KitState kit{};kit.visible=2;f.kit(kit);
+ prepareAudio(*f.p);
+ check(f.c->setLimiterEnabled(true),"Codex04 enable LIMIT");
+ const auto compressed=IntegrationAccess::primeAndMeasureLimiter(*f.p,2.f);
+ check(compressed<StereoPeakLimiter::kCeiling+.001f,
+       "Codex04 did not prime strong gain reduction in actual Processor");
+ check(f.c->setLimiterEnabled(false),"Codex04 disable LIMIT");
+ std::array<float,256> left{},right{};float* channels[]{left.data(),right.data()};
+ AudioBusBuffers bus{};bus.numChannels=2;bus.channelBuffers32=channels;
+ ProcessData io{};io.numSamples=256;io.numOutputs=1;io.outputs=&bus;
+ io.symbolicSampleSize=kSample32;
+ for(int i=0;i<5;++i)
+   check(f.p->process(io)==kResultOk,"Codex04 actual Processor bypass block");
+ check(f.c->setLimiterEnabled(true),"Codex04 reenable LIMIT");
+ const auto after=IntegrationAccess::primeAndMeasureLimiter(*f.p,.1f);
+ check(std::abs(after-.1f)<1e-6f,
+       "Codex04 stale gain attenuation returned on first sample after OFF->ON");
+ evidence("Codex04 SAME connected VST3 Processor: hot ON, 5 OFF blocks, quiet ON unattenuated PASS");
+}
+void testCodexV101PeerWindowFooterFallback(){
+ using L=UiV101Layout;
+ Fixture f;KitState kit{};kit.visible=4;f.kit(kit);
+ (void)f.openV101();(void)f.openV101();
+ auto* first=IntegrationAccess::view(*f.c,0);
+ auto* peer=IntegrationAccess::view(*f.c,1);
+ const auto original=L::editorHeight(0,4,L::Expansions{});
+ check(first->getViewSize().getHeight()==original&&
+       peer->getViewSize().getHeight()==original,
+       "Codex05 two attached V101 initial editor heights mismatch");
+ f.frames[1].accept=false; // second host refuses a height increase
+ click(*first,95.,original-L::footer+22.);
+ check(f.c->visibleRows()==5&&first->getViewSize().getHeight()==original+48.,
+       "Codex05 initiating editor failed to grow five-row kit");
+ check(peer->getViewSize().getHeight()==original&&
+       IntegrationAccess::v101ShownRows(*peer)==4,
+       "Codex05 refused peer editor must preserve four-row viewport");
+ const auto refusedResizeCalls=f.frames[1].calls;
+ check(f.c->setStepVelocity(0,0,0,110),
+       "Codex05 normal Step edit failed on peer resize fixture");
+ check(f.frames[1].calls==refusedResizeCalls,
+       "Codex05 refused peer keeps retrying host resize on every Step edit");
+ // VEL must replace a row rather than push the footer below the host HWND.
+ click(*peer,1235.,L::header+12.);
+ check(IntegrationAccess::v101Expansion(*peer)==L::Expansion::Velocity&&
+       IntegrationAccess::v101ShownRows(*peer)==3&&
+       peer->getViewSize().getHeight()==original,
+       "Codex05 expanded peer VEL clips footer in refused host HWND");
+ click(*peer,1235.,L::header+12.);
+ check(IntegrationAccess::v101Expansion(*peer)==L::Expansion::None&&
+       IntegrationAccess::v101ShownRows(*peer)==4,
+       "Codex05 peer VEL collapse failed to restore paging state");
+ const auto bottom=peer->getViewSize().getHeight()-L::footer;
+ click(*peer,1175.,bottom+22.);
+ check(IntegrationAccess::v101FirstRow(*peer)==1&&
+       IntegrationAccess::v101ShownRows(*peer)==4&&
+       peer->getViewSize().getHeight()==original,
+       "Codex05 peer NEXT PAGE footer is inaccessible after resize refusal");
+ click(*peer,1070.,bottom+22.);
+ check(IntegrationAccess::v101FirstRow(*peer)==0,
+       "Codex05 peer PREV PAGE footer failed after resize refusal");
+ f.frames[1].accept=true;
+ click(*first,95.,first->getViewSize().getHeight()-L::footer+22.);
+ check(f.c->visibleRows()==6&&IntegrationAccess::v101ShownRows(*peer)==6&&
+       peer->getViewSize().getHeight()==L::editorHeight(0,6,L::Expansions{}),
+       "Codex05 peer failed to recover full viewport after host accepts");
+ evidence("Codex05 two attached real V1.0.1 editors: peer rejected resize + live footer paging + recovery PASS");
+}
+
+// F16: the reported pre-attach rectangle must account for the user zoom.
+// Studio One constructs its pin/close title strip from the initial VST3
+// IPlugView::getSize(), not from a later CFrame resize. A mismatch leaves
+// the top-bar controls near x=1280 while the GUI is 1664px wide (130%).
+void testV101F16InitialHostChromeWidth(){
+ Fixture f;
+ auto* editor=dynamic_cast<DrumatorEditor*>(f.c->createView(ViewType::kEditor));
+ check(editor!=nullptr,"F16 factory did not return VST3Editor");
+ if(!editor)return;
+ auto expectSize=[&](double factor){
+   Steinberg::ViewRect vr{};
+   const bool ok=editor->getSize(&vr)==Steinberg::kResultOk;
+   const auto width=static_cast<int>(std::lround(1280.*factor));
+   const auto height=static_cast<int>(std::lround(300.*factor));
+   check(ok&&vr.getWidth()==width&&vr.getHeight()==height,
+         "F16 pre-attach VST3 getSize does not match scaled host chrome");
+ };
+ expectSize(1.3); // DEFAULT 130% must report 1664px, not 1280px.
+ for(const double zoom:{1.0,1.2,1.3,1.5,1.0,1.3}){
+   check(editor->setZoomChecked(zoom),"F16 pre-attach zoom selection failed");
+   expectSize(zoom);
+ }
+#ifdef VST3_CONTENT_SCALE_SUPPORT
+ check(editor->setContentScaleFactor(1.5)==Steinberg::kResultTrue,
+       "F16 pre-attach DPI 150 percent rejected");
+ {
+   Steinberg::ViewRect vr{};
+   check(editor->getSize(&vr)==Steinberg::kResultOk&&
+         vr.getWidth()==2496&&vr.getHeight()==585,
+         "F16 combined 130% user zoom and 150% system DPI lost host rectangle");
+ }
+ check(editor->setContentScaleFactor(1.0)==Steinberg::kResultTrue,
+       "F16 restore DPI 100 percent rejected");
+ expectSize(1.3);
+#endif
+ editor->release();
+ // The same factory editor must still work after a genuine Win32 attach.
+ auto& attached=f.openV101();
+ auto* view=IntegrationAccess::view(*f.c,0);
+ check(view->zoomMatches(1.3)&&
+       std::abs(attached.getZoomFactor()-1.3)<.0001,
+       "F16 corrected pre-attach size broke the native attached zoom");
+}
+
+// Commercial visual matrix: every capture is generated from the attached
+// production V1.0.1 VSTGUI View, never a fallback preview or zoomed mockup.
+// Capture only after asserting actual host zoom, current mode and open popup.
+void testV101CommercialVisualEvidence(){
+ using L=drumator::UiV101Layout;
+ using K=drumator::UiV101Popup::Kind;
+ Fixture f;
+ auto kit=v101PreviewKit();
+ kit.visible=16;
+ f.kit(kit);
+ auto& host=f.openV101();
+ auto* v=IntegrationAccess::view(*f.c,0);
+ check(v->zoomMatches(1.3)&&
+       std::abs(host.getZoomFactor()-1.3)<.0001,
+       "F09 commercial factory View must start at 130% before explicit captures");
+ const std::array<std::pair<double,const char*>,4> zooms{{
+   {1.0,"100"},{1.2,"120"},{1.3,"130"},{1.5,"150"}
+ }};
+ const auto snapshot=[&](const char* prefix,const char* zoom,double value){
+   check(v->isV101()&&v->zoomMatches(value)&&
+         std::abs(host.getZoomFactor()-value)<.0001,
+         "commercial native image without matching real host zoom");
+   captureVstgui(*v,std::string("v101-current-")+prefix+"-"+zoom,value);
+ };
+ const auto popup=[&](K kind,const char* label,double x,double y,
+                      const char* zoom,double value){
+   click(*v,x,y);
+   check(IntegrationAccess::v101Popup(*v)==kind,
+         "commercial menu screenshot attempted without open native popup");
+   snapshot(label,zoom,value);
+   click(*v,1100.,210.); // modal outside-click, no underlying action
+   check(IntegrationAccess::v101Popup(*v)==K::None,
+         "commercial menu failed dismissal after visual capture");
+ };
+ for(std::size_t z=0;z<zooms.size();++z){
+   const auto [scale,label]=zooms[z];
+   // The commercial screenshot set starts at 100%, but production starts
+   // at 130%. Explicitly pick EVERY zoom, including the first, through
+   // the real native popup and host resize negotiation.
+   click(*v,1200.,25.);
+   click(*v,1200.,49.+26.*z+12.);
+   check(v->getViewSize().getHeight()==686.&&
+         IntegrationAccess::v101FirstRow(*v)==0,
+         "commercial MAIN initial native host geometry / page incorrect");
+   snapshot("main",label,scale);
+
+   click(*v,1230.,L::header+12.); // row 1 VEL, existing live control
+   // Expansion shows nine instrument rows instead of ten: the 48px
+   // subpanel replaces the tenth row, so the host height stays 686px.
+   check(IntegrationAccess::v101Expansion(*v)==L::Expansion::Velocity&&
+         v->getViewSize().getHeight()==686.,
+         "commercial VEL real editor state / expanded height incorrect");
+   snapshot("velocity",label,scale);
+   click(*v,1230.,L::header+12.);
+   check(IntegrationAccess::v101Expansion(*v)==L::Expansion::None,
+         "commercial VEL collapse did not restore MAIN state");
+
+   click(*v,1230.,L::header+36.); // SET for first instrument
+   check(IntegrationAccess::v101Expansion(*v)==L::Expansion::Settings,
+         "commercial SET screenshot not in expanded Settings state");
+   snapshot("settings",label,scale);
+   popup(K::Output,"popup-bus",392.,L::header+69.,label,scale);
+   popup(K::Choke,"popup-choke",514.,L::header+69.,label,scale);
+   click(*v,1230.,L::header+36.); // close SET
+   check(IntegrationAccess::v101Expansion(*v)==L::Expansion::None&&
+         v->getViewSize().getHeight()==686.,
+         "commercial SET collapse did not restore MAIN geometry");
+
+   popup(K::Pattern,"popup-pattern",400.,115.,label,scale);
+   popup(K::Fill,"popup-fill",99.,L::header+20.,label,scale);
+   popup(K::Sample,"popup-sample",
+         (L::sampleMenu.x0+L::sampleMenu.x1)*.5,
+         L::header+20.,label,scale);
+   // Export is footer-relative and must never open a clipped menu.
+   popup(K::Export,"popup-export",960.,
+         v->getViewSize().getHeight()-L::footer+22.,label,scale);
+
+   click(*v,1200.,25.);
+   check(IntegrationAccess::v101ZoomPopupOpen(*v),
+         "commercial zoom popup must be open before screenshot");
+   snapshot("popup-zoom",label,scale);
+   click(*v,1100.,210.);
+   check(!IntegrationAccess::v101ZoomPopupOpen(*v),
+         "commercial zoom popup dismissal failed");
+
+   click(*v,1175.,v->getViewSize().getHeight()-L::footer+22.);
+   check(IntegrationAccess::v101FirstRow(*v)==10&&
+         v->getViewSize().getHeight()==494.,
+         "commercial second instrument page missing or wrong height");
+   snapshot("page2-last-six",label,scale);
+   click(*v,1070.,v->getViewSize().getHeight()-L::footer+22.);
+   check(IntegrationAccess::v101FirstRow(*v)==0&&
+         v->getViewSize().getHeight()==686.,
+         "commercial return to first instrument page failed");
+ }
+ evidence("Commercial CURRENT V1.0.1 native 4-zoom MAIN/VEL/SET/PAGE2 + Pattern/Fill/BUS/Choke/Sample/Export/Zoom popup matrix PASS");
+}
+
+// Actual Win32 VSTGUI font metrics, not guessed character widths.
+// Every fixed commercial label must fit its painted cap including 2px
+// text insets. Long dynamic names and status are covered separately.
+void testV101NativeTypographyFit(){
+ struct Spec {const char* text;int font;double width;const char* error;};
+ const std::vector<Spec> labels{
+   {"PATTERN",11,308.,"A-H Pattern bank title clips"},
+   {"PATTERN EDIT",10,83.,"Pattern MENU title clips"},
+   {"MENU",10,83.,"MENU key clips"},
+   {"2 BARS",10,83.,"BARS key clips"},
+   {"SONG EDIT",10,83.,"SONG EDIT header key clips"},
+   {"SWING",11,92.,"SWING heading clips"},
+   {"HUMANIZE",11,92.,"HUMANIZE heading clips"},
+   {"MASTER",11,92.,"MASTER heading clips"},
+   {"LIMIT OFF",10,83.,"LIMIT OFF clips"},
+   {"LIMIT ON",10,83.,"LIMIT ON clips"},
+   {"150% v",11,83.,"ZOOM header caption clips"},
+   {"ADD ROW",10,95.,"ADD ROW footer clips"},
+   {"REMOVE ROW",10,95.,"REMOVE ROW footer clips"},
+   {"EXPORT",11,95.,"EXPORT footer clips"},
+   {"PREV PAGE",10,95.,"PREV PAGE footer clips"},
+   {"NEXT PAGE",10,95.,"NEXT PAGE footer clips"},
+   {"FILL",9,40.,"FILL row clips"},
+   {"EDIT",11,52.,"EDIT row clips"},
+   {"VEL",11,37.,"VEL row clips"},
+   {"SET",11,37.,"SET row clips"},
+   {"RANDOM VEL",10,128.,"RANDOM VEL clips"},
+   {"RESET VEL",10,128.,"RESET VEL clips"},
+   {"CHOKE",10,112.,"CHOKE settings clips"},
+   {"CLEAR ROW",10,112.,"CLEAR ROW settings clips"},
+   {"RANDOM VELOCITY",10,190.,"PATTERN popup RANDOM VELOCITY clips"},
+   {"SNARE GHOST",10,176.,"FILL popup SNARE GHOST clips"},
+   {"REMOVE SAMPLE",10,176.,"SAMPLE popup REMOVE SAMPLE clips"},
+   {"BUS 16",10,110.,"BUS popup BUS 16 clips"},
+   {"SONG WAV",10,210.,"EXPORT popup SONG WAV clips"},
+   {"PREVIOUS",10,100.,"SONG PREVIOUS clips"},
+   {"REMOVE LAST",9,98.,"SONG REMOVE LAST clips"},
+   {"ADD ENTRY",10,98.,"SONG ADD ENTRY clips"},
+   {"2 BARS",10,100.,"SONG length 2 BARS clips"},
+   {"REST",10,84.,"SONG REST clips"},
+   {"SONG CHAIN 49-64 | 64 ENTRIES",12,280.,"SONG chain count clips"},
+   {"SONG EDITOR  /  64-POSITION CHAIN",10,599.,"SONG board title clips"},
+   {"ZOOM +",10,86.,"WAVE ZOOM+ clips"},
+   {"PREVIEW",10,86.,"WAVE PREVIEW clips"},
+   {"CANCEL",10,86.,"WAVE CANCEL clips"},
+   {"APPLY",10,86.,"WAVE APPLY clips"},
+ };
+ double worstFraction=0.;
+ const auto raster=VSTGUI::renderBitmapOffscreen({256.,64.},1.,
+   [&](VSTGUI::CDrawContext& c){
+     for(const auto& spec:labels){
+       c.setFont(VSTGUI::kNormalFont,spec.font);
+       const auto actual=c.getStringWidth(spec.text);
+       check(std::isfinite(actual)&&actual>=0.&&actual<=spec.width-4.,
+             spec.error);
+       worstFraction=std::max(worstFraction,actual/(spec.width-4.));
+     }
+   });
+ check(raster!=nullptr,"Win32 native typography audit raster unavailable");
+ evidence("V1.0.1 native commercial typography: 40 fixed labels from MAIN, SET, VEL, SONG, WAVE and popup/zoom/footer fit Win32 font widths; worst fraction="+
+          std::to_string(worstFraction)+" PASS");
+}
+
+enum class V101CaptureMode { Normal, Velocity, Settings };
+void captureV101Preview(const char* title,double scale,bool zoomMenuOpen=false,
+                        V101CaptureMode mode=V101CaptureMode::Normal){
+ using L=drumator::UiV101Layout;
+ Fixture fixture;
+ fixture.kit(v101PreviewKit());
+ drumator::UiV101Interaction ui(*fixture.c);
+ if(mode!=V101CaptureMode::Normal){
+   check(ui.down(1230.,L::header+9*L::rowHeight+12.)==
+           drumator::UiV101Interaction::Result::Handled,
+         "V101 screenshot did not open velocity expansion through UI hit");
+   if(mode==V101CaptureMode::Settings){
+     const double top=L::rowTop(ui.state().firstRow,8,ui.expandedRows());
+     check(ui.down(1230.,top+36.)==
+             drumator::UiV101Interaction::Result::Handled,
+           "V101 screenshot failed to select settings expansion");
+   }
+ }
+ const auto scene=captureV101ControllerScene(*fixture.c);
+ check(scene.pattern==2&&scene.rows[0].hasSample,
+       "V1.0.1 capture did not use an actual decoded controller kit");
+ const double h=ui.height();
+ check(h*1.5<=1080.,
+       "V101 expanded-row screenshot would exceed 1080 at 150 percent");
+ // Load the original 125A 101-frame knob filmstrip and the *new*
+ // user-supplied transparent PNG with the filename preserved verbatim.
+ // The old silver engraved per-glyph text is never drawn as a fallback.
+ auto* knob=new VSTGUI::CMultiFrameBitmap(
+   VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
+ auto* logo=new VSTGUI::CBitmap(
+   VSTGUI::CResourceDescription("DRUMATOR_Logo_Modern_Transparent.png"));
+ check(knob->getWidth()==125.&&knob->getHeight()==12625.,
+       "V1.0.1 preview did not load real V1.0 knob filmstrip");
+ // Validate the actual 101-frame production resource, not a mock-up:
+ // the metal CAP alone is titanium-blue, while the dark housing stays gray.
+ auto* knobPixels=VSTGUI::CBitmapPixelAccess::create(knob,false);
+ check(knobPixels!=nullptr&&knobPixels->setPosition(62,62+125*50),
+       "V1.0.1 titanium-blue knob PNG could not be decoded");
+ VSTGUI::CColor capTint{};knobPixels->getColor(capTint);
+ check(knobPixels->setPosition(20,62+125*50),
+       "V1.0.1 knob housing inspection failed");
+ VSTGUI::CColor housing{};knobPixels->getColor(housing);
+ knobPixels->forget();
+ check(capTint.blue>capTint.green+15&&capTint.green>capTint.red+10,
+       "V1.0.1 titanium-blue knob cap has reverted to silver");
+ check(housing.red==housing.green&&housing.green==housing.blue,
+       "V1.0.1 knob housing must retain its original neutral-gray color");
+ const auto bounds=drumator::qa::UiV101NativePreview::measureTitle(logo);
+ check(bounds.valid()&&bounds.width>2000.&&bounds.height>250.&&bounds.height<350.,
+       "V1.0.1 logo PNG unreadable or lacks alpha-visible content");
+ auto* logoPixels=VSTGUI::CBitmapPixelAccess::create(logo,false);
+ check(logoPixels!=nullptr&&logoPixels->setPosition(0,0),
+       "V1.0.1 logo source PNG alpha inspection failed");
+ VSTGUI::CColor corner{};logoPixels->getColor(corner);
+ logoPixels->forget();
+ check(corner.alpha<24,
+       "V1.0.1 standalone wordmark has opaque corner pixels");
+ const auto box=drumator::qa::UiV101NativePreview::titleTarget(bounds);
+ check(box.left>=191.&&box.right<=1119.&&box.top>=6.&&box.bottom<=77.,
+       "V1.0.1 title/lightbars overlap the 125A signet, header controls or ZOOM");
+ auto bitmap=VSTGUI::renderBitmapOffscreen(
+   VSTGUI::CPoint(L::width,h),scale,
+   [knob,logo,bounds,&scene,&ui,zoomMenuOpen,scale](VSTGUI::CDrawContext& context){
+     drumator::qa::UiV101NativePreview::draw(context,knob,logo,bounds,scene,zoomMenuOpen,
+       scale>1.2?std::size_t{2}:std::size_t{0},ui.state());
+   });
+ knob->forget();
+ logo->forget();
+ check(bitmap!=nullptr,"V1.0.1 native VSTGUI prototype render failed");
+ auto* access=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
+ check(access!=nullptr,"V1.0.1 native pixels unavailable");
+ const auto width=access->getBitmapWidth(),height=access->getBitmapHeight();
+ check(width>=1280&&height>=686&&width<=2400&&height<=1300,
+       "V1.0.1 render pixel dimensions wrong");
+ // Industrial graphite reference contract: the old amber/silver and
+ // screw-head photo expectations no longer apply to the new artwork.
+ // The native screenshot must retain readable, dark control surfaces.
+ if(scale==1.&&mode==V101CaptureMode::Normal&&!zoomMenuOpen){
+   check(access->setPosition(410,189),
+         "V101 industrial instrument surface inaccessible");
+   VSTGUI::CColor surface{};access->getColor(surface);
+   check(surface.red<155&&surface.green<155&&surface.blue<170,
+         "V101 industrial instrument surface became washed out");
+   // The supplied faceplate intentionally has bright beveled metal edges.
+   // Check that the image loads in the live view (above), not that an
+   // arbitrary highlight pixel is below a fixed luminance threshold.
+ }
+ if(mode!=V101CaptureMode::Normal){
+   check(scale==1.&&ui.state().firstRow==1&&
+         ui.state().expandedRow==9&&
+         ui.height()==686.,"V101 expanded native raster wrong viewport/zoom");
+   check(access->setPosition(mode==V101CaptureMode::Velocity?428:480,620),
+         "V101 expanded row sample pixel inaccessible");
+   VSTGUI::CColor sample{};access->getColor(sample);
+   if(mode==V101CaptureMode::Velocity){
+     // Pixel at an occupied velocity bar: the new velocity-strength
+     // palette MUST be cyan (distinct from amber on/off Pattern keys).
+     // Keep this an actual raster oracle, not merely a source-color check.
+     check(sample.blue>145&&sample.green>115&&
+           sample.blue>sample.red+45&&sample.green>sample.red+20,
+           "V101 Velocity screenshot lacks actual cyan velocity bar");
+   }else{
+     check(sample.red>120&&sample.green>120&&sample.blue>105&&
+           std::abs(static_cast<int>(sample.red)-static_cast<int>(sample.green))<28,
+           "V101 Settings screenshot did not display grey metal COPY ROW button");
+   }
+ }
+ unsigned light=0,dark=0,orange=0;
+ for(std::uint32_t y=0;y<height;y+=7)
+   for(std::uint32_t x=0;x<width;x+=7){
+     check(access->setPosition(x,y),"V1.0.1 sample pixel out of range");
+     VSTGUI::CColor pixel{};access->getColor(pixel);
+     if(pixel.red>185&&pixel.green>180&&pixel.blue>170)++light;
+     if(pixel.red<64&&pixel.green<75&&pixel.blue<93)++dark;
+     if(pixel.red>165&&pixel.red>pixel.green+60&&pixel.green>40)++orange;
+   }
+ check(light>400&&dark>600&&orange>25,"V1.0.1 pixel oracle: missing chassis, rows or lit steps");
+ const std::size_t stride=(static_cast<std::size_t>(width)*3u+3u)&~std::size_t{3u};
+ std::array<unsigned char,54> hdr{};
+ auto le16=[&](std::size_t at,std::uint16_t v){
+   hdr[at]=static_cast<unsigned char>(v);
+   hdr[at+1]=static_cast<unsigned char>(v>>8);
+ };
+ auto le32=[&](std::size_t at,std::uint32_t v){
+   for(int i=0;i<4;++i)hdr[at+static_cast<std::size_t>(i)]=
+     static_cast<unsigned char>(v>>(8*i));
+ };
+ hdr[0]='B';hdr[1]='M';le32(2,static_cast<std::uint32_t>(54+stride*height));
+ le32(10,54);le32(14,40);le32(18,width);
+ le32(22,static_cast<std::uint32_t>(-static_cast<std::int32_t>(height)));
+ le16(26,1);le16(28,24);le32(34,static_cast<std::uint32_t>(stride*height));
+ std::filesystem::create_directories("gui-shots");
+ std::ofstream out(std::string("gui-shots/")+title+".bmp",std::ios::binary);
+ check(out.good(),"V1.0.1 native BMP path not writable");
+ out.write(reinterpret_cast<const char*>(hdr.data()),static_cast<std::streamsize>(hdr.size()));
+ std::vector<unsigned char> scanline(stride,0);
+ for(std::uint32_t y=0;y<height;++y){
+   for(std::uint32_t x=0;x<width;++x){
+     check(access->setPosition(x,y),"V1.0.1 output pixel out of range");
+     VSTGUI::CColor pixel{};access->getColor(pixel);
+     const auto at=static_cast<std::size_t>(x)*3u;
+     scanline[at]=pixel.blue;scanline[at+1]=pixel.green;scanline[at+2]=pixel.red;
+   }
+   out.write(reinterpret_cast<const char*>(scanline.data()),
+             static_cast<std::streamsize>(scanline.size()));
+ }
+ access->forget();
+ check(out.good(),"V1.0.1 native BMP write failed");
+ evidence(std::string("V1.0.1 native VSTGUI design prototype ")+title+" "+
+          std::to_string(width)+"x"+std::to_string(height)+
+          " light="+std::to_string(light)+" dark="+std::to_string(dark)+
+          " active="+std::to_string(orange)+" PASS");
+}
+
 void testGuiPhysicalStepsRaster(){
  Fixture f;f.kit(namedKit('X',4));f.open();
  auto* v=IntegrationAccess::view(*f.c,0);
@@ -799,8 +2805,10 @@ void testWaveEditor11FFlacAndStatus(){
          "W11F normal import status missing");
    check(IntegrationAccess::openSampleEditorForCapture(*view,0),
          "W11F imported sample editor could not open");
-   check(IntegrationAccess::sampleEditorStatus(*view)=="SAMPLE READY FOR EDITING",
-         "W11F imported editor displayed stale status");
+   check(IntegrationAccess::sampleEditorLive(*view)&&
+         IntegrationAccess::sampleEditorStatus(*view).find(
+           "LIVE ON: SONG/PATTERN MONITORING")!=std::string::npos,
+         "W11F refreshed WAV must start a new LIVE session");
    check(IntegrationAccess::editorFrameCount(*view)==(imported==wav?1024u:4096u)&&
          IntegrationAccess::editorStereo(*view),"W11F imported sample length/stereo");
    for(std::size_t bin=0;bin<256;++bin){
@@ -2582,7 +4590,8 @@ void testPagedSongEditor(){
        "UX empty SONG tile appended despite ADD ENTRY-only policy");
  click(*v,167.,222.);
  check(IntegrationAccess::snapshot(*f.c)==snapshot,"UX SONG tile gutter not inert");
- click(*v,1032.,181.);
+ click(*v,(UiSongLayout::previousLeft+UiSongLayout::previousRight)/2.,
+        (UiSongLayout::navTop+UiSongLayout::navBottom)/2.);
  check(IntegrationAccess::songPage(*v)==0&&IntegrationAccess::songSlot(*v)==0,
        "UX SONG previous page must select first valid entry");
  click(*v,1170.,222.);
@@ -3181,6 +5190,8 @@ void testTransportJumpRetiresOldVoices(){
 }
 #include "ReauditCases.inl"
 #include "FinalAudit20261023.inl"
+#include "V101FullGuiAudit.inl"
+#include "V101AutomationAudit.inl"
 
 struct A01SerializedConnection final:Steinberg::Vst::IConnectionPoint {
  IConnectionPoint* target;
@@ -3514,15 +5525,34 @@ int main(int argc,char** argv){
  if(!platform)return 3;platform->setResourceBasePath(VSTGUI::UTF8String(argv[1]));
  entered=CreateEventW(nullptr,TRUE,FALSE,nullptr);resume=CreateEventW(nullptr,TRUE,FALSE,nullptr);
  if(argc==3){
+   if(std::strcmp(argv[2],"--v101-preview-render")==0){
+     int result=0;
+     try {
+       captureV101Preview("v101-layout-native-prototype-100",1.0);
+       captureV101Preview("v101-layout-native-prototype-130",1.3);
+       captureV101Preview("v101-layout-native-zoom-menu-100",1.0,true);
+       captureV101Preview("v101-controller-velocity-lane-100",1.0,false,V101CaptureMode::Velocity);
+       captureV101Preview("v101-controller-settings-lane-100",1.0,false,V101CaptureMode::Settings);
+     }catch(const std::exception& ex){
+       std::cerr<<"V1.0.1 native preview render FAIL: "<<ex.what()<<'\n';
+       result=3;
+     }
+     CloseHandle(entered);CloseHandle(resume);
+     VSTGUI::exit();CoUninitialize();return result;
+   }
    if(std::strcmp(argv[2],"--packaged-logo-render")==0){
      int result=0;
      try {
-       Fixture f;f.open();
+       Fixture f;f.openV101();
        auto* view=IntegrationAccess::view(*f.c,0);
-       check(view&&IntegrationAccess::bundledBrandingLoaded(*view),
-             "packaged PNGs were not decoded into native VSTGUI bitmaps");
+       check(view&&view->isV101()&&
+             IntegrationAccess::bundledBrandingLoaded(*view)&&
+             IntegrationAccess::vintageFaceplateLoaded(*view)&&
+             IntegrationAccess::vintageButtonsLoaded(*view)&&
+             IntegrationAccess::modernTitleLoaded(*view),
+             "packaged V1.0.1 graphite photo, title or buttons absent");
        captureVstgui(*view,"packaged-vst3-resources-silver-100",1.0);
-       evidence("Packaged VST3 Resources: exact metallic logo and faceplate decoded; native Windows VSTGUI offscreen pixels show silver logo PASS");
+       evidence("Packaged VST3: V1.0.1 dark graphite metal, transparent DRUMATOR title and black 4x button states rendered PASS");
      }catch(const std::exception& ex){
        std::cerr<<"Packaged resource native render FAIL: "<<ex.what()<<'\n';
        result=3;
@@ -3586,6 +5616,31 @@ int main(int argc,char** argv){
  run("V18 multi-view native lifecycle",testMultiViewLifecycleNotifications);
  run("Z02 native attached views",testZoom);
  run("VSTGUI precision controls",testPrecisionPanel);
+ run("V101 actual Controller to native visual scene",testV101ControllerScene);
+ run("V101 native interactive controller, lane and zoom actions",testV101Interaction);
+ run("V101 real VST3 editor attach, mouse dispatch, dialogs and zoom",testV101LiveEditor);
+ run("V101 connected Controller/Processor exports and limiter",testV101ConnectedPatternSongExportsAndLimiter);
+ run("Codex01 paired legacy recall clears Export and LIMIT",testCodexLegacyControllerExportReset);
+ run("Codex02 Controller IPC actions OOM-safe",testCodexControllerActionOOM);
+ run("Codex03 foreign export scratch ownership",testCodexForeignExportFileOwnership);
+ run("Codex04 same-instance limiter ON OFF ON reset",testCodexLimiterSameProcessorOnOffOn);
+ run("Codex05 real dual V101 editor resize refusal",testCodexV101PeerWindowFooterFallback);
+ run("V101 native commercial 4-zoom GUI evidence matrix",testV101CommercialVisualEvidence);
+ run("V101 native commercial typography geometry",testV101NativeTypographyFit);
+ run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
+ run("AUT01 VST3 row automation parameter contract and GUI gestures",testV101HostMixAutomationContract);
+ run("AUT02-07 VST3 full mix and pitch automation, flush/PCM/audition",testV101HostMixAutomationPcm);
+ run("AUT08 Pitch automation survives Wave Editor Fade Out Apply",testV101PitchSurvivesWaveEditorApply);
+ run("AV01 192k source 44.1k host +24 recall/edit/audio",testV101AutomationAuditAV01HighRateRecall);
+ run("AV02 all host lanes survive busy kit recall",testV101AutomationAuditAV02RecallGate);
+ run("AV03 concurrent GUI-host packed mix CAS",testV101AutomationAuditAV03PackedMix);
+ run("AV04 fractional unity-rate sinc after pitch glide",testV101AutomationAuditAV04FractionalUnity);
+ run("AV05 sustained native knob host gesture",testV101AutomationAuditAV05TouchGesture);
+ run("V101 SONG and Wave full native button matrix",testV101SongAndWaveFullControlMatrix);
+ run("F16 true pre-attach 130% host chrome size and DPI",testV101F16InitialHostChromeWidth);
+ run("F14 native 5-of-5 paging escape and structural row shrink",testV101F14StrandedPageRecovery);
+ run("F15 1-16 rows x 1-10 capacities exhaustive navigation",testV101F15ExhaustivePageMatrix);
+ run("V101 16-row pointer isolation and real WAV sample browse",testV101AllRowMouseIsolationAndSampleBrowse);
  run("VSTGUI native pixel render set",testVisualRender);
  run("GUI49 musical four-sample native 130pct capture",testGui49MusicalFourSampleCapture);
  run("GUI 11I centered PATTERN and meter header geometry",test11IHeaderPatternCentered);

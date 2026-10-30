@@ -8,6 +8,8 @@
 #include <array>
 #include "core/SequencerCore.h"
 #include "core/SampleEdit.h"
+#include "vst3/UiV101Interaction.h"
+#include "vst3/UiV101Popup.h"
 #include "vstgui/lib/cvstguitimer.h"
 #include <cstdint>
 #include <chrono>
@@ -27,6 +29,10 @@ public:
  DrumatorView(const VSTGUI::CRect& size,Controller& controller,
               VSTGUI::VST3Editor& editor);
  void draw(VSTGUI::CDrawContext* context) override;
+ // Explicit candidate view: V1.0.0 production editor remains the default
+ // until the host-side V1.0.1 controls pass migration QA.
+ void enableV101() noexcept {v101Mode_=true;}
+ bool isV101() const noexcept {return v101Mode_;}
  bool attached(VSTGUI::CView* parent) override;
  bool removed(VSTGUI::CView* parent) override;
  void valueChanged(VSTGUI::CControl* control) override;
@@ -56,6 +62,35 @@ private:
  std::uint64_t meterSequenceSeen_{0};
  void pollMeter() noexcept;
  Controller& controller_;
+ UiV101Interaction v101_;
+ bool v101Mode_{false};
+ bool v101LocalRowTransaction_{false};
+ std::size_t v101LastRowsNotified_{0}; // do not retry refused HWND on every Step edit
+ VSTGUI::CBitmap* v101TitleBitmap_{nullptr};
+ // Separate image-backed V1.0.1 chassis; original V1.0.0 faceplate retained.
+ VSTGUI::CBitmap* v101FaceplateBitmap_{nullptr};
+ // Four separate 4x PNG key states, currently used for the 83x32 header
+ // family (normal/active). Pressed/disabled remain for real state mapping.
+ std::array<VSTGUI::CBitmap*,4> v101VintageButtons_{{nullptr,nullptr,nullptr,nullptr}};
+ bool v101TitleMeasured_{false};
+ std::array<double,4> v101TitleBounds_{};
+ UiV101Popup::Kind v101Menu_{UiV101Popup::Kind::None};
+ std::size_t v101MenuRow_{kRows};
+ void drawV101(VSTGUI::CDrawContext* c);
+ void drawV101Song(VSTGUI::CDrawContext* c);
+ void drawV101Wave(VSTGUI::CDrawContext* c);
+ bool v101MouseDown(double x,double y,bool erase,bool fine);
+ void drawV101Menu(VSTGUI::CDrawContext* c);
+ bool exportSelection(int option);
+ bool startExportDrag(int option);
+ int dragExportOption_{-1};
+ VSTGUI::CPoint dragExportStart_{};
+ bool applyV101Menu(int item);
+ // Transient GUI-only pressed state for the five SET actions; no kit/DAW state.
+ std::size_t settingsFeedbackRow_{kRows};
+ int settingsFeedbackButton_{-1};
+ std::chrono::steady_clock::time_point settingsFeedbackUntil_{};
+
  VSTGUI::CBitmap* backgroundBitmap_{nullptr};
  VSTGUI::CBitmap* productLogoBitmap_{nullptr};
  VSTGUI::CBitmap* knobBitmap_{nullptr};
@@ -94,6 +129,13 @@ private:
  bool sampleEditorStereo_{false};
  int sampleEditorPressed_{-1}; // transient pressed toolbar cell; UI only
  int sampleEditorDrag_{0}; // 1=start, 2=end, 3=scroll, 4=fade-in, 5=fade-out, 6=gain
+ bool sampleEditorLive_{false}; // default ON only after processor accepts session
+ bool sampleEditorLivePending_{false};
+ std::uint64_t sampleEditorLiveSession_{0};
+ std::chrono::steady_clock::time_point sampleEditorLiveSentAt_{};
+ bool startSampleEditorLive() noexcept;
+ bool stopSampleEditorLive() noexcept;
+ void publishSampleEditorLive(bool force=false) noexcept;
  void setSampleEditorGain(double x);
  bool zoomSampleEditor(bool in,bool full=false);
  bool refreshSampleViewport(std::uint32_t first,std::uint32_t last);

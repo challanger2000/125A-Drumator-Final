@@ -12,6 +12,9 @@
 #include <cstdint>
 #include <exception>
 #include <memory>
+#include <map>
+#include <mutex>
+#include <cstring>
 #include <new>
 #include <utility>
 
@@ -20,6 +23,29 @@ namespace drumator {
 enum class PrepareStatus {
     Ok, InvalidSettings, InvalidWav, InsufficientMemory, InvalidKernel
 };
+// Control-thread-only cache; identical WAV sample-rate pairs share the same
+// immutable 49-filter bank. Weak entries cannot pin retired assets forever.
+// All access/allocations occur before SampleExchange::publish, NEVER in process.
+inline std::shared_ptr<const PitchKernelBank> acquirePitchKernelBank(
+    std::uint32_t sourceRate,double outputRate) {
+    using Key=std::pair<std::uint32_t,std::uint64_t>;
+    static std::mutex guard;
+    static std::map<Key,std::weak_ptr<const PitchKernelBank>> cache;
+    std::uint64_t bits=0;
+    static_assert(sizeof(bits)==sizeof(outputRate),"unexpected double width");
+    std::memcpy(&bits,&outputRate,sizeof(bits));
+    const Key key{sourceRate,bits};
+    std::lock_guard<std::mutex> lock(guard);
+    if(const auto it=cache.find(key);it!=cache.end())
+        if(auto existing=it->second.lock())return existing;
+    auto bank=std::make_shared<PitchKernelBank>();
+    if(!bank->prepare(sourceRate,outputRate))return {};
+    for(auto it=cache.begin();it!=cache.end();)
+        if(it->second.expired())it=cache.erase(it);
+        else ++it;
+    cache[key]=bank;
+    return bank;
+}
 
 // One prepared asset per published row version. Only the loader constructs
 // or destroys it. Samples and kernel are immutable after publication.
@@ -33,7 +59,8 @@ public:
                                  double outputRate, double pitchSemitones,
                                  float gain, float pan, std::uint8_t chokeGroup,
                                  bool mute, std::unique_ptr<PreparedSample>& out,
-                                 SampleEdit edit={}) noexcept {
+                                 SampleEdit edit={},
+                                 bool enableRealtimePitch=false) noexcept {
         if(!std::isfinite(outputRate)||outputRate<=0.0 ||
            !std::isfinite(pitchSemitones)||pitchSemitones< -48.0||
            pitchSemitones>48.0||!std::isfinite(gain)||gain<0.f||
@@ -48,10 +75,26 @@ public:
             if(edit.end==0)edit=SampleEdit::reset(frames);
             if(!edit.valid(frames))return PrepareStatus::InvalidSettings;
             candidate->edit_=edit;
+            if(enableRealtimePitch){
+                // The source/output rate pair determines all sinc kernels.
+                // A newly selected sample never reaches the audio actor until
+                // all 49 semitone filters are ready and immutable.
+                candidate->pitchBank_=acquirePitchKernelBank(
+                    candidate->decoded_.sampleRate,outputRate);
+                if(!candidate->pitchBank_)return PrepareStatus::InvalidKernel;
+                const int index=static_cast<int>(std::lround(pitchSemitones))+24;
+                if(index<0||index>=static_cast<int>(PitchKernelBank::kCount))
+                    return PrepareStatus::InvalidSettings;
+                candidate->pitchIndex_=static_cast<std::uint8_t>(index);
+            }
             const double ratio=static_cast<double>(candidate->decoded_.sampleRate)/
                                outputRate*std::exp2(pitchSemitones/12.0);
-            if(!std::isfinite(ratio)||ratio<=0.0||ratio>16.0||
-               !candidate->kernel_.prepare(ratio))
+            // Realtime bank covers all 49 semitones, even when a valid
+            // high-rate WAV exceeds the legacy static-kernel ratio limit.
+            // The single static kernel is unused in realtime-bank mode.
+            if(!std::isfinite(ratio)||ratio<=0.0||
+               (!enableRealtimePitch &&
+                (ratio>16.0||!candidate->kernel_.prepare(ratio))))
                 return PrepareStatus::InvalidKernel;
             candidate->outputRate_=outputRate;
             candidate->gain_=gain;
@@ -79,7 +122,8 @@ public:
         r.sample={decoded_.left.data(),
                   decoded_.channels==2?decoded_.right.data():nullptr,
                   decoded_.left.size()};
-        r.kernel=&kernel_;
+        r.pitchBank=pitchBank_.get();r.pitchIndex=pitchIndex_;
+        r.kernel=pitchBank_?pitchBank_->kernel(pitchIndex_):&kernel_;
         r.edit=edit_;
         r.gain=gain_;r.pan=pan_;r.chokeGroup=choke_;r.mute=mute_;
         r.ownerToken=this;
@@ -94,6 +138,8 @@ private:
     DecodedWav decoded_{};
     SampleEdit edit_{};
     SincKernel kernel_{};
+    std::shared_ptr<const PitchKernelBank> pitchBank_{};
+    std::uint8_t pitchIndex_{24};
     double outputRate_{0.0};
     float gain_{1.f},pan_{0.f};
     std::uint8_t choke_{0};

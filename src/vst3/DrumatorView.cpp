@@ -1,4 +1,7 @@
 #include "DrumatorView.h"
+#include "vst3/UiV101Scene.h"
+#include "vst3/UiV101SongPainter.h"
+#include "vst3/UiV101WaveLayout.h"
 #include "BrandLogoGeometry.h"
 #include "core/UiWaveEditorLayout.h"
 #include "vstgui/lib/cgraphicspath.h"
@@ -16,6 +19,8 @@
 #include "core/UiSongLayout.h"
 #include "core/UiOverlayHitZones.h"
 #include "core/DropFeedback.h"
+#include "core/DragExportFile.h"
+#include "vstgui/lib/cdropsource.h"
 #include "core/UiHeaderHitZones.h"
 #include "core/RowMixControl.h"
 #include "core/ClipWarning.h"
@@ -714,6 +719,14 @@ bool DrumatorView::changeKnobValue(int slot,std::size_t row,int value) {
  return false;
 }
 bool DrumatorView::sampleDropTargetAt(double x,double y) const noexcept {
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_) {
+   if(v101Menu_!=UiV101Popup::Kind::None||v101_.state().zoomOpen)return false;
+   const auto hit=v101_.rowHit(x,y);
+   return hit.row<controller_.visibleRows()&&
+          UiV101Layout::sample.hit(x,y-
+            UiV101Layout::rowTop(v101_.state().firstRow,
+              hit.row-v101_.state().firstRow,v101_.expandedRows()));
+ }
  if(sampleEditorOpen_||songEditorOpen_||popup_!=0||fillMenuRow_>=0)return false;
  const auto index=UiCompactLayout::rowAt(y,firstRow_,displayedRows(),velocityExpanded_);
  if(index>=displayedRows())return false;
@@ -727,15 +740,23 @@ DrumatorView::~DrumatorView() {
  if(productLogoBitmap_){productLogoBitmap_->forget();productLogoBitmap_=nullptr;}
  if(knobBitmap_){knobBitmap_->forget();knobBitmap_=nullptr;}
  if(screwBitmap_){screwBitmap_->forget();screwBitmap_=nullptr;}
+ if(v101TitleBitmap_){v101TitleBitmap_->forget();v101TitleBitmap_=nullptr;}
+ if(v101FaceplateBitmap_){v101FaceplateBitmap_->forget();v101FaceplateBitmap_=nullptr;}
+ for(auto*& bmp:v101VintageButtons_){
+   if(bmp){bmp->forget();bmp=nullptr;}
+ }
  if(sampleEditorOpen_)controller_.stopSampleEditPreview();
+ if(sampleEditorLive_) (void)stopSampleEditorLive();
  controller_.unregisterView(this);
 }
 bool DrumatorView::removed(VSTGUI::CView* parent) {
+ if(v101Mode_){v101_.cancel();v101Menu_=UiV101Popup::Kind::None;}
  controller_.cancelSampleEditorRequestsForView(this);
  pendingEditorRow_=kRows;pendingViewport_=false;pendingMarkerKind_=0;
  draggingScroll_=false;
- if(sampleEditorOpen_){controller_.stopSampleEditPreview();sampleEditorOpen_=false;
-   sampleEditorRow_=kRows;sampleEditorDrag_=0;}
+ if(sampleEditorOpen_){controller_.stopSampleEditPreview();
+   if(sampleEditorLive_)(void)stopSampleEditorLive();
+   sampleEditorOpen_=false;sampleEditorRow_=kRows;sampleEditorDrag_=0;}
  if(laneDragActive_){controller_.endVelocityStroke(false,this);laneDragActive_=false;}
  detailDragControl_=-1;detailDragRow_=kRows;
  activeKnob_=-1;knobRow_=kRows;
@@ -756,15 +777,20 @@ bool DrumatorView::removed(VSTGUI::CView* parent) {
 }
 void DrumatorView::editName(std::size_t row) {
  if(row>=controller_.visibleRows()||!getFrame())return;
- const double y=rowTopOnPage(row-firstRow_);
+ const bool newMain=v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_;
+ const double y=newMain?
+    UiV101Layout::rowTop(v101_.state().firstRow,row-v101_.state().firstRow,
+                         v101_.expandedRows()):rowTopOnPage(row-firstRow_);
+ const double left=newMain?UiV101Layout::load.x0:UiCompactLayout::sample.left;
+ const double right=newMain?UiV101Layout::load.x1:UiCompactLayout::sample.right;
  if(!nameEdit_){
-   nameEdit_=new VSTGUI::CTextEdit({UiCompactLayout::sample.left,y+4,UiCompactLayout::sample.right,y+33},this,1001,controller_.label(row).c_str());
+   nameEdit_=new VSTGUI::CTextEdit({left,y+4,right,y+33},this,1001,controller_.label(row).c_str());
    nameEdit_->registerTextEditListener(this);
    getFrame()->addView(nameEdit_);
  }
  editingNameRow_=row;
  nameEditGeneration_=controller_.editGeneration();
- nameEdit_->setViewSize({UiCompactLayout::sample.left,y+4,UiCompactLayout::sample.right,y+33});
+ nameEdit_->setViewSize({left,y+4,right,y+33});
  nameEdit_->setText(controller_.customName(row).empty()?controller_.label(row).c_str():
                    controller_.customName(row).c_str());
  nameEdit_->setVisible(true);
@@ -814,7 +840,9 @@ void DrumatorView::onTextEditPlatformControlLostFocus(VSTGUI::CTextEdit* edit) {
  invalid();
 }
 void DrumatorView::discardTransientEditsForRecall() noexcept {
+ if(v101Mode_){v101_.discardForRecall();v101Menu_=UiV101Popup::Kind::None;v101MenuRow_=kRows;}
  if(sampleEditorOpen_)controller_.stopSampleEditPreview();
+ if(sampleEditorLive_)(void)stopSampleEditorLive();
  sampleEditorOpen_=false;sampleEditorRow_=kRows;sampleEditorDrag_=0;
  pendingEditorRow_=kRows;pendingViewport_=false;pendingMarkerKind_=0;
  // Nothrow logical invalidation before the new kit commit. Do not call
@@ -859,10 +887,53 @@ bool DrumatorView::applyZoomFromState(double factor) {
  // The checked SDK zoom already negotiates the host's frame resize. A
  // second adjustEditorHeight() request caused an unrollbackable partial zoom.
  if(!editor.setZoomChecked(factor))return false;
+ if(v101Mode_)v101_.syncZoomFromHost(factor);
  invalid();
  return zoomMatches(factor);
 }
 void DrumatorView::refreshFromHost(bool relayout) {
+ // Host zoom may change while either modal editor is visible. Keep the
+ // shared hardware zoom indicator accurate in MAIN, SONG and Wave alike.
+ if(v101Mode_)v101_.syncZoomFromHost(editor_.getZoomFactor());
+ const bool v101RowsChanged=v101LastRowsNotified_!=controller_.visibleRows();
+ v101LastRowsNotified_=controller_.visibleRows();
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_) {
+   // Ordinary controller notifications during a rotary/velocity drag must
+   // not cancel that same gesture. Full structural relayout is different.
+   if(relayout){
+     v101_.cancel();
+     v101Menu_=UiV101Popup::Kind::None;
+     v101MenuRow_=kRows;
+   }
+   if(v101RowsChanged)v101_.reconcileRowCountChange();
+   else v101_.reconcile();
+   // Controller notifications are synchronous. The initiating view must
+   // handle its own row resize/rollback after down() returns; peers alone
+   // negotiate their HWND or fall back to a shorter but usable row page.
+   if(v101LocalRowTransaction_){invalid();return;}
+   if(getParentView()&&(v101RowsChanged||relayout||
+       v101_.state().viewportRows==UiV101Layout::visibleRows)){
+     v101_.setViewportRows(UiV101Layout::visibleRows);
+     if(v101_.height()!=getViewSize().getHeight()&&
+        !adjustEditorHeight()){
+       // No host resize: never paint the footer beyond the actual HWND.
+       // The one-row minimum fits every supported V1.0.1 host baseline.
+       std::size_t fit=1;
+       const auto expansion=v101_.expandedRows();
+       const auto first=v101_.state().firstRow;
+       for(std::size_t n=1;n<=UiV101Layout::visibleRows;++n) {
+         const auto shown=std::min(n,controller_.visibleRows()-first);
+         if(UiV101Layout::editorHeight(first,shown,expansion)>
+            getViewSize().getHeight()+.01)break;
+         fit=n;
+       }
+       v101_.setViewportRows(fit);
+       status_="HOST WINDOW TOO SMALL: PAGE ROWS WITH ARROWS";
+     }
+   }
+   invalid();
+   return;
+ }
  if(controller_.visibleRows()>0)
    velocityRow_=std::min(velocityRow_,controller_.visibleRows()-1);
  if(controller_.visibleRows()>0&&firstRow_>=controller_.visibleRows())firstRow_=0;
@@ -891,6 +962,12 @@ void DrumatorView::refreshFromHost(bool relayout) {
  }
 }
 void DrumatorView::pollMeter() noexcept {
+ if(sampleEditorOpen_&&sampleEditorLive_){
+   const auto now=std::chrono::steady_clock::now();
+   if(sampleEditorLivePending_)publishSampleEditorLive();
+   else if(now-sampleEditorLiveSentAt_>=std::chrono::milliseconds(400))
+     publishSampleEditorLive(true); // renew lease even without mouse motion
+ }
  // Each View reads the same controller cache. No destructive exchange by
  // individual GUI windows; generation ensures host Stop/no callbacks decays.
  if(pendingEditorRow_<kRows &&
@@ -923,8 +1000,10 @@ void DrumatorView::pollMeter() noexcept {
  invalid();
 }
 bool DrumatorView::attached(VSTGUI::CView* parent) {
+ if(v101Mode_)v101_.syncZoomFromHost(editor_.getZoomFactor());
  const auto result=CView::attached(parent);
  if(result){
+   v101LastRowsNotified_=controller_.visibleRows();
    adjustEditorHeight();
    meterTimer_=VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
      [this](VSTGUI::CVSTGUITimer*){if(getFrame())pollMeter();},33);
@@ -932,6 +1011,15 @@ bool DrumatorView::attached(VSTGUI::CView* parent) {
  return result;
 }
 bool DrumatorView::adjustEditorHeight() {
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
+   v101_.reconcile();
+   const auto height=v101_.height();
+   const auto scale=static_cast<const DrumatorEditor&>(editor_).effectiveScale();
+   if(!editor_.requestResize({1280.*scale,height*scale}))return false;
+   if(auto* parent=getParentView())parent->setViewSize({0,0,1280,height});
+   setViewSize({0,0,1280,height});
+   invalid();return true;
+ }
  const auto total=controller_.visibleRows();
  if(firstRow_>=total)firstRow_=total>0?total-1:0;
  const auto page=std::min(UiCompactLayout::perPage,total-firstRow_);
@@ -962,16 +1050,558 @@ bool DrumatorView::adjustEditorHeight() {
 }
 DrumatorView::DrumatorView(const VSTGUI::CRect& size,
                            Controller& controller,VSTGUI::VST3Editor& editor)
- : CView(size),controller_(controller),editor_(editor) {
+ : CView(size),controller_(controller),v101_(controller),editor_(editor) {
  setMouseEnabled(true);
  // The view itself owns the drop-target interface, as in Phraseator.
  controller_.registerView(this);
  backgroundBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription("125A_Drumator_Faceplate.png"));
- productLogoBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription("Metallisches DRUMATOR-Logo.png"));
+ productLogoBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription("DRUMATOR_Logo_Modern_Transparent.png"));
  knobBitmap_=new VSTGUI::CMultiFrameBitmap(VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
  screwBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription("125A_Drumator_Screw.png"));
+ v101TitleBitmap_=new VSTGUI::CBitmap(
+     VSTGUI::CResourceDescription("DRUMATOR_Logo_Modern_Transparent.png"));
+ v101FaceplateBitmap_=new VSTGUI::CBitmap(
+     VSTGUI::CResourceDescription("Futuristische industrielle Metalloberfläche.png"));
+ v101VintageButtons_[0]=new VSTGUI::CBitmap(
+     VSTGUI::CResourceDescription("125A_Dark_Button_83x32_Normal_4x.png"));
+ v101VintageButtons_[1]=new VSTGUI::CBitmap(
+     VSTGUI::CResourceDescription("125A_Dark_Button_83x32_Aktiv_4x.png"));
+ v101VintageButtons_[2]=new VSTGUI::CBitmap(
+     VSTGUI::CResourceDescription("125A_Dark_Button_83x32_Gedrueckt_4x.png"));
+ v101VintageButtons_[3]=new VSTGUI::CBitmap(
+     VSTGUI::CResourceDescription("125A_Dark_Button_83x32_Deaktiviert_4x.png"));
+}
+void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
+ using Painter=v101::UiV101NativePreview;
+ if(!v101TitleMeasured_) {
+   const auto bounds=Painter::measureTitle(v101TitleBitmap_);
+   v101TitleBounds_={{bounds.left,bounds.top,bounds.width,bounds.height}};
+   v101TitleMeasured_=true;
+ }
+ const Painter::TitleBounds title{v101TitleBounds_[0],v101TitleBounds_[1],
+                                  v101TitleBounds_[2],v101TitleBounds_[3]};
+ auto scene=v101::captureControllerScene(controller_);
+ scene.meterLeft=mainMeterL_;
+ scene.meterRight=mainMeterR_;
+ scene.clipped=controller_.meterState().clip!=0;
+ scene.status=status_;
+ if(std::chrono::steady_clock::now()<settingsFeedbackUntil_){
+   scene.settingsPressedRow=settingsFeedbackRow_;
+   scene.settingsPressedButton=settingsFeedbackButton_;
+ }
+ // WAVE owns its status line: never show a duplicate in the MAIN footer.
+ // This is paint-only; the underlying status_ remains untouched.
+ if(sampleEditorOpen_)scene.status.clear();
+ if(status_=="EMPTY: CLICK SAMPLE OR DROP A WAV/FLAC")
+   for(std::size_t row=0;row<controller_.visibleRows();++row)
+     if(controller_.hasSample(row)){scene.status.clear();break;}
+ const Painter::ButtonSprites vintageButtons{
+   v101VintageButtons_[0],v101VintageButtons_[1],
+   v101VintageButtons_[2],v101VintageButtons_[3]
+ };
+ Painter::draw(*c,static_cast<VSTGUI::CMultiFrameBitmap*>(knobBitmap_),
+               v101TitleBitmap_,title,scene,v101_.state().zoomOpen,
+               v101_.state().zoomIndex,v101_.state(),v101FaceplateBitmap_,
+               &vintageButtons);
+  // New controls share exactly the already approved dark hardware caps.
+ Painter::cap(*c,UiV101Layout::footerExport,
+              v101_.height()-UiV101Layout::footer,"EXPORT",
+              v101Menu_==UiV101Popup::Kind::Export,11,&vintageButtons);
+ Painter::cap(*c,UiV101Layout::limiterTrigger,0.,
+              controller_.limiterEnabled()?"LIMIT ON":"LIMIT OFF",
+              controller_.limiterEnabled(),10,&vintageButtons);
+ // Draw the modal zoom popup OVER the limiter, never under its cap.
+ if(v101_.state().zoomOpen)
+   Painter::zoomPopup(*c,v101_.state().zoomIndex,&vintageButtons);
+ drawV101Menu(c);
+}
+void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
+ if(v101Menu_==UiV101Popup::Kind::None)return;
+ using Painter=v101::UiV101NativePreview;
+ const auto first=v101_.state().firstRow;
+ const auto valid=v101MenuRow_>=first&&
+                  v101MenuRow_<first+v101_.shownRows();
+ const double rowY=valid?
+   UiV101Layout::rowTop(first,v101MenuRow_-first,v101_.expandedRows()):
+   UiV101Layout::header;
+ const auto g=UiV101Popup::geometry(v101Menu_,rowY,getViewSize().getHeight(),songEditorOpen_);
+ Painter::fill(*c,{g.x-4.,g.y-4.,g.x+g.width+4.,
+                   g.y+g.rows*g.cellHeight+4.},{17,26,36,255});
+ Painter::border(*c,{g.x-4.,g.y-4.,g.x+g.width+4.,
+                     g.y+g.rows*g.cellHeight+4.},{100,111,120,255});
+ const Painter::ButtonSprites popupButtons{
+   v101VintageButtons_[0],v101VintageButtons_[1],
+   v101VintageButtons_[2],v101VintageButtons_[3]
+ };
+ for(int i=0;i<UiV101Popup::count(v101Menu_);++i) {
+   const char* caption=UiV101Popup::label(v101Menu_,i);
+   if(v101Menu_==UiV101Popup::Kind::Output)
+     caption=Painter::outputCaption(static_cast<unsigned>(i));
+   // Keep both bus assignment and choke group visibly selected in their menus.
+   const bool selectedOutput=v101Menu_==UiV101Popup::Kind::Output&&
+       v101MenuRow_<controller_.visibleRows()&&
+       controller_.rowOutput(v101MenuRow_)==static_cast<unsigned>(i);
+   // The selected CHOKE group stays indicated when reopening the popup.
+   const bool selectedChoke=v101Menu_==UiV101Popup::Kind::Choke&&
+       v101MenuRow_<controller_.visibleRows()&&
+       controller_.rowChoke(v101MenuRow_)==static_cast<unsigned>(i);
+   // Every real pop-up shares the black MAIN/SONG 4x hardware button set.
+   const auto cell=UiV101Popup::cell(g,i);
+   Painter::cap(*c,cell,0.,caption,selectedOutput||selectedChoke,10,&popupButtons);
+   if(v101Menu_==UiV101Popup::Kind::Export){
+     c->setFont(VSTGUI::kNormalFont,9.);
+     c->setFontColor(VSTGUI::CColor{160,205,220,255});
+     c->drawString("DRAG",{cell.x1-48.,cell.y0+3.,cell.x1-4.,cell.y1-3.});
+   }
+ }
+}
+bool DrumatorView::applyV101Menu(int option) {
+ const auto kind=v101Menu_;
+ const auto row=v101MenuRow_;
+ if(option<0||option>=UiV101Popup::count(kind))return true;
+ if(kind!=UiV101Popup::Kind::Pattern&&kind!=UiV101Popup::Kind::Export&&
+    row>=controller_.visibleRows())return false;
+ switch(kind) {
+   case UiV101Popup::Kind::Pattern:
+     return option==0?controller_.copyCurrentPattern():
+            option==1?controller_.pasteCurrentPattern():
+            option==2?controller_.clearCurrentPattern():
+            option==3?controller_.undoCurrentPattern():
+            option==4?controller_.varyPatternVelocity():
+            option==5?controller_.resetPatternVelocity():
+                      controller_.duplicateCurrentPattern();
+   case UiV101Popup::Kind::Fill: {
+     constexpr RowFill patterns[]{RowFill::Every2,RowFill::Every4,RowFill::Every8,
+         RowFill::Snare24,RowFill::All,RowFill::Offbeat8,
+         RowFill::Gallop,RowFill::SnareGhost};
+     return controller_.fillRow(row,patterns[option]);
+   }
+   case UiV101Popup::Kind::Output: {
+     const bool routed=controller_.setRowOutput(row,static_cast<unsigned>(option));
+     if(routed){
+       char note[96]{};
+       if(option==0)
+         std::snprintf(note,sizeof(note),"MAIN SELECTED");
+       else
+         std::snprintf(note,sizeof(note),
+                       "BUS %d SELECTED - ENABLE DRUM %02d IN DAW",
+                       option+1,option+1);
+       status_=note;
+     }
+     return routed;
+   }
+   case UiV101Popup::Kind::Choke:
+     return controller_.setRowChoke(row,static_cast<unsigned>(option));
+   case UiV101Popup::Kind::Sample:
+     if(option==0){load(row);return true;}
+     if(option==1){editName(row);return true;}
+     return controller_.clearSample(row);
+   case UiV101Popup::Kind::Export:return exportSelection(option);
+   case UiV101Popup::Kind::None:return true;
+ }
+ return false;
+}
+bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
+ if(v101Menu_!=UiV101Popup::Kind::None) {
+   const auto first=v101_.state().firstRow;
+   const bool valid=v101MenuRow_>=first&&
+                    v101MenuRow_<first+v101_.shownRows();
+   const double rowY=valid?
+     UiV101Layout::rowTop(first,v101MenuRow_-first,v101_.expandedRows()):
+     UiV101Layout::header;
+   const auto g=UiV101Popup::geometry(v101Menu_,rowY,getViewSize().getHeight(),songEditorOpen_);
+   const int option=UiV101Popup::hit(v101Menu_,g,x,y);
+   const bool ok=applyV101Menu(option);
+   v101Menu_=UiV101Popup::Kind::None;
+   v101MenuRow_=kRows;
+   if(!ok)status_="MENU ACTION NOT APPLIED";
+   invalid();return true;
+ }
+ const auto footerKey=songEditorOpen_?UiV101Layout::songFooterExport:
+                                      UiV101Layout::footerExport;
+ if(!v101_.state().zoomOpen&&footerKey.hit(
+      x,y-(getViewSize().getHeight()-UiV101Layout::footer))){
+    v101Menu_=UiV101Popup::Kind::Export;v101MenuRow_=kRows;
+    invalid();return true;
+ }
+ if(!v101_.state().zoomOpen&&UiV101Layout::limiterTrigger.hit(x,y)){
+    if(!controller_.setLimiterEnabled(!controller_.limiterEnabled()))
+       status_="LIMITER SWITCH REJECTED";
+    invalid();return true;
+ }
+ // Capture SET intent BEFORE the interaction mutates/expands the row.
+ // The real action result below determines both the visible confirmation
+ // and whether the pressed cap may illuminate.
+ int setButton=-1;
+ std::size_t setRow=UiV101Layout::instruments;
+ const auto setHit=v101_.rowHit(x,y);
+ if(setHit.action==UiV101Layout::Action::SettingsLane){
+   const auto relY=y-UiV101Layout::rowTop(
+       v101_.state().firstRow,setHit.row-v101_.state().firstRow,
+       v101_.expandedRows());
+   const auto action=UiV101Interaction::settingsAt(x,relY);
+   if(action>=UiV101Interaction::SettingsAction::Output&&
+      action<=UiV101Interaction::SettingsAction::Clear){
+     setButton=static_cast<int>(action)-1;
+     setRow=setHit.row;
+   }
+ }
+ const auto previous=v101_.state();
+ const auto previousHeight=v101_.height();
+ const auto previousRows=controller_.visibleRows();
+ // Hold local resize transaction during synchronous Controller fan-out.
+ v101LocalRowTransaction_=true;
+ UiV101Interaction::Result result;
+ try {result=v101_.down(x,y,erase,fine);}
+ catch(...) {v101LocalRowTransaction_=false;throw;}
+ v101LocalRowTransaction_=false;
+ using R=UiV101Interaction::Result;
+ using K=UiV101Interaction::DeferredKind;
+ if(result==R::DeferredToView) {
+   const auto request=v101_.takeDeferredRequest();
+   v101MenuRow_=request.row;
+   switch(request.kind) {
+     case K::PatternMenu:v101Menu_=UiV101Popup::Kind::Pattern;break;
+     case K::Fill:v101Menu_=UiV101Popup::Kind::Fill;break;
+     case K::OutputMenu:v101Menu_=UiV101Popup::Kind::Output;break;
+     case K::ChokeMenu:v101Menu_=UiV101Popup::Kind::Choke;break;
+     case K::SampleMenu:v101Menu_=UiV101Popup::Kind::Sample;break;
+     case K::SongEditor:
+       songEditorOpen_=true;
+       if(!adjustEditorHeight()){
+         songEditorOpen_=false;
+         (void)adjustEditorHeight();
+         status_="HOST REJECTED SONG EDITOR RESIZE";
+       }
+       break;
+     case K::SampleEditor:
+       if(!openSampleEditor(request.row)&&
+          !controller_.sampleEditorRequestPending(request.row,this))
+         status_="SAMPLE EDITOR UNAVAILABLE";
+       break;
+     case K::LoadSample:load(request.row);break;
+     case K::Zoom: {
+       const auto zoom=v101_.userZoom();
+       const bool ok=static_cast<DrumatorEditor&>(editor_).setZoomChecked(zoom);
+       v101_.confirmZoom(ok);
+       if(ok)controller_.rememberZoom(zoom);
+       else status_="HOST REJECTED ZOOM";
+       break;
+     }
+     case K::None:break;
+   }
+ }
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_&&
+    v101_.height()!=previousHeight&&!adjustEditorHeight()) {
+   const bool reverted=controller_.visibleRows()==previousRows||
+                       controller_.restoreVisibleRows(previousRows);
+   v101_.restoreLayout(previous);
+   if(reverted)status_="HOST REJECTED ROW VIEW RESIZE";
+   else status_="ERROR: ROW COUNT ROLLBACK REJECTED";
+   invalid();
+ }
+ if(result==R::Failed)status_="CONTROL ACTION NOT APPLIED";
+ if(setButton>=0){
+   if(result==R::Applied||result==R::DeferredToView){
+     settingsFeedbackRow_=setRow;
+     settingsFeedbackButton_=setButton;
+     settingsFeedbackUntil_=std::chrono::steady_clock::now()+
+                           std::chrono::milliseconds(250);
+     if(setButton==2)status_="COPY ROW COMPLETED";
+     else if(setButton==3)status_="PASTE ROW COMPLETED";
+     else if(setButton==4)status_="CLEAR ROW COMPLETED";
+   }else if(setButton==3&&result==R::Ignored)
+     status_="PASTE ROW: COPY A ROW FIRST";
+ }
+ if(result!=R::Ignored||setButton>=0)invalid();
+ return result!=R::Ignored;
+}
+
+void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
+ drawV101(c);
+ // Visual-only modal scrim; preserves all hit rectangles and engine state.
+ c->setFillColor(VSTGUI::CColor{9,15,24,128});
+ c->drawRect({0.,0.,UiV101Layout::width,v101_.height()},VSTGUI::kDrawFilled);
+   // Identical UiWaveEditorLayout geometry; only the V1.0.1 materials
+   // and paint primitives change. All source-frame marker math is preserved.
+   using P=v101::UiV101NativePreview;
+   // The modal editor uses the SAME brushed-metal source as MAIN/SONG.
+   // Sample only the quiet center of the supplied faceplate: drawing the
+   // whole photograph here would duplicate its large bevel and corner trim.
+   // Source and destination are both 820x505 in logical 100%-scale pixels.
+   // The original resource stays unchanged, and no controls are relocated.
+   const bool hasWaveMetal=v101FaceplateBitmap_&&
+        v101FaceplateBitmap_->isLoaded()&&
+        v101FaceplateBitmap_->getWidth()>=820.&&
+        v101FaceplateBitmap_->getHeight()>=505.;
+   if(hasWaveMetal){
+     const double sourceX=(v101FaceplateBitmap_->getWidth()-820.)*.5;
+     const double sourceY=(v101FaceplateBitmap_->getHeight()-505.)*.5;
+     v101FaceplateBitmap_->draw(c,{230.,100.,1050.,605.},
+                               {sourceX,sourceY});
+     // Show the supplied faceplate texture at its original brightness.
+     // The waveform well and control readouts already have opaque surfaces.
+   }else{
+     P::satin(*c,{225.,96.,1055.,610.},{67,76,85,255},
+              {42,51,61,255},{25,34,44,255},22);
+     c->setFillColor(P::Skin::graphite());
+     c->drawRect({230.,100.,1050.,605.},VSTGUI::kDrawFilled);
+   }
+   P::border(*c,{225.,96.,1055.,610.},P::Skin::panelEdge());
+   // Narrow metallic title shoulder; restrained lower bevel.
+   c->setFillColor(VSTGUI::CColor{27,41,56,255});
+   c->drawRect({234,104,1046,151},VSTGUI::kDrawFilled);
+   c->setFillColor(VSTGUI::CColor{96,109,122,255});
+   c->drawRect({234,104,1046,106},VSTGUI::kDrawFilled);
+   c->setFillColor(VSTGUI::CColor{53,61,68,255});
+   c->drawRect({234,149,1046,151},VSTGUI::kDrawFilled);
+   c->setFrameColor(VSTGUI::CColor{91,102,111,255});
+   c->drawRect({230,100,1050,605},VSTGUI::kDrawStroked);
+   // Three non-overlapping header regions: editor heading, shortened sample
+   // filename, and the existing LIVE button (its mouse hitbox is unchanged).
+   // A long UTF-8 sample name must never draw behind the LIVE key.
+   c->setFont(VSTGUI::kNormalFont,18);c->setFontColor(letters);
+   c->drawString("WAVE EDITOR",
+                 editorRect(UiV101WaveLayout::titleLabel),VSTGUI::kLeftText);
+   const auto sampleCaption=controller_.label(sampleEditorRow_);
+   std::string fittedCaption=sampleCaption;
+   c->setFont(VSTGUI::kNormalFont,11);c->setFontColor({177,198,211,255});
+   const double available=UiV101WaveLayout::sampleLabel.width()-8.;
+   if(c->getStringWidth(fittedCaption.c_str())>available){
+     const auto dot=sampleCaption.find_last_of('.');
+     const auto extension=(dot!=std::string::npos&&
+                           sampleCaption.size()-dot<=7)?
+                           sampleCaption.substr(dot):std::string{};
+     std::size_t keep=sampleCaption.size()-extension.size();
+     while(keep>0){
+       --keep;
+       while(keep>0&&
+             (static_cast<unsigned char>(sampleCaption[keep])&0xc0u)==0x80u)
+         --keep;
+       fittedCaption=sampleCaption.substr(0,keep)+"..."+extension;
+       if(c->getStringWidth(fittedCaption.c_str())<=available)break;
+     }
+     if(c->getStringWidth(fittedCaption.c_str())>available)
+       fittedCaption="...";
+   }
+   c->saveGlobalState();
+   c->setClipRect(editorRect(UiV101WaveLayout::sampleLabel));
+   c->drawString(fittedCaption.c_str(),
+                 editorRect(UiV101WaveLayout::sampleLabel),VSTGUI::kRightText);
+   c->restoreGlobalState();
+   // Wide, filled peak envelope: adjacent interpolated columns preserve
+   // transients without inventing audio or filtering source PCM.
+   c->setFillColor(VSTGUI::CColor{5,19,36,255});
+   c->drawRect(editorRect(UiWaveEditorLayout::waveform),VSTGUI::kDrawFilled);
+   c->setFrameColor(VSTGUI::CColor{47,109,154,255});
+   c->drawRect(editorRect(UiWaveEditorLayout::waveform),VSTGUI::kDrawStroked);
+   c->setFrameColor(VSTGUI::CColor{47,109,154,255});c->drawLine({284,268},{994,268});
+   if(sampleEditorStereo_)c->drawLine({284,326},{994,326});
+   const auto n=sampleEditorWave_.size();
+   for(int pixel=0;pixel<710;++pixel){
+     const double scaled=(static_cast<double>(pixel)+0.5)*n/710.;
+     const auto idx=std::min(n-1,static_cast<std::size_t>(scaled));
+     const auto next=std::min(n-1,idx+1);
+     const double fraction=scaled-static_cast<double>(idx);
+     const auto& a=sampleEditorWave_[idx];const auto& b=sampleEditorWave_[next];
+     // Include both adjacent ranges: interpolation never loses a one-bin peak.
+     const double lo=std::min({static_cast<double>(a.minimum),
+           static_cast<double>(b.minimum),0.});
+     const double hi=std::max({static_cast<double>(a.maximum),
+           static_cast<double>(b.maximum),0.});
+     const double mid=sampleEditorStereo_?213.:268.;
+     const double amp=sampleEditorStereo_?48.:104.;
+     const double sourceFrame=sampleEditorFirst_+
+         (pixel+0.5)*static_cast<double>(sampleEditorLast_-sampleEditorFirst_)/710.;
+     const auto& e=sampleEditorEdit_;
+     // The same discrete source-frame envelope as the audio engine.
+     // A one-frame Fade Out now displays silence, matching rendered PCM.
+     const double fade=e.amplitude(static_cast<std::uint32_t>(std::floor(sourceFrame)));
+     const double upper=std::clamp(mid-hi*amp*fade,sampleEditorStereo_?156.:156.,
+                                   sampleEditorStereo_?264.:381.);
+     const double lower=std::clamp(mid-lo*amp*fade,sampleEditorStereo_?156.:156.,
+                                   sampleEditorStereo_?264.:381.);
+     c->setFrameColor(accent);c->drawLine({284.+pixel,upper},{284.+pixel,lower});
+     if(sampleEditorStereo_){
+       const auto& rightA=sampleEditorWaveRight_[idx];
+       const auto& rightB=sampleEditorWaveRight_[next];
+       const double rlo=std::min({static_cast<double>(rightA.minimum),
+                                static_cast<double>(rightB.minimum),0.});
+       const double rhi=std::max({static_cast<double>(rightA.maximum),
+                                static_cast<double>(rightB.maximum),0.});
+       c->drawLine({284.+pixel,std::clamp(326.-rhi*48.*fade,273.,381.)},
+                   {284.+pixel,std::clamp(326.-rlo*48.*fade,273.,381.)});
+     }
+     (void)fraction;
+   }
+   const auto visible=static_cast<double>(sampleEditorLast_-sampleEditorFirst_);
+   const auto sx=284.+710.*(static_cast<double>(sampleEditorEdit_.start)-sampleEditorFirst_)/visible;
+   const auto ex=284.+710.*(static_cast<double>(sampleEditorEdit_.end)-sampleEditorFirst_)/visible;
+   c->setFrameColor(on);c->setLineWidth(2.);
+   if(sx>=284.&&sx<=994.)c->drawLine({sx,175},{sx,382});
+   c->setFrameColor(letters);
+   if(ex>=284.&&ex<=994.)c->drawLine({ex,175},{ex,382});
+   // Fade handles and ramp overlays use source-frame positions.
+   const auto fadeInX=sx+710.*static_cast<double>(sampleEditorEdit_.fadeIn)/visible;
+   const auto fadeOutX=ex-710.*static_cast<double>(sampleEditorEdit_.fadeOut)/visible;
+   c->setFrameColor(on);
+   if(fadeInX>=284.&&sx<=994.)
+     c->drawLine({std::clamp(sx,284.,994.),278},
+                 {std::clamp(fadeInX,284.,994.),180});
+   c->setFrameColor(letters);
+   if(ex>=284.&&fadeOutX<=994.)
+     c->drawLine({std::clamp(fadeOutX,284.,994.),180},
+                 {std::clamp(ex,284.,994.),278});
+   if(fadeInX>=284.&&fadeInX<=994.){
+     const auto handle=std::clamp(fadeInX,289.,989.);
+     c->setFillColor(on);c->drawRect({handle-5,175,handle+5,188},VSTGUI::kDrawFilled);
+   }
+   if(fadeOutX>=284.&&fadeOutX<=994.){
+     const auto handle=std::clamp(fadeOutX,289.,989.);
+     c->setFillColor(letters);c->drawRect({handle-5,175,handle+5,188},VSTGUI::kDrawFilled);
+   }
+   c->setLineWidth(1.);
+   // Scrollbar is proportional to the visible source-frame interval.
+   constexpr double scrollX=284.,scrollWidth=710.;
+   c->setFillColor(off);c->drawRect({scrollX,387,scrollX+scrollWidth,402},VSTGUI::kDrawFilled);
+   const double thumbWidth=scrollWidth*
+       static_cast<double>(sampleEditorLast_-sampleEditorFirst_)/sampleEditorFrames_;
+   const double thumbX=scrollX+scrollWidth*
+       static_cast<double>(sampleEditorFirst_)/sampleEditorFrames_;
+   c->setFillColor(accent);
+   c->drawRect({thumbX,387,thumbX+thumbWidth,402},VSTGUI::kDrawFilled);
+   // Separate labels and values; source WAV sample rate, never host tempo/rate.
+   // Internal edits remain exact integer audio-frame positions and durations.
+   const double msPerFrame=sampleEditorRate_?1000.0/sampleEditorRate_:0.;
+   constexpr const char* labels[]={"START","END","FADE IN","FADE OUT","GAIN"};
+   const double positions[]={sampleEditorEdit_.start*msPerFrame,
+     sampleEditorEdit_.end*msPerFrame,sampleEditorEdit_.fadeIn*msPerFrame,
+     sampleEditorEdit_.fadeOut*msPerFrame,
+     std::round(sampleEditorEdit_.gain*100.f)};
+   for(std::size_t i=0;i<5;++i){
+     const auto r=UiV101WaveLayout::readout(i);
+     P::rounded(*c,{r.left,r.top,r.right,r.bottom},
+                P::Skin::navyWell(),3.);
+     P::border(*c,{r.left,r.top,r.right,r.bottom},
+               P::Skin::navyTrim());
+     P::fill(*c,{r.left+4.,r.top+3.,r.right-4.,r.top+4.},
+             {69,91,105,255});
+     char value[48]{};
+     if(i==4)std::snprintf(value,sizeof(value),"%.0f %%",positions[i]);
+     else if(sampleEditorRate_)std::snprintf(value,sizeof(value),"%.2f ms",positions[i]);
+     else std::snprintf(value,sizeof(value),"-- ms");
+     // Equal-weight hardware readouts, not five floating text fragments.
+     P::label(*c,labels[i],{r.left+4.,r.top+5.,r.right-4.,r.top+21.},
+              10,{167,190,206,255});
+     P::label(*c,value,{r.left+4.,r.top+22.,r.right-4.,r.bottom-3.},
+              12,{224,233,239,255});
+   }
+   // All four functional groups use the same recessed midnight-blue
+   // mounting bezel and blue rim. Previously only PREVIEW/STOP had a frame
+   // in the legacy editor; here the other tools receive exactly the same.
+   // Bezel rectangles are strictly decorative, leaving hit geometry intact.
+   for(const auto& g:UiV101WaveLayout::toolbarGroups){
+     // Inset only the decorative frames: 2px nominal separation reads as 4px.
+     const double bezelLeft=g.left+1.,bezelRight=g.right-1.;
+     P::rounded(*c,{bezelLeft,g.top,bezelRight,g.bottom},
+                {13,27,43,255},3.);
+     P::border(*c,{bezelLeft,g.top,bezelRight,g.bottom},
+               {47,109,154,255});
+     P::fill(*c,{bezelLeft+4.,g.top+2.,bezelRight-4.,g.top+3.},
+             {90,135,163,255});
+   }
+   // Eight precisely equal 86x32 hardware keys, 8px gutters. The
+   // V1.0.1-specific click map is shared with the actual pointer handler.
+   constexpr const char* captions[]={
+      "ZOOM +","ZOOM -","FIT","PREVIEW","STOP","RESET","CANCEL","APPLY"};
+   const P::ButtonSprites waveButtons{
+     v101VintageButtons_[0],v101VintageButtons_[1],
+     v101VintageButtons_[2],v101VintageButtons_[3]
+   };
+   // The optional live monitoring key sits in the header, outside the
+   // standard eight-key action toolbar and inside the modal metal face.
+   P::cap(*c,{UiV101WaveLayout::liveToggle.left,UiV101WaveLayout::liveToggle.top,
+              UiV101WaveLayout::liveToggle.right,UiV101WaveLayout::liveToggle.bottom},
+          0.,sampleEditorLive_?"LIVE ON":"LIVE OFF",sampleEditorLive_,10,&waveButtons);
+   for(std::size_t i=0;i<UiV101WaveLayout::toolbar.size();++i){
+     const auto& r=UiV101WaveLayout::toolbar[i];
+     P::cap(*c,{r.left,r.top,r.right,r.bottom},0.,captions[i],
+            false,10,&waveButtons,false,
+            sampleEditorPressed_==static_cast<int>(i));
+   }
+   if(sampleEditorPressed_>=0&&
+      sampleEditorPressed_<static_cast<int>(UiV101WaveLayout::toolbar.size())){
+     const auto& r=UiV101WaveLayout::toolbar[
+         static_cast<std::size_t>(sampleEditorPressed_)];
+     c->setFrameColor(on);c->setLineWidth(2.);
+     c->drawRect({r.left,r.top,r.right,r.bottom},VSTGUI::kDrawStroked);
+     c->setLineWidth(1.);
+   }
+   // Machined buttons change their paint font to dark ink; restore the
+   // light editor ink for GAIN and its numeric value against graphite.
+   c->setFont(VSTGUI::kNormalFont,12);c->setFontColor(letters);
+   c->drawString("GAIN",{558,405,622,428});
+   c->setFillColor(off);c->drawRect({615,416,900,430},VSTGUI::kDrawFilled);
+   const auto gainX=615.+285.*std::clamp(static_cast<double>(sampleEditorEdit_.gain)/4.,0.,1.);
+   c->setFillColor(accent);c->drawRect({615,416,gainX,430},VSTGUI::kDrawFilled);
+   c->setFillColor(letters);c->drawRect({gainX-4,409,gainX+4,437},VSTGUI::kDrawFilled);
+   c->setFontColor(letters);
+   char gainText[36]{};
+   std::snprintf(gainText,sizeof(gainText),"%u%%",
+                 static_cast<unsigned>(std::lround(sampleEditorEdit_.gain*100.f)));
+   c->drawString(gainText,{911,405,1001,439});
+   c->setFont(VSTGUI::kNormalFont,12);c->setFontColor(letters);
+   if(!status_.empty())
+     v101::UiV101NativePreview::fittedStatus(
+       *c,status_.c_str(),{265.,556.,1020.,585.},12,letters,true);
+ // Dark mounting fasteners at the corners of the modal metal surround.
+ v101::UiV101NativePreview::screw(*c,235.,106.);
+ v101::UiV101NativePreview::screw(*c,1045.,106.);
+ v101::UiV101NativePreview::screw(*c,235.,600.);
+ v101::UiV101NativePreview::screw(*c,1045.,600.);
+}
+void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
+ drawV101(c);
+ // The startup placeholder is not an error and becomes stale after
+ // restoring a project kit; never show it in the SONG footer.
+ const bool emptyNotice=status_=="EMPTY: CLICK SAMPLE OR DROP A WAV/FLAC";
+ bool kitHasSamples=false;
+ for(std::size_t row=0;row<controller_.visibleRows();++row)
+   if(controller_.hasSample(row)){kitHasSamples=true;break;}
+ const char* notice=emptyNotice&&kitHasSamples?"":status_.c_str();
+ const v101::UiV101NativePreview::ButtonSprites songButtonSprites{
+   v101VintageButtons_[0],v101VintageButtons_[1],
+   v101VintageButtons_[2],v101VintageButtons_[3]
+ };
+ v101::UiV101SongPainter::draw(*c,controller_,songPage_,songSlot_,
+                               notice,v101FaceplateBitmap_,&songButtonSprites);
+ // The top-row SONG EDIT key stays visibly latched while its board is open.
+ v101::UiV101NativePreview::cap(*c,UiV101Layout::headerGroup(1),
+                                 0.,"SONG EDIT",true,10,&songButtonSprites);
+ // SONG painter covers MAIN footer; repaint the same real EXPORT key.
+ v101::UiV101NativePreview::cap(*c,UiV101Layout::songFooterExport,
+     getViewSize().getHeight()-UiV101Layout::footer,"EXPORT",
+     v101Menu_==UiV101Popup::Kind::Export,11,&songButtonSprites);
+ // Modal overlays must sit ABOVE the SONG fascia. The main painter already
+ // drew them, but the editor board covers y>=138 and would hide both the
+ // Pattern MENU and the last zoom option. This is not merely decorative:
+ // the hit handler also gives these popups priority while they are open.
+ drawV101Menu(c);
+ if(v101_.state().zoomOpen)
+   v101::UiV101NativePreview::zoomPopup(*c,v101_.state().zoomIndex,&songButtonSprites);
 }
 void DrumatorView::draw(VSTGUI::CDrawContext* c) {
+ if(v101Mode_&&!sampleEditorOpen_){
+   if(songEditorOpen_)drawV101Song(c);
+   else drawV101(c);
+   setDirty(false);
+   return;
+ }
+ if(v101Mode_&&sampleEditorOpen_){
+   drawV101Wave(c);
+   setDirty(false);
+   return;
+ }
  const auto bottom=gridBottom();
  const auto fullHeight=getViewSize().getHeight();
  // Dedicated static blue-steel faceplate under all interactive controls.
@@ -1073,7 +1703,7 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
  }
  drawControl(c,{UiCompactLayout::patternTools.left,UiCompactLayout::headerButtonTop,
                UiCompactLayout::patternTools.right,UiCompactLayout::headerButtonBottom},
-             "PATTERN MENU",popup_==2,true,11);
+             "PTNR",popup_==2,true,11);
  drawControl(c,{UiCompactLayout::songToggle.left,UiCompactLayout::headerButtonTop,
                UiCompactLayout::songToggle.right,UiCompactLayout::headerButtonBottom},
              controller_.songEnabled()?"SONG ON":"SONG OFF",
@@ -1099,62 +1729,28 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
    const double y=rowTopOnPage(i);
    const bool chosen=row==velocityRow_;
    const auto rowH=UiCompactLayout::baseRow+(velocityExpanded_[row]?UiCompactLayout::velocityRow:0.);
-   // Individual graphite instrument trays with subtle selectable blue edge.
-   c->setFillColor(VSTGUI::CColor{3,13,23,255});
-   c->drawRect({8,y+2.,1261,y+rowH-2.},VSTGUI::kDrawFilled);
-   c->setFillColor(chosen?VSTGUI::CColor{36,42,48,255}:VSTGUI::CColor{30,36,42,255});
-   c->drawRect({10,y+4.,1260,y+rowH-5.},VSTGUI::kDrawFilled);
-   // Satin graphite face inside the blue steel carrier. A narrow exposed
-   // perimeter and opposing specular/undercut edges give each row a distinct
-   // hardware tray without altering its size or any clickable rectangle.
-   // Satin faceplate: upper shoulder catches light; lower deck recedes.
-   // Pure paint, with unchanged widget geometry and interaction rectangles.
-   c->setFillColor(chosen?VSTGUI::CColor{37,43,49,255}:
-                            VSTGUI::CColor{34,40,46,255});
-   c->drawRect({12.,y+7.,1258.,y+40.},VSTGUI::kDrawFilled);
-   c->setFillColor(chosen?VSTGUI::CColor{30,36,42,255}:
-                            VSTGUI::CColor{27,33,39,255});
-   c->drawRect({12.,y+40.,1258.,y+rowH-9.},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{91,102,111,255});
+   // V1.0.1: a continuous dark-navy instrument channel, rather than
+   // separate graphite button/rotary trays. Geometry and interactions remain
+   // unchanged in this first visual migration; original steps are retained.
+   c->setFillColor(VSTGUI::CColor{8,19,32,255});
+   c->drawRect({8.,y+2.,1261.,y+rowH-2.},VSTGUI::kDrawFilled);
+   c->setFillColor(chosen?VSTGUI::CColor{22,43,64,255}:
+                            VSTGUI::CColor{17,36,55,255});
+   c->drawRect({11.,y+5.,1259.,y+rowH-6.},VSTGUI::kDrawFilled);
+   // Two low-contrast machining lines emphasize each uninterrupted strip.
+   c->setFillColor(VSTGUI::CColor{64,99,125,255});
    c->drawRect({11.,y+5.,1259.,y+6.},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{56,64,72,255});
-   c->drawRect({11.,y+6.,12.,y+rowH-9.},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{5,17,27,255});
-   c->drawRect({1258.,y+7.,1260.,y+rowH-7.},VSTGUI::kDrawFilled);
-   c->drawRect({11.,y+rowH-9.,1260.,y+rowH-6.},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{53,61,68,255});
-   c->drawRect({12.,y+rowH-10.,1258.,y+rowH-9.},VSTGUI::kDrawFilled);
+   c->setFillColor(VSTGUI::CColor{5,16,27,255});
+   c->drawRect({11.,y+rowH-8.,1259.,y+rowH-6.},VSTGUI::kDrawFilled);
    c->setFrameColor(chosen?accent:rowBlueBorder);
-   c->drawRect({9,y+3.,1261,y+rowH-4.},VSTGUI::kDrawStroked);
-   // Four subdued inset instrument identity rails, tied to absolute row
-   // index (not page position or currently loaded sample). Paint only.
+   c->drawRect({9.,y+3.,1261.,y+rowH-4.},VSTGUI::kDrawStroked);
+   // Restrained identity tick, not a full-height colored module divider.
    constexpr std::array<VSTGUI::CColor,4> rowAccents{{
-     {158,61,65,255},   // muted red
-     {181,114,44,255},  // warm amber
-     {68,139,92,255},   // subdued green
-     {125,91,161,255}   // violet
+     {158,61,65,255},{181,114,44,255},
+     {68,139,92,255},{125,91,161,255}
    }};
-   const auto rail=rowAccents[row%rowAccents.size()];
-   c->setFillColor(VSTGUI::CColor{5,17,25,255});
-   c->drawRect({12.,y+9.,18.,y+rowH-10.},VSTGUI::kDrawFilled);
-   c->setFillColor(rail);
-   c->drawRect({13.,y+11.,17.,y+rowH-12.},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{110,128,139,255});
-   c->drawRect({13.,y+11.,14.,y+rowH-12.},VSTGUI::kDrawFilled);
-   // The top controls and rotaries occupy adjacent zones. No decorative
-   // shelf stripe: it previously crowded the VOL/PAN/PITCH legends.
-   // Readable row functions versus visually separated step sequencer.
-   // Quiet, continuous control deck: the knob mounts already provide
-   // physical separation; no second inset frame around all rotaries.
-   c->setFillColor(VSTGUI::CColor{28,34,40,255});
-   c->drawRect({18.,y+46.,615.,y+120.},VSTGUI::kDrawFilled);
-   drawInset(c,{620,y+28.,1230,y+115.},VSTGUI::CColor{24,30,35,255});
-   // Dark dividing seam and a single silver-blue return: two separate
-   // recessed modules, not a painted line running through the controls.
-   c->setFillColor(VSTGUI::CColor{2,10,18,255});
-   c->drawRect({616.,y+30.,618.,y+115.},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{69,99,116,255});
-   c->drawRect({618.,y+31.,619.,y+113.},VSTGUI::kDrawFilled);
+   c->setFillColor(rowAccents[row%rowAccents.size()]);
+   c->drawRect({13.,y+10.,16.,y+36.},VSTGUI::kDrawFilled);
    // Restore the simple continuous Step well from the earliest GUI.
    // Do not build another 3D trough around the already dimensional keycaps.
    c->setFillColor(stepWellBlue);
@@ -1440,8 +2036,10 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
      const double bx=678+idx*106.;
      drawControl(c,{bx,339,bx+100,365},lenNames[idx],chosen,selectionVisible);
    }
-   drawControl(c,{1012,339,1110,365},"ADD ENTRY",false,count<64);
-   drawControl(c,{1118,339,1239,365},"REMOVE LAST",false,count>1);
+   drawControl(c,{UiSongLayout::addLeft,UiSongLayout::choiceTop,
+                  UiSongLayout::addRight,UiSongLayout::choiceBottom},"ADD ENTRY",false,count<64);
+   drawControl(c,{UiSongLayout::removeLeft,UiSongLayout::choiceTop,
+                  UiSongLayout::removeRight,UiSongLayout::choiceBottom},"REMOVE LAST",false,count>1);
  }
 
  // Contextual menus are drawn AFTER the row grid; they cannot be obscured.
@@ -1526,7 +2124,7 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
    c->setFrameColor(VSTGUI::CColor{91,102,111,255});
    c->drawRect({230,100,1050,605},VSTGUI::kDrawStroked);
    c->setFont(VSTGUI::kNormalFont,18);c->setFontColor(letters);
-   c->drawString("SAMPLE EDITOR",{260,114,1000,148});
+   c->drawString("SAMPLE EDITOR",{260,114,780,148});
    // Wide, filled peak envelope: adjacent interpolated columns preserve
    // transients without inventing audio or filtering source PCM.
    c->setFillColor(VSTGUI::CColor{5,19,36,255});
@@ -1638,6 +2236,8 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
    c->drawRect(editorRect(UiWaveEditorLayout::previewGroup),VSTGUI::kDrawStroked);
    drawControl(c,editorRect(UiWaveEditorLayout::cancel),"CANCEL");
    drawControl(c,editorRect(UiWaveEditorLayout::apply),"APPLY");
+   drawControl(c,editorRect(UiV101WaveLayout::liveToggle),
+               sampleEditorLive_?"LIVE ON":"LIVE OFF");
    if(sampleEditorPressed_>=0&&
       sampleEditorPressed_<static_cast<int>(UiWaveEditorLayout::toolbar.size())){
      c->setFrameColor(on);c->setLineWidth(2.);
@@ -1698,7 +2298,9 @@ bool DrumatorView::acceptFileDrop(VSTGUI::DragEventData data) {
    status_="D&D ERROR: OUTSIDE INSTRUMENT ROWS";
    invalid();return false;
  }
- const auto row=firstRow_+UiCompactLayout::rowAt(position.y,firstRow_,displayedRows(),velocityExpanded_);
+ const auto row=v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_?
+     v101_.rowHit(position.x,position.y).row:
+     firstRow_+UiCompactLayout::rowAt(position.y,firstRow_,displayedRows(),velocityExpanded_);
  if(row>=kRows) {
    status_="D&D ERROR: INVALID ROW";invalid();return false;
  }
@@ -1728,6 +2330,80 @@ void DrumatorView::load(std::size_t row) {
  invalid();
 }
 
+
+bool DrumatorView::startExportDrag(int option) {
+ if(option<0||option>=4||!getFrame())return false;
+ // Prepare only after a real mouse drag; ordinary clicks keep Save As.
+ try {
+  const auto output=DragExportFile::create(option);
+  if(output.empty()){status_="DRAG: TEMP FOLDER UNAVAILABLE";return false;}
+  const bool wav=option==1||option==3;
+  const bool song=option>=2;
+  const auto path=pathToUtf8(output);
+  const bool exported=wav?controller_.exportWav(song,path):
+                          controller_.exportMidi(song,path);
+  std::error_code ec;
+  if(!exported||!std::filesystem::is_regular_file(output,ec)||ec||
+     std::filesystem::file_size(output,ec)==0||ec){
+    DragExportFile::discardFailed(output);
+    status_="DRAG: EXPORT FAILED";
+    return false;
+  }
+  // CFilePath is a UTF-8 NUL-terminated path. VSTGUI translates it to
+  // Windows CF_HDROP, which Studio One can accept on its arrange tracks.
+  const auto source=VSTGUI::CDropSource::create(
+      path.c_str(),static_cast<std::uint32_t>(path.size()+1),
+      VSTGUI::IDataPackage::kFilePath);
+  if(!source){
+    // The output must remain available to the host if a drag was started,
+    // but at this point no drag has been published.
+    DragExportFile::discardFailed(output);
+    status_="DRAG: FILE PACKAGE UNAVAILABLE";
+    return false;
+  }
+  const bool started=doDrag(VSTGUI::DragDescription(source));
+  // A started OLE drag is not proof that the DAW actually accepted the file.
+  status_=started?"DRAG STARTED - DROP INTO DAW":"DRAG NOT STARTED";
+  // Retain even on an unsuccessful drag: VSTGUI/host might have seen the path.
+  return started;
+ } catch(const std::exception&) {
+  status_="DRAG: FILESYSTEM ERROR";return false;
+ } catch(...) {
+  status_="DRAG: UNEXPECTED ERROR";return false;
+ }
+}
+
+bool DrumatorView::exportSelection(int option){
+ if(option<0||option>=4)return false;
+ auto* frame=getFrame();if(!frame)return false;
+ const bool wav=option==1||option==3;
+ const bool song=option>=2;
+ auto* picker=VSTGUI::CNewFileSelector::create(
+     frame,VSTGUI::CNewFileSelector::kSelectSaveFile);
+ if(!picker){status_="EXPORT FILE DIALOG UNAVAILABLE";return false;}
+ if(wav)picker->addFileExtension(VSTGUI::CFileExtension("WAV PCM 24-bit","wav","audio/wav"));
+ else picker->addFileExtension(VSTGUI::CFileExtension("MIDI file","mid","audio/midi"));
+ picker->setTitle(song?"125A Drumator - Export SONG":"125A Drumator - Export PATTERN");
+ const bool selected=picker->runModal();
+ std::string path;
+ if(selected&&picker->getNumSelectedFiles()>0){
+   const auto* file=picker->getSelectedFile(0);
+   if(file)path=file;
+ }
+ picker->forget();
+ if(path.empty())return true; // Cancel is not a software failure.
+ const auto dot=path.find_last_of('.');
+ const auto slash=path.find_last_of("/\\");
+ const bool hasExtension=dot!=std::string::npos&&
+                         (slash==std::string::npos||dot>slash);
+ if(!hasExtension)path+=wav?".wav":".mid";
+ const bool ok=wav?controller_.exportWav(song,path):
+                   controller_.exportMidi(song,path);
+ status_=ok?(song?"SONG EXPORT COMPLETED":"PATTERN EXPORT COMPLETED"):
+            "EXPORT FAILED - PREVIOUS FILE PRESERVED";
+ return ok;
+}
+
 void DrumatorView::onSampleEditorReady(std::size_t row,bool ok) {
  if(pendingEditorRow_==row) {
    pendingEditorRow_=kRows;
@@ -1749,6 +2425,11 @@ void DrumatorView::onSampleEditorReady(std::size_t row,bool ok) {
  }
 }
 bool DrumatorView::openSampleEditor(std::size_t row) {
+ // A new WAV import invalidates the previous LIVE session and revision.
+ // Never reuse a prior source's local ON state for another PCM revision.
+ if(sampleEditorLive_&&!stopSampleEditorLive()){
+   status_="LIVE PREVIOUS SESSION COULD NOT BE CLOSED";invalid();return false;
+ }
  SampleEdit edit;std::uint32_t frames=0;
  std::array<WaveformRange,256> wave{};
  // Register continuation before sending: the host may reply immediately.
@@ -1776,13 +2457,48 @@ bool DrumatorView::openSampleEditor(std::size_t row) {
  sampleEditorRate_=controller_.editorWaveSampleRate();sampleEditorWave_=wave;
  sampleEditorRow_=row;sampleEditorFirst_=0;sampleEditorLast_=frames;
  sampleEditorDrag_=0;sampleEditorPressed_=-1;sampleEditorOpen_=true;
- status_="SAMPLE READY FOR EDITING";
+ sampleEditorLivePending_=false;
+ status_=startSampleEditorLive()?"LIVE ON: SONG/PATTERN MONITORING":
+                             "LIVE OFF: PREVIEW/EDIT STILL AVAILABLE";
  invalid();return true;
+}
+bool DrumatorView::startSampleEditorLive() noexcept {
+ if(!sampleEditorOpen_||sampleEditorRow_>=kRows)return false;
+ if(sampleEditorLive_)return true;
+ std::uint64_t session=0;
+ if(!controller_.beginLiveSampleEdit(sampleEditorRow_,sampleEditorRevision_,session))
+   return false;
+ sampleEditorLive_=true;sampleEditorLiveSession_=session;
+ sampleEditorLivePending_=true;
+ publishSampleEditorLive(true);
+ return true;
+}
+bool DrumatorView::stopSampleEditorLive() noexcept {
+ if(!sampleEditorLive_)return true;
+ if(!controller_.endLiveSampleEdit(sampleEditorRow_,sampleEditorLiveSession_))return false;
+ sampleEditorLive_=false;sampleEditorLiveSession_=0;
+ sampleEditorLivePending_=false;
+ return true;
+}
+void DrumatorView::publishSampleEditorLive(bool force) noexcept {
+ if(!sampleEditorOpen_||!sampleEditorLive_)return;
+ sampleEditorLivePending_=true;
+ const auto now=std::chrono::steady_clock::now();
+ if(!force&&now-sampleEditorLiveSentAt_<std::chrono::milliseconds(33))return;
+ if(!sampleEditorEdit_.valid(sampleEditorFrames_)){
+   status_="LIVE: INVALID EDIT RANGE";return;
+ }
+ if(!controller_.updateLiveSampleEdit(sampleEditorRow_,sampleEditorRevision_,
+                                      sampleEditorLiveSession_,sampleEditorEdit_)){
+   status_="LIVE UPDATE REJECTED (SOURCE CHANGED?)";return;
+ }
+ sampleEditorLiveSentAt_=now;sampleEditorLivePending_=false;
 }
 void DrumatorView::setSampleEditorGain(double x) {
  if(!sampleEditorOpen_)return;
  const auto value=std::clamp((x-615.)/285.,0.,1.);
  sampleEditorEdit_.gain=static_cast<float>(std::round(value*400.)/100.);
+ publishSampleEditorLive();
  invalid();
 }
 bool DrumatorView::refreshSampleViewport(std::uint32_t first,std::uint32_t last) {
@@ -1817,6 +2533,7 @@ void DrumatorView::applySampleMarkerAt(double x,bool endMarker) {
  sampleEditorEdit_.fadeIn=std::min(sampleEditorEdit_.fadeIn,span);
  sampleEditorEdit_.fadeOut=std::min(sampleEditorEdit_.fadeOut,
                                    span-sampleEditorEdit_.fadeIn);
+ publishSampleEditorLive();
  invalid();
 }
 bool DrumatorView::zoomSampleEditor(bool in,bool full) {
@@ -1859,6 +2576,7 @@ void DrumatorView::moveSampleFade(double x,bool fadeOut) {
    const auto bounded=std::clamp(frame,e.start,e.end-e.fadeOut);
    sampleEditorEdit_.fadeIn=bounded-e.start;
  }
+ publishSampleEditorLive();
  invalid();
 }
 bool DrumatorView::scrollEditorWave(double x) {
@@ -1877,6 +2595,90 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
  const double x=pos.x,y=pos.y;
  if(!(buttons&VSTGUI::kLButton))return VSTGUI::kMouseEventNotHandled;
+ // Export menu uses a real press/drag/release lifecycle. All other menus
+ // preserve their current immediate action; a normal export click still
+ // opens the existing Save dialog on release.
+ if(v101Mode_&&v101Menu_==UiV101Popup::Kind::Export){
+   const auto g=UiV101Popup::geometry(v101Menu_,UiV101Layout::header,
+                                        getViewSize().getHeight(),songEditorOpen_);
+   const int option=UiV101Popup::hit(v101Menu_,g,x,y);
+   if(option>=0){
+     dragExportOption_=option;dragExportStart_=pos;
+     return VSTGUI::kMouseEventHandled;
+   }
+ }
+ // A Pattern/Zoom popup originating in the shared header can extend into
+ // the SONG board. Give it first refusal on ALL Y, never route its cells to
+ // the underlying SONG Pattern A-H or entry editor.
+ if(v101Mode_&&songEditorOpen_&&
+    (v101Menu_!=UiV101Popup::Kind::None||v101_.state().zoomOpen)){
+   (void)v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
+                       (buttons&VSTGUI::kShift)!=0);
+   return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+ }
+ // SONG footer EXPORT must have identical hit behavior to MAIN.
+ if(v101Mode_&&songEditorOpen_&&
+    UiV101Layout::songFooterExport.hit(
+      x,y-(getViewSize().getHeight()-UiV101Layout::footer))){
+   (void)v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
+                       (buttons&VSTGUI::kShift)!=0);
+   return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+ }
+ if(v101Mode_&&songEditorOpen_&&y<UiV101Layout::header){
+   // The global hardware knobs remain active above SONG. Their default
+   // reset must use exactly the same Ctrl/double-click gesture as MAIN.
+   if((buttons&VSTGUI::kControl)||(buttons&VSTGUI::kDoubleClick)){
+     for(int i=0;i<3;++i){
+       if(UiV101Layout::headerKnob(static_cast<std::size_t>(i)).hit(x,y)){
+         if(!changeKnobValue(i+4,0,UiCompactLayout::defaultValue(i+4)))
+           status_="GLOBAL KNOB RESET NOT APPLIED";
+         invalid();
+         return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+       }
+     }
+   }
+   if(UiV101Layout::headerGroup(1).hit(x,y)){
+     songEditorOpen_=false;
+     if(!adjustEditorHeight()){
+       songEditorOpen_=true;
+       (void)adjustEditorHeight();
+       status_="HOST REJECTED MAIN EDITOR RESIZE";
+     }
+     invalid();
+     return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+   }
+   if(v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
+                    (buttons&VSTGUI::kShift)!=0))
+     return VSTGUI::kMouseEventHandled;
+   return VSTGUI::kMouseEventNotHandled;
+ }
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
+   // Preserve the V1.0.0 Ctrl/double-click knob-default gesture. Normal
+   // pointer drags remain owned by the V1.0.1 interaction model.
+   if((buttons&VSTGUI::kControl)||(buttons&VSTGUI::kDoubleClick)){
+     for(int i=0;i<3;++i) {
+       if(UiV101Layout::headerKnob(static_cast<std::size_t>(i)).hit(x,y)){
+         if(!changeKnobValue(i+4,0,UiCompactLayout::defaultValue(i+4)))
+           status_="GLOBAL KNOB RESET NOT APPLIED";
+         invalid();return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+       }
+     }
+     const auto hit=v101_.rowHit(x,y);
+     int knob=-1;
+     if(hit.action==UiV101Layout::Action::Volume)knob=0;
+     else if(hit.action==UiV101Layout::Action::Pan)knob=1;
+     else if(hit.action==UiV101Layout::Action::Pitch)knob=2;
+     if(knob>=0){
+       if(!changeKnobValue(knob,hit.row,UiCompactLayout::defaultValue(knob)))
+         status_="ROW KNOB RESET NOT APPLIED";
+       invalid();return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+     }
+   }
+   if(!v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
+                     (buttons&VSTGUI::kShift)!=0))
+     return VSTGUI::kMouseEventNotHandled;
+   return VSTGUI::kMouseEventHandled;
+ }
  const auto done=VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
  if(!sampleEditorOpen_&&x>=UiCompactLayout::meterResetLeft&&
     x<=UiCompactLayout::meterResetRight&&y>=66.&&y<=151.){
@@ -1884,6 +2686,16 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    invalid();return done;
  }
  if(sampleEditorOpen_) {
+   if(UiV101WaveLayout::liveToggle.hit(x,y)){
+     if(sampleEditorLive_){
+       if(stopSampleEditorLive())status_="LIVE OFF: COMMITTED SOUND RESTORED";
+       else status_="LIVE OFF FAILED: EDIT STILL ACTIVE";
+     }else{
+       if(startSampleEditorLive())status_="LIVE ON: MONITOR NEXT PATTERN HIT";
+       else status_="LIVE UNAVAILABLE: OTHER EDITOR OR SOURCE CHANGED";
+     }
+     invalid();return done;
+   }
    if(UiWaveEditorLayout::scrollbar.hit(x,y)){
      sampleEditorDrag_=3;scrollEditorWave(x);return VSTGUI::kMouseEventHandled;
    }
@@ -1918,13 +2730,15 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    }
    if(UiWaveEditorLayout::gain.hit(x,y)){
      if((buttons&VSTGUI::kControl)||(buttons&VSTGUI::kDoubleClick)){
-       sampleEditorEdit_.gain=1.f;sampleEditorDrag_=0;invalid();return done;
+       sampleEditorEdit_.gain=1.f;sampleEditorDrag_=0;
+       publishSampleEditorLive(true);invalid();return done;
      }
      sampleEditorDrag_=6;setSampleEditorGain(x);
      return VSTGUI::kMouseEventHandled;
    }
    if(y>=UiWaveEditorLayout::zoomIn.top&&y<=UiWaveEditorLayout::zoomIn.bottom){
-     const int action=UiWaveEditorLayout::buttonAt(x,y);
+     const int action=v101Mode_?UiV101WaveLayout::buttonAt(x,y):
+                                UiWaveEditorLayout::buttonAt(x,y);
      sampleEditorPressed_=action;
      switch(action){
        case 0: (void)zoomSampleEditor(true);break;
@@ -1938,9 +2752,13 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
        case 4:
          status_=controller_.stopSampleEditPreview()?"PREVIEW STOPPED":"PREVIEW STOP FAILED";break;
        case 5:
-         sampleEditorEdit_=SampleEdit::reset(sampleEditorFrames_);break;
+         sampleEditorEdit_=SampleEdit::reset(sampleEditorFrames_);
+         publishSampleEditorLive(true);break;
        case 6:
          if(!controller_.stopSampleEditPreview()){status_="PREVIEW STOP FAILED";break;}
+         if(!stopSampleEditorLive()){
+           status_="LIVE ROLLBACK FAILED: CANCEL BLOCKED";break;
+         }
          sampleEditorOpen_=false;sampleEditorDrag_=0;sampleEditorRow_=kRows;
          pendingViewport_=false;pendingMarkerKind_=0;
          controller_.cancelSampleEditorRequestsForView(this);
@@ -1950,6 +2768,9 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
          // leave a committed edit behind an apparently unfinished modal.
          if(!controller_.stopSampleEditPreview()){
            status_="PREVIEW STOP FAILED; EDIT NOT APPLIED";break;
+         }
+         if(!stopSampleEditorLive()){
+           status_="LIVE ROLLBACK FAILED: APPLY BLOCKED";break;
          }
          if(controller_.commitSampleEdit(sampleEditorRow_,sampleEditorEdit_,sampleEditorRevision_)){
            sampleEditorOpen_=false;sampleEditorDrag_=0;sampleEditorRow_=kRows;
@@ -2364,6 +3185,29 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseMoved(
     VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
+ if(dragExportOption_>=0){
+   if(!(buttons&VSTGUI::kLButton)){
+     dragExportOption_=-1;invalid();return VSTGUI::kMouseEventHandled;
+   }
+   if(VSTGUI::shouldStartDrag(dragExportStart_,pos)){
+     const int option=dragExportOption_;
+     dragExportOption_=-1;
+     v101Menu_=UiV101Popup::Kind::None;v101MenuRow_=kRows;
+     (void)startExportDrag(option);
+     invalid();return VSTGUI::kMouseEventHandled;
+   }
+   return VSTGUI::kMouseEventHandled;
+ }
+ if(v101Mode_&&songEditorOpen_){
+   if(buttons&VSTGUI::kLButton)(void)v101_.move(pos.x,pos.y);
+   else (void)v101_.up();
+   invalid();return VSTGUI::kMouseEventHandled;
+ }
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
+   if(buttons&VSTGUI::kLButton)(void)v101_.move(pos.x,pos.y);
+   else (void)v101_.up();
+   invalid();return VSTGUI::kMouseEventHandled;
+ }
  if(draggingScroll_){
    if(buttons&VSTGUI::kLButton)(void)moveScroll(pos.y,scrollGrab_);
    else draggingScroll_=false;
@@ -2418,9 +3262,27 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseMoved(
  invalid();return VSTGUI::kMouseEventHandled;
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
-    VSTGUI::CPoint&,const VSTGUI::CButtonState&) {
+    VSTGUI::CPoint& pos,const VSTGUI::CButtonState&) {
+ if(dragExportOption_>=0){
+   const int option=dragExportOption_;
+   dragExportOption_=-1;
+   const auto g=UiV101Popup::geometry(UiV101Popup::Kind::Export,
+                                       UiV101Layout::header,getViewSize().getHeight(),songEditorOpen_);
+   const bool same=UiV101Popup::hit(UiV101Popup::Kind::Export,g,pos.x,pos.y)==option;
+   v101Menu_=UiV101Popup::Kind::None;v101MenuRow_=kRows;
+   if(same&&!exportSelection(option))status_="EXPORT FILE NOT SAVED";
+   invalid();return VSTGUI::kMouseEventHandled;
+ }
+ if(v101Mode_&&songEditorOpen_){
+   (void)v101_.up();invalid();return VSTGUI::kMouseEventHandled;
+ }
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
+   (void)v101_.up();invalid();return VSTGUI::kMouseEventHandled;
+ }
  if(draggingScroll_){draggingScroll_=false;return VSTGUI::kMouseEventHandled;}
- if(sampleEditorOpen_){sampleEditorDrag_=0;sampleEditorPressed_=-1;
+ if(sampleEditorOpen_){
+   if(sampleEditorLivePending_)publishSampleEditorLive(true);
+   sampleEditorDrag_=0;sampleEditorPressed_=-1;
    invalid();return VSTGUI::kMouseEventHandled;}
  if(activeKnob_>=0){
    activeKnob_=-1;knobRow_=kRows;
@@ -2435,6 +3297,8 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
  return VSTGUI::kMouseEventHandled;
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseCancel(){
+ dragExportOption_=-1;
+ if(v101Mode_){v101_.cancel();v101Menu_=UiV101Popup::Kind::None;}
  sampleEditorDrag_=0;sampleEditorPressed_=-1;
  draggingScroll_=false;
  activeKnob_=-1;knobRow_=kRows;

@@ -3,8 +3,10 @@
 #include "core/AtomicPatternBank.h"
 #include "core/VisibleRows.h"
 #include "core/KitState.h"
+#include "core/StereoPeakLimiter.h"
 #include "core/SampleVoiceEngine.h"
 #include "core/SampleExchange.h"
+#include "core/LiveEditMailbox.h"
 #include "core/TriggerBatch.h"
 #include "core/KitRestoreGate.h"
 #include "core/AtomicPatternSelection.h"
@@ -12,10 +14,12 @@
 #include "core/MasterGainRamp.h"
 #include "core/OutputMeter.h"
 #include "core/AtomicRowMix.h"
+#include "DrumatorAutomation.h"
 #include "public.sdk/source/vst/vstaudioeffect.h"
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <chrono>
 #include <vector>
 #include <mutex>
 #include <memory>
@@ -93,10 +97,14 @@ public:
  Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream*) SMTG_OVERRIDE;
  Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream*) SMTG_OVERRIDE;
  Steinberg::uint32 PLUGIN_API getTailSamples() SMTG_OVERRIDE;
+ Steinberg::uint32 PLUGIN_API getLatencySamples() SMTG_OVERRIDE {
+   return static_cast<Steinberg::uint32>(StereoPeakLimiter::kLookahead);
+ }
 private:
  std::uint64_t meterId_{0};
  std::shared_ptr<OutputMeter> meter_{};
  bool publishRestoredKit(const KitState& state,double rate); // control only
+ void drainDeferredAutomation() noexcept;
  std::mutex kitMutex_{};
  // Restore barrier: no audio callback may consume a partially installed kit.
  // The audio callback never waits; only control-side setState waits for a block.
@@ -119,6 +127,13 @@ private:
  SampleVoiceEngine voices_;
 
  SampleExchange exchange_{};
+ // Transient LIVE edits are not part of the serialized KitState.
+ // All session/revision checks are on the control actor under kitMutex_.
+ std::array<LiveEditMailbox,kRows> liveEdits_{};
+ std::array<LiveEditLease,kRows> liveAudioLeases_{}; // audio actor only
+ std::array<std::uint64_t,kRows> liveSessions_{};
+ std::array<std::uint32_t,kRows> liveFrameCounts_{};
+ std::array<std::chrono::steady_clock::time_point,kRows> liveControlRenewed_{}; // control actor only
  SampleExchange auditionExchange_{};
  SampleVoiceEngine auditionVoices_{};
  std::atomic<bool> auditionStart_{false},auditionStop_{false};
@@ -130,11 +145,17 @@ private:
  std::atomic<std::uint64_t> auditionPublishSequence_{0};
  std::uint64_t lastAudioAuditionCommand_{0};
  std::vector<float> auditionLeft_{},auditionRight_{};
+ // Setup-allocated, never resized within the audio callback. This carries
+ // the sample-exact master gain ramp from render to all active output buses.
+ std::vector<float> masterAutomationEnvelope_{};
  TriggerBatch triggers_{};
  PatternEventTimeline patternTimeline_{};
  // One-shot previews from GUI; one pending request per row, not persisted.
  std::atomic<std::uint32_t> previewPending_{0};
  std::atomic<double> outputRate_{0.0};
+ std::atomic<double> lastExportTempo_{120.0};
+ std::atomic<std::uint8_t> limiterEnabled_{0};
+ std::array<StereoPeakLimiter,kRows> limiterBuses_{};
  bool wasPlaying_{false};
  std::int64_t phaseOriginStep_{0};
  double expectedNextPpq_{0.0};
@@ -150,6 +171,10 @@ private:
  std::atomic<std::uint32_t> muteMask_{0};
  std::atomic<std::uint32_t> soloMask_{0};
  std::array<AtomicRowMix,kRows> rowMix_{};
+ // 0 = empty; otherwise plain integer automation value plus one.
+ std::array<std::atomic<std::uint16_t>,kAutomatedMixLanes> deferredAutomation_{};
+ // Signed semitone offsets encoded +24, shared with nonallocating audio owner.
+ std::array<std::atomic<std::uint8_t>,kRows> rowPitch_{};
  std::array<std::atomic<std::uint8_t>,kRows> rowChoke_{};
  std::array<std::atomic<std::uint8_t>,kRows> rowOutput_{};
  std::atomic<std::uint8_t> swingPercent_{0};

@@ -2,6 +2,8 @@
 #include "DrumatorView.h"
 #include "DrumatorEditor.h"
 #include "PluginIDs.h"
+#include "DrumatorAutomation.h"
+#include "public.sdk/source/vst/vstparameters.h"
 #include "core/WavPcm16Decoder.h"
 #include "core/FlacImport.h"
 #include "core/StepVelocity.h"
@@ -10,6 +12,9 @@
 #include "core/PreparedKitNames.h"
 #include "core/ZoomRecallPolicy.h"
 #include "core/Utf8Path.h"
+#include "core/MidiExport.h"
+#include "core/OfflineWavExport.h"
+#include "core/ExportFile.h"
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "pluginterfaces/vst/ivstattributes.h"
@@ -25,6 +30,15 @@
 #include <vector>
 
 namespace drumator {
+// Own every control-action message from allocation until delivery returns.
+// If SDK setMessageID or attribute packing throws, release still runs.
+struct ScopedActionMessage final {
+ Steinberg::Vst::IMessage* p{};
+ explicit ScopedActionMessage(Steinberg::Vst::IMessage* message)noexcept:p(message){}
+ ~ScopedActionMessage(){if(p)p->release();}
+ ScopedActionMessage(const ScopedActionMessage&)=delete;
+ ScopedActionMessage& operator=(const ScopedActionMessage&)=delete;
+};
 void Controller::requestMeterSnapshot(){
  // Called by DrumatorView::pollMeter() noexcept. No allocation/host
  // exception may escape the VSTGUI timer or Windows host callback.
@@ -74,6 +88,10 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
       clip<0||full<0||clip>65535||full>65535||
       reset<0||static_cast<std::uint64_t>(reset)<lastClearEpoch_)
      return Steinberg::kResultFalse;
+   double exportTempo=0.;
+   if(attrs->getFloat("ExportTempo",exportTempo)==Steinberg::kResultOk&&
+      std::isfinite(exportTempo)&&exportTempo>=20.&&exportTempo<=300.)
+      exportTempoBpm_=exportTempo;
    Steinberg::int64 dropped=0,inspected=0,valid=0,uninspected=0;
    if(attrs->getInt("TriggerDrops",dropped)==Steinberg::kResultOk&&dropped<0)
       return Steinberg::kResultFalse;
@@ -252,6 +270,22 @@ void Controller::invalidateTransientEditsForRecall() noexcept {
 Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     Steinberg::Vst::ParamID id,Steinberg::Vst::ParamValue value) {
  const auto result=EditController::setParamNormalized(id,value);
+ if(result==Steinberg::kResultOk) {
+   const auto a=automationAddress(id);
+   switch(a.kind){
+     case AutomationKind::Volume:
+       gain_[a.row]=static_cast<std::uint8_t>(automationPercent(value));break;
+     case AutomationKind::Pan:
+       pan_[a.row]=static_cast<std::uint8_t>(automationPercent(value));break;
+     case AutomationKind::Mute:muted_[a.row]=value>=0.5;break;
+     case AutomationKind::Pitch:
+       pitch_[a.row]=static_cast<std::uint8_t>(automationPercent(value,48));break;
+     case AutomationKind::Master:
+       masterVolume_=static_cast<std::uint8_t>(automationPercent(value));break;
+     default:break;
+   }
+   if(a.kind!=AutomationKind::None)notifyViews(false);
+ }
  if(result==Steinberg::kResultOk&&id==kPatternParam) {
    patternRequestPending_=false;
    // Keep a newer host pattern callback when Component-state recall arrives late.
@@ -261,6 +295,50 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
    notifyViews(false);
  }
  return result;
+}
+// Host gesture stays open between mouse-down and mouse-up/cancel.
+void Controller::beginAutomationGesture(Steinberg::Vst::ParamID id) noexcept {
+ if(activeAutomationGesture_==id)return;
+ endAutomationGesture();
+ if(!componentHandler)return;
+ try {if(beginEdit(id)==Steinberg::kResultOk)activeAutomationGesture_=id;}
+ catch(...) {activeAutomationGesture_=Steinberg::Vst::kNoParamId;}
+}
+void Controller::endAutomationGesture() noexcept {
+ const auto id=activeAutomationGesture_;
+ if(id==Steinberg::Vst::kNoParamId)return;
+ activeAutomationGesture_=Steinberg::Vst::kNoParamId;
+ try {if(componentHandler)(void)endEdit(id);}catch(...) {}
+}
+// Only successfully committed GUI edits may be sent as host automation.
+void Controller::publishAutomationEdit(Steinberg::Vst::ParamID id,double n) noexcept {
+ try {
+   (void)EditController::setParamNormalized(id,n);
+   if(componentHandler) {
+     if(activeAutomationGesture_==id)(void)performEdit(id,n);
+     else {
+       (void)beginEdit(id);
+       (void)performEdit(id,n);
+       (void)endEdit(id);
+     }
+   }
+ }catch(...) { /* Valid processor state is not undone by a host exception. */ }
+}
+void Controller::syncAutomationParameters() noexcept {
+ try {
+   for(std::size_t row=0;row<kRows;++row){
+     (void)EditController::setParamNormalized(kRowVolumeBase+static_cast<unsigned>(row),
+       automationNormalized(gain_[row]));
+     (void)EditController::setParamNormalized(kRowPanBase+static_cast<unsigned>(row),
+       automationNormalized(pan_[row]));
+     (void)EditController::setParamNormalized(kRowMuteBase+static_cast<unsigned>(row),
+       muted_[row]?1.0:0.0);
+     (void)EditController::setParamNormalized(kRowPitchBase+static_cast<unsigned>(row),
+       automationNormalized(pitch_[row],48));
+   }
+   (void)EditController::setParamNormalized(kMasterVolumeParam,
+      automationNormalized(masterVolume_));
+ }catch(...) { /* Host cache refresh is best effort after a committed kit. */ }
 }
 bool Controller::processorConfirmsPattern(unsigned requested,double fallback) {
  Steinberg::Vst::IMessage* msg=nullptr;
@@ -417,12 +495,43 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
  patterns->appendString(STR16("E"));patterns->appendString(STR16("F"));
  patterns->appendString(STR16("G"));patterns->appendString(STR16("H"));
  parameters.addParameter(patterns);
+ // All 16 instruments remain automatable even when paged out or empty.
+ for(std::size_t row=0;row<kRows;++row) {
+   const auto title=[&](const char* prefix) {
+     std::array<Steinberg::Vst::TChar,64> chars{};
+     std::size_t n=0;
+     while(*prefix&&n<56)chars[n++]=static_cast<Steinberg::Vst::TChar>(*prefix++);
+     chars[n++]=static_cast<Steinberg::Vst::TChar>(' ');
+     const unsigned number=static_cast<unsigned>(row+1);
+     chars[n++]=static_cast<Steinberg::Vst::TChar>('0'+number/10);
+     chars[n++]=static_cast<Steinberg::Vst::TChar>('0'+number%10);
+     return chars;
+   };
+   const auto volumeName=title("Volume");
+   const auto panName=title("Pan");
+   const auto muteName=title("Mute");
+   const auto pitchName=title("Pitch");
+   parameters.addParameter(new Steinberg::Vst::RangeParameter(volumeName.data(),
+      kRowVolumeBase+static_cast<unsigned>(row),STR16("%"),0.,200.,100.));
+   parameters.addParameter(new Steinberg::Vst::RangeParameter(panName.data(),
+      kRowPanBase+static_cast<unsigned>(row),STR16("%"),-100.,100.,0.));
+   auto* mute=new Steinberg::Vst::StringListParameter(muteName.data(),
+      kRowMuteBase+static_cast<unsigned>(row));
+   mute->appendString(STR16("OFF"));mute->appendString(STR16("ON"));
+   parameters.addParameter(mute);
+   parameters.addParameter(new Steinberg::Vst::RangeParameter(pitchName.data(),
+       kRowPitchBase+static_cast<unsigned>(row),STR16("st"),
+       -24.,24.,0.,48));
+ }
+ parameters.addParameter(new Steinberg::Vst::RangeParameter(
+    STR16("Master Volume"),kMasterVolumeParam,STR16("%"),0.,200.,100.));
  // Factory A alone receives the kick; B-H remain entirely blank.
  for(std::size_t step=0;step<kSteps;step+=4)
    grid_[step]=(step%8==0)?127:90;
  for(auto& name:labels_)name="EMPTY - LOAD WAV";
  gain_.fill(100);pan_.fill(100);pitch_.fill(24);choke_.fill(0);
  output_.fill(0);
+ syncAutomationParameters();
  return Steinberg::kResultOk;
 }
 Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream* state) {
@@ -431,7 +540,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
  Steinberg::uint32 magic=0,next=0;
  if(!stream.readInt32u(magic)||!stream.readInt32u(next))
     return Steinberg::kResultFalse;
- if(magic==kKitMagic||magic==kKitMagicV16||magic==kKitMagicV15||magic==kKitMagicV14||magic==kKitMagicV13||magic==kKitMagicV12||magic==kKitMagicV11||magic==kKitMagicV10||magic==kKitMagicV9||magic==kKitMagicV8||magic==kKitMagicV7||magic==kKitMagicV6||magic==kKitMagicV5||magic==kKitMagicV4) {
+ if(magic==kKitMagic||magic==kKitMagicV17||magic==kKitMagicV16||magic==kKitMagicV15||magic==kKitMagicV14||magic==kKitMagicV13||magic==kKitMagicV12||magic==kKitMagicV11||magic==kKitMagicV10||magic==kKitMagicV9||magic==kKitMagicV8||magic==kKitMagicV7||magic==kKitMagicV6||magic==kKitMagicV5||magic==kKitMagicV4) {
     if(next<2+kCells+kRows*6+4||next>kMaxKitBytes-8)
        return Steinberg::kResultFalse;
     KitState candidate;
@@ -487,6 +596,9 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
     }else {
       componentStatePendingController_=true;
     }
+    exportWavs_.swap(candidate.wav); // no-throw after identity validation
+    exportEdits_=candidate.sampleEdits;
+    limiterEnabled_=candidate.limiter!=0;
     visibleRows_=candidate.visible;
     swingPercent_=candidate.swing;
     humanizePercent_=candidate.humanize;
@@ -502,6 +614,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
        gain_[row]=candidate.gain[row];pan_[row]=candidate.pan[row];
        pitch_[row]=candidate.pitch[row];choke_[row]=candidate.choke[row];output_[row]=candidate.output[row];
     }
+    syncAutomationParameters();
     // Native focus operations may allocate. State is already committed:
     // failure to refresh an editor must not be reported as rejected kit state.
     // Update the registered parameter independently from native editor focus.
@@ -562,11 +675,17 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
  rowClipboardValid_=false;
  for(auto& path:samplePaths_)path.clear();
  samplePresent_.fill(false);
+ // Legacy DMR1/2/3 has no embedded PCM, sample edits or limiter. Reset
+ // the export mirror as well as the processor's sound to avoid ghost WAVs.
+ for(auto& wav:exportWavs_)wav.clear();
+ exportEdits_.fill(SampleEdit{});
+ limiterEnabled_=false;
  muted_.fill(false);solo_.fill(false);swingPercent_=0;humanizePercent_=0;
  randomVelocity_.fill(0);masterVolume_=100;
  songEnabled_=false;songChain_=SongChain{};songStartBar_=1;
  gain_.fill(100);pan_.fill(100);pitch_.fill(24);choke_.fill(0);
  for(std::size_t row=0;row<kRows;++row)output_[row]=static_cast<std::uint8_t>(row);
+ syncAutomationParameters();
  const auto restoredPattern=hostPatternPending_&&processorConfirmsPattern(patternFromNormalized(hostPatternValue_),static_cast<double>(next)/7.0)
      ? hostPatternValue_ : static_cast<double>(next)/7.0;
  hostPatternPending_=false;
@@ -588,7 +707,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
 }
 Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString name) {
  if(name&&std::strcmp(name,Steinberg::Vst::ViewType::kEditor)==0) {
-    auto* editor=new DrumatorEditor(this,"DrumatorView","Drumator.uidesc");
+    auto* editor=new DrumatorEditor(this,"DrumatorV101View","Drumator.uidesc");
     // Disable inherited VSTGUI Zoom context menu: it bypasses checked
     // host resize and persistent zoom. Visible 100/150 controls remain.
     editor->setAllowedZoomFactors({});
@@ -600,8 +719,13 @@ Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString nam
 VSTGUI::CView* Controller::createCustomView(VSTGUI::UTF8StringPtr name,
           const VSTGUI::UIAttributes&,const VSTGUI::IUIDescription*,
           VSTGUI::VST3Editor* editor) {
- if(!name||std::strcmp(name,"DrumatorStepGrid")!=0)return nullptr;
- return new DrumatorView(VSTGUI::CRect(0,0,1280,300),*this,*editor);
+ if(!name)return nullptr;
+ const bool legacy=std::strcmp(name,"DrumatorStepGrid")==0;
+ const bool candidate=std::strcmp(name,"DrumatorV101StepGrid")==0;
+ if(!legacy&&!candidate)return nullptr;
+ auto* view=new DrumatorView(VSTGUI::CRect(0,0,1280,300),*this,*editor);
+ if(candidate)view->enableV101();
+ return view;
 }
 std::uint8_t Controller::velocity(std::size_t p,std::size_t r,std::size_t s) const noexcept {
  if(p>=kPatterns||r>=kRows||s>=kSteps)return 0;
@@ -620,46 +744,46 @@ const std::string& Controller::label(std::size_t row) const noexcept {
 bool Controller::renameRow(std::size_t row,const std::string& name) {
  if(row>=kRows||!validRowLabel(name))return false;
  if(customNames_[row]==name)return true;
- // Allocate BEFORE asking the processor to commit. Updating the controller
- // after success must be noexcept, or an OOM leaves both sides inconsistent.
- std::string prepared;
- try {prepared=name;}catch(const std::bad_alloc&) {return false;}
- auto* msg=allocateMessage();if(!msg)return false;
- msg->setMessageID("Drumator.RenameRow");
- auto* attrs=msg->getAttributes();
- if(!attrs||attrs->setInt("Row",static_cast<Steinberg::int64>(row))!=Steinberg::kResultOk||
-    attrs->setBinary("DisplayName",name.data(),static_cast<Steinberg::uint32>(name.size()))!=Steinberg::kResultOk){
-   msg->release();return false;
- }
- const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
- if(ok){customNames_[row].swap(prepared);notifyViews(false);}
- return ok;
+ try {
+   std::string staged=name; // stage before Processor commit
+   ScopedActionMessage msg{allocateMessage()};
+   if(!msg.p)return false;
+   msg.p->setMessageID("Drumator.RenameRow");
+   auto* a=msg.p->getAttributes();
+   if(!a||a->setInt("Row",static_cast<Steinberg::int64>(row))!=Steinberg::kResultOk||
+      a->setBinary("DisplayName",name.data(),
+        static_cast<Steinberg::uint32>(name.size()))!=Steinberg::kResultOk||
+      sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+   customNames_[row].swap(staged);
+   try {notifyViews(false);}catch(...){}
+   return true;
+ }catch(...){return false;}
 }
 bool Controller::configureSong(bool enabled,std::size_t count,const SongChain& chain,std::uint16_t startBar) {
  if(startBar==0)startBar=songStartBar_;
- if(startBar<1||startBar>9999)return false;
- if(count==0||count>SongChain::kCapacity||chain.count()!=count)return false;
+ if(startBar<1||startBar>9999||count==0||count>SongChain::kCapacity||
+    chain.count()!=count)return false;
  std::array<std::uint8_t,2*SongChain::kCapacity> bytes{};
  for(std::size_t i=0;i<count;++i){
    const auto entry=chain.entry(i);
    if(entry.pattern>SongChain::kRest||!SongChain::validLength(entry.steps))return false;
    bytes[2*i]=entry.pattern;bytes[2*i+1]=entry.steps;
  }
- auto* msg=allocateMessage();
- if(!msg)return false;
- msg->setMessageID("Drumator.SongConfig");
- auto* a=msg->getAttributes();
- if(!a||a->setInt("Enabled",enabled?1:0)!=Steinberg::kResultOk||
-    a->setInt("Count",static_cast<Steinberg::int64>(count))!=Steinberg::kResultOk||
-    a->setInt("StartBar",startBar)!=Steinberg::kResultOk||
-    a->setBinary("Entries",bytes.data(),static_cast<Steinberg::uint32>(count*2))!=Steinberg::kResultOk){
-   msg->release();return false;
- }
- const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
- if(ok){songEnabled_=enabled;songChain_=chain;songStartBar_=startBar;notifyViews(false);}
- return ok;
+ try {
+   ScopedActionMessage msg{allocateMessage()};
+   if(!msg.p)return false;
+   msg.p->setMessageID("Drumator.SongConfig");
+   auto* a=msg.p->getAttributes();
+   if(!a||a->setInt("Enabled",enabled?1:0)!=Steinberg::kResultOk||
+      a->setInt("Count",static_cast<Steinberg::int64>(count))!=Steinberg::kResultOk||
+      a->setInt("StartBar",startBar)!=Steinberg::kResultOk||
+      a->setBinary("Entries",bytes.data(),
+          static_cast<Steinberg::uint32>(count*2))!=Steinberg::kResultOk||
+      sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+   songEnabled_=enabled;songChain_=chain;songStartBar_=startBar;
+   try {notifyViews(false);}catch(...){}
+   return true;
+ }catch(...){return false;}
 }
 bool Controller::setSongStartBar(unsigned bar){
  return bar>=1&&bar<=9999&&configureSong(songEnabled_,songChain_.count(),songChain_,static_cast<std::uint16_t>(bar));
@@ -701,19 +825,23 @@ bool Controller::editSongEntry(std::size_t slot,int patternDelta,int lengthDelta
 }
 
 bool Controller::togglePatternLength(std::size_t pattern) {
+ try {
  if(pattern>=kPatterns)return false;
  const auto next=static_cast<std::uint8_t>(patternLengths_[pattern]==16?32:16);
- auto* msg=allocateMessage();if(!msg)return false;
+ auto* msg=allocateMessage();
+ ScopedActionMessage messageOwner{msg};if(!msg)return false;
  msg->setMessageID("Drumator.PatternLength");
  auto* a=msg->getAttributes();
  if(!a||a->setInt("Pattern",static_cast<Steinberg::int64>(pattern))!=Steinberg::kResultOk||
     a->setInt("Steps",next)!=Steinberg::kResultOk) {
-   msg->release();return false;
+   return false;
  }
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
- if(ok){patternLengths_[pattern]=next;notifyViews(false);}
+ 
+ if(ok){patternLengths_[pattern]=next;try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return ok;
+
+ }catch(...) {return false;}
 }
 bool Controller::changePattern(std::size_t pattern) {
  if(pattern>=kPatterns)return false;
@@ -727,6 +855,7 @@ bool Controller::changePattern(std::size_t pattern) {
 }
 bool Controller::replacePattern(std::size_t p,const PatternSteps& data,bool remember,
                                 std::uint8_t requestedLength) {
+ try {
  if(p>=kPatterns||(requestedLength!=0&&requestedLength!=16&&requestedLength!=32))
    return false;
  if(strokePattern_<kPatterns)endVelocityStroke(true,strokeOwner_);
@@ -735,23 +864,26 @@ bool Controller::replacePattern(std::size_t p,const PatternSteps& data,bool reme
  PatternSteps old{};
  std::copy_n(grid_.begin()+p*kRows*kSteps,old.size(),old.begin());
  if(old==data&&oldLength==nextLength)return true;
- auto* msg=allocateMessage();if(!msg)return false;
+ auto* msg=allocateMessage();
+ ScopedActionMessage messageOwner{msg};if(!msg)return false;
  msg->setMessageID("Drumator.PatternReplace");
  auto* a=msg->getAttributes();
  if(!a||a->setInt("Pattern",static_cast<Steinberg::int64>(p))!=Steinberg::kResultOk||
     a->setBinary("Steps",data.data(),static_cast<Steinberg::uint32>(data.size()))!=Steinberg::kResultOk||
     (requestedLength!=0&&a->setInt("Length",nextLength)!=Steinberg::kResultOk)){
-   msg->release();return false;
+   return false;
  }
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
+ 
  if(ok){
    if(remember)undo_.capture(p,old,data,oldLength,nextLength);
    std::copy(data.begin(),data.end(),grid_.begin()+p*kRows*kSteps);
    patternLengths_[p]=nextLength;
-   notifyViews(false);
+   try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }
  }
  return ok;
+
+ }catch(...) {return false;}
 }
 bool Controller::copyCurrentPattern() {
  const auto p=currentPattern();
@@ -861,6 +993,24 @@ bool Controller::randomizeRowVelocity(std::size_t row){
  velocityVariation_=variation;
  return true;
 }
+bool Controller::resetRowVelocity(std::size_t row){
+ if(row>=visibleRows_)return false;
+ const auto p=currentPattern();
+ const auto active=static_cast<std::size_t>(patternLength(p));
+ if(active!=16&&active!=32)return false;
+ PatternSteps data{};
+ std::copy_n(grid_.begin()+p*kRows*kSteps,data.size(),data.begin());
+ bool occupied=false,changed=false;
+ for(std::size_t step=0;step<active;++step){
+   auto& velocity=data[row*kSteps+step];
+   if(velocity==0)continue;
+   occupied=true;
+   if(velocity!=100){velocity=100;changed=true;}
+ }
+ if(!occupied)return false;
+ if(!changed)return true; // avoid a needless Undo entry
+ return replacePattern(p,data);
+}
 bool Controller::varyPatternVelocity(){
  const auto p=currentPattern();
  const auto active=static_cast<std::size_t>(patternLength(p));
@@ -922,43 +1072,48 @@ bool Controller::canHideLast() const noexcept {
 }
 bool Controller::addRow() {
  if(visibleRows_>=kRows)return false;
- auto* message=allocateMessage();
- if(!message)return false;
- message->setMessageID("Drumator.VisibleRows");
- auto* attrs=message->getAttributes();
- if(!attrs){message->release();return false;}
- attrs->setInt("Count",static_cast<Steinberg::int64>(visibleRows_+1));
- const auto good=sendEditMessage(message)==Steinberg::kResultOk;
- message->release();
- if(good){++visibleRows_;notifyViews(false);}
- return good;
+ try {
+   ScopedActionMessage msg{allocateMessage()};
+   if(!msg.p)return false;
+   msg.p->setMessageID("Drumator.VisibleRows");
+   auto* a=msg.p->getAttributes();
+   if(!a||a->setInt("Count",
+           static_cast<Steinberg::int64>(visibleRows_+1))!=Steinberg::kResultOk||
+      sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+   ++visibleRows_;
+   try {notifyViews(false);}catch(...){}
+   return true;
+ }catch(...){return false;}
 }
 bool Controller::restoreVisibleRows(std::size_t previous) {
  if(previous<1||previous>kRows)return false;
  if(previous==visibleRows_)return true;
- auto* message=allocateMessage();
- if(!message)return false;
- message->setMessageID("Drumator.VisibleRows");
- auto* attrs=message->getAttributes();
- if(!attrs){message->release();return false;}
- attrs->setInt("Count",static_cast<Steinberg::int64>(previous));
- const bool good=sendEditMessage(message)==Steinberg::kResultOk;
- message->release();
- if(good){visibleRows_=static_cast<std::uint8_t>(previous);notifyViews(false);}
- return good;
+ try {
+   ScopedActionMessage msg{allocateMessage()};
+   if(!msg.p)return false;
+   msg.p->setMessageID("Drumator.VisibleRows");
+   auto* a=msg.p->getAttributes();
+   if(!a||a->setInt("Count",static_cast<Steinberg::int64>(previous))!=Steinberg::kResultOk||
+      sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+   visibleRows_=static_cast<std::uint8_t>(previous);
+   try {notifyViews(false);}catch(...){}
+   return true;
+ }catch(...){return false;}
 }
 bool Controller::hideLastEmptyRow() {
  if(!canHideLast())return false;
- auto* message=allocateMessage();
- if(!message)return false;
- message->setMessageID("Drumator.VisibleRows");
- auto* attrs=message->getAttributes();
- if(!attrs){message->release();return false;}
- attrs->setInt("Count",static_cast<Steinberg::int64>(visibleRows_-1));
- const auto good=sendEditMessage(message)==Steinberg::kResultOk;
- message->release();
- if(good){--visibleRows_;notifyViews(false);}
- return good;
+ try {
+   ScopedActionMessage msg{allocateMessage()};
+   if(!msg.p)return false;
+   msg.p->setMessageID("Drumator.VisibleRows");
+   auto* a=msg.p->getAttributes();
+   if(!a||a->setInt("Count",
+           static_cast<Steinberg::int64>(visibleRows_-1))!=Steinberg::kResultOk||
+      sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+   --visibleRows_;
+   try {notifyViews(false);}catch(...){}
+   return true;
+ }catch(...){return false;}
 }
 void Controller::beginVelocityStroke(std::size_t p,const void* owner) {
  if(p>=kPatterns)return;
@@ -988,82 +1143,104 @@ void Controller::rememberUndoStep(std::size_t p,std::size_t r,std::size_t s,std:
  undo_.capture(p,old,changed);
 }
 bool Controller::setStepVelocity(std::size_t p,std::size_t r,std::size_t s,std::uint8_t next,const void* owner){
+ try {
  if(p>=kPatterns||r>=kRows||s>=kSteps||next>127)return false;
  // Peer edits must commit the previous owner's gesture before mutation.
  // Late Cancel from that owner is then inert; no stale whole-grid restore.
  if(strokePattern_<kPatterns&&strokeOwner_!=owner)
    endVelocityStroke(true,strokeOwner_);
  if(velocity(p,r,s)==next)return true;
- auto* msg=allocateMessage();if(!msg)return false;
+ auto* msg=allocateMessage();
+ ScopedActionMessage messageOwner{msg};if(!msg)return false;
  msg->setMessageID("Drumator.StepEdit");
  auto* a=msg->getAttributes();
  if(!a||a->setInt("Pattern",static_cast<Steinberg::int64>(p))!=Steinberg::kResultOk||
     a->setInt("Row",static_cast<Steinberg::int64>(r))!=Steinberg::kResultOk||
     a->setInt("Step",static_cast<Steinberg::int64>(s))!=Steinberg::kResultOk||
     a->setInt("Velocity",static_cast<Steinberg::int64>(next))!=Steinberg::kResultOk) {
-   msg->release();return false;
+   return false;
  }
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
+ 
  if(ok) {
    if(strokePattern_!=p)rememberUndoStep(p,r,s,next);
    grid_[(p*kRows+r)*kSteps+s]=next;
-   notifyViews(false);
+   try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }
  }
  return ok;
+
+ }catch(...) {return false;}
 }
 bool Controller::cycleStepVelocity(std::size_t p,std::size_t r,std::size_t s) {
  if(p>=kPatterns||r>=kRows||s>=kSteps)return false;
  return setStepVelocity(p,r,s,drumator::nextStepVelocity(velocity(p,r,s)));
 }
 bool Controller::adjustRandomVelocity(std::size_t row,int delta) {
+ try {
  if(row>=kRows)return false;
  const auto value=std::clamp(static_cast<std::int64_t>(randomVelocity_[row])+delta,std::int64_t{0},std::int64_t{100});
- auto* msg=allocateMessage();if(!msg)return false;
+ auto* msg=allocateMessage();
+ ScopedActionMessage messageOwner{msg};if(!msg)return false;
  msg->setMessageID("Drumator.RowRandomVelocity");
  auto* attrs=msg->getAttributes();
  if(!attrs||attrs->setInt("Row",static_cast<Steinberg::int64>(row))!=Steinberg::kResultOk||
     attrs->setInt("Percent",value)!=Steinberg::kResultOk) {
-   msg->release();return false;
+   return false;
  }
  const auto ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
- if(ok){randomVelocity_[row]=static_cast<std::uint8_t>(value);notifyViews(false);}
+ 
+ if(ok){randomVelocity_[row]=static_cast<std::uint8_t>(value);try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return ok;
+
+ }catch(...) {return false;}
 }
 bool Controller::adjustMasterVolume(int delta) {
+ try {
  const auto value=std::clamp(static_cast<std::int64_t>(masterVolume_)+delta,std::int64_t{0},std::int64_t{200});
- auto* msg=allocateMessage();if(!msg)return false;
+ auto* msg=allocateMessage();
+ ScopedActionMessage messageOwner{msg};if(!msg)return false;
  msg->setMessageID("Drumator.MasterVolume");
  auto* attrs=msg->getAttributes();
  if(!attrs||attrs->setInt("Percent",value)!=Steinberg::kResultOk){
-   msg->release();return false;
+   return false;
  }
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
- if(ok){masterVolume_=static_cast<std::uint8_t>(value);notifyViews(false);}
+ 
+ if(ok){masterVolume_=static_cast<std::uint8_t>(value);
+   publishAutomationEdit(kMasterVolumeParam,automationNormalized(value));
+   try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return ok;
+
+ }catch(...) {return false;}
 }
 bool Controller::adjustHumanize(int delta) {
+ try {
  const auto next=std::clamp(static_cast<std::int64_t>(humanizePercent_)+delta,std::int64_t{0},std::int64_t{100});
- auto* msg=allocateMessage();if(!msg)return false;
+ auto* msg=allocateMessage();
+ ScopedActionMessage messageOwner{msg};if(!msg)return false;
  msg->setMessageID("Drumator.Humanize");
- auto* attrs=msg->getAttributes();if(!attrs){msg->release();return false;}
+ auto* attrs=msg->getAttributes();if(!attrs){return false;}
  attrs->setInt("Percent",next);
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();if(ok){humanizePercent_=static_cast<std::uint8_t>(next);notifyViews(false);}
+ if(ok){humanizePercent_=static_cast<std::uint8_t>(next);try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return ok;
+
+ }catch(...) {return false;}
 }
 bool Controller::adjustSwing(int delta) {
+ try {
  const auto next=std::clamp(static_cast<std::int64_t>(swingPercent_)+delta,std::int64_t{0},std::int64_t{50});
- auto* msg=allocateMessage();if(!msg)return false;
+ auto* msg=allocateMessage();
+ ScopedActionMessage messageOwner{msg};if(!msg)return false;
  msg->setMessageID("Drumator.Swing");
- auto* attr=msg->getAttributes();if(!attr){msg->release();return false;}
+ auto* attr=msg->getAttributes();if(!attr){return false;}
  attr->setInt("Percent",next);
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
- if(ok){swingPercent_=static_cast<std::uint8_t>(next);notifyViews(false);}
+ 
+ if(ok){swingPercent_=static_cast<std::uint8_t>(next);try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return ok;
+
+ }catch(...) {return false;}
 }
 
 bool Controller::sampleEditorSnapshot(std::size_t row,SampleEdit& edit,
@@ -1201,6 +1378,50 @@ bool Controller::sampleEditorSnapshot(std::size_t row,SampleEdit& edit,
    return true;
  }catch(const std::bad_alloc&){return false;}
 }
+bool Controller::sendLiveEditMessage(const char* id,std::size_t row,
+                                     std::uint32_t revision,std::uint64_t session,
+                                     const SampleEdit* edit) noexcept {
+ if(row>=kRows||session==0||session>static_cast<std::uint64_t>(INT64_MAX))return false;
+ try {
+   ScopedActionMessage m{allocateMessage()};
+   if(!m.p)return false;
+   m.p->setMessageID(id);
+   auto* a=m.p->getAttributes();
+   if(!a||a->setInt("Row",static_cast<Steinberg::int64>(row))!=Steinberg::kResultOk||
+      a->setInt("Session",static_cast<Steinberg::int64>(session))!=Steinberg::kResultOk)
+     return false;
+   if(edit||std::strcmp(id,"Drumator.EditorLiveEnd")!=0)
+     if(a->setInt("Revision",revision)!=Steinberg::kResultOk)return false;
+   if(edit){
+     std::uint32_t bits=0;std::memcpy(&bits,&edit->gain,sizeof(bits));
+     if(a->setInt("Start",edit->start)!=Steinberg::kResultOk||
+        a->setInt("End",edit->end)!=Steinberg::kResultOk||
+        a->setInt("FadeIn",edit->fadeIn)!=Steinberg::kResultOk||
+        a->setInt("FadeOut",edit->fadeOut)!=Steinberg::kResultOk||
+        a->setInt("GainBits",bits)!=Steinberg::kResultOk)return false;
+   }
+   return sendMessage(m.p)==Steinberg::kResultOk;
+ }catch(...){return false;}
+}
+bool Controller::beginLiveSampleEdit(std::size_t row,std::uint32_t revision,
+                                    std::uint64_t& session) noexcept {
+ session=0;
+ if(nextLiveSession_>=static_cast<std::uint64_t>(INT64_MAX))return false;
+ const auto candidate=++nextLiveSession_;
+ if(!sendLiveEditMessage("Drumator.EditorLiveBegin",row,revision,candidate,nullptr))
+   return false;
+ session=candidate;return true;
+}
+bool Controller::updateLiveSampleEdit(std::size_t row,std::uint32_t revision,
+                                     std::uint64_t session,const SampleEdit& edit) noexcept {
+ return sendLiveEditMessage("Drumator.EditorLiveUpdate",row,revision,session,&edit);
+}
+bool Controller::endLiveSampleEdit(std::size_t row,std::uint64_t session) noexcept {
+ if(!session)return true;
+ for(int attempt=0;attempt<2;++attempt)
+   if(sendLiveEditMessage("Drumator.EditorLiveEnd",row,0,session,nullptr))return true;
+ return false;
+}
 bool Controller::commitSampleEdit(std::size_t row,const SampleEdit& edit,
                                   std::uint32_t revision) {
  if(row>=kRows||!edit.end)return false;
@@ -1223,7 +1444,10 @@ bool Controller::commitSampleEdit(std::size_t row,const SampleEdit& edit,
    ready= a->setInt("Revision",revision)==Steinberg::kResultOk;
  const bool success=ready&&sendEditMessage(msg)==Steinberg::kResultOk;
  
- if(success){invalidateWaveQuery();try {notifyViews(false);}catch(const std::bad_alloc&){ /* committed state remains authoritative */ }}
+ if(success){
+   exportEdits_[row]=edit;
+   invalidateWaveQuery();try {notifyViews(false);}catch(const std::bad_alloc&){ /* committed state remains authoritative */ }
+ }
  return success;
  }catch(const std::bad_alloc&){return false;}
 }
@@ -1311,88 +1535,119 @@ bool Controller::clearSample(std::size_t row) {
    invalidateWaveQuery();
    labels_[row].swap(emptyLabel);samplePaths_[row].clear();
    samplePresent_[row]=false;
+   exportWavs_[row].clear();exportEdits_[row]=SampleEdit{};
    try {notifyViews(false);}
    catch(const std::bad_alloc&) { /* committed state must not be reported as rejection */ }
  }
  return accepted;
 }
 bool Controller::setRowOutput(std::size_t row,unsigned requested) {
+ try {
  if(row>=kRows||requested>=kRows)return false;
  if(output_[row]==requested)return true;
  const auto bus=static_cast<std::uint8_t>(requested);
- auto* msg=allocateMessage();if(!msg)return false;
+ auto* msg=allocateMessage();
+ ScopedActionMessage messageOwner{msg};if(!msg)return false;
  msg->setMessageID("Drumator.RowOutput");
  auto* attrs=msg->getAttributes();
- if(!attrs){msg->release();return false;}
+ if(!attrs){return false;}
  attrs->setInt("Row",static_cast<Steinberg::int64>(row));
  attrs->setInt("Bus",static_cast<Steinberg::int64>(bus));
  const bool accepted=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();if(accepted){output_[row]=bus;notifyViews(false);}
+ if(accepted){output_[row]=bus;try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return accepted;
+
+ }catch(...) {return false;}
 }
 bool Controller::cycleRowOutput(std::size_t row) {
  return row<kRows?setRowOutput(row,(output_[row]+1)%kRows):false;
 }
 bool Controller::setRowChoke(std::size_t row,unsigned requested) {
+ try {
  if(row>=kRows||requested>4)return false;
  if(choke_[row]==requested)return true;
- auto* msg=allocateMessage();if(!msg)return false;
+ auto* msg=allocateMessage();
+ ScopedActionMessage messageOwner{msg};if(!msg)return false;
  msg->setMessageID("Drumator.RowChoke");
- auto* attrs=msg->getAttributes();if(!attrs){msg->release();return false;}
+ auto* attrs=msg->getAttributes();if(!attrs){return false;}
  attrs->setInt("Row",static_cast<Steinberg::int64>(row));
  attrs->setInt("Group",static_cast<Steinberg::int64>(requested));
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
- if(ok){choke_[row]=static_cast<std::uint8_t>(requested);notifyViews(false);}
+ 
+ if(ok){choke_[row]=static_cast<std::uint8_t>(requested);try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return ok;
+
+ }catch(...) {return false;}
 }
 bool Controller::cycleRowChoke(std::size_t row,int direction) {
  if(row>=kRows||(direction!=1&&direction!=-1))return false;
  return setRowChoke(row,static_cast<unsigned>((static_cast<int>(choke_[row])+5+direction)%5));
 }
 bool Controller::adjustRowPitch(std::size_t row,int delta) {
+ try {
  if(row>=kRows)return false;
  const int proposed=std::clamp(static_cast<std::int64_t>(pitch_[row])+delta,std::int64_t{0},std::int64_t{48});
- auto* msg=allocateMessage();if(!msg)return false;
+ auto* msg=allocateMessage();
+ ScopedActionMessage messageOwner{msg};if(!msg)return false;
  msg->setMessageID("Drumator.RowPitch");
- auto* attrs=msg->getAttributes();if(!attrs){msg->release();return false;}
+ auto* attrs=msg->getAttributes();if(!attrs){return false;}
  attrs->setInt("Row",static_cast<Steinberg::int64>(row));
  attrs->setInt("Semitones",proposed-24);
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
- if(ok){pitch_[row]=static_cast<std::uint8_t>(proposed);notifyViews(false);}
+ 
+ if(ok){pitch_[row]=static_cast<std::uint8_t>(proposed);
+   publishAutomationEdit(kRowPitchBase+static_cast<unsigned>(row),
+                         automationNormalized(static_cast<unsigned>(proposed),48));
+   try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return ok;
+
+ }catch(...) {return false;}
 }
 bool Controller::adjustRowMix(std::size_t row,bool adjustPan,int delta) {
+ try {
  if(row>=kRows)return false;
  auto& values=adjustPan?pan_:gain_;
  const auto proposed=std::clamp(static_cast<std::int64_t>(values[row])+delta,std::int64_t{0},std::int64_t{200});
- auto* msg=allocateMessage();if(!msg)return false;
+ auto* msg=allocateMessage();
+ ScopedActionMessage messageOwner{msg};if(!msg)return false;
  msg->setMessageID("Drumator.RowMix");
- auto* attrs=msg->getAttributes();if(!attrs){msg->release();return false;}
+ auto* attrs=msg->getAttributes();if(!attrs){return false;}
  attrs->setInt("Row",static_cast<Steinberg::int64>(row));
  attrs->setInt("Gain",adjustPan?gain_[row]:proposed);
  attrs->setInt("Pan",adjustPan?proposed-100:static_cast<int>(pan_[row])-100);
+ attrs->setInt("Changed",adjustPan?1:0);
  const bool accepted=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();if(accepted){values[row]=static_cast<std::uint8_t>(proposed);notifyViews(false);}
+ if(accepted){values[row]=static_cast<std::uint8_t>(proposed);
+   publishAutomationEdit((adjustPan?kRowPanBase:kRowVolumeBase)+
+                         static_cast<unsigned>(row),
+                         automationNormalized(static_cast<unsigned>(proposed)));
+   try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return accepted;
+
+ }catch(...) {return false;}
 }
 bool Controller::toggleRowGate(std::size_t row,bool solo) {
+ try {
  if(row>=kRows)return false;
  auto& gates=solo?solo_:muted_;
  auto* msg=allocateMessage();
+ ScopedActionMessage messageOwner{msg};
  if(!msg)return false;
  msg->setMessageID("Drumator.RowGate");
  auto* attr=msg->getAttributes();
- if(!attr){msg->release();return false;}
+ if(!attr){return false;}
  const bool next=!gates[row];
  attr->setInt("Row",static_cast<Steinberg::int64>(row));
  attr->setInt("Solo",solo?1:0);
  attr->setInt("On",next?1:0);
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
- msg->release();
- if(ok){gates[row]=next;notifyViews(false);}
+ 
+ if(ok){gates[row]=next;
+   if(!solo)publishAutomationEdit(kRowMuteBase+static_cast<unsigned>(row),next?1.0:0.0);
+   try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
  return ok;
+
+ }catch(...) {return false;}
 }
 bool Controller::toggleStep(std::size_t p,std::size_t r,std::size_t s) {
  if(p>=kPatterns||r>=kRows||s>=kSteps)return false;
@@ -1506,6 +1761,8 @@ Controller::LoadStatus Controller::loadWav(std::size_t row,const std::string& pa
  samplePresent_[row]=true;
  originIdentity_[row]=wavIdentity(data);
  originIdentityValid_[row]=true;
+ exportWavs_[row].swap(data); // accepted PCM, no-throw ownership transfer
+ exportEdits_[row]=SampleEdit{};
  pathsRestoredBeforeComponent_=false;
  componentStatePendingController_=false;
  // The embedded WAV and UI metadata are committed. Host repaint/dirty
@@ -1515,4 +1772,63 @@ Controller::LoadStatus Controller::loadWav(std::size_t row,const std::string& pa
  }catch(const std::filesystem::filesystem_error&) {return LoadStatus::NotFound;}
   catch(const std::exception&) {return LoadStatus::ReadError;}
 }
+bool Controller::setLimiterEnabled(bool enabled){
+ if(limiterEnabled_==enabled)return true;
+ try {
+   ScopedActionMessage msg{allocateMessage()};
+   if(!msg.p)return false;
+   msg.p->setMessageID("Drumator.Limiter");
+   auto* attrs=msg.p->getAttributes();
+   if(!attrs||attrs->setInt("Enabled",enabled?1:0)!=Steinberg::kResultOk||
+      sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+   limiterEnabled_=enabled; // accepted by Processor: cannot roll back
+   try {notifyViews(false);}catch(...) {/* redraw on next host pulse */ }
+   return true;
+ }catch(...){return false;} // SDK may throw bad_alloc before commitment
+}
+bool Controller::exportMidi(bool song,const std::string& path){
+ try {
+   MidiExportConfig config;
+   config.grid=grid_;
+   config.patternLengths=patternLengths_;
+   config.randomVelocity=randomVelocity_;
+   config.song=songChain_;
+   config.selectedPattern=static_cast<std::uint8_t>(currentPattern());
+   config.swingPercent=swingPercent_;
+   config.humanizePercent=humanizePercent_;
+   config.tempoBpm=exportTempoBpm_;
+   config.exportSong=song;
+   std::vector<std::uint8_t> bytes;
+   if(!MidiExport::encode(config,bytes))return false;
+   ExportFile writer(pathFromUtf8(path));
+   return writer.open()&&writer.write(bytes.data(),bytes.size())&&writer.finish();
+ }catch(...){return false;}
+}
+bool Controller::exportWav(bool song,const std::string& path){
+ try {
+   KitState state;
+   state.selected=static_cast<std::uint8_t>(currentPattern());
+   state.visible=visibleRows_;
+   state.grid=grid_;
+   state.patternLengths=patternLengths_;
+   state.randomVelocity=randomVelocity_;
+   state.names=labels_;
+   state.displayNames=customNames_;
+   state.wav=exportWavs_;
+   state.sampleEdits=exportEdits_;
+   state.gain=gain_;state.pan=pan_;state.pitch=pitch_;
+   state.choke=choke_;state.output=output_;
+   state.swing=swingPercent_;state.humanize=humanizePercent_;
+   state.masterVolume=masterVolume_;
+   state.limiter=limiterEnabled_?1:0;
+   state.songEnabled=songEnabled_?1:0;
+   state.chain=songChain_;state.songStartBar=songStartBar_;
+   for(std::size_t row=0;row<kRows;++row){
+     if(muted_[row])state.muted|=static_cast<std::uint16_t>(1u<<row);
+     if(solo_[row])state.solo|=static_cast<std::uint16_t>(1u<<row);
+   }
+   return OfflineWavExport::render(state,song,exportTempoBpm_,pathFromUtf8(path));
+ }catch(...){return false;}
+}
+
 }

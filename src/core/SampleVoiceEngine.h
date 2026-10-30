@@ -36,19 +36,12 @@ public:
     bool prepare(double playbackRatio) noexcept {
         if (!std::isfinite(playbackRatio) || playbackRatio<=0.0) return false;
         constexpr double pi=3.141592653589793238462643383279502884;
-        // The renderer copies integer-position samples directly at unity.
-        // Preparing 1024 sinc phases here only stalls the UI/host control
-        // thread when a WAV is replaced during playback; no render uses them.
-        if(playbackRatio==1.0) {
-            ratio_=1.0;
-            taps_=32;
-            ready_=true;
-            return true;
-        }
+        // Exact unity samples bypass interpolation, but a pitch glide can
+        // pass through unity at a fractional position. Precompute phases too.
         const double cutoff=std::min(1.0,1.0/playbackRatio);
         taps_=playbackRatio>=8.0?256:(playbackRatio>=4.0?128:(playbackRatio>=2.0?64:32));
         // Allocate on the control thread, not on the stack or audio thread.
-        try { coefficients_.resize(kSincPhases*kSincTaps); }
+        try { coefficients_.resize(kSincPhases*taps_); }
         catch(const std::bad_alloc&) { ready_=false;return false; }
         for(std::size_t phase=0;phase<kSincPhases;++phase) {
             const double fraction=static_cast<double>(phase)/kSincPhases;
@@ -60,13 +53,13 @@ public:
                 const double t=2.0*pi*static_cast<double>(i)/(taps_-1);
                 const double window=0.42-0.5*std::cos(t)+0.08*std::cos(2.0*t);
                 const double weight=cutoff*sinc*window;
-                coefficients_[phase*kSincTaps+i]=static_cast<float>(weight);
+                coefficients_[phase*taps_+i]=static_cast<float>(weight);
                 sum+=weight;
             }
             if(!std::isfinite(sum) || std::abs(sum)<1e-12) return false;
             for(std::size_t i=0;i<taps_;++i)
-                coefficients_[phase*kSincTaps+i]=static_cast<float>(
-                    coefficients_[phase*kSincTaps+i]/sum);
+                coefficients_[phase*taps_+i]=static_cast<float>(
+                    coefficients_[phase*taps_+i]/sum);
         }
         ratio_=playbackRatio;
         ready_=true;
@@ -76,7 +69,7 @@ public:
     std::size_t taps() const noexcept {return taps_;}
     bool ready() const noexcept {return ready_;}
     const float* phase(std::size_t index) const noexcept {
-        return coefficients_.data()+index*kSincTaps;
+        return coefficients_.data()+index*taps_;
     }
 private:
     std::vector<float> coefficients_{};
@@ -85,10 +78,37 @@ private:
     bool ready_{false};
 };
 
+// Prepared on the control actor and shared by all WAVs at the same
+// sample-rate pair. All 49 discrete semitone sinc filters are immutable
+// before an audio callback can access them. Never construct here on audio.
+class PitchKernelBank final {
+public:
+ static constexpr std::uint8_t kCenter=24;
+ static constexpr std::size_t kCount=49;
+ bool prepare(std::uint32_t sourceRate,double outputRate) noexcept {
+   if(sourceRate==0||!std::isfinite(outputRate)||outputRate<=0.0)return false;
+   baseRatio_=static_cast<double>(sourceRate)/outputRate;
+   for(std::size_t i=0;i<kCount;++i){
+     const double ratio=baseRatio_*std::exp2(
+          (static_cast<double>(i)-static_cast<double>(kCenter))/12.0);
+     if(!kernels_[i].prepare(ratio))return false;
+   }
+   return true;
+ }
+ const SincKernel* kernel(unsigned index) const noexcept {
+   return index<kCount&&kernels_[index].ready()?&kernels_[index]:nullptr;
+ }
+private:
+ std::array<SincKernel,kCount> kernels_{};
+ double baseRatio_{1.0};
+};
+
 struct RowSound {
     SampleView sample{};
     SampleEdit edit{}; // end==0: legacy full-sample playback
     const SincKernel* kernel{nullptr};
+    const PitchKernelBank* pitchBank{nullptr}; // lifetime owned by PreparedSample
+    std::uint8_t pitchIndex{24}; // semitones encoded as [-24,+24] + 24
     float gain{1.f}; // linear amplitude, 1 = 0 dB.
     float pan{0.f};  // -1 left, 0 center, +1 right.
     std::uint8_t chokeGroup{0}; // 0 = disabled.
@@ -134,8 +154,21 @@ public:
                 return false;
         }
         rows_[row]=sound;
+        committedEdits_[row]=sound.edit;
         rows_[row].outputBus=static_cast<std::uint8_t>(row); // legacy output mapping
         return true;
+    }
+    // Transient WAV editor: future one-shots use this draft, existing voices
+    // retain their captured edit. Neither PCM nor interpolation is rebuilt.
+    bool setRowLiveEdit(std::size_t row,const SampleEdit& edit) noexcept {
+        if(row>=kRows||!rows_[row].sample.frames||
+           rows_[row].sample.frames>UINT32_MAX||
+           !edit.valid(static_cast<std::uint32_t>(rows_[row].sample.frames)))
+            return false;
+        rows_[row].edit=edit;return true;
+    }
+    void restoreRowCommittedEdit(std::size_t row) noexcept {
+        if(row<kRows)rows_[row].edit=committedEdits_[row];
     }
     // Called only by the audio-thread owner at block boundaries.
     // Existing one-shot voices retain their launch gain/pan.
@@ -144,6 +177,42 @@ public:
            !std::isfinite(pan)||pan< -1.f||pan>1.f)return false;
         rows_[row].gain=gain;
         rows_[row].pan=pan;
+        for(auto& voice:voices_)
+            if(voice.active&&voice.row==row)refreshVoiceMix(voice);
+        return true;
+    }
+    // Mute changes inhibit new hits and smoothly silence existing one-shots.
+    // This is audio-thread-only; automation never races mutable sample assets.
+    bool setRowMute(std::size_t row,bool mute) noexcept {
+        if(row>=kRows)return false;
+        if(rows_[row].mute==mute)return true;
+        rows_[row].mute=mute;
+        for(auto& voice:voices_)
+            if(voice.active&&voice.row==row)refreshVoiceMix(voice);
+        return true;
+    }
+    // Discrete pitch automation uses only control-thread-prepared sinc
+    // kernels. The audio callback changes kernel pointers and a fixed-rate
+    // glide; never decodes, computes coefficients, allocates or locks.
+    bool setRowPitch(std::size_t row,std::uint8_t index) noexcept {
+        if(row>=kRows||index>=PitchKernelBank::kCount)return false;
+        auto& sound=rows_[row];
+        if(sound.pitchIndex==index)return true;
+        if(sound.pitchBank&&sound.sample.frames){
+            const auto* target=sound.pitchBank->kernel(index);
+            if(!target)return false;
+            sound.kernel=target;
+        }
+        sound.pitchIndex=index;
+        for(auto& voice:voices_)
+            if(voice.active&&voice.row==row&&voice.pitchBank){
+                const auto* dest=voice.pitchBank->kernel(index);
+                if(!dest)continue;
+                voice.pitchTargetRatio=dest->ratio();
+                voice.pitchRampRemaining=fadeFrames_*3u;
+                voice.pitchIncrement=(voice.pitchTargetRatio-voice.playbackRatio)/
+                                     static_cast<double>(voice.pitchRampRemaining);
+            }
         return true;
     }
     bool setRowOutput(std::size_t row,std::uint8_t bus) noexcept {
@@ -175,6 +244,18 @@ public:
 
     RenderResult render(const Trigger* triggers,std::size_t triggerCount,
                         float* left,float* right,std::uint32_t frames,
+                        float* const* stemLeft=nullptr,
+                        float* const* stemRight=nullptr) noexcept {
+        return renderWithAutomation(triggers,triggerCount,left,right,frames,
+                                    [](std::uint32_t) noexcept {},
+                                    stemLeft,stemRight);
+    }
+    // The host supplies a stack-only, nonallocating callback that applies
+    // parameter points at their exact sample offsets BEFORE same-frame hits.
+    template<class FrameAutomation>
+    RenderResult renderWithAutomation(const Trigger* triggers,std::size_t triggerCount,
+                        float* left,float* right,std::uint32_t frames,
+                        FrameAutomation&& automation,
                         float* const* stemLeft=nullptr,
                         float* const* stemRight=nullptr) noexcept {
         if((left==nullptr)!=(right==nullptr)||(triggerCount&&!triggers))return {RenderStatus::InvalidInput};
@@ -217,6 +298,7 @@ public:
         RenderResult result{};
         std::size_t event=0;
         for(std::uint32_t f=0;f<frames;++f) {
+            automation(f);
             // The same frame's convolution can be reused, never across frames.
             for(auto& entry:memo)entry.valid=false;
             while(event<triggerCount&&triggers[event].sampleOffset==f) {
@@ -230,13 +312,37 @@ public:
                     voice.active=false;
                     continue;
                 }
+                if(voice.pitchRampRemaining>0&&voice.pitchBank){
+                    --voice.pitchRampRemaining;
+                    if(voice.pitchRampRemaining==0)
+                        voice.playbackRatio=voice.pitchTargetRatio;
+                    else voice.playbackRatio+=voice.pitchIncrement;
+                    // Keep the anti-aliasing cutoff nearest to the
+                    // continuously changing source-frame advance ratio.
+                    unsigned index=voice.pitchKernelIndex;
+                    while(index+1<PitchKernelBank::kCount){
+                        const double limit=(voice.pitchBank->kernel(index)->ratio()+
+                            voice.pitchBank->kernel(index+1)->ratio())*.5;
+                        if(voice.playbackRatio<=limit)break;
+                        ++index;
+                    }
+                    while(index>0){
+                        const double limit=(voice.pitchBank->kernel(index-1)->ratio()+
+                            voice.pitchBank->kernel(index)->ratio())*.5;
+                        if(voice.playbackRatio>=limit)break;
+                        --index;
+                    }
+                    voice.pitchKernelIndex=static_cast<std::uint8_t>(index);
+                    voice.kernel=voice.pitchBank->kernel(index);
+                }
                 const double x=voice.position;
                 const auto base=static_cast<std::int64_t>(x);
                 double vl=0.0,vr=0.0;
                 // Bit-transparent unity-rate playback: no interpolation is
                 // necessary at integer source positions. Keep the existing
                 // voice envelope, gain, choke, and bus routing below.
-                if(voice.kernel->ratio()==1.0) {
+                if(voice.playbackRatio==1.0&&voice.kernel->ratio()==1.0&&
+                   x==static_cast<double>(base)) {
                     const auto at=static_cast<std::size_t>(base);
                     vl=static_cast<double>(voice.sample.left[at]);
                     vr=static_cast<double>(voice.sample.right?
@@ -320,6 +426,15 @@ public:
                 cached.valid=true;
                 }
                 }
+                if(voice.mixRampRemaining>0) {
+                    --voice.mixRampRemaining;
+                    if(voice.mixRampRemaining==0) {
+                        voice.gainL=voice.targetL;voice.gainR=voice.targetR;
+                    }else {
+                        voice.gainL+=voice.mixStepL;
+                        voice.gainR+=voice.mixStepR;
+                    }
+                }
                 double envelope=1.0;
                 if(voice.releaseLeft>0) {
                     envelope=static_cast<double>(voice.releaseLeft)/
@@ -337,7 +452,7 @@ public:
                 }else {
                    l+=a;r+=b;
                 }
-                voice.position+=voice.kernel->ratio();
+                voice.position+=voice.playbackRatio;
                 if((voice.releaseTotal>0&&voice.releaseLeft==0)||
                    voice.position>=static_cast<double>(voice.edit.end))
                     voice.active=false;
@@ -355,8 +470,14 @@ private:
         SampleView sample{};
         SampleEdit edit{};
         const SincKernel* kernel{nullptr};
+        const PitchKernelBank* pitchBank{nullptr};
+        std::uint8_t pitchKernelIndex{24};
+        double playbackRatio{1.0},pitchTargetRatio{1.0},pitchIncrement{0.0};
+        std::uint32_t pitchRampRemaining{0};
         double position{0.0};
-        double gainL{0.0},gainR{0.0};
+        double gainL{0.0},gainR{0.0},velocity{0.0};
+        double targetL{0.0},targetR{0.0},mixStepL{0.0},mixStepR{0.0};
+        std::uint32_t mixRampRemaining{0};
         std::uint32_t releaseLeft{0},releaseTotal{0};
         std::uint8_t group{0};
         std::uint8_t row{0};
@@ -364,6 +485,19 @@ private:
         const void* ownerToken{nullptr};
         bool active{false};
     };
+    void refreshVoiceMix(Voice& voice) noexcept {
+        const auto& row=rows_[voice.row];
+        constexpr double pi=3.141592653589793238462643383279502884;
+        const double pan=static_cast<double>(row.pan);
+        const double base=row.mute?0.0:static_cast<double>(row.gain)*voice.velocity;
+        const double left=base*(pan<=0.0?1.0:std::cos(pan*pi/2.0));
+        const double right=base*(pan>=0.0?1.0:std::cos(-pan*pi/2.0));
+        if(left==voice.targetL&&right==voice.targetR)return;
+        voice.targetL=left;voice.targetR=right;
+        voice.mixRampRemaining=fadeFrames_; // time-based, prepared by setOutputRate
+        voice.mixStepL=(left-voice.gainL)/static_cast<double>(fadeFrames_);
+        voice.mixStepR=(right-voice.gainR)/static_cast<double>(fadeFrames_);
+    }
     void fire(const Trigger& event,RenderResult& result) noexcept {
         const auto& row=rows_[event.row];
         if(row.mute||!row.sample.left||!row.sample.frames||
@@ -384,11 +518,17 @@ private:
             constexpr double pi=3.141592653589793238462643383279502884;
             const double pan=static_cast<double>(row.pan);
             const double velocity=static_cast<double>(event.velocity)/127.0;
+            v.velocity=velocity;
             v.sample=row.sample;
             v.edit=row.edit.end==0
                 ?SampleEdit::reset(static_cast<std::uint32_t>(row.sample.frames))
                 :row.edit;
             v.kernel=row.kernel;
+            v.pitchBank=row.pitchBank;
+            v.pitchKernelIndex=row.pitchIndex;
+            v.playbackRatio=row.kernel->ratio();
+            v.pitchTargetRatio=v.playbackRatio;
+            v.pitchIncrement=0.0;v.pitchRampRemaining=0;
             v.position=static_cast<double>(v.edit.start);
             // Center pan=0: unity WAV sample amplitude on each channel.
             // This is a transparent stereo BALANCE law, not a +dB booster:
@@ -398,6 +538,8 @@ private:
                     (pan<=0.0?1.0:std::cos(pan*pi/2.0));
             v.gainR=static_cast<double>(row.gain)*velocity*
                     (pan>=0.0?1.0:std::cos(-pan*pi/2.0));
+            v.targetL=v.gainL;v.targetR=v.gainR;
+            v.mixStepL=0.0;v.mixStepR=0.0;v.mixRampRemaining=0;
             v.group=row.chokeGroup;
             v.row=event.row;
             v.outputBus=row.outputBus;
@@ -410,6 +552,7 @@ private:
         }
     }
     std::array<RowSound,kRows> rows_{};
+    std::array<SampleEdit,kRows> committedEdits_{};
     std::array<Voice,kVoiceLimit> voices_{};
     std::uint32_t fadeFrames_{88}; // default only before setOutputRate()
 };

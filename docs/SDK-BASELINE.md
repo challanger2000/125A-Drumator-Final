@@ -24,8 +24,8 @@ git submodule status --recursive
 Expected top-level HEAD: `3cdf9ca5d1f5b1b21e0a86832aa4abe55607bd96`.
 Validate each submodule commit from the tagged SDK checkout before compiling. Fix this dependency baseline in the future build configuration; no silently floating `HEAD`.
 
-## Current state
-**SDK 3.8.1 INTEGRATION IMPLEMENTED and VERIFIED for the initial Windows x64 VST3 test instrument**, exact source `6bf1835693e4271a2814086116924c6d08de2c59`, Actions #38913822453. Official moduleinfotool and Validator 47/47 PASS on the assembled VST3 bundle. The VSTGUI editor, real sample file loading and full host QA are **NOT YET IMPLEMENTED/VERIFIED**. See `docs/MILESTONE-03.md`.
+## Aktueller Integrationsstand (30.10.2026)
+Der gepinnte Steinberg SDK 3.8.1 samt VSTGUI-Submodul wird im vollständigen Drumator 1.0.1 eingesetzt: native GUI, WAV-/FLAC-Import, MIDI und Audioprozessor. Aktueller geprüfter Binärquellstand: [`c18091ab3bdb0c80f7753ea6e3339463b26ad800`](https://github.com/challanger2000/125A-Drumator-Final/commit/c18091ab3bdb0c80f7753ea6e3339463b26ad800). [Windows QA #41133162498](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41133162498), **29/29 CTests, 47/47 Validator, 58/0/0 unabhängiger Plugin Tester**. Die ursprüngliche Aussage von Oktober 16, die GUI sei noch nicht implementiert, galt für einen früheren Meilenstein. Maßgeblich für den Produktstand ist [CURRENT.md](../CURRENT.md).
 
 Official primary sources:
 - https://github.com/steinbergmedia/vst3sdk/tree/v3.8.1_build_84

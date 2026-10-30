@@ -52,6 +52,12 @@ public:
  bool previewSampleEdit(std::size_t row,const SampleEdit& edit,
                         std::uint32_t revision=UINT32_MAX);
  bool stopSampleEditPreview();
+ // GUI-only LIVE sessions; never serialized or declared to the host as edits.
+ bool beginLiveSampleEdit(std::size_t row,std::uint32_t revision,
+                          std::uint64_t& session) noexcept;
+ bool updateLiveSampleEdit(std::size_t row,std::uint32_t revision,
+                           std::uint64_t session,const SampleEdit& edit) noexcept;
+ bool endLiveSampleEdit(std::size_t row,std::uint64_t session) noexcept;
  bool sampleEditorSnapshot(std::size_t row,SampleEdit& edit,std::uint32_t& frames,
                            std::array<WaveformRange,256>& envelope,
                            std::uint32_t first=0,std::uint32_t last=0,
@@ -72,6 +78,8 @@ public:
  unsigned rowOutput(std::size_t row) const noexcept {return row<kRows?output_[row]:0;}
  unsigned rowChoke(std::size_t row) const noexcept {return row<kRows?choke_[row]:0;}
  bool adjustRowMix(std::size_t row,bool adjustPan,int delta);
+ void beginAutomationGesture(Steinberg::Vst::ParamID id) noexcept;
+ void endAutomationGesture() noexcept;
  bool adjustRowPitch(std::size_t row,int delta);
  int rowPitch(std::size_t row) const noexcept {return row<kRows?static_cast<int>(pitch_[row])-24:0;}
  unsigned rowGain(std::size_t row) const noexcept {return row<kRows?gain_[row]:100;}
@@ -111,6 +119,9 @@ public:
  // Modifies only occupied steps in the active pattern/active bar length,
  // persisted through PatternReplace as one undoable operation.
  bool randomizeRowVelocity(std::size_t row);
+ // Restore velocity 100 for occupied steps of one instrument in the
+ // selected A-H pattern only; preserve zeros and hidden bar 2 in 1-bar mode.
+ bool resetRowVelocity(std::size_t row);
  bool varyPatternVelocity();
  bool resetPatternVelocity();
  std::uint32_t velocityVariation_{0};
@@ -118,6 +129,11 @@ public:
  bool adjustSwing(int delta);
  bool adjustHumanize(int delta);
  bool adjustMasterVolume(int delta);
+ bool setLimiterEnabled(bool enabled);
+ bool limiterEnabled() const noexcept {return limiterEnabled_;}
+ bool exportMidi(bool song,const std::string& path);
+ bool exportWav(bool song,const std::string& path);
+ double exportTempoBpm() const noexcept {return exportTempoBpm_;}
  unsigned masterVolume() const noexcept {return masterVolume_;}
  bool adjustRandomVelocity(std::size_t row,int delta);
  unsigned rowRandomVelocity(std::size_t row) const noexcept {
@@ -129,7 +145,7 @@ public:
  bool hideLastEmptyRow();
  double preferredZoom() const noexcept {return preferredZoom_;}
  void rememberZoom(double factor) noexcept {
-   preferredZoom_=factor==1.0||factor==1.2||factor==1.3||factor==1.5?factor:1.0;
+   preferredZoom_=factor==1.0||factor==1.2||factor==1.3||factor==1.5?factor:1.3;
  }
  bool restoreVisibleRows(std::size_t previous);
  std::size_t visibleRows() const noexcept {return visibleRows_;}
@@ -153,6 +169,9 @@ private:
  MeterState meterState_{};
  std::uint32_t lastClearEpoch_{0};
  void notifyViews(bool relayout);
+ void publishAutomationEdit(Steinberg::Vst::ParamID id,double normalized) noexcept;
+ Steinberg::Vst::ParamID activeAutomationGesture_{Steinberg::Vst::kNoParamId};
+ void syncAutomationParameters() noexcept;
  bool processorConfirmsPattern(unsigned requested,double fallback);
  void invalidateWaveQuery() noexcept;
  void removeWaveRequest(DrumatorView* requester) noexcept;
@@ -184,6 +203,10 @@ private:
  std::array<std::string,kRows> customNames_{};
  // Filesystem navigation is session-only. Embedded WAV data remains self-contained.
  std::array<std::string,kRows> samplePaths_{};
+ // Control-thread-only embedded PCM cache, refreshed only after accepted
+ // sample import and Component state recall. Never touched by process().
+ std::array<std::vector<std::uint8_t>,kRows> exportWavs_{};
+ std::array<SampleEdit,kRows> exportEdits_{};
  // UI thread only. A single row cache bounds decoded-PCM residency even
  // when several View windows/16 sample rows exist. Processor revision is
  // always checked before reusing it after edit, import or project recall.
@@ -200,6 +223,10 @@ private:
  };
  std::vector<WaveRequest> waveRequests_; // control actor; independently keyed by View
  std::uint64_t nextRequestId_{0};
+ std::uint64_t nextLiveSession_{0};
+ bool sendLiveEditMessage(const char* id,std::size_t row,
+                          std::uint32_t revision,std::uint64_t session,
+                          const SampleEdit* edit) noexcept;
  unsigned waveSendDepth_{0}; // prevents synchronous host-delivery reentrancy
  std::uint64_t patternRequestId_{0};
  unsigned patternReplyRequested_{0};
@@ -226,10 +253,12 @@ private:
  std::array<std::uint8_t,kRows> choke_{};
  std::array<std::uint8_t,kRows> output_{};
  std::uint8_t visibleRows_{kDefaultVisibleRows};
- double preferredZoom_{1.0};
+ double preferredZoom_{1.3}; // New editor default; explicit saved zoom is respected.
  std::uint8_t swingPercent_{0};
  std::uint8_t humanizePercent_{0};
  std::uint8_t masterVolume_{100};
+ bool limiterEnabled_{false};
+ double exportTempoBpm_{120.0};
  std::array<std::uint8_t,kRows> randomVelocity_{};
  SongChain songChain_{};
  bool songEnabled_{false};

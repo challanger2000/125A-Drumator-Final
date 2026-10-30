@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(Drumator VERSION 1.0.0 LANGUAGES CXX)
+project(Drumator VERSION 1.0.1 LANGUAGES CXX)
 # Milestone 1: host-independent timing core. SDK integration is separate.
 add_library(drumator_core INTERFACE)
 target_compile_features(drumator_core INTERFACE cxx_std_23)
@@ -23,6 +23,15 @@ if(BUILD_TESTING)
     target_compile_options(drumator_compact_layout_tests PRIVATE /W4 /WX)
   endif()
   add_test(NAME drumator_compact_layout_tests COMMAND drumator_compact_layout_tests)
+  # V1.0.1 candidate geometry is tested separately from the published GUI.
+  add_executable(drumator_v101_layout_tests tests/UiV101LayoutTests.cpp)
+  target_link_libraries(drumator_v101_layout_tests PRIVATE drumator_core)
+  if(MSVC)
+    target_compile_options(drumator_v101_layout_tests PRIVATE /W4 /WX)
+  else()
+    target_compile_options(drumator_v101_layout_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME drumator_v101_layout_tests COMMAND drumator_v101_layout_tests)
   add_executable(drumator_row_control_tests tests/UiRowControlsTests.cpp)
   target_link_libraries(drumator_row_control_tests PRIVATE drumator_core)
   if(MSVC)
@@ -133,6 +142,14 @@ if(BUILD_TESTING)
     target_compile_options(drumator_wav_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
   endif()
   add_test(NAME drumator_wav_tests COMMAND drumator_wav_tests)
+  add_executable(drumator_live_mailbox_tests tests/LiveEditMailboxTests.cpp)
+  target_link_libraries(drumator_live_mailbox_tests PRIVATE drumator_core)
+  if(MSVC)
+    target_compile_options(drumator_live_mailbox_tests PRIVATE /W4 /WX)
+  else()
+    target_compile_options(drumator_live_mailbox_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME drumator_live_mailbox_tests COMMAND drumator_live_mailbox_tests)
   add_executable(drumator_exchange_tests tests/SampleExchangeTests.cpp)
   target_link_libraries(drumator_exchange_tests PRIVATE drumator_core)
   if(MSVC)
@@ -165,6 +182,32 @@ if(BUILD_TESTING)
     target_compile_options(drumator_visible_rows_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
   endif()
   add_test(NAME drumator_visible_rows_tests COMMAND drumator_visible_rows_tests)
+  foreach(_name midi_export limiter offline_wav)
+    if(_name STREQUAL "midi_export")
+      set(_source MidiExportTests.cpp)
+    elseif(_name STREQUAL "limiter")
+      set(_source StereoPeakLimiterTests.cpp)
+    else()
+      set(_source OfflineWavExportTests.cpp)
+    endif()
+    add_executable(drumator_${_name}_tests tests/${_source})
+    target_link_libraries(drumator_${_name}_tests PRIVATE drumator_core)
+    target_compile_features(drumator_${_name}_tests PRIVATE cxx_std_23)
+    if(MSVC)
+      target_compile_options(drumator_${_name}_tests PRIVATE /W4 /WX)
+    else()
+      target_compile_options(drumator_${_name}_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    endif()
+    add_test(NAME drumator_${_name}_tests COMMAND drumator_${_name}_tests)
+  endforeach()
+  add_executable(drumator_drag_export_tests tests/DragExportTests.cpp)
+  target_link_libraries(drumator_drag_export_tests PRIVATE drumator_core)
+  if(MSVC)
+    target_compile_options(drumator_drag_export_tests PRIVATE /W4 /WX)
+  else()
+    target_compile_options(drumator_drag_export_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  endif()
+  add_test(NAME drumator_drag_export_tests COMMAND drumator_drag_export_tests)
   add_executable(drumator_kit_tests tests/KitStateTests.cpp)
   target_link_libraries(drumator_kit_tests PRIVATE drumator_core)
   if(MSVC)
@@ -251,9 +294,20 @@ if(DRUMATOR_BUILD_VST3)
   smtg_target_add_plugin_resources(Drumator
       RESOURCES resource/Drumator.uidesc
                 resource/125A_Drumator_Faceplate.png
+                "resource/Futuristische industrielle Metalloberfläche.png"
+                "resource/DRUMATOR_Logo_Modern_Transparent.png"
+                "resource/125A Systems Metall-Logo Badge.png"
+                resource/125A_Dark_Button_83x32_Normal_1x.png
+                resource/125A_Dark_Button_83x32_Normal_4x.png
+                resource/125A_Dark_Button_83x32_Aktiv_1x.png
+                resource/125A_Dark_Button_83x32_Aktiv_4x.png
+                resource/125A_Dark_Button_83x32_Gedrueckt_1x.png
+                resource/125A_Dark_Button_83x32_Gedrueckt_4x.png
+                resource/125A_Dark_Button_83x32_Deaktiviert_1x.png
+                resource/125A_Dark_Button_83x32_Deaktiviert_4x.png
                 resource/125A_Drumator_Knob.png
                 resource/125A_Drumator_Screw.png
-                "resource/Metallisches DRUMATOR-Logo.png")
+)
   # Steinberg official Win32 bundle resource setup, even though CI assembles
   # the final bundle manually to avoid administrator symlink privileges.
   # The official helper macro is evaluated in this parent project scope.

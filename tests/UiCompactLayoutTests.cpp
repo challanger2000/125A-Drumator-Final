@@ -100,15 +100,18 @@ int main(){
  EXPECT(UiSongLayout::pageOf(63)==3);
  EXPECT(UiSongLayout::slotAt(16.,207.,0)==0);
  EXPECT(UiSongLayout::slotAt(17.,260.,0)==8);
- EXPECT(UiSongLayout::slotAt(1096.,264.,2)==47);
+ EXPECT(UiSongLayout::slotAt(UiSongLayout::cellX(7)+2.,
+                             UiSongLayout::cellY(1)+5.,2)==47);
  EXPECT(UiSongLayout::slotAt(16.,207.,1)==16);
  EXPECT(UiSongLayout::slotAt(167.,222.,0)==drumator::SongChain::kCapacity);
  EXPECT(UiSongLayout::slotAt(15.,207.,0)==drumator::SongChain::kCapacity);
  EXPECT(UiSongLayout::slotAt(18.,253.,0)==drumator::SongChain::kCapacity);
  EXPECT(UiSongLayout::slotAt(18.,311.,0)==drumator::SongChain::kCapacity);
  EXPECT(UiSongLayout::slotAt(18.,222.,4)==drumator::SongChain::kCapacity);
- EXPECT(UiSongLayout::previousHit(1000.,181.));
- EXPECT(UiSongLayout::nextHit(1130.,181.));
+ EXPECT(UiSongLayout::previousHit(1086.,181.));
+ EXPECT(!UiSongLayout::previousHit(1000.,181.));
+ EXPECT(UiSongLayout::nextHit(1194.,181.));
+ EXPECT(!UiSongLayout::nextHit(1130.,181.));
  EXPECT(!UiSongLayout::nextHit(1105.,181.));
  EXPECT(!UiSongLayout::canNext(0,15));
  EXPECT(!UiSongLayout::canNext(0,16));

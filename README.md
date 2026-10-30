@@ -1,19 +1,36 @@
-# 125A Drumator — GitHub-Einstieg
+# 125A Drumator
 
-> **Aktueller Produktstand: Version 1.0.1, Windows x64 VST3.** Der aktuelle Code liegt im Branch **[develop/v1.0.1-gui-redesign](https://github.com/challanger2000/125A-Drumator-Final/tree/develop/v1.0.1-gui-redesign)**. Dieser standardmäßig angezeigte Branch `main` enthält noch den **historischen 1.0.0-Quellstand** und ist **NICHT** der aktuelle 1.0.1-Build.
+Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style interface.
 
-## Aktuell und verifiziert
+**Version:** 1.0.1 · **Status:** Commercial customer package prepared; not yet published.
+**Canonical source branch:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main). **Synchronized development branch:** [`develop/v1.0.1-gui-redesign`](https://github.com/challanger2000/125A-Drumator-Final/tree/develop/v1.0.1-gui-redesign). Both branches now contain the same 1.0.1 source and documentation. The previously separate 1.0.0 branch history is preserved in Git.
 
-- **Produkt und Funktionen:** [README der aktuellen Version 1.0.1](https://github.com/challanger2000/125A-Drumator-Final/blob/develop/v1.0.1-gui-redesign/README.md)
-- **Maßgebliche Statusdatei:** [CURRENT.md im aktuellen Branch](https://github.com/challanger2000/125A-Drumator-Final/blob/develop/v1.0.1-gui-redesign/CURRENT.md)
-- **Exakter geprüfter Quellcommit:** [`1acfe3698bcbe6eb88e1faee6ff8e538edbc390d`](https://github.com/challanger2000/125A-Drumator-Final/commit/1acfe3698bcbe6eb88e1faee6ff8e538edbc390d)
-- **Windows QA:** [GitHub Actions #41125370883 (Versuch 2)](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41125370883) — 29/29 CTests, 47/47 Steinberg Validator, 125A Plugin Tester 58 PASS / 0 WARN / 0 FAIL.
-- **[Dokumentenwegweiser](https://github.com/challanger2000/125A-Drumator-Final/blob/develop/v1.0.1-gui-redesign/docs/INDEX.md)**: trennt gültige Dokumentation von historischen Audits und Meilensteinen.
+## Features
 
-**Veröffentlichung:** Ein geprüftes Gumroad-Kunden-ZIP mit Handbüchern und Drittanbieter-Lizenzhinweisen ist außerhalb des Repositories vorbereitet. Es gibt noch keinen veröffentlichten Gumroad-Artikel und keinen GitHub-Release.
+- 16 sample instrument rows with WAV/FLAC import, Mute/Solo, per-row VOL/PAN/PITCH and optional separate stereo outputs.
+- Eight patterns (A–H), 16 or 32 steps, per-step velocity, swing and humanization.
+- SONG arrangement with up to 64 entries, REST positions and selectable SONG START.
+- Integrated non-destructive sample editor with START/END, fades, gain, LIVE and APPLY/CANCEL.
+- Pattern/SONG MIDI and WAV export, including drag and drop; optional output peak limiter.
+- GUI zoom 100/120/130/150 %, default 130 %.
+- **66 automatable VST3 parameters:** Pattern, 16× Volume, 16× Pan, 16× Mute, 16× Pitch and Master.
 
-## Warum sieht `main` noch anders aus?
+## Verified product build
 
-Die beiden Branches sind **divergiert**. Ein automatischer Merge oder ein Überschreiben von `main` würde auch Produktcode verändern. Bis eine ausdrückliche Synchronisierung entschieden und geprüft ist, wird `main` hier nur als **historischer Quellstand** geführt. Für 1.0.1 ausschließlich den oben verlinkten Branch und seine Build-SHA verwenden.
+- **Executable source commit:** `c18091ab3bdb0c80f7753ea6e3339463b26ad800` (factory metadata excludes personal repository URL).
+- **Windows Actions:** [#41133162498](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41133162498), **SUCCESS**.
+- **QA:** 29/29 CTests, official Steinberg Validator 47/47, independent 125A Plugin Tester v0.3.2 58 PASS / 0 WARNING / 0 FAIL.
+- Automation regressions AV01–AV05 and original Wave Editor/Pitch regression AUT08: PASS.
+- **GUI fixes:** WAVE EDITOR heading, sample name and LIVE ON/OFF key are non-overlapping at all 100–150% zoom levels; long names are clipped/ellipsized. Cyan Velocity bars are distinct from amber Pattern step keys, with a real raster oracle and layout regression.
+- **Authoritative release status:** [CURRENT.md](CURRENT.md); [documentation guide](docs/INDEX.md) separates active instructions and historical audits.
+- **Current customer ZIP:** `125A_Drumator_1.0.1_Gumroad_GUI_korrigiert.zip` (the older customer ZIP is superseded; the ZIP is not hosted in this repository).
 
-Die vorangehende umfangreiche 1.0.0-Startseite bleibt als [historisches README](docs/history/main-v100-README-archive.md) erhalten. Ältere Auditberichte und Milestone-Dateien sind datierte Prüfungen älterer Commits, keine aktuellen Releasebehauptungen.
+## Distribution
+
+Windows x64 VST3 only. Close the host, copy the complete `125A Drumator.vst3` bundle into `C:\\Program Files\\Common Files\\VST3`, and restart the host.
+
+The Gumroad customer package is **not built from miscellaneous repository files**. It contains the exact validated executable, pixel-equivalent resource PNGs with nonessential image metadata removed, German/English PDF manuals, install guides, license/support notices, changelog and file checksums. Personal repository links, private paths, development reports, QA logs and Release_Review folders are excluded.
+
+Do not equate a green CI with owner approval, legal redistribution clearance or actual storefront publication.
+
+[German manual](docs/BEDIENUNGSANLEITUNG-DE.md) · [Contributor rules](AGENTS.md)

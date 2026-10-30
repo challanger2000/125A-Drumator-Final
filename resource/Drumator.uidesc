@@ -30,6 +30,30 @@
             }
           }
         }
+      },
+      "DrumatorV101View": {
+        "attributes": {
+          "class": "CViewContainer",
+          "origin": "0, 0",
+          "size": "1280, 300",
+          "transparent": "false",
+          "mouse-enabled": "true",
+          "background-color": "~ BlackCColor",
+          "minSize": "1280, 300",
+          "maxSize": "1280, 850"
+        },
+        "children": {
+          "CView": {
+            "attributes": {
+              "class": "CView",
+              "custom-view-name": "DrumatorV101StepGrid",
+              "origin": "0, 0",
+              "size": "1280, 300",
+              "mouse-enabled": "true",
+              "transparent": "false"
+            }
+          }
+        }
       }
     }
   }

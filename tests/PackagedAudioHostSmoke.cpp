@@ -1439,6 +1439,127 @@ int main(int argc,char** argv) {
    data.inputParameterChanges=nullptr;
    events.clear();
  }
+ // AUDIT A04 / P16: adversarially large HOST parameter queue, independent
+ // of the bounded MIDI input-event path. Exercise the actual packaged VST3.
+ // 16,384 same-offset points force "last host point wins", not first/256th.
+ // A concurrent MIDI A at that offset must NOT override final host B.
+ // Measure only process(), excluding fixture construction/kit reset; this is
+ // Windows CI diagnostic timing, NOT a real-ASIO deadline certification.
+ {
+   // Steinberg's normal ParameterValueQueue deliberately coalesces points
+   // with equal sample offsets. It cannot reproduce an adversarial queue
+   // count. Override the real SDK VST3 host interfaces instead: the plugin
+   // receives exactly 16,384 getPoint() calls without hidden coalescing.
+   class DenseValueQueue final : public ParameterValueQueue {
+    public:
+     explicit DenseValueQueue(int32 sample) :
+       ParameterValueQueue(drumator::kPatternParam),sample_(sample) {}
+     int32 PLUGIN_API getPointCount() SMTG_OVERRIDE {return 16384;}
+     tresult PLUGIN_API getPoint(int32 point,int32& sample,ParamValue& value) SMTG_OVERRIDE {
+       if(point<0||point>=getPointCount())return kResultFalse;
+       sample=sample_;value=(point&1)?1./7.:0.;
+       ++reads;
+       return kResultTrue;
+     }
+     std::uint32_t reads=0;
+    private:
+     int32 sample_;
+   };
+   class DenseHostChanges final : public ParameterChanges {
+    public:
+     explicit DenseHostChanges(int32 sample):ParameterChanges(0),queue(sample){}
+     int32 PLUGIN_API getParameterCount() SMTG_OVERRIDE{return 1;}
+     IParamValueQueue* PLUGIN_API getParameterData(int32 index) SMTG_OVERRIDE{
+       return index==0?&queue:nullptr;
+     }
+     IParamValueQueue* PLUGIN_API addParameterData(
+         const ParamID&,int32&) SMTG_OVERRIDE{return nullptr;}
+     DenseValueQueue queue;
+   };
+   constexpr int32 kDensePoints=16384;
+   DenseHostChanges denseHost(64);
+   require(denseHost.queue.getPointCount()==kDensePoints,
+           "P16 adversarial queue did not expose all host parameter points");
+   std::array<double,12> measuredMilliseconds{};
+   for(std::size_t iteration=0;iteration<measuredMilliseconds.size();++iteration){
+     loadPattern(0);
+     context.projectTimeMusic=0.;context.tempo=5625.;
+     events.clear();
+     Event collision{};
+     collision.type=Event::kNoteOnEvent;collision.busIndex=0;
+     collision.sampleOffset=64;collision.noteOn.pitch=24;
+     collision.noteOn.velocity=1.f;collision.noteOn.noteId=-1;
+     require(events.addEvent(collision)==kResultOk,
+             "P16 MIDI-versus-host equal-offset fixture");
+     data.inputParameterChanges=&denseHost;
+     left.fill(-99.f);right.fill(-99.f);
+     const auto begin=std::chrono::steady_clock::now();
+     const auto status=audio->process(data);
+     measuredMilliseconds[iteration]=std::chrono::duration<double,std::milli>(
+         std::chrono::steady_clock::now()-begin).count();
+     require(status==kResultOk,
+             "P16 dense host automation rejected in packaged VST3");
+     double lateB=0.;
+     for(int n=180;n<240;++n){
+       require(std::isfinite(left[n])&&std::isfinite(right[n]),
+               "P16 dense host automation emitted nonfinite audio");
+       lateB+=std::abs(left[n]);
+     }
+     require(lateB>1.,
+             "P16 lost last host point or let equal-offset MIDI A override B");
+   }
+   require(denseHost.queue.reads==
+           static_cast<std::uint32_t>(kDensePoints*measuredMilliseconds.size()),
+           "P16 host queue did not deliver all 16384 points on all 12 callbacks");
+   std::sort(measuredMilliseconds.begin(),measuredMilliseconds.end());
+   const double p99=measuredMilliseconds.back();
+   const double median=measuredMilliseconds[measuredMilliseconds.size()/2];
+   std::cout<<"P16 16384 host points x12 actual packaged VST3: median="
+            <<median<<"ms p99/worst="<<p99
+            <<"ms; 48k/256 nominal deadline=5.333ms (CI OFFLINE, NOT ASIO)\\n";
+   require(p99<100.,"P16 dense automation caused a catastrophic callback stall");
+
+   // No-audio-output processing must still apply the final host point.
+   loadPattern(0);context.projectTimeMusic=0.;
+   events.clear();
+   ProcessData withoutOutputs=data;
+   withoutOutputs.numOutputs=0;withoutOutputs.outputs=nullptr;
+   withoutOutputs.inputParameterChanges=&denseHost;
+   require(audio->process(withoutOutputs)==kResultOk,
+           "P16 outputless dense host automation process failed");
+   data.inputParameterChanges=nullptr;
+   left.fill(-99.f);right.fill(-99.f);
+   require(audio->process(data)==kResultOk,
+           "P16 outputless host state not usable on restored audio bus");
+   double afterOutputless=0.;
+   for(int n=180;n<240;++n)afterOutputless+=std::abs(left[n]);
+   require(afterOutputless>1.&&
+           denseHost.queue.reads==static_cast<std::uint32_t>(
+             kDensePoints*(measuredMilliseconds.size()+1)),
+           "P16 outputless dense queue lost the final B or missed input points");
+
+   // Zero-frame parameter flush is a separate branch and uses offset 0.
+   DenseHostChanges zeroFrameHost(0);
+   loadPattern(0);context.projectTimeMusic=0.;
+   ProcessData zeroFrame=data;
+   zeroFrame.numSamples=0;
+   zeroFrame.inputParameterChanges=&zeroFrameHost;
+   require(audio->process(zeroFrame)==kResultOk,
+           "P16 zero-frame dense parameter flush failed");
+   data.inputParameterChanges=nullptr;
+   left.fill(-99.f);right.fill(-99.f);
+   require(audio->process(data)==kResultOk,
+           "P16 audio after zero-frame flush failed");
+   double afterZeroFrame=0.;
+   for(int n=180;n<240;++n)afterZeroFrame+=std::abs(left[n]);
+   require(afterZeroFrame>1.&&
+           zeroFrameHost.queue.reads==static_cast<std::uint32_t>(kDensePoints),
+           "P16 zero-frame dense flush lost B or missed input points");
+   events.clear();
+   data.inputParameterChanges=nullptr;
+   std::cout<<"P16 dense automation NORMAL / OUTPUTLESS / ZERO-FRAME,"
+               " last-value and MIDI-tie PCM PASS\\n";
+ }
  context.tempo=120.;
  data.inputParameterChanges=nullptr;
  context.state=0;
@@ -1631,14 +1752,22 @@ int main(int argc,char** argv) {
                   static_cast<double>(controllerRecallKit.selected)/7.0)<1e-9,
          "F03 controller parameter not synchronized after recall");
  // F03: create/destroy editor views around host-driven parameter updates
- // and state recall. Checks controller/editor lifetime without a native HWND.
+ // and state recall. F15 previously restored 150% user zoom, which must
+ // survive component recall and every fresh pre-attach editor creation.
+ // The 100% base geometry is 1280x300; do not assert that unscaled size.
+ Steinberg::ResizableMemoryIBStream reopenedZoom;
+ require(ctrl->getState(&reopenedZoom)==kResultOk&&
+         reopenedZoom.getCursor()>=5&&
+         static_cast<const std::uint8_t*>(reopenedZoom.getData())[4]==3,
+         "F03 recalled 150 percent user zoom was lost");
  for(int repeat=0;repeat<3;++repeat) {
    auto* view=ctrl->createView(ViewType::kEditor);
    require(view!=nullptr,"F03 editor reopen returned null");
    ViewRect bounds{};
    require(view->getSize(&bounds)==kResultOk&&
-           bounds.right-bounds.left==1280,
-           "F03 reopened editor geometry");
+           bounds.right-bounds.left==1920&&
+           bounds.bottom-bounds.top==450,
+           "F03 reopened editor geometry at restored 150 percent");
    require(ctrl->setParamNormalized(drumator::kPatternParam,
             static_cast<double>(repeat)/7.0)==kResultOk,
            "F03 parameter update with live editor object");
