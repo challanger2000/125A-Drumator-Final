@@ -1755,7 +1755,10 @@ int main(int argc,char** argv) {
  // and state recall. F15 previously restored 150% user zoom, which must
  // survive component recall and every fresh pre-attach editor creation.
  // The 100% base geometry is 1280x300; do not assert that unscaled size.
- require(std::abs(ctrl->preferredZoom()-1.5)<1e-9,
+ Steinberg::ResizableMemoryIBStream reopenedZoom;
+ require(ctrl->getState(&reopenedZoom)==kResultOk&&
+         reopenedZoom.getCursor()>=5&&
+         static_cast<const std::uint8_t*>(reopenedZoom.getData())[4]==3,
          "F03 recalled 150 percent user zoom was lost");
  for(int repeat=0;repeat<3;++repeat) {
    auto* view=ctrl->createView(ViewType::kEditor);
