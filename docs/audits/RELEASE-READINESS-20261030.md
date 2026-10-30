@@ -1,3 +1,7 @@
+> **HISTORISCHER AUDIT / VERALTETER PRÜFSTAND.** Dieser ursprüngliche Bericht betrifft mehrere ältere SHAs (darunter `b78e38c` und `c90297b`). Seine früheren Aussagen zu fehlenden Features, offenen Reparaturen und nur einem automatisierbaren Parameter sind **keine Aussagen über den aktuellen Build**. Maßgeblich ist [CURRENT.md](../../CURRENT.md): 1.0.1, Produkt-SHA `1acfe3698bcbe6eb88e1faee6ff8e538edbc390d`, [QA #41125370883](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41125370883) (29/29, 47/47, 58/0/0), 66 Automationsparameter; Kundenpaket mit Lizenzhinweisen vorbereitet, noch nicht veröffentlicht. Der ursprüngliche Befundtext ist aus historischen Gründen unverändert erhalten.
+
+---
+
 # 125A Drumator v1.0.1 — Release readiness / non-regression audit
 
 **Date:** 2026-10-30  

@@ -2,7 +2,7 @@
 
 **30 October 2026 | Version 1.0.1 | Commercial customer-package CANDIDATE, NOT published.**
 
-- **Source branch:** `develop/v1.0.1-gui-redesign`.
+- **Source branch:** `develop/v1.0.1-gui-redesign`. The GitHub default `main` is still the historical **1.0.0** source branch and is not merged with current 1.0.1.
 - **Exact compiled product source SHA:** [`1acfe3698bcbe6eb88e1faee6ff8e538edbc390d`](https://github.com/challanger2000/125A-Drumator-Final/commit/1acfe3698bcbe6eb88e1faee6ff8e538edbc390d).
 - **Windows QA:** [Actions #41125370883, attempt 2](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41125370883) — **SUCCESS** (29/29 CTests, Steinberg 47/47 Validator, 125A Tester 58/0/0).
 - **Automation:** 66 stable automatable parameters; AV01–AV05 PASS; AUT08 Wave Editor Apply/Pitch PASS.
@@ -11,5 +11,7 @@
 - **Package preflight:** PASS. Binary, moduleinfo, customer texts, both searchable manuals/PDF metadata, PNG metadata and member SHA256 manifest checked; known private identifiers and the named DAW absent. `THIRD_PARTY_NOTICES.txt` now includes the pinned Steinberg VST3 SDK MIT notice, pinned VSTGUI BSD-style notice, and pinned dr_flac MIT No Attribution notice.
 - **Customer documentation:** DE and EN manuals updated to describe all 66 parameters and current project recall.
 - **Sales/publication:** Not uploaded to Gumroad; no release tag or FINAL label. All three known external code dependencies allow commercial distribution subject to their notices (included). Separate rights in non-code assets and business/customer terms remain outside automated code QA; publication needs owner authorization.
+
+This status, not dated audit reports, is authoritative. [Documentation guide](docs/INDEX.md). The source branch may have newer docs-only commits; the compiled tested DLL is pinned to the exact SHA above. No GitHub release is published.
 
 This status supersedes earlier source/audit records. Technical docs and status changes after the executable SHA do not alter the tested binary.

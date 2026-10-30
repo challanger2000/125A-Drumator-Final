@@ -3,7 +3,7 @@
 Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style interface.
 
 **Version:** 1.0.1 · **Status:** Commercial customer package prepared; not yet published.
-**Development branch:** `develop/v1.0.1-gui-redesign`.
+**Current code:** [`develop/v1.0.1-gui-redesign`](https://github.com/challanger2000/125A-Drumator-Final/tree/develop/v1.0.1-gui-redesign). **Important:** GitHub's default `main` branch still holds older 1.0.0 source. Do not build 1.0.1 from `main`; these branches have not been merged.
 
 ## Features
 
@@ -21,7 +21,7 @@ Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style
 - **Windows Actions:** [#41125370883, attempt 2](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41125370883), **SUCCESS**.
 - **QA:** 29/29 CTests, official Steinberg Validator 47/47, independent 125A Plugin Tester v0.3.2 58 PASS / 0 WARNING / 0 FAIL.
 - Automation regressions AV01–AV05 and original Wave Editor/Pitch regression AUT08: PASS.
-- Current production and publication gate: [CURRENT.md](CURRENT.md).
+- **Authoritative release status:** [CURRENT.md](CURRENT.md); [documentation guide](docs/INDEX.md) separates active instructions and historical audits.
 
 ## Distribution
 
