@@ -1549,7 +1549,9 @@ void testV101LiveEditor(){
        "V101 actual host Pattern D did not execute automation");
  click(*view,130.,115.);
  check(f.c->currentPattern()==2,"V101 actual host Pattern C restore failed");
- click(*view,90.,L::header+20.);
+ click(*view,(L::fill.x0+L::fill.x1)*.5,L::header+20.);
+ check(IntegrationAccess::v101Popup(*view)==drumator::UiV101Popup::Kind::Fill,
+       "V101 attached FILL key did not open its popup");
  const auto fillGeometry=drumator::UiV101Popup::geometry(
      drumator::UiV101Popup::Kind::Fill,L::header,view->getViewSize().getHeight());
  const auto every2=drumator::UiV101Popup::cell(fillGeometry,0);
