@@ -58,7 +58,8 @@ int main(){
  check(KitCodec::valid(kit,true),"valid kit");
  check(OfflineWavExport::render(kit,false,120.,path),"render pattern");
  auto bytes=read(path);
- check(bytes.size()>=44+6*16*6000,"nominal duration");
+ check(bytes.size()==44u+6u*16u*6000u,
+       "120 BPM 1 bar exactly 2.000 seconds");
  if(bytes.size()>=50){
   check(get32(bytes,4)+8==bytes.size(),"RIFF size exact");
   check(get32(bytes,40)+44==bytes.size(),"PCM data chunk size exact");
@@ -70,7 +71,31 @@ int main(){
  kit.wav[0]=tone(10000,0.6f);
  check(OfflineWavExport::render(kit,false,120.,path),"render last-step tail");
  bytes=read(path);
- check(bytes.size()>44u+6u*16u*6000u,"tail not cut at final bar");
+ check(bytes.size()==44u+6u*16u*6000u,
+       "last-step one-shot may not extend a 120 BPM bar");
+ if(bytes.size()==44u+6u*16u*6000u){
+   check(std::abs(pcm24(bytes,44u+6u*15u*6000u)-0.6f)<0.003f,
+         "last-step onset at exactly 1.875 seconds");
+   check(std::abs(pcm24(bytes,44u+6u*(15u*6000u-1u)))<0.0001f,
+         "no early onset on last step");
+   check(std::abs(pcm24(bytes,bytes.size()-6u))<0.003f,
+         "end fade avoids abrupt sample discontinuity");
+ }
+ kit.patternLengths[0]=32;
+ kit.grid[15]=0;kit.grid[31]=127;
+ check(OfflineWavExport::render(kit,false,120.,path),"render 2-bar pattern");
+ bytes=read(path);
+ check(bytes.size()==44u+6u*32u*6000u,"120 BPM 2 bars 4 seconds");
+ kit.patternLengths[0]=16;kit.grid[31]=0;kit.grid[15]=127;
+ check(kit.chain.setCount(2),"two song entries");
+ check(kit.chain.configure(0,0,16)&&kit.chain.configure(1,0,16),
+       "two-bar song configuration");
+ check(OfflineWavExport::render(kit,true,120.,path),"render 2-bar song");
+ bytes=read(path);
+ check(bytes.size()==44u+6u*32u*6000u,"song WAV exact two-bar grid");
+ check(OfflineWavExport::render(kit,false,100.,path),"100 BPM pattern");
+ bytes=read(path);
+ check(bytes.size()==44u+6u*16u*7200u,"100 BPM exact 2.400 seconds");
  kit.grid[15]=0;kit.grid[0]=127;
  kit.wav[0]=tone(128,0.8f);
  kit.wav[1]=tone(128,0.8f);kit.names[1]="snare.wav";

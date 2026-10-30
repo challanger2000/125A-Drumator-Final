@@ -2,6 +2,7 @@
 // Standalone control-thread renderer using Drumator's ACTUAL StepScheduler,
 // TriggerBatch, sample preparation and SampleVoiceEngine. No second synthesizer.
 // No DAW transport required. 48 kHz, 24-bit stereo PCM RIFF/WAVE.
+// Files are bar-accurate loop clips; final sample tails never extend their duration.
 #include "KitState.h"
 #include "MidiExport.h"
 #include "SampleExchange.h"
@@ -67,12 +68,14 @@ class OfflineWavExport final {
        exportSong?kit.chain.totalSteps():kit.patternLengths[kit.selected]);
    if(totalSteps==0||totalSteps>SongChain::kCapacity*32)return false;
    const double samplesPerStep=15.0*kRate/bpm;
+   // 120 BPM: one 16-step bar is exactly 96000 frames = 2 seconds.
+   // Fractional tempos are rounded to the nearest PCM sample.
    const auto nominal=static_cast<std::uint64_t>(
-      std::ceil(static_cast<double>(totalSteps)*samplesPerStep));
+      std::llround(static_cast<double>(totalSteps)*samplesPerStep));
+   if(nominal==0||nominal>kMaxData/(kChannels*kBytesPerSample))return false;
    SampleVoiceEngine voices;
    if(!voices.setOutputRate(kRate))return false;
    std::array<std::unique_ptr<PreparedSample>,kRows> prepared{};
-   std::uint64_t maxTail=0;
    for(std::size_t row=0;row<kRows;++row){
      if(kit.wav[row].empty())continue;
      const bool muted=(kit.muted&(std::uint16_t{1}<<row))!=0||
@@ -90,13 +93,8 @@ class OfflineWavExport final {
      sound.outputBus=0;
      if(!voices.setRow(row,sound)||!voices.setRowOutput(row,0))return false;
      if(sound.kernel->ratio()<=0.)return false;
-     const auto duration=static_cast<std::uint64_t>(
-       std::ceil((sound.edit.end-sound.edit.start)/sound.kernel->ratio()));
-     maxTail=std::max(maxTail,duration);
    }
-   // RIFF is a 32-bit container; never produce a corrupt >4GiB file.
-   if(nominal+maxTail+kBlock+2*StereoPeakLimiter::kLookahead>
-      kMaxData/(kChannels*kBytesPerSample))return false;
+
    StereoPeakLimiter limiter;
    if(!limiter.prepare(kRate))return false;
    ExportFile writer(destination);
@@ -129,15 +127,12 @@ class OfflineWavExport final {
       }
    } read{sequence,totalSteps};
    std::uint64_t inputFrames=0,outputFrames=0;
-   bool ending=false;
-   std::uint32_t drain=0;
-   while(true){
-      if(ending&&drain==0)break;
-      std::uint32_t frames=kBlock;
-      if(!ending&&inputFrames<nominal&&nominal-inputFrames<frames)
-        frames=static_cast<std::uint32_t>(nominal-inputFrames);
-      if(ending)frames=std::min(frames,drain);
-      if(!frames)return false;
+   // The former voice-tail drain extended clips past the musical grid,
+   // making a 120-BPM pattern appear out of sync when looped in a DAW.
+   constexpr std::uint64_t kFadeFrames=240; // 5 ms at 48 kHz
+   while(inputFrames<nominal){
+      const auto frames=static_cast<std::uint32_t>(
+          std::min<std::uint64_t>(kBlock,nominal-inputFrames));
       const double ppq=static_cast<double>(inputFrames)*bpm/(60.0*kRate);
       const Clock clock{ppq,bpm,static_cast<double>(kRate),
                         static_cast<std::int32_t>(frames),true,
@@ -155,25 +150,21 @@ class OfflineWavExport final {
       for(std::uint32_t i=0;i<frames;++i){
         float l=static_cast<float>(left[i]*master),r=static_cast<float>(right[i]*master);
         limiter.process(l,r,limitOn);
-        // kLookahead=0: export is sample-aligned with the live, bypassed host.
-        if(inputFrames+i<StereoPeakLimiter::kLookahead)continue;
+        // Smoothly truncate any last-step one-shot without moving its onset.
+        const auto remaining=nominal-(inputFrames+i);
+        if(remaining<=kFadeFrames){
+          const auto fade=static_cast<float>(remaining)/kFadeFrames;
+          l*=fade;r*=fade;
+        }
         pack(l,pcm.data()+encoded*6);
         pack(r,pcm.data()+encoded*6+3);
         ++encoded;
       }
       if(encoded&&!writer.write(pcm.data(),encoded*6))return false;
       inputFrames+=frames;outputFrames+=encoded;
-      if(inputFrames>=nominal&&!ending&&rendered.activeVoices==0){
-        ending=true;
-        drain=StereoPeakLimiter::kLookahead;
-      }
-      if(ending&&drain>=frames&&inputFrames>nominal)
-        drain-=frames;
       if(outputFrames*6>kMaxData)return false;
-      if(inputFrames>nominal+maxTail+kBlock+2*StereoPeakLimiter::kLookahead)
-        return false;
    }
-   if(outputFrames==0||outputFrames*6>kMaxData)return false;
+   if(outputFrames!=nominal||outputFrames*6>kMaxData)return false;
    const auto h=header(static_cast<std::uint32_t>(outputFrames*6));
    if(!writer.seek(0)||!writer.write(h.data(),h.size())||!writer.finish())return false;
    return true;
