@@ -25,7 +25,26 @@ public:
  void store(std::uint8_t gain,std::uint8_t pan) noexcept {
    state_.store(encode(gain,pan),std::memory_order_release);
  }
- std::uint32_t snapshot() const noexcept {
+ // Component updates preserve concurrent writes to the other field.
+  // No mutex or heap activity occurs on the audio thread.
+  void updateGain(std::uint8_t gain) noexcept {
+    auto old=state_.load(std::memory_order_acquire);
+    for(;;) {
+      const auto next=(old&0xffffff00u)|gain;
+      if(state_.compare_exchange_weak(old,next,
+            std::memory_order_acq_rel,std::memory_order_acquire))return;
+    }
+  }
+  void updatePan(std::uint8_t pan) noexcept {
+    auto old=state_.load(std::memory_order_acquire);
+    for(;;) {
+      const auto next=(old&0xffff00ffu)|
+          (static_cast<std::uint32_t>(pan)<<8);
+      if(state_.compare_exchange_weak(old,next,
+            std::memory_order_acq_rel,std::memory_order_acquire))return;
+    }
+  }
+  std::uint32_t snapshot() const noexcept {
    return state_.load(std::memory_order_acquire);
  }
 private:

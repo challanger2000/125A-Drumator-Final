@@ -78,6 +78,8 @@ public:
  unsigned rowOutput(std::size_t row) const noexcept {return row<kRows?output_[row]:0;}
  unsigned rowChoke(std::size_t row) const noexcept {return row<kRows?choke_[row]:0;}
  bool adjustRowMix(std::size_t row,bool adjustPan,int delta);
+ void beginAutomationGesture(Steinberg::Vst::ParamID id) noexcept;
+ void endAutomationGesture() noexcept;
  bool adjustRowPitch(std::size_t row,int delta);
  int rowPitch(std::size_t row) const noexcept {return row<kRows?static_cast<int>(pitch_[row])-24:0;}
  unsigned rowGain(std::size_t row) const noexcept {return row<kRows?gain_[row]:100;}
@@ -168,6 +170,7 @@ private:
  std::uint32_t lastClearEpoch_{0};
  void notifyViews(bool relayout);
  void publishAutomationEdit(Steinberg::Vst::ParamID id,double normalized) noexcept;
+ Steinberg::Vst::ParamID activeAutomationGesture_{Steinberg::Vst::kNoParamId};
  void syncAutomationParameters() noexcept;
  bool processorConfirmsPattern(unsigned requested,double fallback);
  void invalidateWaveQuery() noexcept;

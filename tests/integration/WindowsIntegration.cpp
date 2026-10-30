@@ -5628,6 +5628,11 @@ int main(int argc,char** argv){
  run("AUT01 VST3 row automation parameter contract and GUI gestures",testV101HostMixAutomationContract);
  run("AUT02-07 VST3 full mix and pitch automation, flush/PCM/audition",testV101HostMixAutomationPcm);
  run("AUT08 Pitch automation survives Wave Editor Fade Out Apply",testV101PitchSurvivesWaveEditorApply);
+ run("AV01 192k source 44.1k host +24 recall/edit/audio",testV101AutomationAuditAV01HighRateRecall);
+ run("AV02 all host lanes survive busy kit recall",testV101AutomationAuditAV02RecallGate);
+ run("AV03 concurrent GUI-host packed mix CAS",testV101AutomationAuditAV03PackedMix);
+ run("AV04 fractional unity-rate sinc after pitch glide",testV101AutomationAuditAV04FractionalUnity);
+ run("AV05 sustained native knob host gesture",testV101AutomationAuditAV05TouchGesture);
  run("V101 SONG and Wave full native button matrix",testV101SongAndWaveFullControlMatrix);
  run("F16 true pre-attach 130% host chrome size and DPI",testV101F16InitialHostChromeWidth);
  run("F14 native 5-of-5 paging escape and structural row shrink",testV101F14StrandedPageRecovery);

@@ -687,14 +687,19 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
       rowIndex<0||rowIndex>=static_cast<Steinberg::int64>(kRows)||
       gainValue<0||gainValue>200||panValue< -100||panValue>100)
       return Steinberg::kInvalidArgument;
-   // Gain+Pan arrive in ONE RowMix message. Protect the pair against
-   // getState()/setState() snapshots; otherwise one project save can retain
-   // the new gain with the previous pan. The audio callback never locks.
+   // Each new control edit names its changed field. Keep historical
+   // full-pair messages working, but never publish a stale Pan with a
+   // Volume-only edit (or vice versa).
+   Steinberg::int64 changed=-1;
+   (void)attrs->getInt("Changed",changed);
+   if(changed!= -1&&changed!=0&&changed!=1)return Steinberg::kInvalidArgument;
    {
      std::lock_guard<std::mutex> guard(kitMutex_);
-     rowMix_[static_cast<std::size_t>(rowIndex)].store(
-         static_cast<std::uint8_t>(gainValue),
-         static_cast<std::uint8_t>(panValue+100));
+     auto& pair=rowMix_[static_cast<std::size_t>(rowIndex)];
+     if(changed==0)pair.updateGain(static_cast<std::uint8_t>(gainValue));
+     else if(changed==1)pair.updatePan(static_cast<std::uint8_t>(panValue+100));
+     else pair.store(static_cast<std::uint8_t>(gainValue),
+                     static_cast<std::uint8_t>(panValue+100));
    }
    return Steinberg::kResultOk;
  }
@@ -926,6 +931,32 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
  };
  AudioGateEntry currentCall(restoreGate_);
  if(!currentCall.allowed()) {
+   // Record all non-Pattern host parameters that arrive while setState()
+   // excludes the audio renderer. Replay after kit installation, rather
+   // than publishing values that setState() would immediately overwrite.
+   if(data.inputParameterChanges)
+     for(Steinberg::int32 i=0;i<data.inputParameterChanges->getParameterCount();++i) {
+       auto* q=data.inputParameterChanges->getParameterData(i);
+       if(!q)continue;
+       const auto address=automationAddress(q->getParameterId());
+       const auto lane=automationLane(address);
+       if(lane>=kAutomatedMixLanes)continue;
+       const auto count=q->getPointCount();
+       for(Steinberg::int32 point=0;point<count;++point) {
+         Steinberg::int32 offset=-1;
+         Steinberg::Vst::ParamValue normalized=0.;
+         if(q->getPoint(point,offset,normalized)!=Steinberg::kResultTrue||
+            !std::isfinite(normalized)||offset<0||
+            (data.numSamples==0?offset!=0:offset>=data.numSamples))
+           continue;
+         const auto plain=address.kind==AutomationKind::Mute?
+             (normalized>=0.5?1u:0u):
+             automationPercent(std::clamp(normalized,0.,1.),
+                 address.kind==AutomationKind::Pitch?48:200);
+         deferredAutomation_[lane].store(static_cast<std::uint16_t>(plain+1u),
+                                        std::memory_order_release);
+       }
+     }
    // Preserve genuine selection events while audio is gated. Use the same
    // bounded sample timeline and host-over-MIDI priority as ordinary blocks.
    // Do not touch voices or the Song cache being installed by setState().
@@ -1000,6 +1031,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
    }
    return Steinberg::kResultOk;
  }
+ // Catch a host flush that raced with the end of restore. Do this before
+ // reading row controls or applying the new block's parameter queues.
+ drainDeferredAutomation();
  // A valid zero-frame callback can itself be the host's only Stop edge.
  // Observe the explicit transport transition before the parameter-only
  // fast path; otherwise old voices survive a continuous-PPQ restart.
@@ -1036,13 +1070,12 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
          switch(address.kind){
            case AutomationKind::Volume:
            case AutomationKind::Pan: {
-             const auto pair=rowMix_[row].snapshot();
-             const auto gain=address.kind==AutomationKind::Volume?
-               automationPercent(value):AtomicRowMix::gainPercent(pair);
-             const auto pan=address.kind==AutomationKind::Pan?
-               automationPercent(value):AtomicRowMix::panEncoded(pair);
-             rowMix_[row].store(static_cast<std::uint8_t>(gain),
-                                static_cast<std::uint8_t>(pan));
+             if(address.kind==AutomationKind::Volume)
+               rowMix_[row].updateGain(static_cast<std::uint8_t>(
+                   automationPercent(value)));
+             else
+               rowMix_[row].updatePan(static_cast<std::uint8_t>(
+                   automationPercent(value)));
              break;
            }
            case AutomationKind::Mute:{
@@ -1684,15 +1717,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
  const auto applyHostPoint=[&](std::size_t lane,double n) {
    if(lane<2*kRows) {
      const auto row=lane%kRows;
+     if(lane<kRows)
+       rowMix_[row].updateGain(static_cast<std::uint8_t>(automationPercent(n)));
+     else
+       rowMix_[row].updatePan(static_cast<std::uint8_t>(automationPercent(n)));
      const auto pair=rowMix_[row].snapshot();
-     unsigned gain=AtomicRowMix::gainPercent(pair);
-     unsigned pan=AtomicRowMix::panEncoded(pair);
-     if(lane<kRows)gain=automationPercent(n);
-     else pan=automationPercent(n);
-     rowMix_[row].store(static_cast<std::uint8_t>(gain),
-                        static_cast<std::uint8_t>(pan));
-     (void)voices_.setRowMix(row,static_cast<float>(gain)/100.f,
-                             (static_cast<int>(pan)-100)/100.f);
+     (void)voices_.setRowMix(row,AtomicRowMix::gain(pair),
+                             AtomicRowMix::pan(pair));
    }else if(lane<3*kRows) {
      const auto row=lane-2*kRows;
      const auto bit=std::uint32_t{1}<<row;
@@ -1801,6 +1832,29 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
    data.outputs[bus].silenceFlags=0;
  return Steinberg::kResultOk;
 }
+// This mailbox bridges automation delivered to a callback denied by
+// KitRestoreGate. A zero value means no pending event; all actual parameter
+// values, including zero and repeats, are stored as plainValue+1.
+void Processor::drainDeferredAutomation() noexcept {
+ for(std::size_t lane=0;lane<kAutomatedMixLanes;++lane) {
+   const auto encoded=deferredAutomation_[lane].exchange(
+       0,std::memory_order_acq_rel);
+   if(encoded==0)continue;
+   const auto value=static_cast<std::uint8_t>(encoded-1);
+   if(lane<kRows)
+     rowMix_[lane].updateGain(value);
+   else if(lane<2*kRows)
+     rowMix_[lane-kRows].updatePan(value);
+   else if(lane<3*kRows) {
+     const auto bit=std::uint32_t{1}<<(lane-2*kRows);
+     if(value)muteMask_.fetch_or(bit,std::memory_order_relaxed);
+     else muteMask_.fetch_and(~bit,std::memory_order_relaxed);
+   }else if(lane<4*kRows)
+     rowPitch_[lane-3*kRows].store(value,std::memory_order_relaxed);
+   else
+     masterVolume_.store(value,std::memory_order_relaxed);
+ }
+}
 // The host/control actor owns serialized sound. The audio thread never reads
 // kit_ or its mutex; it only adopts immutable prepared assets at block boundaries.
 bool Processor::publishRestoredKit(const KitState& kit,double rate) {
@@ -1831,6 +1885,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
  std::vector<std::uint8_t> serialized;
  {
    std::lock_guard<std::mutex> guard(kitMutex_);
+   drainDeferredAutomation();
    kit_.selected=static_cast<std::uint8_t>(selected_.load(std::memory_order_relaxed));
    kit_.visible=visibleRows_.load(std::memory_order_relaxed);
    kit_.muted=static_cast<std::uint16_t>(muteMask_.load(std::memory_order_relaxed));
@@ -1955,6 +2010,10 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
       rowMix_[row].store(kit_.gain[row],kit_.pan[row]);
       rowPitch_[row].store(kit_.pitch[row],std::memory_order_relaxed);
     }
+    // Restore was allowed to install a full kit; replay newer host
+    // parameters after it, like the existing Pattern selection arbitration.
+    // Later denied callbacks are consumed by the next normal process/getState.
+    drainDeferredAutomation();
     // Kit selection CAS above cannot overwrite newer host automation.
     kitRevision_.fetch_add(1,std::memory_order_release);
  }

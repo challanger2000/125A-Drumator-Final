@@ -14,6 +14,7 @@
 #include "core/MasterGainRamp.h"
 #include "core/OutputMeter.h"
 #include "core/AtomicRowMix.h"
+#include "DrumatorAutomation.h"
 #include "public.sdk/source/vst/vstaudioeffect.h"
 #include <array>
 #include <atomic>
@@ -103,6 +104,7 @@ private:
  std::uint64_t meterId_{0};
  std::shared_ptr<OutputMeter> meter_{};
  bool publishRestoredKit(const KitState& state,double rate); // control only
+ void drainDeferredAutomation() noexcept;
  std::mutex kitMutex_{};
  // Restore barrier: no audio callback may consume a partially installed kit.
  // The audio callback never waits; only control-side setState waits for a block.
@@ -169,6 +171,8 @@ private:
  std::atomic<std::uint32_t> muteMask_{0};
  std::atomic<std::uint32_t> soloMask_{0};
  std::array<AtomicRowMix,kRows> rowMix_{};
+ // 0 = empty; otherwise plain integer automation value plus one.
+ std::array<std::atomic<std::uint16_t>,kAutomatedMixLanes> deferredAutomation_{};
  // Signed semitone offsets encoded +24, shared with nonallocating audio owner.
  std::array<std::atomic<std::uint8_t>,kRows> rowPitch_{};
  std::array<std::atomic<std::uint8_t>,kRows> rowChoke_{};

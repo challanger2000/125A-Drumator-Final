@@ -89,8 +89,12 @@ public:
             }
             const double ratio=static_cast<double>(candidate->decoded_.sampleRate)/
                                outputRate*std::exp2(pitchSemitones/12.0);
-            if(!std::isfinite(ratio)||ratio<=0.0||ratio>16.0||
-               !candidate->kernel_.prepare(ratio))
+            // Realtime bank covers all 49 semitones, even when a valid
+            // high-rate WAV exceeds the legacy static-kernel ratio limit.
+            // The single static kernel is unused in realtime-bank mode.
+            if(!std::isfinite(ratio)||ratio<=0.0||
+               (!enableRealtimePitch &&
+                (ratio>16.0||!candidate->kernel_.prepare(ratio))))
                 return PrepareStatus::InvalidKernel;
             candidate->outputRate_=outputRate;
             candidate->gain_=gain;

@@ -4,6 +4,7 @@
 #include "core/UiV101Layout.h"
 #include "vst3/UiV101ControllerBridge.h"
 #include "vst3/DrumatorController.h"
+#include "vst3/DrumatorAutomation.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -260,7 +261,9 @@ public:
    for(std::size_t i=0;i<L::headerKnobCenters.size();++i)
      if(L::headerKnob(i).hit(x,y)){
        gesture_=Gesture::HeaderKnob;fineKnob_=fine;knobIndex_=static_cast<int>(i);
-       knobAnchorY_=y;return Result::Handled;
+       knobAnchorY_=y;
+       if(i==2)controller_.beginAutomationGesture(kMasterVolumeParam);
+       return Result::Handled;
      }
    const auto h=rowHit(x,y);
    if(h.action==L::Action::None)return Result::Ignored;
@@ -285,7 +288,12 @@ public:
       h.action==L::Action::Pitch){
      gesture_=Gesture::RowKnob;fineKnob_=fine;knobRow_=h.row;
      knobIndex_=h.action==L::Action::Volume?0:h.action==L::Action::Pan?1:2;
-     knobAnchorY_=y;return Result::Handled;
+     knobAnchorY_=y;
+     controller_.beginAutomationGesture(
+        knobIndex_==0?kRowVolumeBase+static_cast<unsigned>(h.row):
+        knobIndex_==1?kRowPanBase+static_cast<unsigned>(h.row):
+                      kRowPitchBase+static_cast<unsigned>(h.row));
+     return Result::Handled;
    }
    if(h.action==L::Action::VelocityLane){
      if(state_.expansion!=L::Expansion::Velocity||
@@ -363,6 +371,7 @@ public:
  // Controller state restore owns rollback. Clear UI-only pointer captures
  // without calling the old processor or throwing from the no-throw recall hook.
  void discardForRecall() noexcept {
+   controller_.endAutomationGesture();
    gesture_=Gesture::None;
    fineKnob_=false;
    knobIndex_=-1;
@@ -394,6 +403,8 @@ private:
  }
  void endGesture(bool commit){
    if(gesture_==Gesture::Velocity)controller_.endVelocityStroke(commit,this);
+   if(gesture_==Gesture::RowKnob||gesture_==Gesture::HeaderKnob)
+     controller_.endAutomationGesture();
    gesture_=Gesture::None;fineKnob_=false;knobIndex_=-1;knobRow_=L::instruments;
    laneRow_=L::instruments;
  }

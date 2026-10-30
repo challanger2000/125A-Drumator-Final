@@ -341,7 +341,8 @@ public:
                 // Bit-transparent unity-rate playback: no interpolation is
                 // necessary at integer source positions. Keep the existing
                 // voice envelope, gain, choke, and bus routing below.
-                if(voice.playbackRatio==1.0&&voice.kernel->ratio()==1.0) {
+                if(voice.playbackRatio==1.0&&voice.kernel->ratio()==1.0&&
+                   x==static_cast<double>(base)) {
                     const auto at=static_cast<std::size_t>(base);
                     vl=static_cast<double>(voice.sample.left[at]);
                     vr=static_cast<double>(voice.sample.right?

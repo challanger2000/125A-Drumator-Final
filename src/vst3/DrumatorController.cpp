@@ -296,14 +296,31 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
  }
  return result;
 }
+// Host gesture stays open between mouse-down and mouse-up/cancel.
+void Controller::beginAutomationGesture(Steinberg::Vst::ParamID id) noexcept {
+ if(activeAutomationGesture_==id)return;
+ endAutomationGesture();
+ if(!componentHandler)return;
+ try {if(beginEdit(id)==Steinberg::kResultOk)activeAutomationGesture_=id;}
+ catch(...) {activeAutomationGesture_=Steinberg::Vst::kNoParamId;}
+}
+void Controller::endAutomationGesture() noexcept {
+ const auto id=activeAutomationGesture_;
+ if(id==Steinberg::Vst::kNoParamId)return;
+ activeAutomationGesture_=Steinberg::Vst::kNoParamId;
+ try {if(componentHandler)(void)endEdit(id);}catch(...) {}
+}
 // Only successfully committed GUI edits may be sent as host automation.
 void Controller::publishAutomationEdit(Steinberg::Vst::ParamID id,double n) noexcept {
  try {
    (void)EditController::setParamNormalized(id,n);
    if(componentHandler) {
-     (void)beginEdit(id);
-     (void)performEdit(id,n);
-     (void)endEdit(id);
+     if(activeAutomationGesture_==id)(void)performEdit(id,n);
+     else {
+       (void)beginEdit(id);
+       (void)performEdit(id,n);
+       (void)endEdit(id);
+     }
    }
  }catch(...) { /* Valid processor state is not undone by a host exception. */ }
 }
@@ -1598,6 +1615,7 @@ bool Controller::adjustRowMix(std::size_t row,bool adjustPan,int delta) {
  attrs->setInt("Row",static_cast<Steinberg::int64>(row));
  attrs->setInt("Gain",adjustPan?gain_[row]:proposed);
  attrs->setInt("Pan",adjustPan?proposed-100:static_cast<int>(pan_[row])-100);
+ attrs->setInt("Changed",adjustPan?1:0);
  const bool accepted=sendEditMessage(msg)==Steinberg::kResultOk;
  if(accepted){values[row]=static_cast<std::uint8_t>(proposed);
    publishAutomationEdit((adjustPan?kRowPanBase:kRowVolumeBase)+
