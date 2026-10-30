@@ -4,7 +4,7 @@
 
 - **Source branch:** `develop/v1.0.1-gui-redesign`. The GitHub default `main` is still the historical **1.0.0** source branch and is not merged with current 1.0.1.
 - **GUI-fix source SHA:** `2bc9ad0840bc8e9bf61e7cd3d87074699ad8f601`. **Exact Windows-QA/build commit SHA:** [`c18091ab3bdb0c80f7753ea6e3339463b26ad800`](https://github.com/challanger2000/125A-Drumator-Final/commit/c18091ab3bdb0c80f7753ea6e3339463b26ad800).
-- **Windows QA:** [Actions #41133162498, ](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41133162498) — **SUCCESS** (29/29 CTests, Steinberg 47/47 Validator, 125A Tester 58/0/0).
+- **Windows QA:** [Actions #41133162498](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41133162498) — **SUCCESS** (29/29 CTests, Steinberg 47/47 Validator, 125A Tester 58/0/0).
 - **Automation:** 66 stable automatable parameters; AV01–AV05 PASS; AUT08 Wave Editor Apply/Pitch PASS.
 - **GUI correction:** Wave editor title, sample filename and LIVE ON/OFF have disjoint header bounds; long filenames display without hiding behind LIVE. Velocity strength bars use distinct cyan rather than amber Pattern-step color. New geometry and native actual-pixel checks PASS, tested at multiple zoom levels.
 - **Factory privacy:** personal GitHub URL removed in `src/vst3/Factory.cpp`; vendor `125A Systems`, blank website/email in shipping VST3 metadata.
