@@ -22,7 +22,12 @@ jobs:
           $runId = $env:GITHUB_RUN_ID
           $sha = $env:GITHUB_SHA
           $run = Invoke-RestMethod -Uri "https://api.github.com/repos/challanger2000/125A-Drumator-Final/actions/runs/$runId" -Headers $headers
-          if ($run.head_sha -cne $sha -or $run.status -ne 'in_progress') {
+          # GitHub's workflow-run API is eventually consistent: the same
+          # running job may briefly be reported as queued (also on reruns).
+          # Reject foreign sources and terminal states, but do not confuse
+          # a stale queue status with a plugin-test failure.
+          if ($run.head_sha -cne $sha -or
+              $run.status -notin @('queued', 'in_progress')) {
             throw "Unexpected caller run/source: $($run.head_sha), status $($run.status)"
           }
           $artifacts = Invoke-RestMethod -Uri "https://api.github.com/repos/challanger2000/125A-Drumator-Final/actions/runs/$runId/artifacts" -Headers $headers

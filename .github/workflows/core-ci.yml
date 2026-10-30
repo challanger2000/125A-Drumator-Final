@@ -9,6 +9,7 @@ on:
       - 'tests/**'
       - 'CMakeLists.txt'
       - '.github/workflows/core-ci.yml'
+      - '.github/workflows/125a-plugin-tester-qa.yml'
   workflow_dispatch:
 jobs:
   windows:
