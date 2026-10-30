@@ -30,8 +30,12 @@ struct UiV101WaveLayout final {
    {737.,453.,829.,494.},
    {831.,453.,1017.,494.}
  }};
- // Dedicated toggle above waveform: doesn't compress the eight approved
- // toolbar keys or obscure their 8-pixel gutters.
+ // Header is THREE separate text/control areas. The former 740..1024
+ // sample caption lay behind the 886..1010 LIVE key and was partly hidden.
+ // Shared layout bounds prevent a regression at any supported zoom scale.
+ static constexpr Rect titleLabel{250.,114.,452.,148.};
+ static constexpr Rect sampleLabel{472.,114.,870.,148.};
+ // Dedicated LIVE key above the waveform, outside all text regions.
  static constexpr Rect liveToggle{886.,114.,1010.,146.};
  static constexpr int buttonAt(double x,double y) noexcept {
    for(std::size_t i=0;i<toolbar.size();++i)
@@ -47,6 +51,18 @@ struct UiV101WaveLayout final {
 };
 static_assert(UiV101WaveLayout::toolbar.size()==8);
 static_assert(UiV101WaveLayout::liveToggle.width()==124.);
+static_assert(UiV101WaveLayout::titleLabel.left>=234.);
+static_assert(UiV101WaveLayout::titleLabel.right+16.<=
+              UiV101WaveLayout::sampleLabel.left);
+static_assert(UiV101WaveLayout::sampleLabel.right+16.<=
+              UiV101WaveLayout::liveToggle.left);
+static_assert(UiV101WaveLayout::liveToggle.right<=1046.);
+static_assert(UiV101WaveLayout::titleLabel.top>=106.&&
+              UiV101WaveLayout::sampleLabel.top>=106.&&
+              UiV101WaveLayout::liveToggle.top>=106.);
+static_assert(UiV101WaveLayout::titleLabel.bottom<=149.&&
+              UiV101WaveLayout::sampleLabel.bottom<=149.&&
+              UiV101WaveLayout::liveToggle.bottom<=149.);
 static_assert(UiV101WaveLayout::liveToggle.bottom<156.);
 static_assert(UiV101WaveLayout::toolbar[0].width()==86.);
 static_assert(UiV101WaveLayout::toolbar[7].width()==86.);

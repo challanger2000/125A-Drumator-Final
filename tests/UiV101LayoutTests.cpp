@@ -107,6 +107,20 @@ int main(){
   // The old modal remains independently checked by the 1.0.0 tests.
   using W=drumator::UiV101WaveLayout;
   CHECK(W::toolbar.size()==8);
+  // Wave header paint and LIVE hitbox must never cover one another.
+  CHECK(W::titleLabel.left>=234.&&
+        W::titleLabel.right+16.<=W::sampleLabel.left&&
+        W::sampleLabel.right+16.<=W::liveToggle.left&&
+        W::liveToggle.right<=1046.);
+  CHECK(W::titleLabel.top>=106.&&W::titleLabel.bottom<=149.&&
+        W::sampleLabel.top>=106.&&W::sampleLabel.bottom<=149.&&
+        W::liveToggle.top>=106.&&W::liveToggle.bottom<=149.);
+  // Distinct pointer regions at the same header Y.
+  CHECK(W::titleLabel.hit(351.,130.)&&
+        W::sampleLabel.hit(650.,130.)&&
+        W::liveToggle.hit(948.,130.)&&
+        !W::sampleLabel.hit(948.,130.)&&
+        !W::titleLabel.hit(948.,130.));
   for(std::size_t i=0;i<W::toolbar.size();++i){
     const auto r=W::toolbar[i];
     CHECK(r.width()==86.&&r.bottom-r.top==32.);

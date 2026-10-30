@@ -1357,11 +1357,38 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
    c->drawRect({234,149,1046,151},VSTGUI::kDrawFilled);
    c->setFrameColor(VSTGUI::CColor{91,102,111,255});
    c->drawRect({230,100,1050,605},VSTGUI::kDrawStroked);
+   // Three non-overlapping header regions: editor heading, shortened sample
+   // filename, and the existing LIVE button (its mouse hitbox is unchanged).
+   // A long UTF-8 sample name must never draw behind the LIVE key.
    c->setFont(VSTGUI::kNormalFont,18);c->setFontColor(letters);
-   c->drawString("WAVE EDITOR",{260,114,1000,148});
+   c->drawString("WAVE EDITOR",
+                 editorRect(UiV101WaveLayout::titleLabel),VSTGUI::kLeftText);
    const auto sampleCaption=controller_.label(sampleEditorRow_);
+   std::string fittedCaption=sampleCaption;
    c->setFont(VSTGUI::kNormalFont,11);c->setFontColor({177,198,211,255});
-   c->drawString(sampleCaption.c_str(),{740,115,1024,147},VSTGUI::kRightText);
+   const double available=UiV101WaveLayout::sampleLabel.width()-8.;
+   if(c->getStringWidth(fittedCaption.c_str())>available){
+     const auto dot=sampleCaption.find_last_of('.');
+     const auto extension=(dot!=std::string::npos&&
+                           sampleCaption.size()-dot<=7)?
+                           sampleCaption.substr(dot):std::string{};
+     std::size_t keep=sampleCaption.size()-extension.size();
+     while(keep>0){
+       --keep;
+       while(keep>0&&
+             (static_cast<unsigned char>(sampleCaption[keep])&0xc0u)==0x80u)
+         --keep;
+       fittedCaption=sampleCaption.substr(0,keep)+"..."+extension;
+       if(c->getStringWidth(fittedCaption.c_str())<=available)break;
+     }
+     if(c->getStringWidth(fittedCaption.c_str())>available)
+       fittedCaption="...";
+   }
+   c->saveGlobalState();
+   c->setClipRect(editorRect(UiV101WaveLayout::sampleLabel));
+   c->drawString(fittedCaption.c_str(),
+                 editorRect(UiV101WaveLayout::sampleLabel),VSTGUI::kRightText);
+   c->restoreGlobalState();
    // Wide, filled peak envelope: adjacent interpolated columns preserve
    // transients without inventing audio or filtering source PCM.
    c->setFillColor(VSTGUI::CColor{5,19,36,255});
