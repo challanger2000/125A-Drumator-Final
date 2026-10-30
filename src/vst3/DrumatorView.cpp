@@ -1114,7 +1114,7 @@ void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
  const double rowY=valid?
    UiV101Layout::rowTop(first,v101MenuRow_-first,v101_.expandedRows()):
    UiV101Layout::header;
- const auto g=UiV101Popup::geometry(v101Menu_,rowY,getViewSize().getHeight());
+ const auto g=UiV101Popup::geometry(v101Menu_,rowY,getViewSize().getHeight(),songEditorOpen_);
  Painter::fill(*c,{g.x-4.,g.y-4.,g.x+g.width+4.,
                    g.y+g.rows*g.cellHeight+4.},{17,26,36,255});
  Painter::border(*c,{g.x-4.,g.y-4.,g.x+g.width+4.,
@@ -1195,7 +1195,7 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
    const double rowY=valid?
      UiV101Layout::rowTop(first,v101MenuRow_-first,v101_.expandedRows()):
      UiV101Layout::header;
-   const auto g=UiV101Popup::geometry(v101Menu_,rowY,getViewSize().getHeight());
+   const auto g=UiV101Popup::geometry(v101Menu_,rowY,getViewSize().getHeight(),songEditorOpen_);
    const int option=UiV101Popup::hit(v101Menu_,g,x,y);
    const bool ok=applyV101Menu(option);
    v101Menu_=UiV101Popup::Kind::None;
@@ -1203,7 +1203,9 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
    if(!ok)status_="MENU ACTION NOT APPLIED";
    invalid();return true;
  }
- if(!v101_.state().zoomOpen&&UiV101Layout::footerExport.hit(
+ const auto footerKey=songEditorOpen_?UiV101Layout::songFooterExport:
+                                      UiV101Layout::footerExport;
+ if(!v101_.state().zoomOpen&&footerKey.hit(
       x,y-(getViewSize().getHeight()-UiV101Layout::footer))){
     v101Menu_=UiV101Popup::Kind::Export;v101MenuRow_=kRows;
     invalid();return true;
@@ -1531,7 +1533,7 @@ void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
  v101::UiV101NativePreview::cap(*c,UiV101Layout::headerGroup(1),
                                  0.,"SONG EDIT",true,10,&songButtonSprites);
  // SONG painter covers MAIN footer; repaint the same real EXPORT key.
- v101::UiV101NativePreview::cap(*c,UiV101Layout::footerExport,
+ v101::UiV101NativePreview::cap(*c,UiV101Layout::songFooterExport,
      getViewSize().getHeight()-UiV101Layout::footer,"EXPORT",
      v101Menu_==UiV101Popup::Kind::Export,11,&songButtonSprites);
  // Modal overlays must sit ABOVE the SONG fascia. The main painter already
@@ -2508,7 +2510,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
  // opens the existing Save dialog on release.
  if(v101Mode_&&v101Menu_==UiV101Popup::Kind::Export){
    const auto g=UiV101Popup::geometry(v101Menu_,UiV101Layout::header,
-                                        getViewSize().getHeight());
+                                        getViewSize().getHeight(),songEditorOpen_);
    const int option=UiV101Popup::hit(v101Menu_,g,x,y);
    if(option>=0){
      dragExportOption_=option;dragExportStart_=pos;
@@ -2526,7 +2528,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
  }
  // SONG footer EXPORT must have identical hit behavior to MAIN.
  if(v101Mode_&&songEditorOpen_&&
-    UiV101Layout::footerExport.hit(
+    UiV101Layout::songFooterExport.hit(
       x,y-(getViewSize().getHeight()-UiV101Layout::footer))){
    (void)v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
                        (buttons&VSTGUI::kShift)!=0);
@@ -3157,7 +3159,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
    const int option=dragExportOption_;
    dragExportOption_=-1;
    const auto g=UiV101Popup::geometry(UiV101Popup::Kind::Export,
-                                       UiV101Layout::header,getViewSize().getHeight());
+                                       UiV101Layout::header,getViewSize().getHeight(),songEditorOpen_);
    const bool same=UiV101Popup::hit(UiV101Popup::Kind::Export,g,pos.x,pos.y)==option;
    v101Menu_=UiV101Popup::Kind::None;v101MenuRow_=kRows;
    if(same&&!exportSelection(option))status_="EXPORT FILE NOT SAVED";

@@ -1,10 +1,33 @@
 #include "core/UiV101Layout.h"
+#include "core/UiSongLayout.h"
 #include "vst3/UiV101Popup.h"
 #include "vst3/UiV101WaveLayout.h"
 #include <iostream>
 using L=drumator::UiV101Layout;
 #define CHECK(x) do{if(!(x)){std::cerr<<__LINE__<<" " #x "\n";return 1;}}while(false)
 int main(){
+  using S=drumator::UiSongLayout;
+  // F10-F13: eight columns fill the common SONG panel with true 8px gaps.
+  CHECK(S::columns==8&&S::cellWidth==149.&&S::columnPitch==157.);
+  CHECK(S::cellX(0)==L::surfaceLeft);
+  CHECK(S::cellX(7)+S::cellWidth==L::surfaceRight);
+  for(std::size_t k=1;k<S::columns;++k){
+    CHECK(S::cellX(k)-S::cellX(k-1)-S::cellWidth==8.);
+    CHECK(S::slotAt(S::cellX(k)+5.,S::cellY(0)+4.,0)==k);
+    CHECK(S::slotAt(S::cellX(k)-4.,S::cellY(0)+4.,0)==
+          drumator::SongChain::kCapacity);
+  }
+  CHECK(S::slotAt(S::cellX(7)+S::cellWidth,S::cellY(0)+10.,0)==
+        drumator::SongChain::kCapacity);
+  CHECK(S::removeRight==S::nextRight&&S::removeRight<L::surfaceRight);
+  CHECK(L::songFooterExport.x1==S::nextRight);
+  const auto songPopup=drumator::UiV101Popup::geometry(
+      drumator::UiV101Popup::Kind::Export,L::header,432.,true);
+  const auto mainPopup=drumator::UiV101Popup::geometry(
+      drumator::UiV101Popup::Kind::Export,L::header,686.,false);
+  CHECK(songPopup.x+songPopup.width==S::nextRight&&
+        mainPopup.x+mainPopup.width==1008.);
+  CHECK(songPopup.y+songPopup.rows*songPopup.cellHeight<432.-L::footer);
   // Existing host zoom choices, identical cap geometry, and modal hit map.
   for(std::size_t step=0;step<L::steps;step+=4){
     const auto number=L::stepNumberRect(step);
@@ -21,11 +44,13 @@ int main(){
        (step&&number.x0-L::stepNumberRect(step-4).x0!=4.*L::stepPitch))
        return 1;
   }
-  // Footer ends before each corner screw, balanced with 28px margins.
-  static_assert(L::footerPanelLeft==28.&&L::footerPanelRight==1252.);
-  static_assert(L::footerPanelRight-L::footerPanelLeft==1224.);
-  static_assert(L::footerScrewLeftX<L::footerPanelLeft&&
-                L::footerScrewRightX>L::footerPanelRight);
+  static_assert(L::surfaceLeft==16.&&L::surfaceRight==1264.);
+  static_assert(L::footerPanelLeft==L::surfaceLeft&&
+                L::footerPanelRight==L::surfaceRight);
+  static_assert(L::footerPanelRight-L::footerPanelLeft==1248.);
+  static_assert(L::footerPanelTop==4.&&L::footerPanelBottom==42.);
+  static_assert(L::songFooterExport.x1-L::songFooterExport.x0==95.);
+  static_assert(L::songFooterExport.x1==drumator::UiSongLayout::nextRight);
   // COMPLETE Branding master (all 30 SVG paths) must sit INSIDE the
   // graphite faceplate, away from its top trim and the stepped bottom bevel.
   static_assert(L::brandMasterSafeArea.x0>=65.&&

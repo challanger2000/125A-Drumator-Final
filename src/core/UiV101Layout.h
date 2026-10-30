@@ -11,13 +11,10 @@ struct UiV101Layout final {
   static constexpr std::size_t instruments=16,visibleRows=10,steps=32;
   static constexpr double width=1280.,header=158.,rowHeight=48.,expansionHeight=48.,footer=48.;
   static constexpr double stepX=420.,stepPitch=19.,stepEnd=stepX+steps*stepPitch;
-  // Compact footer: exact same rectangles are used for paint and mouse hits.
-  // The raised page switches stay inside the inset panel, away from the
-  // exposed corner screws and the instrument counter.
-  // Symmetrical inset with 28px of metal on both edges. Expose the
-  // original corner screws instead of continuing the strip under them.
-  static constexpr double footerPanelLeft=28.,footerPanelRight=1252.;
-  static constexpr double footerPanelTop=4.,footerPanelBottom=38.;
+  // Shared SONG/MAIN rail bounds: 16px symmetric margins at 1280px.
+  static constexpr double surfaceLeft=16.,surfaceRight=1264.;
+  static constexpr double footerPanelLeft=surfaceLeft,footerPanelRight=surfaceRight;
+  static constexpr double footerPanelTop=4.,footerPanelBottom=42.;
 
   // Only SONG and SONG EDIT are buttons. The existing SWING, HUMANIZE,
   // MASTER controls are rotary encoders, not further menu buttons.
@@ -49,8 +46,9 @@ struct UiV101Layout final {
   static constexpr Rect footerNext{1130.,10.,1225.,35.};
   static constexpr Rect footerPanel{footerPanelLeft,footerPanelTop,
                                    footerPanelRight,footerPanelBottom};
-  static constexpr double footerScrewLeftX=14.,footerScrewRightX=width-14.;
-  static constexpr double footerScrewRadius=7.;
+  // SONG has no bottom page controls: its EXPORT key is aligned with the
+  // right edge of the SONG navigation group.
+  static constexpr Rect songFooterExport{1149.,10.,1244.,35.};
 
   // One common vertical contract for every header action. The previous
   // geometry mixed 107..141 Pattern/BARS with 105..135 SONG controls,
@@ -245,14 +243,13 @@ static_assert(UiV101Layout::zoomPresets[0]==1.0 &&
               UiV101Layout::zoomPresets[3]==1.5);
 static_assert(UiV101Layout::zoomOption(3).y1<=UiV101Layout::header);
 static_assert(UiV101Layout::stepRect(UiV101Layout::steps-1).x1<=UiV101Layout::stepEnd);
-// The full-width strip extends BEHIND both lower screw heads. The painter
-// The panel ends before both screw heads; left/right margin is symmetric.
-static_assert(UiV101Layout::footerPanelLeft >
-              UiV101Layout::footerScrewLeftX+UiV101Layout::footerScrewRadius);
-static_assert(UiV101Layout::footerPanelRight <
-              UiV101Layout::footerScrewRightX-UiV101Layout::footerScrewRadius);
-static_assert(UiV101Layout::footerPanelLeft ==
-              UiV101Layout::width-UiV101Layout::footerPanelRight);
+// One shared dark chassis boundary; lower corner screws are removed.
+static_assert(UiV101Layout::footerPanelLeft==UiV101Layout::surfaceLeft);
+static_assert(UiV101Layout::footerPanelRight==UiV101Layout::surfaceRight);
+static_assert(UiV101Layout::footerPanelLeft+
+              UiV101Layout::footerPanelRight==UiV101Layout::width);
+static_assert(UiV101Layout::songFooterExport.y0==UiV101Layout::footerExport.y0&&
+              UiV101Layout::songFooterExport.y1==UiV101Layout::footerExport.y1);
 static_assert(UiV101Layout::limiterTrigger.y0==
               UiV101Layout::zoomTrigger.y0&&
               UiV101Layout::limiterTrigger.y1==

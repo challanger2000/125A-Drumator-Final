@@ -40,9 +40,12 @@ struct UiV101SongPainter final {
    }
    P::border(c,{6.,top+2.,1274.,bottom-6.},P::Skin::panelEdge());
    // One recessed SONG-CHAIN rail, continuing the main GUI's navy enamel.
-   P::rounded(c,{15.,162.,1256.,201.},P::Skin::graphite(),4.);
-   P::fill(c,{18.,166.,1253.,198.},P::Skin::navyWell());
-   P::border(c,{18.,166.,1253.,198.},P::Skin::navyTrim());
+   P::rounded(c,{UiV101Layout::surfaceLeft,162.,UiV101Layout::surfaceRight,201.},
+              P::Skin::graphite(),3.);
+   P::fill(c,{UiV101Layout::surfaceLeft+2.,166.,
+              UiV101Layout::surfaceRight-2.,198.},P::Skin::navyWell());
+   P::border(c,{UiV101Layout::surfaceLeft+2.,166.,
+                UiV101Layout::surfaceRight-2.,198.},P::Skin::navyTrim());
    const auto count=controller.songCount();
    const auto first=S::first(page);
    const bool selected=slot>=first&&slot<first+S::perPage&&slot<count;
@@ -112,10 +115,13 @@ struct UiV101SongPainter final {
    }
    // Dark graphite tray shared with the MAIN header and footer. This
    // changes material color only, never UiSongLayout hit rectangles.
-   P::rounded(c,{15.,313.,1256.,390.},{36,49,63,255},3.);
-   P::satin(c,{18.,316.,1253.,388.},{47,60,73,255},
-            {30,42,55,255},{20,31,45,255},12);
-   P::border(c,{15.,313.,1256.,390.},{77,99,120,255});
+   P::rounded(c,{UiV101Layout::surfaceLeft,313.,UiV101Layout::surfaceRight,382.},
+              {30,44,58,255},3.);
+   P::satin(c,{UiV101Layout::surfaceLeft+2.,315.,
+               UiV101Layout::surfaceRight-2.,380.},{39,53,66,255},
+            {26,40,54,255},{19,31,44,255},10);
+   P::border(c,{UiV101Layout::surfaceLeft,313.,
+                UiV101Layout::surfaceRight,382.},{64,87,106,255});
    char selection[72]{};
    if(selected)std::snprintf(selection,sizeof(selection),
        "POSITION %02u SELECTED",static_cast<unsigned>(slot+1));
@@ -144,11 +150,11 @@ struct UiV101SongPainter final {
        "ADD ENTRY",false,10,count>=SongChain::kCapacity);
    key(c,S::removeLeft,S::choiceTop,S::removeRight,S::choiceBottom,
        "REMOVE LAST",false,9,count<=1);
+   // Dedicated SONG footer plate with status at left and EXPORT at right.
+   P::footerPlate(c,bottom-UiV101Layout::footer);
    P::fittedStatus(c,status&&*status?status:
            "REST and A-H are selectable. Only ADD ENTRY adds positions.",
-           {29.,394.,900.,419.},11,{200,211,221,255},false);
-   P::screw(c,14.,bottom-15.);
-   P::screw(c,1266.,bottom-15.);
+           {32.,394.,1090.,419.},11,{205,221,231,255},false);
  }
 };
 } // namespace drumator::v101

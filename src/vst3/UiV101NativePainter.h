@@ -502,6 +502,18 @@ struct UiV101NativePreview final {
    c.drawEllipse({x-20.,y-20.,x+20.,y+20.},VSTGUI::kDrawFilled);
    originalDial(c,sprite,x,y,std::clamp(fraction,0.,1.),50.);
  }
+ // Unified graphite hardware footer, used in MAIN and SONG.
+ static void footerPlate(VSTGUI::CDrawContext& c,double footerTop){
+   const auto p=L::footerPanel;
+   const Box outer{p.x0,footerTop+p.y0,p.x1,footerTop+p.y1};
+   rounded(c,outer,{13,24,34,255},3.);
+   satin(c,{p.x0+2.,outer.top+2.,p.x1-2.,outer.bottom-2.},
+         {35,49,60,255},{23,36,47,255},{16,27,39,255},10);
+   border(c,outer,{68,91,108,255});
+   fill(c,{p.x0+3.,outer.top+2.,p.x1-3.,outer.top+3.},{81,108,123,255});
+   fill(c,{p.x0+3.,outer.bottom-3.,p.x1-3.,outer.bottom-2.},
+        {11,21,31,255});
+ }
  static void draw(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* knobSprite,
                   VSTGUI::CBitmap* titlePng,TitleBounds titleBounds,
                   const Scene& scene,
@@ -787,16 +799,8 @@ struct UiV101NativePreview final {
        }
      }
    }
-   // Compact recessed fascia; its edges avoid both corner screw heads.
    const double footerTop=total-L::footer;
-   const auto panel=L::footerPanel;
-   rounded(c,{panel.x0,footerTop+panel.y0,panel.x1,footerTop+panel.y1},
-           {36,49,63,255},3.);
-   satin(c,{panel.x0+2.,footerTop+panel.y0+2.,
-            panel.x1-2.,footerTop+panel.y1-2.},
-         {44,56,68,255},{30,42,55,255},{18,30,44,255},8);
-   border(c,{panel.x0,footerTop+panel.y0,panel.x1,footerTop+panel.y1},
-          {79,101,122,255});
+   footerPlate(c,footerTop);
    char summary[100]{};
    std::snprintf(summary,sizeof(summary),
                  "ROWS %zu-%zu / %zu  |  PATTERN %c",
@@ -812,10 +816,7 @@ struct UiV101NativePreview final {
    // Both controls are identically sized 95x25 machined metal keys.
    cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10,vintageButtons,ui.firstRow==0);
    cap(c,L::footerNext,footerTop,"NEXT PAGE",false,10,vintageButtons,ui.firstRow+shown>=scene.visibleRows);
-   // Preserve clearly exposed corner screws in both the image-backed and
-   // fallback skins. Draw AFTER the full-width inset, never underneath it.
-   screw(c,L::footerScrewLeftX,total-15.);
-   screw(c,L::footerScrewRightX,total-15.);
+   // No lower chassis corner fasteners in either MAIN or SONG.
    if(zoomMenuOpen)zoomPopup(c,selected,vintageButtons);
  }
 };

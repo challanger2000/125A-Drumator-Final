@@ -1584,7 +1584,7 @@ void testV101LiveEditor(){
  check(f.c->limiterEnabled()==limiterBeforeZoom,
        "V101 zoom 100% must never toggle limiter");
  const double songExportY=view->getViewSize().getHeight()-L::footer+22.;
- click(*view,(L::footerExport.x0+L::footerExport.x1)*.5,songExportY);
+ click(*view,(L::songFooterExport.x0+L::songFooterExport.x1)*.5,songExportY);
  check(IntegrationAccess::v101Popup(*view)==UiV101Popup::Kind::Export,
        "SONG footer EXPORT did not open real menu");
  captureVstgui(*view,"v101-song-export-menu-100",1.0);

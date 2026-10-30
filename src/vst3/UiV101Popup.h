@@ -26,8 +26,9 @@ struct UiV101Popup final {
    }
    return 0;
  }
- static Geometry geometry(Kind kind,double rowTop,double viewHeight) noexcept {
-   const auto x=kind==Kind::Export?798.:
+ static Geometry geometry(Kind kind,double rowTop,double viewHeight,
+                          bool songEditor=false) noexcept {
+   const auto x=kind==Kind::Export?(songEditor?1034.:798.):
                 kind==Kind::Pattern?364.:kind==Kind::Fill?84.:
                 kind==Kind::Output?336.:kind==Kind::Choke?458.:155.;
    const int cols=kind==Kind::Output?2:1;
