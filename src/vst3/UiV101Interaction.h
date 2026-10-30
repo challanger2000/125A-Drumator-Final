@@ -62,8 +62,11 @@ public:
  // One expanded row max. With 9 visible + 1 expansion, 150% <=1080 px.
  std::size_t shownRows()const noexcept {
    const auto n=controller_.visibleRows();
-   const auto limit=std::min(state_.viewportRows,
-           state_.expansion==L::Expansion::None?L::visibleRows:L::visibleRows-1);
+   // VEL/SET replaces one channel row in a compact peer window.
+   const auto limit=state_.expansion==L::Expansion::None?
+       state_.viewportRows:std::min(
+         state_.viewportRows>1?state_.viewportRows-1:std::size_t{1},
+         L::visibleRows-1);
    return state_.firstRow<n?std::min(limit,n-state_.firstRow):0;
  }
  L::Expansions expandedRows()const noexcept{
@@ -230,6 +233,8 @@ public:
    if(h.action==L::Action::None)return Result::Ignored;
    if(h.row>=controller_.visibleRows())return Result::Ignored;
    if(h.action==L::Action::Velocity||h.action==L::Action::Settings){
+     if(state_.viewportRows<2&&state_.expansion==L::Expansion::None)
+       return Result::Ignored;
      const auto requested=h.action==L::Action::Velocity?
        L::Expansion::Velocity:L::Expansion::Settings;
      if(state_.expandedRow==h.row&&state_.expansion==requested){
