@@ -166,7 +166,8 @@ void testV101MenuMatrixAndGeometry(){
  const auto current=f.c->currentPattern();
  check(f.c->patternLength(current)==32,"GUI audit Fill source length wrong");
  for(std::size_t option=0;option<modes.size();++option){
-   popupClick(Kind::Fill,static_cast<int>(option),99.,L::header+20.,L::header);
+   popupClick(Kind::Fill,static_cast<int>(option),
+               (L::fill.x0+L::fill.x1)*.5,L::header+20.,L::header);
    // Independent musical oracle: do NOT call filledRow(), which is
    // itself the product's implementation. Otherwise a shared defect in
    // fillInstrument/filledRow would make both actual and expected wrong.

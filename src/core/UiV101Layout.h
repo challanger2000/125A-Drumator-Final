@@ -33,7 +33,7 @@ struct UiV101Layout final {
   // original industrial faceplate at 150%. The top metallic highlight
   // and the black stepped bevel below the logo must remain untouched.
   // Applies to the COMPLETE official 125A SVG, including both captions.
-  static constexpr Rect brandMasterSafeArea{67.,13.,154.,61.};
+  static constexpr Rect brandMasterSafeArea{30.,13.,117.,61.};
   // Center the PATTERN legend above the entire A-H group, not merely
   // its rightmost keys. The eight caps occupy x33..341 at 100% UI scale.
   static constexpr Rect patternHeading{33.,80.,341.,96.};
@@ -81,17 +81,17 @@ struct UiV101Layout final {
     return headerGroups[i];
   }
   static constexpr Rect meterReset{1132.,98.,1248.,134.};
-  static constexpr Rect footerExport{915.,10.,1010.,35.}; // footer-relative
+  static constexpr Rect footerExport{910.,10.,1005.,35.}; // footer-relative
   // LIMIT is on the SAME header baseline as ZOOM, immediately to its left.
   // Both use 83x32 caps; the 13px gap preserves a clear bezel.
-  static constexpr Rect limiterTrigger{1069.,13.,1152.,45.};
+  static constexpr Rect limiterTrigger{1081.,13.,1164.,45.};
   // Exact same 83x32 hardware cap as MENU/BARS/SONG/SONG EDIT.
-  // Keep right edge and optical center (near 1208,29) unchanged; the 4px
-  // gap before the existing zoom option popup is retained.
-  static constexpr Rect zoomTrigger{1165.,13.,1248.,45.};
+  // Align zoom's right edge with the navy sequencer panel at x=1260.
+  // Preserve the popup gap.
+  static constexpr Rect zoomTrigger{1177.,13.,1260.,45.};
   static constexpr Rect zoomOption(std::size_t index) noexcept{
     const double top=49.+26.*static_cast<double>(index);
-    return {1162.,top,1248.,top+24.};
+    return {1174.,top,1260.,top+24.};
   }
   // -2 = open/close trigger, 0..3 = zoom preset, -1 = no hit.
   // The menu is modal while open; the renderer draws it over header controls.
@@ -105,10 +105,10 @@ struct UiV101Layout final {
   }
   // Coordinates relative to row top; single-height instrument channel.
   static constexpr Rect select{8.,4.,19.,45.},mute{20.,8.,47.,40.},
-    solo{52.,8.,79.,40.},fill{84.,8.,124.,40.},
-    sample{132.,8.,304.,40.},previous{132.,8.,155.,40.},
-    load{155.,8.,257.,40.},next{257.,8.,281.,40.},sampleMenu{281.,8.,304.,40.},
-    preview{310.,8.,347.,40.},edit{354.,8.,406.,40.},
+    solo{52.,8.,79.,40.},
+    sample{84.,8.,256.,40.},previous{84.,8.,107.,40.},
+    load{107.,8.,209.,40.},next{209.,8.,233.,40.},sampleMenu{233.,8.,256.,40.},
+    preview{262.,8.,299.,40.},fill{306.,8.,346.,40.},edit{354.,8.,406.,40.},
     stepWell{417.,4.,1031.,44.},
     velocity{1221.,4.,1258.,24.},settings{1221.,26.,1258.,46.};
   enum class Expansion:std::uint8_t{None,Velocity,Settings};
@@ -236,7 +236,7 @@ static_assert(UiV101Layout::zoomTrigger.x1-UiV101Layout::zoomTrigger.x0==
               UiV101Layout::zoomTrigger.y1-UiV101Layout::zoomTrigger.y0==
               UiV101Layout::headerButtonHeight,
               "ZOOM must match the existing 83x32 vintage hardware buttons");
-static_assert(UiV101Layout::zoomTrigger.x1<=UiV101Layout::width-30.&&
+static_assert(UiV101Layout::zoomTrigger.x1==UiV101Layout::surfaceRight-4.&&
               UiV101Layout::zoomTrigger.y1<UiV101Layout::zoomOption(0).y0,
               "ZOOM cap must preserve right chassis clearance and popup gap");
 static_assert(UiV101Layout::zoomPresets[0]==1.0 &&

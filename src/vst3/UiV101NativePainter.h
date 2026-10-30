@@ -652,9 +652,9 @@ struct UiV101NativePreview final {
    fill(c,{12.,142.,1261.,143.},Skin::navyTrim());
    label(c,"M",{20.,140.,47.,157.},10);
    label(c,"S",{52.,140.,79.,157.},10);
-   label(c,"FILL",{84.,140.,124.,157.},10);
-   label(c,"INSTRUMENT / SAMPLE",{132.,140.,304.,157.},10);
-   label(c,"PLAY",{310.,140.,347.,157.},10);
+   label(c,"INSTRUMENT / SAMPLE",{84.,140.,256.,157.},10);
+   label(c,"PLAY",{262.,140.,299.,157.},10);
+   label(c,"FILL",{306.,140.,346.,157.},10);
    label(c,"EDIT",{354.,140.,406.,157.},10);
    for(std::size_t i=0;i<L::steps;i+=4){
      char n[8]{};std::snprintf(n,sizeof(n),"%u",
@@ -696,7 +696,6 @@ struct UiV101NativePreview final {
           live&&row==ui.selectedRow?Color{246,171,70,255}:Color{76,93,103,255});
      cap(c,L::mute,y,"M",live&&data.muted,10,vintageButtons);
      cap(c,L::solo,y,"S",live&&data.solo,10,vintageButtons);
-     cap(c,L::fill,y,"FILL",false,9,vintageButtons);
      rounded(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},{3,8,14,255},2.);
      satin(c,{L::sample.x0+2.,y+10.,L::sample.x1-2.,y+38.},
            {6,14,23,255},{11,22,35,255},{18,34,49,255},9);
@@ -736,6 +735,7 @@ struct UiV101NativePreview final {
      c.restoreGlobalState();
      cap(c,L::sampleMenu,y,"...",false,10,vintageButtons);
      headphone(c,L::preview,y,vintageButtons);
+     cap(c,L::fill,y,"FILL",false,9,vintageButtons);
      cap(c,L::edit,y,"EDIT",false,11,vintageButtons);
      rounded(c,{L::stepWell.x0,y+4.,L::stepWell.x1,y+44.},
              {9,17,29,255},2.);
