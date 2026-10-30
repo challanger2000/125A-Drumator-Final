@@ -2216,6 +2216,11 @@ void testCodexV101PeerWindowFooterFallback(){
  check(peer->getViewSize().getHeight()==original&&
        IntegrationAccess::v101ShownRows(*peer)==4,
        "Codex05 refused peer editor must preserve four-row viewport");
+ const auto refusedResizeCalls=f.frames[1].calls;
+ check(f.c->setStepVelocity(0,0,0,110),
+       "Codex05 normal Step edit failed on peer resize fixture");
+ check(f.frames[1].calls==refusedResizeCalls,
+       "Codex05 refused peer keeps retrying host resize on every Step edit");
  // VEL must replace a row rather than push the footer below the host HWND.
  click(*peer,1235.,L::header+12.);
  check(IntegrationAccess::v101Expansion(*peer)==L::Expansion::Velocity&&
