@@ -2317,6 +2317,50 @@ void testCodexV101PeerWindowFooterFallback(){
  evidence("Codex05 two attached real V1.0.1 editors: peer rejected resize + live footer paging + recovery PASS");
 }
 
+// F16: the reported pre-attach rectangle must account for the user zoom.
+// Studio One constructs its pin/close title strip from the initial VST3
+// IPlugView::getSize(), not from a later CFrame resize. A mismatch leaves
+// the top-bar controls near x=1280 while the GUI is 1664px wide (130%).
+void testV101F16InitialHostChromeWidth(){
+ Fixture f;
+ auto* editor=dynamic_cast<DrumatorEditor*>(f.c->createView(ViewType::kEditor));
+ check(editor!=nullptr,"F16 factory did not return VST3Editor");
+ if(!editor)return;
+ auto expectSize=[&](double factor){
+   Steinberg::ViewRect vr{};
+   const bool ok=editor->getSize(&vr)==Steinberg::kResultOk;
+   const auto width=static_cast<int>(std::lround(1280.*factor));
+   const auto height=static_cast<int>(std::lround(300.*factor));
+   check(ok&&vr.getWidth()==width&&vr.getHeight()==height,
+         "F16 pre-attach VST3 getSize does not match scaled host chrome");
+ };
+ expectSize(1.3); // DEFAULT 130% must report 1664px, not 1280px.
+ for(const double zoom:{1.0,1.2,1.3,1.5,1.0,1.3}){
+   check(editor->setZoomChecked(zoom),"F16 pre-attach zoom selection failed");
+   expectSize(zoom);
+ }
+#ifdef VST3_CONTENT_SCALE_SUPPORT
+ check(editor->setContentScaleFactor(1.5)==Steinberg::kResultTrue,
+       "F16 pre-attach DPI 150 percent rejected");
+ {
+   Steinberg::ViewRect vr{};
+   check(editor->getSize(&vr)==Steinberg::kResultOk&&
+         vr.getWidth()==2496&&vr.getHeight()==585,
+         "F16 combined 130% user zoom and 150% system DPI lost host rectangle");
+ }
+ check(editor->setContentScaleFactor(1.0)==Steinberg::kResultTrue,
+       "F16 restore DPI 100 percent rejected");
+ expectSize(1.3);
+#endif
+ editor->release();
+ // The same factory editor must still work after a genuine Win32 attach.
+ auto& attached=f.openV101();
+ auto* view=IntegrationAccess::view(*f.c,0);
+ check(view->zoomMatches(1.3)&&
+       std::abs(attached.getZoomFactor()-1.3)<.0001,
+       "F16 corrected pre-attach size broke the native attached zoom");
+}
+
 // Commercial visual matrix: every capture is generated from the attached
 // production V1.0.1 VSTGUI View, never a fallback preview or zoomed mockup.
 // Capture only after asserting actual host zoom, current mode and open popup.
@@ -5576,6 +5620,7 @@ int main(int argc,char** argv){
  run("V101 native commercial typography geometry",testV101NativeTypographyFit);
  run("V101 total menu matrix and per-key geometry",testV101MenuMatrixAndGeometry);
  run("V101 SONG and Wave full native button matrix",testV101SongAndWaveFullControlMatrix);
+ run("F16 true pre-attach 130% host chrome size and DPI",testV101F16InitialHostChromeWidth);
  run("F14 native 5-of-5 paging escape and structural row shrink",testV101F14StrandedPageRecovery);
  run("F15 1-16 rows x 1-10 capacities exhaustive navigation",testV101F15ExhaustivePageMatrix);
  run("V101 16-row pointer isolation and real WAV sample browse",testV101AllRowMouseIsolationAndSampleBrowse);

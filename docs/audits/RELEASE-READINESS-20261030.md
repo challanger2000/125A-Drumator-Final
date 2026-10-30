@@ -57,3 +57,11 @@ Windows x64 VST3 instrument. 16 rows (up to 10 visible), 32 steps, A-H patterns,
 **RA-04 / RA-05 / RA-06 remain owner release gates:** exact-build Studio One/ASIO final matrix, active external outputs and four MIDI/WAV Save-and-Drag paths with DAW media ownership, rights/license/support terms, decision about signed/unsigned binary and actual customer ZIP verification.
 
 The bilingual PDF manuals and prerelease Gumroad ZIP are generated as conversation artifacts, not committed as binaries into GitHub. The new exact DLL was included and the package ZIP CRC verified. No release tag or Gumroad listing has been published. **FINAL remains on hold.**
+
+## F16 — pre-attach host title-bar width mismatch (owner screenshot 2026-10-30)
+
+**Release blocker:** On Studio One at 130% the host-owned pin/close controls are at x≈1280 while the drum editor extends to 1664px, leaving an unused 384px upper-right region. Root cause in pinned VSTGUI: `VST3Editor::setZoomFactor(1.3)` called by `Controller::createView` before attachment only changes the stored factor; pre-attach `getSize` remains 1280 logical pixels. The host constructs its wrapper from that initial stale size; during `attached` the plugin rescales its own client to 1664px. **Fix** `DrumatorEditor::setZoomChecked`: before attachment, explicitly rescale the base `ViewRect` via `VST3Editor::onSize`, keeping `getSize` consistent with the requested zoom. Existing attached zoom negotiation and rollback remain unchanged.
+
+**Regression F16:** initial 130% VST3 `getSize=1664×390`; repeated 100/120/130/150% pre-attach scale transitions; optional 150% DPI composition and reset; real attached Win32 VSTGUI zoom invariants. **Real Studio One screenshot before/after required for a FULL closure**; the official CI host does not draw Studio One's proprietary wrapper.
+
+FINAL/Gumroad release remains STOPPED until F16 is validated on actual Studio One.
