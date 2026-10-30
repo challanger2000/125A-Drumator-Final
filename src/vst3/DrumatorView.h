@@ -86,6 +86,10 @@ private:
  int dragExportOption_{-1};
  VSTGUI::CPoint dragExportStart_{};
  bool applyV101Menu(int item);
+ // Transient GUI-only pressed state for the five SET actions; no kit/DAW state.
+ std::size_t settingsFeedbackRow_{kRows};
+ int settingsFeedbackButton_{-1};
+ std::chrono::steady_clock::time_point settingsFeedbackUntil_{};
 
  VSTGUI::CBitmap* backgroundBitmap_{nullptr};
  VSTGUI::CBitmap* productLogoBitmap_{nullptr};

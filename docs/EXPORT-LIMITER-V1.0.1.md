@@ -24,3 +24,14 @@
 - Both Pattern and Song WAV now contain exactly the calculated musical grid duration: 120 BPM / 16 steps = 96000 PCM frames (2.000 seconds), 32 steps = 192000 frames (4.000 seconds). At fractional BPM, the boundary is rounded to the nearest sample. End-of-grid tails are faded over the final 5ms.
 - Automated tests require exact WAV sizes, last step onset at 90000 frames, no early hit, tail fade, 2-bar Pattern and SONG, and 100 BPM length. MIDI, live voices and existing limiter behavior remain unchanged.
 - Independent Studio One reimport/loop playback is still NOT RUN for this patch. Exact onsets and duration assertions do not establish host import/timestretch or driver behaviour.
+
+## Consolidated Studio One F01-F09 usability pass (30.10.2026)
+- F01/F02 WAV too fast/out of sync: previous commit 3ae2598 corrected musical clip duration. Added PCM-onset 120 BPM four-beat tests (0, 24000, 48000, 72000 frames at 48 kHz) and source-duration assertions. Offline WAV uses last received host BPM; a real Studio One mismatch cannot be marked solved solely by these source tests. Export project sample-rate/conversion/time-stretch must be checked in DAW; no ungrounded tempo override introduced.
+- F03 long one-shot tails no longer extend the exported clip; 5ms end fade preserved.
+- F04 SET Copy/Paste/Clear now give visible footer confirmation; all five keys show a 250ms pressed cap (including Output/Choke popups). No data-state changes.
+- F05 LIMIT aligned immediately left of ZOOM on common 83x32 top line.
+- F06 footer inset now symmetrically ends at x=28..1252, leaving both corner screws clear.
+- F07 L/R LED meter backing ends at x=1260 aligned with the adjacent dark heading/rack panel.
+- F08 product DRUMATOR alpha wordmark reduced by 20%, aspect ratio unchanged.
+- F09 new instances open at 130%; projects with explicit saved zoom retain their stored preference.
+- Host DAW verification and 125A Plugin Tester on the new exact commit remain independent release gates.

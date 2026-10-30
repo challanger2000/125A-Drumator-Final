@@ -137,7 +137,7 @@ public:
  bool hideLastEmptyRow();
  double preferredZoom() const noexcept {return preferredZoom_;}
  void rememberZoom(double factor) noexcept {
-   preferredZoom_=factor==1.0||factor==1.2||factor==1.3||factor==1.5?factor:1.0;
+   preferredZoom_=factor==1.0||factor==1.2||factor==1.3||factor==1.5?factor:1.3;
  }
  bool restoreVisibleRows(std::size_t previous);
  std::size_t visibleRows() const noexcept {return visibleRows_;}
@@ -238,7 +238,7 @@ private:
  std::array<std::uint8_t,kRows> choke_{};
  std::array<std::uint8_t,kRows> output_{};
  std::uint8_t visibleRows_{kDefaultVisibleRows};
- double preferredZoom_{1.0};
+ double preferredZoom_{1.3}; // New editor default; explicit saved zoom is respected.
  std::uint8_t swingPercent_{0};
  std::uint8_t humanizePercent_{0};
  std::uint8_t masterVolume_{100};

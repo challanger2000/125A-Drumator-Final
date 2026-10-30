@@ -62,6 +62,8 @@ struct UiV101NativePreview final {
    bool clipped=false;
    float meterLeft=0.f,meterRight=0.f;
    std::string status{};
+   std::size_t settingsPressedRow=L::instruments;
+   int settingsPressedButton=-1;
    unsigned swing=0,humanize=0,master=100;
    std::array<RowData,L::instruments> rows{};
  };
@@ -254,7 +256,11 @@ struct UiV101NativePreview final {
    constexpr double left=192.,right=1118.,top=7.,bottom=76.;
    const double fit=std::min((right-left)/bounds.width,
                              (bottom-top)/bounds.height);
-   const double width=bounds.width*fit,height=bounds.height*fit;
+   // -20% optical weight: the title must not visually dominate the controls.
+   // Restrict its rightmost edge clear of the adjacent LIMIT key.
+   constexpr double kTitleReduction=0.80;
+   const double width=bounds.width*fit*kTitleReduction;
+   const double height=bounds.height*fit*kTitleReduction;
    return {(left+right-width)/2.,(top+bottom-height)/2.,
            (left+right+width)/2.,(top+bottom+height)/2.};
  }
@@ -591,8 +597,10 @@ struct UiV101NativePreview final {
               "MASTER",masterText);
    // Actual 33 ms sampled post-master MAIN L/R levels from the live view,
    // never decorative LEDs. Clipping is the real Controller meter bitfield.
-   fill(c,{1133.,100.,1246.,132.},Skin::navyWell());
-   border(c,{1133.,100.,1246.,132.},Skin::navyTrim());
+   // Finish the LED meter well at the same x=1260 dark-panel edge as
+   // the heading/rack surround beneath it, not short of the border.
+   fill(c,{1133.,100.,1260.,132.},Skin::navyWell());
+   border(c,{1133.,100.,1260.,132.},Skin::navyTrim());
    const auto miniMeter=[&](float value,double top){
      const auto db=value>0.f?20.*std::log10(static_cast<double>(value)):-120.;
      for(int index=0;index<12;++index){
@@ -773,7 +781,9 @@ struct UiV101NativePreview final {
          }};
          for(std::size_t button=0;button<settingsLabels.size();++button)
            cap(c,UiV101Interaction::settingsRect(button),y,
-               settingsLabels[button],false,10,vintageButtons);
+               settingsLabels[button],false,10,vintageButtons,
+               false,scene.settingsPressedRow==row&&
+                     scene.settingsPressedButton==static_cast<int>(button));
        }
      }
    }

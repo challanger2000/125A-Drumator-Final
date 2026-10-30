@@ -1075,6 +1075,10 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  scene.meterRight=mainMeterR_;
  scene.clipped=controller_.meterState().clip!=0;
  scene.status=status_;
+ if(std::chrono::steady_clock::now()<settingsFeedbackUntil_){
+   scene.settingsPressedRow=settingsFeedbackRow_;
+   scene.settingsPressedButton=settingsFeedbackButton_;
+ }
  // WAVE owns its status line: never show a duplicate in the MAIN footer.
  // This is paint-only; the underlying status_ remains untouched.
  if(sampleEditorOpen_)scene.status.clear();
@@ -1209,6 +1213,23 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
        status_="LIMITER SWITCH REJECTED";
     invalid();return true;
  }
+ // Capture SET intent BEFORE the interaction mutates/expands the row.
+ // The real action result below determines both the visible confirmation
+ // and whether the pressed cap may illuminate.
+ int setButton=-1;
+ std::size_t setRow=UiV101Layout::instruments;
+ const auto setHit=v101_.rowHit(x,y);
+ if(setHit.action==UiV101Layout::Action::SettingsLane){
+   const auto relY=y-UiV101Layout::rowTop(
+       v101_.state().firstRow,setHit.row-v101_.state().firstRow,
+       v101_.expandedRows());
+   const auto action=UiV101Interaction::settingsAt(x,relY);
+   if(action>=UiV101Interaction::SettingsAction::Output&&
+      action<=UiV101Interaction::SettingsAction::Clear){
+     setButton=static_cast<int>(action)-1;
+     setRow=setHit.row;
+   }
+ }
  const auto previous=v101_.state();
  const auto previousHeight=v101_.height();
  const auto previousRows=controller_.visibleRows();
@@ -1264,7 +1285,19 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
    invalid();
  }
  if(result==R::Failed)status_="CONTROL ACTION NOT APPLIED";
- if(result!=R::Ignored)invalid();
+ if(setButton>=0){
+   if(result==R::Applied||result==R::DeferredToView){
+     settingsFeedbackRow_=setRow;
+     settingsFeedbackButton_=setButton;
+     settingsFeedbackUntil_=std::chrono::steady_clock::now()+
+                           std::chrono::milliseconds(250);
+     if(setButton==2)status_="COPY ROW COMPLETED";
+     else if(setButton==3)status_="PASTE ROW COMPLETED";
+     else if(setButton==4)status_="CLEAR ROW COMPLETED";
+   }else if(setButton==3&&result==R::Ignored)
+     status_="PASTE ROW: COPY A ROW FIRST";
+ }
+ if(result!=R::Ignored||setButton>=0)invalid();
  return result!=R::Ignored;
 }
 

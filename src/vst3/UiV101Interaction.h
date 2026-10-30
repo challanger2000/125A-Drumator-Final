@@ -37,7 +37,7 @@ public:
    std::size_t firstRow=0,selectedRow=0,expandedRow=L::instruments;
    L::Expansion expansion=L::Expansion::None;
    bool zoomOpen=false;
-   std::size_t zoomIndex=0;
+   std::size_t zoomIndex=2; // 130% default for new V1.0.1 editors
    // A peer editor whose host refuses a height increase retains a usable
    // footer by showing only the rows that physically fit its client area.
    std::size_t viewportRows=L::visibleRows;
@@ -348,7 +348,7 @@ private:
    deferred_={kind,row};
    return Result::DeferredToView;
  }
- std::size_t priorZoomIndex_=0;
+ std::size_t priorZoomIndex_=2;
  Gesture gesture_=Gesture::None;
  int knobIndex_=-1;
  std::size_t knobRow_=L::instruments,laneRow_=L::instruments,lanePattern_=0;

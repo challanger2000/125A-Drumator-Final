@@ -67,7 +67,33 @@ int main(){
   check(std::abs(pcm24(bytes,44)-0.6f)<0.003f,"PCM audio at start");
   check(std::abs(pcm24(bytes,47)-0.6f)<0.003f,"stereo follows mono source");
  }
- kit.grid[0]=0;kit.grid[15]=127;
+ // Measure real PCM transients against Studio One's 120 BPM beat grid,
+ // not only RIFF file length (a fast sequence could have a correct header).
+ kit.grid.fill(0);
+ for(const std::size_t step:{std::size_t{0},std::size_t{4},
+                             std::size_t{8},std::size_t{12}})
+   kit.grid[step]=127;
+ kit.wav[0]=tone(256,0.6f);
+ check(OfflineWavExport::render(kit,false,120.,path),
+       "render four quarter-note beats at 120 BPM");
+ bytes=read(path);
+ if(bytes.size()==44u+6u*16u*6000u){
+   for(const std::size_t beat:{std::size_t{0},std::size_t{1},
+                               std::size_t{2},std::size_t{3}}){
+     const auto onset=beat*24000u;
+     check(std::abs(pcm24(bytes,44u+onset*6u)-0.6f)<0.003f,
+           "120 BPM beat onset must hit exact 0.500s grid");
+     if(beat>0)
+       check(std::abs(pcm24(bytes,44u+(onset-1u)*6u))<0.0001f,
+             "120 BPM beat must not begin early");
+     check(std::abs(pcm24(bytes,44u+(onset+200u)*6u)-0.6f)<0.003f,
+           "beat PCM playback duration must not be accelerated");
+     check(std::abs(pcm24(bytes,44u+(onset+300u)*6u))<0.0001f,
+           "one-shot must end before next quarter note");
+   }
+ }else check(false,"120 BPM four-beat RIFF must be exactly 2.000 seconds");
+ kit.grid.fill(0);
+ kit.grid[15]=127;
  kit.wav[0]=tone(10000,0.6f);
  check(OfflineWavExport::render(kit,false,120.,path),"render last-step tail");
  bytes=read(path);

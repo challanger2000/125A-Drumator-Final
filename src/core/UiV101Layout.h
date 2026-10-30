@@ -14,9 +14,9 @@ struct UiV101Layout final {
   // Compact footer: exact same rectangles are used for paint and mouse hits.
   // The raised page switches stay inside the inset panel, away from the
   // exposed corner screws and the instrument counter.
-  // Full-width lower chassis strip, matching the top/control fascia.
-  // Repaint both bottom screw heads ON TOP of the inset in the renderer.
-  static constexpr double footerPanelLeft=8.,footerPanelRight=1272.;
+  // Symmetrical inset with 28px of metal on both edges. Expose the
+  // original corner screws instead of continuing the strip under them.
+  static constexpr double footerPanelLeft=28.,footerPanelRight=1252.;
   static constexpr double footerPanelTop=4.,footerPanelBottom=38.;
 
   // Only SONG and SONG EDIT are buttons. The existing SWING, HUMANIZE,
@@ -84,8 +84,9 @@ struct UiV101Layout final {
   }
   static constexpr Rect meterReset{1132.,98.,1248.,134.};
   static constexpr Rect footerExport{915.,10.,1010.,35.}; // footer-relative
-  // Standard 83x32 header key, with 10px clearance from zoom popup.
-  static constexpr Rect limiterTrigger{1069.,54.,1152.,86.};
+  // LIMIT is on the SAME header baseline as ZOOM, immediately to its left.
+  // Both use 83x32 caps; the 13px gap preserves a clear bezel.
+  static constexpr Rect limiterTrigger{1069.,13.,1152.,45.};
   // Exact same 83x32 hardware cap as MENU/BARS/SONG/SONG EDIT.
   // Keep right edge and optical center (near 1208,29) unchanged; the 4px
   // gap before the existing zoom option popup is retained.
@@ -245,11 +246,19 @@ static_assert(UiV101Layout::zoomPresets[0]==1.0 &&
 static_assert(UiV101Layout::zoomOption(3).y1<=UiV101Layout::header);
 static_assert(UiV101Layout::stepRect(UiV101Layout::steps-1).x1<=UiV101Layout::stepEnd);
 // The full-width strip extends BEHIND both lower screw heads. The painter
-// restores the screw faces AFTER the inset instead of narrowing the strip.
-static_assert(UiV101Layout::footerPanelLeft <
-              UiV101Layout::footerScrewLeftX);
-static_assert(UiV101Layout::footerPanelRight >
-              UiV101Layout::footerScrewRightX);
+// The panel ends before both screw heads; left/right margin is symmetric.
+static_assert(UiV101Layout::footerPanelLeft >
+              UiV101Layout::footerScrewLeftX+UiV101Layout::footerScrewRadius);
+static_assert(UiV101Layout::footerPanelRight <
+              UiV101Layout::footerScrewRightX-UiV101Layout::footerScrewRadius);
+static_assert(UiV101Layout::footerPanelLeft ==
+              UiV101Layout::width-UiV101Layout::footerPanelRight);
+static_assert(UiV101Layout::limiterTrigger.y0==
+              UiV101Layout::zoomTrigger.y0&&
+              UiV101Layout::limiterTrigger.y1==
+              UiV101Layout::zoomTrigger.y1);
+static_assert(UiV101Layout::limiterTrigger.x1+13.==
+              UiV101Layout::zoomTrigger.x0);
 static_assert(UiV101Layout::footerPrev.x0>=UiV101Layout::footerPanel.x0+10.&&
               UiV101Layout::footerNext.x1<=UiV101Layout::footerPanel.x1-10.);
 static_assert(UiV101Layout::footerAdd.x0>=UiV101Layout::footerPanel.x0+10.&&

@@ -21,12 +21,11 @@ int main(){
        (step&&number.x0-L::stepNumberRect(step-4).x0!=4.*L::stepPitch))
        return 1;
   }
-  // A continuous footer must be as wide as the top chassis framing;
-  // both lower screws are re-rendered after the plate by the native painter.
-  static_assert(L::footerPanelLeft==8.&&L::footerPanelRight==1272.);
-  static_assert(L::footerPanelRight-L::footerPanelLeft>=1260.);
-  static_assert(L::footerScrewLeftX>L::footerPanelLeft&&
-                L::footerScrewRightX<L::footerPanelRight);
+  // Footer ends before each corner screw, balanced with 28px margins.
+  static_assert(L::footerPanelLeft==28.&&L::footerPanelRight==1252.);
+  static_assert(L::footerPanelRight-L::footerPanelLeft==1224.);
+  static_assert(L::footerScrewLeftX<L::footerPanelLeft&&
+                L::footerScrewRightX>L::footerPanelRight);
   // COMPLETE Branding master (all 30 SVG paths) must sit INSIDE the
   // graphite faceplate, away from its top trim and the stepped bottom bevel.
   static_assert(L::brandMasterSafeArea.x0>=65.&&
@@ -136,12 +135,15 @@ int main(){
                 L::footerExport.y1==L::footerPrev.y1);
   static_assert(L::limiterTrigger.x0>L::headerKnobCenters[2]+L::headerKnobRadius);
   static_assert(L::limiterTrigger.y1<L::meterReset.y0);
+  static_assert(L::limiterTrigger.y0==L::zoomTrigger.y0&&
+                L::limiterTrigger.y1==L::zoomTrigger.y1);
+  static_assert(L::limiterTrigger.x1+13.==L::zoomTrigger.x0);
   // The new caps use only existing physical button size families.
   static_assert(L::footerExport.x1-L::footerExport.x0==95. &&
                 L::footerExport.y1-L::footerExport.y0==25.);
   static_assert(L::limiterTrigger.x1-L::limiterTrigger.x0==83. &&
                 L::limiterTrigger.y1-L::limiterTrigger.y0==32.);
-  static_assert(L::limiterTrigger.x1+10.<=L::zoomOption(0).x0);
+  static_assert(L::limiterTrigger.x1+10.<=L::zoomTrigger.x0);
   for(const auto height: {432.,686.}) {
     const auto g=drumator::UiV101Popup::geometry(
         drumator::UiV101Popup::Kind::Export,L::header,height);
