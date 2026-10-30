@@ -477,13 +477,13 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
  // All 16 instruments remain automatable even when paged out or empty.
  for(std::size_t row=0;row<kRows;++row) {
    const auto title=[&](const char* prefix) {
-     std::array<Steinberg::TChar,64> chars{};
+     std::array<Steinberg::Vst::TChar,64> chars{};
      std::size_t n=0;
-     while(*prefix&&n<56)chars[n++]=static_cast<Steinberg::TChar>(*prefix++);
-     chars[n++]=static_cast<Steinberg::TChar>(' ');
+     while(*prefix&&n<56)chars[n++]=static_cast<Steinberg::Vst::TChar>(*prefix++);
+     chars[n++]=static_cast<Steinberg::Vst::TChar>(' ');
      const unsigned number=static_cast<unsigned>(row+1);
-     chars[n++]=static_cast<Steinberg::TChar>('0'+number/10);
-     chars[n++]=static_cast<Steinberg::TChar>('0'+number%10);
+     chars[n++]=static_cast<Steinberg::Vst::TChar>('0'+number/10);
+     chars[n++]=static_cast<Steinberg::Vst::TChar>('0'+number%10);
      return chars;
    };
    const auto volumeName=title("Volume");

@@ -5,11 +5,11 @@ struct AutoHostRecorder final : Steinberg::Vst::IComponentHandler {
  unsigned beginCount=0,endCount=0,performCount=0;
  Steinberg::Vst::ParamID lastId=0;
  Steinberg::Vst::ParamValue lastValue=-1;
- tresult PLUGIN_API queryInterface(const TUID iid,void** out) override {
+ tresult PLUGIN_API queryInterface(const TUID interfaceId,void** out) override {
    if(!out)return kInvalidArgument;
    *out=nullptr;
-   if(FUnknownPrivate::iidEqual(iid,FUnknown::iid)||
-      FUnknownPrivate::iidEqual(iid,IComponentHandler::iid)){
+   if(FUnknownPrivate::iidEqual(interfaceId,FUnknown::iid)||
+      FUnknownPrivate::iidEqual(interfaceId,IComponentHandler::iid)){
      *out=static_cast<IComponentHandler*>(this);addRef();return kResultOk;
    }
    return kNoInterface;
