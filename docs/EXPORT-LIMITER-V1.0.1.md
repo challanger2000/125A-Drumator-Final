@@ -35,3 +35,8 @@
 - F08 product DRUMATOR alpha wordmark reduced by 20%, aspect ratio unchanged.
 - F09 new instances open at 130%; projects with explicit saved zoom retain their stored preference.
 - Host DAW verification and 125A Plugin Tester on the new exact commit remain independent release gates.
+
+## QA rerun note (Windows run 40984238869)
+- 27/28 CTests passed, the native integration executable was terminated by its 300-second CTest watchdog after the N12 scenario; full suite did not finish.
+- Three stale image / rollback oracles incorrectly assumed 100% was still the initial host zoom after F09. Tests now first VERIFY 130% in the real attached VST3 editor and explicitly select the historical 100% screenshot baseline through the real zoom popup, while standalone rollback requires 130%.
+- Integration watchdog was adjusted to 600 seconds as an observed full-suite duration budget, not as a skipped test or a replacement for source-level assertions. Full CI and host verification remain necessary; never count run 40984238869 as PASS.

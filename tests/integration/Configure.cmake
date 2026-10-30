@@ -72,4 +72,9 @@ target_compile_options(drumator_integration_tests PRIVATE /W4 /WX /external:W0)
 add_dependencies(drumator_test_suite drumator_integration_tests)
 add_test(NAME drumator_integration_tests COMMAND drumator_integration_tests
   "${CMAKE_CURRENT_SOURCE_DIR}/resource")
-set_tests_properties(drumator_integration_tests PROPERTIES TIMEOUT 300)
+# The full native Windows pixel/host suite exercises all four zoom factors
+# and multiple host-owned HWND lifecycles. The 130% factory default makes
+# its unattended full-run slower; preserve the complete suite without masking
+# assertions or omitting any functional case. 300s was measured inadequate
+# on Windows run 40984238869 (terminated after N12, before remaining cases).
+set_tests_properties(drumator_integration_tests PROPERTIES TIMEOUT 600)

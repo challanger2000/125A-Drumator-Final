@@ -1003,6 +1003,8 @@ void testV101Interaction(){
  check(f.c->setComponentHandler(&hostHandler)==kResultOk,
        "V101 test host automation callback installation failed");
  UI ui(*f.c);
+ check(ui.userZoom()==1.3&&std::abs(f.c->preferredZoom()-1.3)<.0001,
+       "F09 new controller and standalone UI must default to 130 percent");
  check(ui.shownRows()==10&&ui.height()==686.,
        "V101 initial page size/150-percent height incorrect");
  // Every raised key uses identical physical y-bounds and the old low
@@ -1177,7 +1179,8 @@ void testV101Interaction(){
  check(ui.takeDeferredRequest().kind==UI::DeferredKind::Zoom,
        "V101 zoom view request not distinguishable from popup actions");
  ui.confirmZoom(false);
- check(ui.userZoom()==1.0,"V101 host-rejected zoom did not rollback");
+ check(ui.userZoom()==1.3,
+       "V101 host-rejected zoom did not roll back to actual 130 percent default");
  check(ui.down(1200.,24.)==UI::Result::Handled,
        "V101 zoom menu didn't reopen");
  check(ui.down(1200.,139.)==UI::Result::DeferredToView,
@@ -1234,6 +1237,16 @@ void testV101LiveEditor(){
  check(IntegrationAccess::viewCount(*f.c)==1,
        "V101 native host did not register exactly one Controller view");
  auto* view=IntegrationAccess::view(*f.c,0);
+ check(view->zoomMatches(1.3)&&
+       std::abs(hostEditor.getZoomFactor()-1.3)<.0001,
+       "F09 new VST3 factory View must attach at real 130 percent zoom");
+ // Historical screenshot oracle below explicitly requests 100% through
+ // the real header picker. Never assume the newly configured default.
+ click(*view,1200.,25.);
+ click(*view,1200.,61.);
+ check(view->zoomMatches(1.0)&&
+       std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
+       "V101 screenshot baseline 100 percent was not applied in real host");
  check(view->isV101(),"V101 host loaded legacy painter instead of candidate");
  check(IntegrationAccess::vintageFaceplateLoaded(*view),
        "V101 dark user PNG was not actually loaded in native editor");
@@ -2260,6 +2273,9 @@ void testV101CommercialVisualEvidence(){
  f.kit(kit);
  auto& host=f.openV101();
  auto* v=IntegrationAccess::view(*f.c,0);
+ check(v->zoomMatches(1.3)&&
+       std::abs(host.getZoomFactor()-1.3)<.0001,
+       "F09 commercial factory View must start at 130% before explicit captures");
  const std::array<std::pair<double,const char*>,4> zooms{{
    {1.0,"100"},{1.2,"120"},{1.3,"130"},{1.5,"150"}
  }};
@@ -2281,10 +2297,11 @@ void testV101CommercialVisualEvidence(){
  };
  for(std::size_t z=0;z<zooms.size();++z){
    const auto [scale,label]=zooms[z];
-   if(z!=0){
-     click(*v,1200.,25.);
-     click(*v,1200.,49.+26.*z+12.);
-   }
+   // The commercial screenshot set starts at 100%, but production starts
+   // at 130%. Explicitly pick EVERY zoom, including the first, through
+   // the real native popup and host resize negotiation.
+   click(*v,1200.,25.);
+   click(*v,1200.,49.+26.*z+12.);
    check(v->getViewSize().getHeight()==686.&&
          IntegrationAccess::v101FirstRow(*v)==0,
          "commercial MAIN initial native host geometry / page incorrect");
