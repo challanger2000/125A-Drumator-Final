@@ -926,7 +926,8 @@ void testV101ControllerScene(){
  check(Bridge::apply(*f.c,muteHit)==Bridge::Route::Applied&&
        !f.c->isRowMuted(5),
        "V101 mute hit -> real Controller state failed");
- const auto fillHit=L::hit(90.,L::header+20.,0,10,noExpansion);
+ const auto fillHit=L::hit((L::fill.x0+L::fill.x1)*.5,
+                           L::header+20.,0,10,noExpansion);
  check(fillHit.action==L::Action::Fill&&
        Bridge::apply(*f.c,fillHit)==Bridge::Route::DeferredToView,
        "V101 FILL popup must be left to the actual view");
@@ -1414,10 +1415,10 @@ void testV101LiveEditor(){
  // hit rectangle. Use the actual attached view, not only a constexpr check.
  check(!IntegrationAccess::v101ZoomPopupOpen(*view),
        "V101 ZOOM popup unexpectedly open at start");
- click(*view,1166.,14.);
+ click(*view,L::zoomTrigger.x0+1.,L::zoomTrigger.y0+1.);
  check(IntegrationAccess::v101ZoomPopupOpen(*view),
        "V101 ZOOM enlarged 83x32 edge did not open its real popup");
- click(*view,1166.,14.);
+ click(*view,L::zoomTrigger.x0+1.,L::zoomTrigger.y0+1.);
  check(!IntegrationAccess::v101ZoomPopupOpen(*view),
        "V101 ZOOM enlarged edge did not close popup symmetrically");
  // The actual pixels behind the controls must be precisely those of
@@ -2433,7 +2434,8 @@ void testV101CommercialVisualEvidence(){
          "commercial SET collapse did not restore MAIN geometry");
 
    popup(K::Pattern,"popup-pattern",400.,115.,label,scale);
-   popup(K::Fill,"popup-fill",99.,L::header+20.,label,scale);
+   popup(K::Fill,"popup-fill",(L::fill.x0+L::fill.x1)*.5,
+         L::header+20.,label,scale);
    popup(K::Sample,"popup-sample",
          (L::sampleMenu.x0+L::sampleMenu.x1)*.5,
          L::header+20.,label,scale);
