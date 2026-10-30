@@ -1,6 +1,6 @@
-# 125A Drumator – Benutzeranleitung (Entwicklungsstand)
+# 125A Drumator – Benutzeranleitung V1.0.1
 
-**Hinweis:** Dieses Dokument beschreibt den derzeitigen Funktionsumfang und ersetzt keine abgeschlossene V1-Releasefreigabe. Die sichtbaren Bedienelemente der neuen GUI sind auf Englisch.
+**Version 1.0.1.** Die aktuelle deutsch- und englischsprachige bebilderte PDF-Kundendokumentation liegt im separat vorbereiteten Verkaufspaket. Diese Quelle beschreibt die Funktionen host-neutral; die sichtbaren Regler sind englisch beschriftet.
 
 ## Was ist Drumator?
 
@@ -28,9 +28,9 @@ Ein VST3-Drum-Sampler für Windows mit Step-Sequencer. Er ist auf **One-Shot-Sam
 
 **LIVE VEL** steuert dagegen eine nichtdestruktive Anschlagstärkenvariation während der Wiedergabe (0–100 %). Gespeicherte Step-Velocities bleiben dabei unverändert. Das Feld lässt sich ziehen; die Tasten −/+ verändern den Wert.
 
-Im Bereich **SET** befindet sich die BUS-Zuordnung, die als **BUS 1** (MAIN) oder **BUS 2–16** angezeigt wird. Eine BUS-Auswahl legt das Audiosignal einer Instrumentenzeile auf den gewählten Stereo-VST3-Bus; sie **aktiviert im Host nicht automatisch** die zugehörige Ausgabespur. Für separate Drum-Kanäle die entsprechenden Instrumentenausgänge (DRUM 02 bis DRUM 16) **in Studio One aktivieren**. Solange ein zusätzlicher Bus nicht aktiv ist, kann Drumator das Signal auf MAIN ausgeben. Die BUS-Auswahl wird mit dem Projekt gespeichert.
+Im Bereich **SET** befindet sich die BUS-Zuordnung, die als **BUS 1** (MAIN) oder **BUS 2–16** angezeigt wird. Eine BUS-Auswahl legt das Audiosignal einer Instrumentenzeile auf den gewählten Stereo-VST3-Bus; sie **aktiviert im Host nicht automatisch** die zugehörige Ausgabespur. Für separate Drum-Kanäle die entsprechenden Instrumentenausgänge (DRUM 02 bis DRUM 16) **in der jeweiligen Hostanwendung aktivieren**. Solange ein zusätzlicher Bus nicht aktiv ist, kann Drumator das Signal auf MAIN ausgeben. Die BUS-Auswahl wird mit dem Projekt gespeichert.
 
-**Wichtig:** Die aktuelle Funktionsprüfung des BUS-Menüs und das 16-Bus-Audio-Routing sind automatisiert bestanden; die konkrete Aktivierung in Studio One/ASIO bleibt ein **offener Praxistest**.
+**Wichtig:** BUS-Menü und 16-Bus-Audio-Routing wurden automatisiert geprüft. Die Aktivierung zusätzlicher Stereo-Ausgänge hängt von der jeweiligen Hostanwendung ab.
 
 ## Pattern und Tempo
 
@@ -45,11 +45,13 @@ Die Instrumentenzeilen bieten VOL, PAN, PITCH, Mute, Solo, Choke, Fill und Outpu
 ## Verbindliche Funktionsgrenzen
 
 - SONG START und BAR-Zuordnung sind in V1 für **4/4** (16 Sechzehntel pro Takt) ausgelegt; andere Taktarten/Taktwechsel sind nicht validiert.
-- In der DAW lässt sich in V1 **nur Pattern A–H** als VST3-Parameter automatisieren. Die übrigen Regler sind bedienbar und werden im Projektzustand gespeichert, aber nicht als einzelne DAW-Automationsparameter angeboten.
+- Drumator stellt **66 automatisierbare VST3-Parameter** bereit: Pattern A–H, je 16× Volume (0–200 %), Pan (−100 bis +100), Mute (OFF/ON) und Pitch (−24 bis +24 Halbtöne) sowie den Master-Pegel (0–200 %). Die IDs bleiben unabhängig von Pattern und Ansichtsseite stabil.
 - Für den eingebetteten Projekt-Samplezustand gelten technische Obergrenzen von **16 MiB WAV-Daten je Instrument** und **64 MiB WAV-Daten insgesamt**. Dateien vor der endgültigen Speicherung entsprechend testen.
 
-## Grenzen / noch zu prüfende Bedienung
+## Projekt-Recall und Bedienhinweise
 
-Diese Anleitung erklärt den Implementierungsstand; eine Freigabe der endgültigen GUI ist erst nach Sicht- und Maustests in Studio One einschließlich 100/130/150 % Zoom sowie Save/Recall zulässig. Es gibt keinen Rechtsklick-Zwang für grundlegende Funktionen.
+Gespeichert werden Samples, Steps/Patterns, SONG-Kette, Mix-/Ausgangsdaten, Limiter sowie mit APPLY bestätigte Sample-Edits. Auch der Pitch-Zustand ist Teil des Recalls. LIVE-Entwürfe ohne APPLY bleiben temporär. Nach einem Update ein vorhandenes Projekt schließen und erneut öffnen sowie Wiedergabe und Automation kontrollieren.
+
+Automatische Tests der aktuellen Version einschließlich der 66 Parameter und fünf unabhängigen Fehlergegenproben sind bestanden; eine Verkaufsfreigabe hängt zusätzlich von der Kundenpaket- und Rechteprüfung ab. Es gibt keinen Rechtsklick-Zwang für grundlegende Funktionen.
 
 Technische GUI-Vorgaben: [VSTGUI UX Blueprint](VSTGUI-UX-BLUEPRINT-20261023.md).
