@@ -96,6 +96,73 @@ void testV101HostMixAutomationContract(){
  evidence("AUT01 VST3 66 stable parameters, 16x gain/pan/mute/pitch, master, GUI host gestures and feedback PASS");
 }
 
+// AUT08: field regression for Studio One: host Pitch works, then WAV Editor
+// Fade Out APPLY, then automation value and GUI still move but DSP fails.
+// Prove the fix by observing the actual rendered source-frame advance.
+void testV101PitchSurvivesWaveEditorApply(){
+ using namespace drumator;
+ Fixture f;
+ KitState kit{};kit.visible=1;kit.grid.fill(0);
+ kit.names[0]="fade-apply-pitch.wav";
+ kit.wav[0]=constantStereo(.5f,-.25f); // 1024 frames, 44.1/48k fixture
+ f.kit(kit);prepareAudio(*f.p);
+ AuditAudioBlock b;
+ EventList notes;Event note{};note.type=Event::kNoteOnEvent;
+ note.noteOn.pitch=36;note.noteOn.velocity=1.f;note.noteOn.noteId=-1;
+ check(notes.addEvent(note)==kResultOk,"AUT08 MIDI trigger preparation");
+ ParameterChanges up;int32 i=0;
+ up.addParameterData(kRowPitchBase,i)->addPoint(0,.75,i); // +12 st
+ b.data.inputEvents=&notes;b.data.inputParameterChanges=&up;
+ check(f.p->process(b.data)==kResultOk&&std::abs(b.left[100]-.5f)<1e-4f,
+       "AUT08 baseline +12 host Pitch did not render");
+ b.data.inputEvents=nullptr;b.data.inputParameterChanges=nullptr;
+ check(f.p->process(b.data)==kResultOk,"AUT08 baseline second block");
+ check(f.p->process(b.data)==kResultOk&&std::abs(b.left[100])<1e-5f,
+       "AUT08 baseline +12 pitch not twice playback rate");
+ ParameterChanges neutral;i=0;
+ neutral.addParameterData(kRowPitchBase,i)->addPoint(0,.5,i);
+ b.data.inputParameterChanges=&neutral;
+ check(f.p->process(b.data)==kResultOk,"AUT08 return host Pitch to 0 st");
+ b.data.inputParameterChanges=nullptr;
+ const SampleEdit fade{0,1024,0,128,1.f};
+ check(f.c->commitSampleEdit(0,fade),"AUT08 WAV Editor Fade Out Apply rejected");
+ ResizableMemoryIBStream saved;KitState state{};
+ check(f.p->getState(&saved)==kResultOk&&
+       KitCodec::decode(static_cast<const std::uint8_t*>(saved.getData()),
+                       saved.getCursor(),state)&&
+       state.sampleEdits[0].fadeOut==128&&state.pitch[0]==24,
+       "AUT08 Fade Out Apply failed to save edit and neutral pitch");
+ // Real bug: post-Apply auto value becomes +12, but WAV remains at unity.
+ b.data.inputEvents=&notes;b.data.inputParameterChanges=&up;
+ allocationFail=0;
+ const auto result=f.p->process(b.data);
+ allocationFail=-1;
+ check(result==kResultOk&&std::abs(b.left[100]-.5f)<1e-4f,
+       "AUT08 post-Apply +12 realtime allocation/PCM failure");
+ b.data.inputEvents=nullptr;b.data.inputParameterChanges=nullptr;
+ check(f.p->process(b.data)==kResultOk,"AUT08 post-Apply +12 second block");
+ check(f.p->process(b.data)==kResultOk&&
+       std::abs(b.left[100])<1e-5f&&std::abs(b.right[100])<1e-5f,
+       "AUT08 regression: Wave Editor Apply disabled audible host Pitch automation");
+ ResizableMemoryIBStream after;KitState stored{};
+ check(f.p->getState(&after)==kResultOk&&
+       KitCodec::decode(static_cast<const std::uint8_t*>(after.getData()),
+                        after.getCursor(),stored)&&
+       stored.sampleEdits[0].fadeOut==128&&stored.pitch[0]==36,
+       "AUT08 audio Pitch and Fade Out were not serialized together");
+ // The new filter bank must also survive automation back down to -12.
+ ParameterChanges down;i=0;
+ down.addParameterData(kRowPitchBase,i)->addPoint(0,.25,i);
+ b.data.inputEvents=&notes;b.data.inputParameterChanges=&down;
+ check(f.p->process(b.data)==kResultOk,"AUT08 post-Apply -12 first block");
+ b.data.inputEvents=nullptr;b.data.inputParameterChanges=nullptr;
+ check(f.p->process(b.data)==kResultOk,"AUT08 post-Apply -12 second block");
+ check(f.p->process(b.data)==kResultOk&&b.left[100]>.45f,
+       "AUT08 post-Apply -12 should lengthen audible sample");
+ f.p->setProcessing(false);f.p->setActive(false);
+ evidence("AUT08 Studio One sequence: Fade Out APPLY preserves +12/-12 Pitch PCM, state and allocation-free callback PASS");
+}
+
 void testV101HostMixAutomationPcm(){
  using namespace drumator;
  // Never rely on a mock renderer: actual Controller+Processor, real

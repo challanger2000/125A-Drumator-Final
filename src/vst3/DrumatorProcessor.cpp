@@ -475,7 +475,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    std::unique_ptr<PreparedSample> prepared;
    if(PreparedSample::fromWav(wav.data(),wav.size(),rate,
        static_cast<double>(static_cast<int>(rowPitch_[row].load(std::memory_order_relaxed))-24),
-       1.f,0.f,0,false,prepared,edit)!=PrepareStatus::Ok)
+       1.f,0.f,0,false,prepared,edit,true)!=PrepareStatus::Ok)
      return Steinberg::kResultFalse;
    for(;;){auto unused=exchange_.pollReclaim();if(!unused)break;}
    auto previous=exchange_.withdraw(row);
