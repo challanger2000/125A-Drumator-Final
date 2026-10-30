@@ -1,6 +1,6 @@
 # 125A Drumator — authoritative current status
 
-**30 October 2026 | Version 1.0.1 | New GUI-refined customer ZIP prepared, not yet uploaded to Gumroad.**
+**30 October 2026 | Version 1.0.1 | Gumroad publication and hands-on Studio One test completed (owner-confirmed).**
 
 ## Canonical source and exact binary
 
@@ -30,10 +30,14 @@ These are GUI layout refinements, not a new audio/DSP or parameter-ID revision. 
 - Image resource metadata may be removed; decoded image pixels and compiled VST3 binary are preserved and verified. No audit reports, build scripts, QA logs or private paths enter the customer archive.
 - **Previous ZIP** `125A_Drumator_1.0.1_Gumroad_GUI_korrigiert.zip` is superseded; do not distribute the older UI package.
 
+## Owner release confirmation and limitations
+
+On **30 October 2026**, following preparation and successful automated QA of the updated customer ZIP, the owner confirmed **both** of the remaining steps had just been completed: a hands-on test of the latest VST3 in Studio One, and upload/publication of the Gumroad package. This is an owner-reported outcome; GitHub CI neither runs Studio One nor verifies a Gumroad storefront listing. No separate public Gumroad listing URL has been recorded. The earlier "not published" and "Studio One test pending" labels are superseded by this owner confirmation.
+
 ## Scope, publication and limitations
 
 - Windows x64 VST3 only. 16 sample rows, 8 A-H patterns, 16/32 steps, SONG, integrated WAVE editor, WAV/FLAC import, MIDI/WAV Pattern/SONG export, optional limiter, 100/120/130/150% Zoom and **66 stable VST3 automation parameters**.
-- The exact build passed CI and automated host-integrated tests; **a fresh hands-on Studio One run against this particular binary was not performed within GitHub Actions**. Do not claim manual DAW testing of this final GUI revision.
+- The exact build passed CI and automated host-integrated tests. The owner additionally confirms having performed a hands-on Studio One test of the latest VST3; **that personal DAW session was not performed or independently documented by GitHub Actions**.
 - Included VST3 SDK (MIT), VSTGUI (BSD-style) and dr_flac (MIT-0) third-party notices enable license-compliant redistribution of those components. Ownership/distribution rights of original branded artwork and the seller's consumer-facing terms remain the seller's responsibility.
-- The customer ZIP is prepared for user upload; there is no actual Gumroad publication, GitHub FINAL release tag or storefront upload implied by these technical tests.
+- **Gumroad publication/upload has been confirmed by the owner**. No GitHub FINAL release tag is implied or created by this documentation update. The public listing content and exact downloadable bytes were not independently checked against the owner-reported release.
 - These current details supersede historical audit and package records. [Documentation guide](docs/INDEX.md) retains older evidence for traceability.
