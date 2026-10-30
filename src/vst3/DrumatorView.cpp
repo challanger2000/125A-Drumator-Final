@@ -890,6 +890,8 @@ void DrumatorView::refreshFromHost(bool relayout) {
  // Host zoom may change while either modal editor is visible. Keep the
  // shared hardware zoom indicator accurate in MAIN, SONG and Wave alike.
  if(v101Mode_)v101_.syncZoomFromHost(editor_.getZoomFactor());
+ const bool v101RowsChanged=v101LastRowsNotified_!=controller_.visibleRows();
+ v101LastRowsNotified_=controller_.visibleRows();
  if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_) {
    // Ordinary controller notifications during a rotary/velocity drag must
    // not cancel that same gesture. Full structural relayout is different.
@@ -903,7 +905,8 @@ void DrumatorView::refreshFromHost(bool relayout) {
    // handle its own row resize/rollback after down() returns; peers alone
    // negotiate their HWND or fall back to a shorter but usable row page.
    if(v101LocalRowTransaction_){invalid();return;}
-   if(getParentView()){
+   if(getParentView()&&(v101RowsChanged||relayout||
+       v101_.state().viewportRows==UiV101Layout::visibleRows)){
      v101_.setViewportRows(UiV101Layout::visibleRows);
      if(v101_.height()!=getViewSize().getHeight()&&
         !adjustEditorHeight()){
@@ -988,6 +991,7 @@ bool DrumatorView::attached(VSTGUI::CView* parent) {
  if(v101Mode_)v101_.syncZoomFromHost(editor_.getZoomFactor());
  const auto result=CView::attached(parent);
  if(result){
+   v101LastRowsNotified_=controller_.visibleRows();
    adjustEditorHeight();
    meterTimer_=VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
      [this](VSTGUI::CVSTGUITimer*){if(getFrame())pollMeter();},33);
