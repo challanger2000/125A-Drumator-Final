@@ -261,11 +261,13 @@ void testV101MenuMatrixAndGeometry(){
  const double secondRow=L::rowTop(0,1,expanded);
  check(f.c->hasSample(1)&&f.c->hasSample(0),
        "GUI audit sample menu fixture missing source WAV");
- popupClick(Kind::Sample,2,267.,secondRow+20.,secondRow);
+ popupClick(Kind::Sample,2,(L::sampleMenu.x0+L::sampleMenu.x1)*.5,
+            secondRow+20.,secondRow);
  check(!f.c->hasSample(1)&&f.c->hasSample(0),
        "GUI audit REMOVE SAMPLE damaged the wrong instrument");
  // The second sample menu item must really enter inline name editing.
- popupClick(Kind::Sample,1,267.,secondRow+20.,secondRow);
+ popupClick(Kind::Sample,1,(L::sampleMenu.x0+L::sampleMenu.x1)*.5,
+            secondRow+20.,secondRow);
  check(IntegrationAccess::edit(*view)!=nullptr,
        "GUI audit SAMPLE RENAME did not open native VSTGUI CTextEdit");
  evidence("V101 all-menu matrix: Pattern 7/7, Fill 8/8 exact 32-step masks, Output 16/16, Choke 5/5, Sample REMOVE, A-H 8/8, live popup geometry, modal dismissal PASS");

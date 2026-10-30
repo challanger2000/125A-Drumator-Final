@@ -2433,7 +2433,9 @@ void testV101CommercialVisualEvidence(){
 
    popup(K::Pattern,"popup-pattern",400.,115.,label,scale);
    popup(K::Fill,"popup-fill",99.,L::header+20.,label,scale);
-   popup(K::Sample,"popup-sample",267.,L::header+20.,label,scale);
+   popup(K::Sample,"popup-sample",
+         (L::sampleMenu.x0+L::sampleMenu.x1)*.5,
+         L::header+20.,label,scale);
    // Export is footer-relative and must never open a clipped menu.
    popup(K::Export,"popup-export",960.,
          v->getViewSize().getHeight()-L::footer+22.,label,scale);
