@@ -1574,7 +1574,9 @@ void testV101LiveEditor(){
  L::Expansions openSet{};
  openSet[0]=L::Expansion::Settings;
  const double secondRowTop=L::rowTop(0,1,openSet);
- click(*view,267.,secondRowTop+20.);
+ click(*view,(L::sampleMenu.x0+L::sampleMenu.x1)*.5,secondRowTop+20.);
+ check(IntegrationAccess::v101Popup(*view)==drumator::UiV101Popup::Kind::Sample,
+       "F17 moved sample-menu key failed to open before REMOVE SAMPLE");
  const auto sampleGeometry=drumator::UiV101Popup::geometry(
      drumator::UiV101Popup::Kind::Sample,secondRowTop,
      view->getViewSize().getHeight());
