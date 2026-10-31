@@ -111,11 +111,12 @@ struct UiV101NativePreview final {
      fill(c,{r.left,top,r.right,bottom},ink);
    }
  }
- // Draw the supplied faceplate as ONE photograph. Never nine-slice it:
- // slicing a panel with continuous grooves, bevels and brushed grain
- // breaks the geometry at every slice boundary.
- // Keep the artwork's aspect ratio and crop the surplus at the center.
- // All views share the same 1280x686 reference framing, including SONG.
+ // Paint the original hardware photograph at its native logical scale.
+ // A shorter instrument page must keep BOTH original top and bottom chassis
+ // borders. Cropping the entire image from the top lost the lower metal rim
+ // and corners. This is a TWO-REGION vertical crop, NOT a rescaled bitmap or
+ // a nine-slice: no grooves, screw heads or brushed-metal texture are warped.
+ // Full-height MAIN and SONG retain their pixel-identical original rendering.
  static bool drawVintageFaceplate(VSTGUI::CDrawContext& c,
                                   VSTGUI::CBitmap* plate,double height,bool omitHeader=false){
    if(!plate||!plate->isLoaded()||plate->getWidth()<300.||
@@ -125,14 +126,29 @@ struct UiV101NativePreview final {
    const double scale=std::max(L::width/w,referenceHeight/h);
    const double x=(L::width-w*scale)*.5;
    const double y=(referenceHeight-h*scale)*.5;
-   c.saveGlobalState();
-   c.setClipRect({0.,omitHeader?L::header:0.,L::width,height});
-   {
-     VSTGUI::CDrawContext::Transform tx(c,
-       VSTGUI::CGraphicsTransform().scale(scale,scale).translate(x,y));
-     plate->draw(&c,{0.,0.,w,h});
+   const double top=omitHeader?L::header:0.;
+   const auto paintRegion=[&](double y0,double y1,double offset){
+     if(y1<=y0)return;
+     c.saveGlobalState();
+     c.setClipRect({0.,y0,L::width,y1});
+     {
+       VSTGUI::CDrawContext::Transform tx(c,
+         VSTGUI::CGraphicsTransform().scale(scale,scale).translate(x,y+offset));
+       plate->draw(&c,{0.,0.,w,h});
+     }
+     c.restoreGlobalState();
+   };
+   if(height>=referenceHeight){
+     paintRegion(top,height,0.);
+   }else{
+     // Keep the lower 124px (including its complete decorative chassis lip)
+     // fixed to the resized HWND bottom. Cut only the covered central body.
+     // For extremely short host windows, never overwrite the header.
+     const double lowerBand=std::min(124.,height-L::header);
+     const double split=height-lowerBand;
+     paintRegion(top,split,0.);
+     paintRegion(std::max(top,split),height,height-referenceHeight);
    }
-   c.restoreGlobalState();
    return true;
  }
  // Square buttons were the main Windows-98 cue. These tiny inset corner

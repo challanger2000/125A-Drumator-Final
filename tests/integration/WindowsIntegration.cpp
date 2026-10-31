@@ -1749,6 +1749,14 @@ void testV101LiveEditor(){
  // Compact 95x25 footer keys must page in the actual host, resizing
  // from ten to six rows and back without stale click areas.
  const auto initialHeight=view->getViewSize().getHeight();
+ // The original photo's lower bezel must survive shortening to six rows.
+ // The old top-only clip had a grey unfinished bottom instead of the bezel.
+ // Compare the REAL native painter at original and shortened host heights.
+ constexpr std::array<std::uint32_t,3> lowerBezelSamples{{4u,640u,1276u}};
+ std::array<std::array<int,3>,lowerBezelSamples.size()> fullBottomPixels{};
+ for(std::size_t i=0;i<lowerBezelSamples.size();++i)
+   fullBottomPixels[i]=viewPixel(lowerBezelSamples[i],
+       static_cast<std::uint32_t>(initialHeight-4.));
  click(*view,1175.,initialHeight-L::footer+22.);
  check(view->getViewSize().getHeight()==
            L::editorHeight(10,6,L::Expansions{}),
@@ -1759,6 +1767,13 @@ void testV101LiveEditor(){
  for(std::size_t component=0;component<3;++component)
    check(std::abs(fullFooterPixel[component]-shortFooterPixel[component])<=8,
          "V101 image-backed fixed-size footer warped after paging");
+ for(std::size_t i=0;i<lowerBezelSamples.size();++i){
+   const auto shortBottom=viewPixel(lowerBezelSamples[i],
+       static_cast<std::uint32_t>(view->getViewSize().getHeight()-4.));
+   for(std::size_t rgb=0;rgb<3;++rgb)
+     check(std::abs(fullBottomPixels[i][rgb]-shortBottom[rgb])<=6,
+           "F18: NEXT PAGE cropped original bottom metal chassis rim");
+ }
  click(*view,1070.,view->getViewSize().getHeight()-L::footer+22.);
  check(view->getViewSize().getHeight()==686.,
        "V101 attached host PREV PAGE did not return to ten rows");

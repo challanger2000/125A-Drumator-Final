@@ -1,5 +1,9 @@
 # 125A Drumator — authoritative current status
 
+**31 October 2026 | UNRELEASED follow-up on development branch: F18 short-page background correction (Windows QA pending).**
+
+**Published product remains 1.0.1**, exact tested binary `e630602a634bbd0773352a5235eb8b3c2a4cb7ab` as documented below. The development branch contains a subsequent faceplate fix for the owner-reported NEXT PAGE window rendering bug; it is **not** part of the published Gumroad ZIP until independently tested and explicitly released.
+
 **30 October 2026 | Version 1.0.1 | Gumroad publication and hands-on Studio One test completed (owner-confirmed).**
 
 ## Canonical source and exact binary
