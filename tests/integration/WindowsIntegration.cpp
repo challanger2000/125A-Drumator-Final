@@ -1246,10 +1246,10 @@ void testV101Interaction(){
                "V101 footer buttons have mismatched or oversized hit rectangles");
  const double footerY=pages.height()-L::footer;
  check(pages.down(1175.,footerY+22.)==UI::Result::Handled&&
-       pages.state().firstRow==6&&pages.shownRows()==10,
-       "V101 NEXT must show the fully occupied final rows 7-16");
+       pages.state().firstRow==10&&pages.shownRows()==6,
+       "V101 NEXT must show only final rows 11-16 without repetition");
  check(pages.down(985.,footerY+22.)==UI::Result::Ignored&&
-       pages.state().firstRow==6,
+       pages.state().firstRow==10,
        "V101 old oversized PREV click hotspot still active");
  // The final page retains the normal-height chassis and its bottom footer.
  const double secondFooterY=pages.height()-L::footer;
@@ -1755,11 +1755,11 @@ void testV101LiveEditor(){
        static_cast<std::uint32_t>(initialHeight-4.));
  const auto resizeCallsBeforePage=f.frames[0].calls;
  click(*view,1175.,initialHeight-L::footer+22.);
- check(IntegrationAccess::v101FirstRow(*view)==6&&
-       IntegrationAccess::v101ShownRows(*view)==10&&
+ check(IntegrationAccess::v101FirstRow(*view)==10&&
+       IntegrationAccess::v101ShownRows(*view)==6&&
        view->getViewSize().getHeight()==initialHeight&&
        f.frames[0].calls==resizeCallsBeforePage,
-       "F19 NEXT PAGE must preserve full-height DAW window and show last ten rows");
+       "F20 NEXT PAGE must show only six distinct rows without resizing the host");
  captureVstgui(*view,"v101-vintage-faceplate-six-row-100",1.0);
  const auto shortFooterPixel=viewPixel(17,
       static_cast<std::uint32_t>(view->getViewSize().getHeight()-28.));
@@ -2470,11 +2470,11 @@ void testV101CommercialVisualEvidence(){
 
    const auto resizeCallsBeforePage=f.frames[0].calls;
    click(*v,1175.,v->getViewSize().getHeight()-L::footer+22.);
-   check(IntegrationAccess::v101FirstRow(*v)==6&&
-         IntegrationAccess::v101ShownRows(*v)==10&&
+   check(IntegrationAccess::v101FirstRow(*v)==10&&
+         IntegrationAccess::v101ShownRows(*v)==6&&
          v->getViewSize().getHeight()==686.&&
          f.frames[0].calls==resizeCallsBeforePage,
-         "F19 commercial last ten rows must remain full-height without host resize");
+         "F20 commercial last six rows must remain full-height without host resize");
    snapshot("page2-last-six",label,scale);
    click(*v,1070.,v->getViewSize().getHeight()-L::footer+22.);
    check(IntegrationAccess::v101FirstRow(*v)==0&&

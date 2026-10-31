@@ -15,13 +15,9 @@ Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style
 - GUI zoom 100/120/130/150 %, default 130 %.
 - **66 automatable VST3 parameters:** Pattern, 16× Volume, 16× Pan, 16× Mute, 16× Pitch and Master.
 
-## Unreleased NEXT PAGE correction — version 1.0.1 (development branch only)
+## F20 NEXT PAGE fix candidate — not yet released
 
-- Owner-reported issue: the final page with a single instrument compressed the embedded Studio One window to a tiny height. F18's lower-metal-border correction alone did not address this.
-- F19 retains the normal 686px window height and bottom metal chassis with no page-change host resize. The final page shows the last **ten real instrument rows** (for 11 instruments: 2–11; for 16: 7–16), so there are no empty inactive panels.
-- **Exact product code:** `6d60a4da95e1b07f9e1673232d18d1a368169ec2` · [Windows Actions #41152681580](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41152681580) **SUCCESS** (29/29 CTests, 47/47 validator, 58/0/0 independent tester).
-- **DLL SHA256:** `11de6738ea6ad66d9c60dc88a481ce703923c1f82e09fff4387527ad6a5caee0`.
-- **Private test ZIP:** `125A_Drumator_1.0.1_Next_Page_Fix_Test.zip`, SHA256 `5b33baf1d527673fb08fa75ae05ee90b4cc324b33b9328f7d67b65b5d398ef2e`. Owner Studio One check outstanding. The seller's currently published Gumroad ZIP is not changed. **No version bump to 1.0.2.**
+Canonical pages never overlap: **1–10, then 11–16**, or a single row 11 if there are 11 instruments. Keep the existing full-height GUI and footer during paging so Studio One does not shrink the host window; unused rows remain inactive chassis background. F19's overlapping rows were rejected. Product remains **1.0.1**, and the published Gumroad ZIP is unchanged pending CI and a new Studio One confirmation.
 
 ## Verified published 1.0.1 product build
 

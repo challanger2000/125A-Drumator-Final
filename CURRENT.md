@@ -1,19 +1,12 @@
 # 125A Drumator — authoritative current status
 
-**31 October 2026 | Version 1.0.1 | F19 NEXT PAGE fix Windows QA PASS; private Studio One verification pending.**
+**31 October 2026 | 1.0.1 F20 fix | nonoverlapping NEXT PAGE, fixed host window | Windows QA pending.**
 
-## Current private GUI correction (F19)
+Owner-confirmed intended paging: **page 1 shows instrument rows 1–10, page 2 shows only rows 11–16** (for 11 instruments, the second page shows only row 11). No repeated rows across pages. The earlier F19 overlapped page contents and has been **rejected**.
 
-- **Problem:** With eleven instruments the final page previously showed only ROWS 11-11 / 11 and shrank the host window from 686px to 254px logical height. This produced an unwanted partial GUI within Studio One. An initial bottom-metal-faceplate-only correction (F18) did not remedy the window resize. The first fixed-height render then revealed an unacceptable large blank panel.
-- **Final F19 layout:** All normal 10-row viewport pages remain at logical **1280×686** and never request another host resize merely to navigate NEXT/PREV. Pages are anchored so they remain fully occupied by actual instrument rows, even when the last page overlaps the previous page: **11 total = ROWS 1-10 then 2-11**; **16 total = ROWS 1-10 then 7-16**. Instrument controls, row identity and input hit targets use those true row indexes. Constrained peer views with host-resize refusal retain their existing compact recovery strategy.
-- **Exact tested executable source commit:** `6d60a4da95e1b07f9e1673232d18d1a368169ec2`.
-- **[Windows QA run #41152681580](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41152681580): SUCCESS** — 29/29 CTests, 47/47 Steinberg VST3 Validator and independent 125A Plugin Tester v0.3.2: **58 PASS / 0 WARNING / 0 FAIL**.
-- **Screenshot evidence:** Real native VSTGUI rendering `v101-f19-11rows-next-page-130.bmp` shows ROWS 2-11 / 11 at the actual 130% zoom; 4-zoom screenshots and exhaustive 1-16 row paging tests also succeeded.
-- **Exact Windows executable SHA256:** `11de6738ea6ad66d9c60dc88a481ce703923c1f82e09fff4387527ad6a5caee0`.
-- **Private full VST3 test package:** `125A_Drumator_1.0.1_Next_Page_Fix_Test.zip`, 19 files including START-HERE and SHA256 manifest, ZIP SHA256 `5b33baf1d527673fb08fa75ae05ee90b4cc324b33b9328f7d67b65b5d398ef2e`. Created outside GitHub; not the published Gumroad ZIP.
-- **Owner decision:** Keep the product **version 1.0.1**. No 1.0.2, new tag or unrelated DSP changes. Test the private Windows VST3 in Studio One, then consider replacing the existing Gumroad file within 1.0.1. There is no confirmation of the F19 Studio One result or updated Gumroad upload yet.
+F20 retains the normal physical VSTGUI host height of 686 logical pixels while switching pages, avoiding Studio One's incorrect short-window behavior. The unoccupied lower portion on a partial final page is painted chassis background **without extra active instrument rows**. Footer remains at the bottom. Host-constrained peer-window paging recovery is unchanged.
 
-**Earlier F18 fix:** Metal-rim cropping alone passed its automated tests but did not fix the one-row host-window issue. Its former test ZIP is superseded by the F19 candidate; no separate F18 customer release occurred.
+The current Gumroad 1.0.1 build and `main` branch are **unchanged**. Do not distribute F19 test ZIP; F20 requires Windows and Studio One validation before publication. Product version stays **1.0.1**, without a new release number.
 
 **30 October 2026 | Version 1.0.1 | Gumroad publication and hands-on Studio One test completed (owner-confirmed).**
 
