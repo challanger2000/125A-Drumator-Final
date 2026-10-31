@@ -1,6 +1,12 @@
 # 125A Drumator — authoritative current status
 
-**31 October 2026 — Version 1.0.1 — F20 NEXT PAGE correction: Windows QA PASS, Studio One owner test pending.**
+**31 October 2026 — Version 1.0.1 — F20 10+6 page correction owner-confirmed; F21 4px footer bezel alignment in development, QA pending.**
+
+## Unreleased F21 footer alignment (4 logical pixels)
+
+- Studio One owner screenshots confirm the 10+6 paging of F20.
+- Footer bezel originally spans x16..1264 while the instrument chassis spans x12..1260. Move **only** the bezel by 4 logical pixels left. Same 1248px width; all five footer buttons and their hitboxes remain unchanged.
+- This is a graphics-only correction for **version 1.0.1**, not version 1.0.2. Source requires new QA before updating the Gumroad ZIP.
 
 ## Exact current development candidate (F20)
 

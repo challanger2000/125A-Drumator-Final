@@ -13,7 +13,9 @@ struct UiV101Layout final {
   static constexpr double stepX=420.,stepPitch=19.,stepEnd=stepX+steps*stepPitch;
   // Shared SONG/MAIN rail bounds: 16px symmetric margins at 1280px.
   static constexpr double surfaceLeft=16.,surfaceRight=1264.;
-  static constexpr double footerPanelLeft=surfaceLeft,footerPanelRight=surfaceRight;
+  // The footer bezel follows the instrument chassis at 12..1260; the
+  // SONG/MAIN shared rail is independently positioned at 16..1264.
+  static constexpr double footerPanelLeft=12.,footerPanelRight=1260.;
   static constexpr double footerPanelTop=4.,footerPanelBottom=42.;
 
   // Only SONG and SONG EDIT are buttons. The existing SWING, HUMANIZE,
@@ -258,10 +260,10 @@ static_assert(UiV101Layout::zoomPresets[0]==1.0 &&
 static_assert(UiV101Layout::zoomOption(3).y1<=UiV101Layout::header);
 static_assert(UiV101Layout::stepRect(UiV101Layout::steps-1).x1<=UiV101Layout::stepEnd);
 // One shared dark chassis boundary; lower corner screws are removed.
-static_assert(UiV101Layout::footerPanelLeft==UiV101Layout::surfaceLeft);
-static_assert(UiV101Layout::footerPanelRight==UiV101Layout::surfaceRight);
-static_assert(UiV101Layout::footerPanelLeft+
-              UiV101Layout::footerPanelRight==UiV101Layout::width);
+static_assert(UiV101Layout::footerPanelLeft==12.&&
+              UiV101Layout::footerPanelRight==1260.); // chassis edges
+static_assert(UiV101Layout::footerPanelRight-
+              UiV101Layout::footerPanelLeft==1248.); // unchanged width
 static_assert(UiV101Layout::songFooterExport.y0==UiV101Layout::footerExport.y0&&
               UiV101Layout::songFooterExport.y1==UiV101Layout::footerExport.y1);
 static_assert(UiV101Layout::limiterTrigger.y0==

@@ -45,8 +45,9 @@ int main(){
        return 1;
   }
   static_assert(L::surfaceLeft==16.&&L::surfaceRight==1264.);
-  static_assert(L::footerPanelLeft==L::surfaceLeft&&
-                L::footerPanelRight==L::surfaceRight);
+  static_assert(L::footerPanelLeft==12.&&L::footerPanelRight==1260.);
+  static_assert(L::footerPanelLeft==L::surfaceLeft-4.&&
+                L::footerPanelRight==L::surfaceRight-4.);
   static_assert(L::footerPanelRight-L::footerPanelLeft==1248.);
   static_assert(L::footerPanelTop==4.&&L::footerPanelBottom==42.);
   static_assert(L::songFooterExport.x1-L::songFooterExport.x0==95.);
