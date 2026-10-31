@@ -3,7 +3,7 @@
 Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style interface.
 
 **Version:** 1.0.1 · **Status:** Released on Gumroad (owner-confirmed); current Windows build additionally tested in Studio One by the owner.
-**Published product branch:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main), version 1.0.1. **Unreleased F19 fix branch:** [`develop/v1.0.1-gui-redesign`](https://github.com/challanger2000/125A-Drumator-Final/tree/develop/v1.0.1-gui-redesign); intentionally diverged pending the owner's next Studio One test. Older history preserved.
+**Published product branch:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main), version 1.0.1. **Unreleased F20 fix branch:** [`develop/v1.0.1-gui-redesign`](https://github.com/challanger2000/125A-Drumator-Final/tree/develop/v1.0.1-gui-redesign); intentionally diverged pending the owner's next Studio One test. Older history preserved.
 
 ## Features
 
@@ -15,9 +15,14 @@ Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style
 - GUI zoom 100/120/130/150 %, default 130 %.
 - **66 automatable VST3 parameters:** Pattern, 16× Volume, 16× Pan, 16× Mute, 16× Pitch and Master.
 
-## F20 NEXT PAGE fix candidate — not yet released
+## Windows-validated F20 NEXT PAGE correction — version 1.0.1, development only
 
-Canonical pages never overlap: **1–10, then 11–16**, or a single row 11 if there are 11 instruments. Keep the existing full-height GUI and footer during paging so Studio One does not shrink the host window; unused rows remain inactive chassis background. F19's overlapping rows were rejected. Product remains **1.0.1**, and the published Gumroad ZIP is unchanged pending CI and a new Studio One confirmation.
+- **Canonical nonoverlapping pages:** 1–10, then 11–16; for 11 instruments, the last page shows only instrument 11. No duplicate rows.
+- **Stable native host window:** 1280×686 logical view, fixed bottom footer, no host resize on NEXT/PREV; unused page area is noninteractive background.
+- **Verified executable source:** `e983a7fc5655a38773ef2bdad4ef81b2d9a5a221`; [Windows Actions #41153911888](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41153911888) SUCCESS: 29/29 CTests, 47/47 Validator, independent 125A Plugin Tester 58/0/0.
+- **DLL SHA256:** `a509aa1c1924b6ba84b72812526e3a9f6afbbca5b80d35017a7a6125da2bfddb`.
+- **Private test ZIP:** `125A_Drumator_1.0.1_Next_Page_10_plus_6_Test.zip` (SHA256 `3aa8d00a22a45870a80a52f0b56d2d78ef5159096ff4cce3086e0bce47140945`). **Studio One owner check pending.** Product remains 1.0.1. The existing Gumroad ZIP and `main` are unchanged.
+- **F19 superseded:** its overlapping 2–11 / 7–16 pages were not accepted. Do not distribute that test ZIP.
 
 ## Verified published 1.0.1 product build
 

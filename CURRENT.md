@@ -1,12 +1,23 @@
 # 125A Drumator — authoritative current status
 
-**31 October 2026 | 1.0.1 F20 fix | nonoverlapping NEXT PAGE, fixed host window | Windows QA pending.**
+**31 October 2026 — Version 1.0.1 — F20 NEXT PAGE correction: Windows QA PASS, Studio One owner test pending.**
 
-Owner-confirmed intended paging: **page 1 shows instrument rows 1–10, page 2 shows only rows 11–16** (for 11 instruments, the second page shows only row 11). No repeated rows across pages. The earlier F19 overlapped page contents and has been **rejected**.
+## Exact current development candidate (F20)
 
-F20 retains the normal physical VSTGUI host height of 686 logical pixels while switching pages, avoiding Studio One's incorrect short-window behavior. The unoccupied lower portion on a partial final page is painted chassis background **without extra active instrument rows**. Footer remains at the bottom. Host-constrained peer-window paging recovery is unchanged.
+- **Normal page navigation:** 16 rows → page 1 = 1–10, page 2 = 11–16; 11 rows → page 1 = 1–10, page 2 = **only 11**. Never repeat the previous page's instrument controls.
+- **DAW window:** normal VSTGUI logical size stays 1280×686 while switching NEXT/PREV (no VST3 host resize request). The unoccupied lower portion of a partial page remains noninteractive dark chassis background; the footer stays attached to the bottom. Host-constrained peer-window fallback is unchanged.
+- **Windows-tested exact product source:** `e983a7fc5655a38773ef2bdad4ef81b2d9a5a221`.
+- **[GitHub Actions #41153911888](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41153911888): SUCCESS.** 29/29 CTests PASS, 47/47 Steinberg Validator PASS, independent 125A Plugin Tester v0.3.2 **58 PASS / 0 WARNING / 0 FAIL**.
+- **Product DLL SHA256:** `a509aa1c1924b6ba84b72812526e3a9f6afbbca5b80d35017a7a6125da2bfddb`.
+- **Private Windows x64 VST3 test ZIP:** `125A_Drumator_1.0.1_Next_Page_10_plus_6_Test.zip` (19 files, full .vst3, START-HERE, SHA256SUMS); ZIP SHA256 `3aa8d00a22a45870a80a52f0b56d2d78ef5159096ff4cce3086e0bce47140945`.
+- **Native render proof:** `v101-current-page2-last-six-130.bmp` shows rows 11–16 only; `v101-f20-11rows-next-page-130.bmp` shows row 11 only. Real 130% host-size/click tests PASS.
+- **Still pending:** Owner Studio One test and any updated Gumroad ZIP. The published 1.0.1 ZIP and `main` remain unchanged.
 
-The current Gumroad 1.0.1 build and `main` branch are **unchanged**. Do not distribute F19 test ZIP; F20 requires Windows and Studio One validation before publication. Product version stays **1.0.1**, without a new release number.
+## Prior failed attempts
+
+- F18 only repaired lower decorative photo cropping; it did not eliminate the host's tiny window.
+- F19 fixed the host window but mistakenly duplicated instrument rows by overlapping pages (2–11 and 7–16). **Rejected; previous F19 test ZIP must not be distributed.**
+- The new F20 retains both proper page partitioning and stable host geometry. **No 1.0.2 version bump.**
 
 **30 October 2026 | Version 1.0.1 | Gumroad publication and hands-on Studio One test completed (owner-confirmed).**
 
