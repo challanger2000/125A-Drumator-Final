@@ -1,6 +1,10 @@
 # 125A Drumator — authoritative current status
 
-**31 October 2026 | Version 1.0.1: small NEXT PAGE GUI correction, Windows QA PASS; updated Gumroad package pending Studio One confirmation.**
+**31 October 2026 | Version 1.0.1 | F19 stable-height NEXT PAGE fix: development candidate, Windows QA pending, not released.**
+
+Owner's follow-up Studio One screenshot for ROWS 11-11 / 11 confirmed that F18's metal-rim-only correction did not fix the tiny HWND. F19 now keeps the normal 686px window and bottom hardware footer fixed on the second page, including one remaining row, without invoking VST3 host resize. The constrained peer-viewport recovery logic is untouched. The previously published Gumroad 1.0.1 package on main stays unchanged pending verification.
+
+**Earlier F18 correction (superseded as a standalone solution):**
 
 The published product remains **1.0.1**, exact tested product commit `e630602a634bbd0773352a5235eb8b3c2a4cb7ab`. The new F18 change is available only as a private test candidate, not part of the published Gumroad ZIP.
 

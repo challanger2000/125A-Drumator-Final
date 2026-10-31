@@ -1251,8 +1251,7 @@ void testV101Interaction(){
  check(pages.down(985.,footerY+22.)==UI::Result::Ignored&&
        pages.state().firstRow==10,
        "V101 old oversized PREV click hotspot still active");
- // Page two contains only six rows, so its footer moves UP by
- // four row-heights. Always click the CURRENT viewport's footer.
+ // The final page retains the normal-height chassis and its bottom footer.
  const double secondFooterY=pages.height()-L::footer;
  check(pages.down(1070.,secondFooterY+22.)==UI::Result::Handled&&
        pages.state().firstRow==0&&pages.shownRows()==10,
@@ -1746,21 +1745,21 @@ void testV101LiveEditor(){
  captureVstgui(*view,"v101-layout-native-main-150",1.5);
  click(*view,1200.,25.);click(*view,1200.,61.);
  check(view->zoomMatches(1.0),"V101 MAIN 100% host zoom restore mismatch");
- // Compact 95x25 footer keys must page in the actual host, resizing
- // from ten to six rows and back without stale click areas.
+ // F19: NEXT/PREV do not resize the normal-height VSTGUI/DAW window.
  const auto initialHeight=view->getViewSize().getHeight();
- // The original photo's lower bezel must survive shortening to six rows.
- // The old top-only clip had a grey unfinished bottom instead of the bezel.
- // Compare the REAL native painter at original and shortened host heights.
+ // The original bottom metal bezel must remain identical on every page.
  constexpr std::array<std::uint32_t,3> lowerBezelSamples{{4u,640u,1276u}};
  std::array<std::array<int,3>,lowerBezelSamples.size()> fullBottomPixels{};
  for(std::size_t i=0;i<lowerBezelSamples.size();++i)
    fullBottomPixels[i]=viewPixel(lowerBezelSamples[i],
        static_cast<std::uint32_t>(initialHeight-4.));
+ const auto resizeCallsBeforePage=f.frames[0].calls;
  click(*view,1175.,initialHeight-L::footer+22.);
- check(view->getViewSize().getHeight()==
-           L::editorHeight(10,6,L::Expansions{}),
-       "V101 attached host NEXT PAGE did not resize to six rows");
+ check(IntegrationAccess::v101FirstRow(*view)==10&&
+       IntegrationAccess::v101ShownRows(*view)==6&&
+       view->getViewSize().getHeight()==initialHeight&&
+       f.frames[0].calls==resizeCallsBeforePage,
+       "F19 NEXT PAGE must preserve full-height DAW window and show six rows");
  captureVstgui(*view,"v101-vintage-faceplate-six-row-100",1.0);
  const auto shortFooterPixel=viewPixel(17,
       static_cast<std::uint32_t>(view->getViewSize().getHeight()-28.));
@@ -1775,8 +1774,9 @@ void testV101LiveEditor(){
            "F18: NEXT PAGE cropped original bottom metal chassis rim");
  }
  click(*view,1070.,view->getViewSize().getHeight()-L::footer+22.);
- check(view->getViewSize().getHeight()==686.,
-       "V101 attached host PREV PAGE did not return to ten rows");
+ check(view->getViewSize().getHeight()==686.&&
+       f.frames[0].calls==resizeCallsBeforePage,
+       "F19 PREV PAGE must preserve the original host window dimensions");
  // 80x28 real zoom, with preset selection and host resize negotiation.
  click(*view,1200.,25.);click(*view,1200.,139.);
  check(std::abs(hostEditor.getZoomFactor()-1.5)<0.0001,
@@ -2468,15 +2468,19 @@ void testV101CommercialVisualEvidence(){
    check(!IntegrationAccess::v101ZoomPopupOpen(*v),
          "commercial zoom popup dismissal failed");
 
+   const auto resizeCallsBeforePage=f.frames[0].calls;
    click(*v,1175.,v->getViewSize().getHeight()-L::footer+22.);
    check(IntegrationAccess::v101FirstRow(*v)==10&&
-         v->getViewSize().getHeight()==494.,
-         "commercial second instrument page missing or wrong height");
+         IntegrationAccess::v101ShownRows(*v)==6&&
+         v->getViewSize().getHeight()==686.&&
+         f.frames[0].calls==resizeCallsBeforePage,
+         "F19 commercial last page must remain full-height without host resize");
    snapshot("page2-last-six",label,scale);
    click(*v,1070.,v->getViewSize().getHeight()-L::footer+22.);
    check(IntegrationAccess::v101FirstRow(*v)==0&&
-         v->getViewSize().getHeight()==686.,
-         "commercial return to first instrument page failed");
+         v->getViewSize().getHeight()==686.&&
+         f.frames[0].calls==resizeCallsBeforePage,
+         "F19 commercial PREV PAGE changed original host dimensions");
  }
  evidence("Commercial CURRENT V1.0.1 native 4-zoom MAIN/VEL/SET/PAGE2 + Pattern/Fill/BUS/Choke/Sample/Export/Zoom popup matrix PASS");
 }

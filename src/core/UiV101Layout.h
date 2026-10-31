@@ -145,6 +145,18 @@ struct UiV101Layout final {
                                         const Expansions& expanded)noexcept{
     return rowTop(first,count,expanded)+footer;
   }
+  // Normal 10-row-capacity pages retain the original full-height 686px
+  // chassis, including a final page containing just one row. This avoids
+  // repeated DAW host resize/repaint for ordinary NEXT/PREV navigation.
+  // Host-constrained peer views (viewportRows < 10) keep their compact size.
+  static constexpr double pageViewHeight(std::size_t first,std::size_t count,
+                                         const Expansions& expanded,
+                                         std::size_t viewportRows)noexcept{
+    const double content=editorHeight(first,count,expanded);
+    const double standard=editorHeight(0,visibleRows,Expansions{});
+    return first>0&&viewportRows==visibleRows&&content<standard?
+           standard:content;
+  }
   static constexpr Expansion toggle(Expansion current,Expansion requested)noexcept{
     return current==requested?Expansion::None:requested;
   }

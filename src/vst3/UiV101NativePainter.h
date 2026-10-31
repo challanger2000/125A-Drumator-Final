@@ -568,7 +568,8 @@ struct UiV101NativePreview final {
          L::visibleRows-1);
    const auto shown=ui.firstRow<scene.visibleRows?
                     std::min(limit,scene.visibleRows-ui.firstRow):std::size_t{0};
-   const double total=L::editorHeight(ui.firstRow,shown,expanded);
+   const double total=L::pageViewHeight(ui.firstRow,shown,expanded,
+                                       ui.viewportRows);
    const bool hasVintageFaceplate=drawVintageFaceplate(c,faceplatePng,total);
    if(!hasVintageFaceplate){
      // Proven procedural fallback for missing/corrupt packaged image.

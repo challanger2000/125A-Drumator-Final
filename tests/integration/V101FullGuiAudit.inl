@@ -698,6 +698,29 @@ void testV101F15ExhaustivePageMatrix(){
    }
    if(total==1)break;
  }
+ // F19: reproduce the exact 11-row Studio One report at the default 130%.
+ // One final row may be shown, but the native editor/host must stay 686px.
+ Fixture oneExtra;
+ oneExtra.kit(namedKit('E',11));
+ auto& editor=oneExtra.openV101();
+ auto* oneView=IntegrationAccess::view(*oneExtra.c,0);
+ check(oneView->getViewSize().getHeight()==686.&&
+       std::abs(editor.getZoomFactor()-1.3)<.0001,
+       "F19 11-row native editor initial size or zoom incorrect");
+ const auto before=oneExtra.frames[0].calls;
+ const double bottom=oneView->getViewSize().getHeight()-L::footer+22.;
+ click(*oneView,(L::footerNext.x0+L::footerNext.x1)*.5,bottom);
+ check(IntegrationAccess::v101FirstRow(*oneView)==10&&
+       IntegrationAccess::v101ShownRows(*oneView)==1&&
+       oneView->getViewSize().getHeight()==686.&&
+       oneExtra.frames[0].calls==before,
+       "F19 NEXT ROWS 11-11 / 11 changed native window dimensions");
+ captureVstgui(*oneView,"v101-f19-11rows-next-page-130",1.3);
+ click(*oneView,(L::footerPrev.x0+L::footerPrev.x1)*.5,bottom);
+ check(IntegrationAccess::v101FirstRow(*oneView)==0&&
+       oneView->getViewSize().getHeight()==686.&&
+       oneExtra.frames[0].calls==before,
+       "F19 PREV ROWS 1-10 / 11 changed native window dimensions");
 }
 // Independent end-to-end pointer audit for every visible instrument, including
 // the six rows on page 2. Tests the actual VSTGUI editor, Controller gates and
@@ -717,8 +740,9 @@ void testV101AllRowMouseIsolationAndSampleBrowse(){
    if(row==10){
      const auto y=view->getViewSize().getHeight()-L::footer+22.;
      click(*view,(L::footerNext.x0+L::footerNext.x1)*.5,y);
-     check(view->getViewSize().getHeight()==494.,
-           "V101 all-row audit failed transition to six-row page 2");
+     check(view->getViewSize().getHeight()==686.&&
+           IntegrationAccess::v101ShownRows(*view)==6,
+           "F19 all-row NEXT PAGE must retain normal DAW window height");
    }
    const auto first=row<10?std::size_t{0}:std::size_t{10};
    const double top=L::rowTop(first,row-first,L::Expansions{});

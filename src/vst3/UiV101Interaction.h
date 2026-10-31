@@ -77,7 +77,8 @@ public:
    return expansion;
  }
  double height()const noexcept {
-   return L::editorHeight(state_.firstRow,shownRows(),expandedRows());
+   return L::pageViewHeight(state_.firstRow,shownRows(),expandedRows(),
+                             state_.viewportRows);
  }
  double userZoom()const noexcept{return L::zoomPresets[state_.zoomIndex];}
  // A reopened DAW editor must show the actual recalled zoom, not always 100%.

@@ -201,6 +201,11 @@ int main(){
     }
   }
   CHECK(L::editorHeight(0,10,e)==686.);
+  CHECK(L::pageViewHeight(0,10,e,10)==686.);
+  CHECK(L::pageViewHeight(10,6,e,10)==686.);
+  CHECK(L::pageViewHeight(10,1,e,10)==686.); // F19: final ROWS 11-11 / 11
+  CHECK(L::pageViewHeight(10,1,e,4)==254.); // constrained peer unchanged
+  CHECK(L::pageViewHeight(0,9,e,10)==638.); // first-page short kit unchanged
   CHECK(L::editorHeight(0,10,e)*1.5==1029.);
   const auto action=[&](double x,double yy){return L::hit(x,yy,0,10,e).action;};
   CHECK(action(25,y+20)==L::Action::Mute);
