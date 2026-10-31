@@ -3,7 +3,7 @@
 Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style interface.
 
 **Version:** 1.0.1 · **Status:** Released on Gumroad (owner-confirmed); current Windows build additionally tested in Studio One by the owner.
-**Canonical source branch:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main). **Synchronized development branch:** [`develop/v1.0.1-gui-redesign`](https://github.com/challanger2000/125A-Drumator-Final/tree/develop/v1.0.1-gui-redesign). Both branches now contain the same 1.0.1 source and documentation. The previously separate 1.0.0 branch history is preserved in Git.
+**Published product branch:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main), version 1.0.1. **Unreleased F18 fix branch:** [`develop/v1.0.1-gui-redesign`](https://github.com/challanger2000/125A-Drumator-Final/tree/develop/v1.0.1-gui-redesign); intentionally diverged pending the owner's next Studio One test. Older history preserved.
 
 ## Features
 
@@ -15,7 +15,13 @@ Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style
 - GUI zoom 100/120/130/150 %, default 130 %.
 - **66 automatable VST3 parameters:** Pattern, 16× Volume, 16× Pan, 16× Mute, 16× Pitch and Master.
 
-## Verified product build
+## Unreleased NEXT PAGE F18 fix (development branch only)
+
+- A shortened six-row window previously lost the original metal chassis bottom border. F18 preserves the photo's top and bottom original regions without scaling or nine-slicing.
+- **Exact source:** `09b072f13146b7e55a7a92b20e608182f30aa5b2`; **[Windows CI #41149500451](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41149500451) SUCCESS**: 29/29 CTests, 47/47 Validator, 58/0/0 independent tester.
+- **Candidate DLL SHA256:** `6d77c7a3997438cd255af6f082b2872ba07ef61e08c0d2d94b714263ae307ba3`. Private test ZIP `125A_Drumator_F18_Next_Page_GUI_Testkandidat.zip`; not yet a released 1.0.2. Owner Studio One confirmation pending.
+
+## Verified published 1.0.1 product build
 
 - **Executable source commit:** [`e630602a634bbd0773352a5235eb8b3c2a4cb7ab`](https://github.com/challanger2000/125A-Drumator-Final/commit/e630602a634bbd0773352a5235eb8b3c2a4cb7ab).
 - **Windows Actions:** [#41140679693](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41140679693), **SUCCESS**.

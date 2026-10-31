@@ -1,14 +1,25 @@
 # 125A Drumator — authoritative current status
 
-**31 October 2026 | UNRELEASED follow-up on development branch: F18 short-page background correction (Windows QA pending).**
+**31 October 2026 | UNRELEASED F18 NEXT PAGE GUI correction on development branch | Windows QA PASS; fresh Studio One confirmation pending.**
 
-**Published product remains 1.0.1**, exact tested binary `e630602a634bbd0773352a5235eb8b3c2a4cb7ab` as documented below. The development branch contains a subsequent faceplate fix for the owner-reported NEXT PAGE window rendering bug; it is **not** part of the published Gumroad ZIP until independently tested and explicitly released.
+The published product remains **1.0.1**, exact tested product commit `e630602a634bbd0773352a5235eb8b3c2a4cb7ab`. The new F18 change is available only as a private test candidate, not part of the published Gumroad ZIP.
+
+## Unreleased F18 NEXT PAGE correction — QA evidence
+
+- **Owner-reported defect:** NEXT PAGE shortens the window from ten to six instrument rows (686px to 494px); previously it top-cropped the original photo and lost the lower metal chassis border.
+- **Fix:** `UiV101NativePainter::drawVintageFaceplate` preserves the top and original lower 124px of the source photograph without resizing or nine-slice warping. It omits only a covered central segment, and full-height views remain pixel-identical.
+- **Exact Windows-tested source commit:** `09b072f13146b7e55a7a92b20e608182f30aa5b2`.
+- **Windows Actions [#41149500451](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41149500451): SUCCESS** (29/29 CTests, 47/47 Steinberg Validator, independent 125A Plugin Tester v0.3.2: 58 PASS / 0 WARNING / 0 FAIL).
+- **Native pixel regression:** Full-height and six-row page bottom pixels match exactly (zero RGB-channel delta at x=4, 12, 128, 640, 1260, 1276 at 100%); fixed renderings at 100/120/130/150% are in the Windows Actions artifact.
+- **Candidate DLL SHA256:** `6d77c7a3997438cd255af6f082b2872ba07ef61e08c0d2d94b714263ae307ba3`.
+- **Private test ZIP:** `125A_Drumator_F18_Next_Page_GUI_Testkandidat.zip`; SHA256 `4a15d5d04e05765700c7e41a56c58056e667438468e0a052b7253d661d600c98`, includes a complete Windows x64 VST3 and testing instructions. Not published on Gumroad.
+- **Pending:** owner Studio One check of NEXT/PREV, 130% initial Zoom and other Zoom options. No version bump or 1.0.2 release yet.
 
 **30 October 2026 | Version 1.0.1 | Gumroad publication and hands-on Studio One test completed (owner-confirmed).**
 
 ## Canonical source and exact binary
 
-- `main` is the canonical default branch; `develop/v1.0.1-gui-redesign` is the synchronized working branch. Both refer to the current 1.0.1 source. The 1.0.0 version remains reachable in Git history.
+- `main` remains the published 1.0.1 canonical branch; `develop/v1.0.1-gui-redesign` now intentionally differs with the unreleased F18 fix and test. Older version history remains reachable.
 - **Exact last compiled/tested product source SHA:** `e630602a634bbd0773352a5235eb8b3c2a4cb7ab`.
 - **Exact successful Windows Actions:** [#41140679693](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41140679693).
 - **CTest:** 29 PASS / 0 FAIL. **Steinberg VST3 Validator:** 47 PASS / 0 FAIL. **Independent 125A Plugin Tester v0.3.2:** 58 PASS / 0 WARNING / 0 FAIL. The independent tester validated the packaged Windows binary from this exact run.
