@@ -19,7 +19,7 @@ Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style
 
 - A shortened six-row window previously lost the original metal chassis bottom border. F18 preserves the photo's top and bottom original regions without scaling or nine-slicing.
 - **Exact source:** `09b072f13146b7e55a7a92b20e608182f30aa5b2`; **[Windows CI #41149500451](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41149500451) SUCCESS**: 29/29 CTests, 47/47 Validator, 58/0/0 independent tester.
-- **Candidate DLL SHA256:** `6d77c7a3997438cd255af6f082b2872ba07ef61e08c0d2d94b714263ae307ba3`. Private test ZIP `125A_Drumator_F18_Next_Page_GUI_Testkandidat.zip`; not yet a released 1.0.2. Owner Studio One confirmation pending.
+- **Candidate DLL SHA256:** `6d77c7a3997438cd255af6f082b2872ba07ef61e08c0d2d94b714263ae307ba3`. Private test ZIP `125A_Drumator_F18_Next_Page_GUI_Testkandidat.zip`. **Owner decision:** keep version **1.0.1** and replace the existing Gumroad ZIP after Studio One verification; no separate 1.0.2.
 
 ## Verified published 1.0.1 product build
 

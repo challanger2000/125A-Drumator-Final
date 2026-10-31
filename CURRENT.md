@@ -1,6 +1,6 @@
 # 125A Drumator — authoritative current status
 
-**31 October 2026 | UNRELEASED F18 NEXT PAGE GUI correction on development branch | Windows QA PASS; fresh Studio One confirmation pending.**
+**31 October 2026 | Version 1.0.1: small NEXT PAGE GUI correction, Windows QA PASS; updated Gumroad package pending Studio One confirmation.**
 
 The published product remains **1.0.1**, exact tested product commit `e630602a634bbd0773352a5235eb8b3c2a4cb7ab`. The new F18 change is available only as a private test candidate, not part of the published Gumroad ZIP.
 
@@ -13,7 +13,7 @@ The published product remains **1.0.1**, exact tested product commit `e630602a63
 - **Native pixel regression:** Full-height and six-row page bottom pixels match exactly (zero RGB-channel delta at x=4, 12, 128, 640, 1260, 1276 at 100%); fixed renderings at 100/120/130/150% are in the Windows Actions artifact.
 - **Candidate DLL SHA256:** `6d77c7a3997438cd255af6f082b2872ba07ef61e08c0d2d94b714263ae307ba3`.
 - **Private test ZIP:** `125A_Drumator_F18_Next_Page_GUI_Testkandidat.zip`; SHA256 `4a15d5d04e05765700c7e41a56c58056e667438468e0a052b7253d661d600c98`, includes a complete Windows x64 VST3 and testing instructions. Not published on Gumroad.
-- **Pending:** owner Studio One check of NEXT/PREV, 130% initial Zoom and other Zoom options. No version bump or 1.0.2 release yet.
+- **Version decision (owner):** Keep **1.0.1**; this is a minor corrective replacement of the existing Gumroad VST3, **not a 1.0.2 release**. Before replacing the customer ZIP, the owner checks NEXT/PREV in Studio One, including the default 130% zoom.
 
 **30 October 2026 | Version 1.0.1 | Gumroad publication and hands-on Studio One test completed (owner-confirmed).**
 
