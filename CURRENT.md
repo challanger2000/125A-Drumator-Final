@@ -1,29 +1,25 @@
 # 125A Drumator — authoritative current status
 
-**31 October 2026 | Version 1.0.1 | F19 last-page overlay: full-height window and last ten visible instruments; Windows QA pending, not released.**
+**31 October 2026 | Version 1.0.1 | F19 NEXT PAGE fix Windows QA PASS; private Studio One verification pending.**
 
-Owner's follow-up Studio One screenshot for ROWS 11-11 / 11 confirmed that F18's metal-rim-only correction did not fix the tiny HWND. F19 now keeps the normal 686px window and bottom hardware footer fixed on the second page, without invoking VST3 host resize. It also fills the page with actual instruments rather than an enormous blank space: for 11 instruments the final page is ROWS 2-11 / 11; for 16 instruments it is ROWS 7-16 / 16. The constrained peer-viewport recovery logic is untouched. The previously published Gumroad 1.0.1 package on main stays unchanged pending verification.
+## Current private GUI correction (F19)
 
-**Earlier F18 correction (superseded as a standalone solution):**
+- **Problem:** With eleven instruments the final page previously showed only ROWS 11-11 / 11 and shrank the host window from 686px to 254px logical height. This produced an unwanted partial GUI within Studio One. An initial bottom-metal-faceplate-only correction (F18) did not remedy the window resize. The first fixed-height render then revealed an unacceptable large blank panel.
+- **Final F19 layout:** All normal 10-row viewport pages remain at logical **1280×686** and never request another host resize merely to navigate NEXT/PREV. Pages are anchored so they remain fully occupied by actual instrument rows, even when the last page overlaps the previous page: **11 total = ROWS 1-10 then 2-11**; **16 total = ROWS 1-10 then 7-16**. Instrument controls, row identity and input hit targets use those true row indexes. Constrained peer views with host-resize refusal retain their existing compact recovery strategy.
+- **Exact tested executable source commit:** `6d60a4da95e1b07f9e1673232d18d1a368169ec2`.
+- **[Windows QA run #41152681580](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41152681580): SUCCESS** — 29/29 CTests, 47/47 Steinberg VST3 Validator and independent 125A Plugin Tester v0.3.2: **58 PASS / 0 WARNING / 0 FAIL**.
+- **Screenshot evidence:** Real native VSTGUI rendering `v101-f19-11rows-next-page-130.bmp` shows ROWS 2-11 / 11 at the actual 130% zoom; 4-zoom screenshots and exhaustive 1-16 row paging tests also succeeded.
+- **Exact Windows executable SHA256:** `11de6738ea6ad66d9c60dc88a481ce703923c1f82e09fff4387527ad6a5caee0`.
+- **Private full VST3 test package:** `125A_Drumator_1.0.1_Next_Page_Fix_Test.zip`, 19 files including START-HERE and SHA256 manifest, ZIP SHA256 `5b33baf1d527673fb08fa75ae05ee90b4cc324b33b9328f7d67b65b5d398ef2e`. Created outside GitHub; not the published Gumroad ZIP.
+- **Owner decision:** Keep the product **version 1.0.1**. No 1.0.2, new tag or unrelated DSP changes. Test the private Windows VST3 in Studio One, then consider replacing the existing Gumroad file within 1.0.1. There is no confirmation of the F19 Studio One result or updated Gumroad upload yet.
 
-The published product remains **1.0.1**, exact tested product commit `e630602a634bbd0773352a5235eb8b3c2a4cb7ab`. The new F18 change is available only as a private test candidate, not part of the published Gumroad ZIP.
-
-## Unreleased F18 NEXT PAGE correction — QA evidence
-
-- **Owner-reported defect:** NEXT PAGE shortens the window from ten to six instrument rows (686px to 494px); previously it top-cropped the original photo and lost the lower metal chassis border.
-- **Fix:** `UiV101NativePainter::drawVintageFaceplate` preserves the top and original lower 124px of the source photograph without resizing or nine-slice warping. It omits only a covered central segment, and full-height views remain pixel-identical.
-- **Exact Windows-tested source commit:** `09b072f13146b7e55a7a92b20e608182f30aa5b2`.
-- **Windows Actions [#41149500451](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41149500451): SUCCESS** (29/29 CTests, 47/47 Steinberg Validator, independent 125A Plugin Tester v0.3.2: 58 PASS / 0 WARNING / 0 FAIL).
-- **Native pixel regression:** Full-height and six-row page bottom pixels match exactly (zero RGB-channel delta at x=4, 12, 128, 640, 1260, 1276 at 100%); fixed renderings at 100/120/130/150% are in the Windows Actions artifact.
-- **Candidate DLL SHA256:** `6d77c7a3997438cd255af6f082b2872ba07ef61e08c0d2d94b714263ae307ba3`.
-- **Private test ZIP:** `125A_Drumator_F18_Next_Page_GUI_Testkandidat.zip`; SHA256 `4a15d5d04e05765700c7e41a56c58056e667438468e0a052b7253d661d600c98`, includes a complete Windows x64 VST3 and testing instructions. Not published on Gumroad.
-- **Version decision (owner):** Keep **1.0.1**; this is a minor corrective replacement of the existing Gumroad VST3, **not a 1.0.2 release**. Before replacing the customer ZIP, the owner checks NEXT/PREV in Studio One, including the default 130% zoom.
+**Earlier F18 fix:** Metal-rim cropping alone passed its automated tests but did not fix the one-row host-window issue. Its former test ZIP is superseded by the F19 candidate; no separate F18 customer release occurred.
 
 **30 October 2026 | Version 1.0.1 | Gumroad publication and hands-on Studio One test completed (owner-confirmed).**
 
 ## Canonical source and exact binary
 
-- `main` remains the published 1.0.1 canonical branch; `develop/v1.0.1-gui-redesign` now intentionally differs with the unreleased F18 fix and test. Older version history remains reachable.
+- `main` remains the published 1.0.1 canonical branch; `develop/v1.0.1-gui-redesign` now intentionally differs with the unreleased Windows-validated F19 page-layout fix and test. Older version history remains reachable.
 - **Exact last compiled/tested product source SHA:** `e630602a634bbd0773352a5235eb8b3c2a4cb7ab`.
 - **Exact successful Windows Actions:** [#41140679693](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41140679693).
 - **CTest:** 29 PASS / 0 FAIL. **Steinberg VST3 Validator:** 47 PASS / 0 FAIL. **Independent 125A Plugin Tester v0.3.2:** 58 PASS / 0 WARNING / 0 FAIL. The independent tester validated the packaged Windows binary from this exact run.

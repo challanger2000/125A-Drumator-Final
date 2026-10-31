@@ -3,7 +3,7 @@
 Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style interface.
 
 **Version:** 1.0.1 · **Status:** Released on Gumroad (owner-confirmed); current Windows build additionally tested in Studio One by the owner.
-**Published product branch:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main), version 1.0.1. **Unreleased F18 fix branch:** [`develop/v1.0.1-gui-redesign`](https://github.com/challanger2000/125A-Drumator-Final/tree/develop/v1.0.1-gui-redesign); intentionally diverged pending the owner's next Studio One test. Older history preserved.
+**Published product branch:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main), version 1.0.1. **Unreleased F19 fix branch:** [`develop/v1.0.1-gui-redesign`](https://github.com/challanger2000/125A-Drumator-Final/tree/develop/v1.0.1-gui-redesign); intentionally diverged pending the owner's next Studio One test. Older history preserved.
 
 ## Features
 
@@ -15,11 +15,13 @@ Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style
 - GUI zoom 100/120/130/150 %, default 130 %.
 - **66 automatable VST3 parameters:** Pattern, 16× Volume, 16× Pan, 16× Mute, 16× Pitch and Master.
 
-## Unreleased NEXT PAGE F18 fix (development branch only)
+## Unreleased NEXT PAGE correction — version 1.0.1 (development branch only)
 
-- A shortened six-row window previously lost the original metal chassis bottom border. F18 preserves the photo's top and bottom original regions without scaling or nine-slicing.
-- **Exact source:** `09b072f13146b7e55a7a92b20e608182f30aa5b2`; **[Windows CI #41149500451](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41149500451) SUCCESS**: 29/29 CTests, 47/47 Validator, 58/0/0 independent tester.
-- **Candidate DLL SHA256:** `6d77c7a3997438cd255af6f082b2872ba07ef61e08c0d2d94b714263ae307ba3`. Private test ZIP `125A_Drumator_F18_Next_Page_GUI_Testkandidat.zip`. **Owner decision:** keep version **1.0.1** and replace the existing Gumroad ZIP after Studio One verification; no separate 1.0.2.
+- Owner-reported issue: the final page with a single instrument compressed the embedded Studio One window to a tiny height. F18's lower-metal-border correction alone did not address this.
+- F19 retains the normal 686px window height and bottom metal chassis with no page-change host resize. The final page shows the last **ten real instrument rows** (for 11 instruments: 2–11; for 16: 7–16), so there are no empty inactive panels.
+- **Exact product code:** `6d60a4da95e1b07f9e1673232d18d1a368169ec2` · [Windows Actions #41152681580](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41152681580) **SUCCESS** (29/29 CTests, 47/47 validator, 58/0/0 independent tester).
+- **DLL SHA256:** `11de6738ea6ad66d9c60dc88a481ce703923c1f82e09fff4387527ad6a5caee0`.
+- **Private test ZIP:** `125A_Drumator_1.0.1_Next_Page_Fix_Test.zip`, SHA256 `5b33baf1d527673fb08fa75ae05ee90b4cc324b33b9328f7d67b65b5d398ef2e`. Owner Studio One check outstanding. The seller's currently published Gumroad ZIP is not changed. **No version bump to 1.0.2.**
 
 ## Verified published 1.0.1 product build
 
