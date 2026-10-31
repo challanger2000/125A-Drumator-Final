@@ -170,11 +170,11 @@ public:
    const auto total=controller_.visibleRows();
    if(total==0)return;
    const auto limit=std::min(state_.viewportRows,L::visibleRows);
-   // Normal 10-row pages stop at a canonical last partial page (11..16).
+   // Anchor the last page to the last ten rows, even when only one is new.
    // A host-refused *smaller* viewport must keep exactly 'limit' visible:
    // its final page intentionally overlaps previous rows (2..5 for 5/4).
    const auto lastPage=total<=limit?0:
-     limit==L::visibleRows?((total-1)/limit)*limit:total-limit;
+     total-limit;
    if(state_.firstRow>lastPage){
      endGesture(true);
      closeExpansion();
@@ -193,14 +193,14 @@ public:
    endGesture(true);
    closeExpansion();
    const auto stride=limit;
-   // Retain the original 10-row/6-row paging behavior when not constrained.
+   // Use the final fully occupied page instead of a tiny partial page.
    // In a smaller rejected peer HWND, move only as far as needed so the
    // final row stays accessible without pushing the footer below the frame.
-   // Full-height 10-row viewport: canonical page starts 0,10.
+   // Full-height 10-row viewport: with 11 total, pages start at 0 and 1.
    // Constrained peer viewport: final page overlaps so a rejected host
    // resize cannot move the footer or make PREV inaccessible (5/4 => 0,1).
    const auto maxStart=total<=limit?0:
-       limit==L::visibleRows?((total-1)/limit)*limit:total-limit;
+       total-limit;
    const auto forward=std::min(state_.firstRow+stride,maxStart);
    // Reverse overlapping final pages to the previous *canonical* start:
    // 16 rows / 6 visible: 0 -> 6 -> 10 -> 6 -> 0, never 10 -> 4.

@@ -1,8 +1,8 @@
 # 125A Drumator — authoritative current status
 
-**31 October 2026 | Version 1.0.1 | F19 stable-height NEXT PAGE fix: development candidate, Windows QA pending, not released.**
+**31 October 2026 | Version 1.0.1 | F19 last-page overlay: full-height window and last ten visible instruments; Windows QA pending, not released.**
 
-Owner's follow-up Studio One screenshot for ROWS 11-11 / 11 confirmed that F18's metal-rim-only correction did not fix the tiny HWND. F19 now keeps the normal 686px window and bottom hardware footer fixed on the second page, including one remaining row, without invoking VST3 host resize. The constrained peer-viewport recovery logic is untouched. The previously published Gumroad 1.0.1 package on main stays unchanged pending verification.
+Owner's follow-up Studio One screenshot for ROWS 11-11 / 11 confirmed that F18's metal-rim-only correction did not fix the tiny HWND. F19 now keeps the normal 686px window and bottom hardware footer fixed on the second page, without invoking VST3 host resize. It also fills the page with actual instruments rather than an enormous blank space: for 11 instruments the final page is ROWS 2-11 / 11; for 16 instruments it is ROWS 7-16 / 16. The constrained peer-viewport recovery logic is untouched. The previously published Gumroad 1.0.1 package on main stays unchanged pending verification.
 
 **Earlier F18 correction (superseded as a standalone solution):**
 

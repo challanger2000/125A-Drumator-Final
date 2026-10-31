@@ -602,8 +602,8 @@ void testV101F14StrandedPageRecovery(){
          v->getViewSize().getHeight()-L::footer+(button.y0+button.y1)*.5);
  };
  pressPage(L::footerNext);
- check(IntegrationAccess::v101FirstRow(*v)==10&&
-       IntegrationAccess::v101ShownRows(*v)==6,
+ check(IntegrationAccess::v101FirstRow(*v)==6&&
+       IntegrationAccess::v101ShownRows(*v)==10,
        "F14 cannot navigate to 16-row final page");
  check(f.c->restoreVisibleRows(5),
        "F14 unable to emulate external row-count reduction");
@@ -646,11 +646,11 @@ void testV101F15ExhaustivePageMatrix(){
    click(*v,(button.x0+button.x1)*.5,y);
  };
  clickPage(L::footerNext);
- check(IntegrationAccess::v101FirstRow(*v)==10,
-       "F15 NEXT must move 16-row kit to rows 11-16");
+ check(IntegrationAccess::v101FirstRow(*v)==6,
+       "F15 NEXT must show final rows 7-16");
  clickPage(L::footerNext);
- check(IntegrationAccess::v101FirstRow(*v)==10,
-       "F15 second NEXT must never advance beyond final 11-16 page");
+ check(IntegrationAccess::v101FirstRow(*v)==6,
+       "F15 second NEXT must never advance beyond final rows 7-16");
  clickPage(L::footerPrev);
  check(IntegrationAccess::v101FirstRow(*v)==0,
        "F15 PREV from last page must return directly to row 1");
@@ -661,7 +661,7 @@ void testV101F15ExhaustivePageMatrix(){
      drumator::UiV101Interaction pager(*f.c);
      pager.setViewportRows(capacity);
      const auto last=total<=capacity?std::size_t{0}:
-       capacity==L::visibleRows?((total-1)/capacity)*capacity:total-capacity;
+       total-capacity;
      std::vector<std::size_t> forwardStarts{0};
      for(std::size_t n=0;n<=L::instruments;++n){
        const auto first=forwardStarts.back();
@@ -699,7 +699,7 @@ void testV101F15ExhaustivePageMatrix(){
    if(total==1)break;
  }
  // F19: reproduce the exact 11-row Studio One report at the default 130%.
- // One final row may be shown, but the native editor/host must stay 686px.
+ // The last ten rows (2-11) remain visible in a stable 686px client.
  Fixture oneExtra;
  oneExtra.kit(namedKit('E',11));
  auto& editor=oneExtra.openV101();
@@ -710,11 +710,11 @@ void testV101F15ExhaustivePageMatrix(){
  const auto before=oneExtra.frames[0].calls;
  const double bottom=oneView->getViewSize().getHeight()-L::footer+22.;
  click(*oneView,(L::footerNext.x0+L::footerNext.x1)*.5,bottom);
- check(IntegrationAccess::v101FirstRow(*oneView)==10&&
-       IntegrationAccess::v101ShownRows(*oneView)==1&&
+ check(IntegrationAccess::v101FirstRow(*oneView)==1&&
+       IntegrationAccess::v101ShownRows(*oneView)==10&&
        oneView->getViewSize().getHeight()==686.&&
        oneExtra.frames[0].calls==before,
-       "F19 NEXT ROWS 11-11 / 11 changed native window dimensions");
+       "F19 NEXT ROWS 2-11 / 11 changed native window dimensions");
  captureVstgui(*oneView,"v101-f19-11rows-next-page-130",1.3);
  click(*oneView,(L::footerPrev.x0+L::footerPrev.x1)*.5,bottom);
  check(IntegrationAccess::v101FirstRow(*oneView)==0&&
@@ -723,7 +723,7 @@ void testV101F15ExhaustivePageMatrix(){
        "F19 PREV ROWS 1-10 / 11 changed native window dimensions");
 }
 // Independent end-to-end pointer audit for every visible instrument, including
-// the six rows on page 2. Tests the actual VSTGUI editor, Controller gates and
+// the overlapping last ten rows on page 2. Tests the actual VSTGUI editor, Controller gates and
 // step state; verifies a gesture cannot accidentally mutate the wrong row.
 void testV101AllRowMouseIsolationAndSampleBrowse(){
  using L=drumator::UiV101Layout;
@@ -741,10 +741,10 @@ void testV101AllRowMouseIsolationAndSampleBrowse(){
      const auto y=view->getViewSize().getHeight()-L::footer+22.;
      click(*view,(L::footerNext.x0+L::footerNext.x1)*.5,y);
      check(view->getViewSize().getHeight()==686.&&
-           IntegrationAccess::v101ShownRows(*view)==6,
+           IntegrationAccess::v101ShownRows(*view)==10,
            "F19 all-row NEXT PAGE must retain normal DAW window height");
    }
-   const auto first=row<10?std::size_t{0}:std::size_t{10};
+   const auto first=row<10?std::size_t{0}:std::size_t{6};
    const double top=L::rowTop(first,row-first,L::Expansions{});
    const auto oldMute=f.c->isRowMuted(row);
    const auto oldSolo=f.c->isRowSolo(row);
