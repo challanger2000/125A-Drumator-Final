@@ -1,5 +1,16 @@
 # 125A Drumator — authoritative v1.5 development status
 
+## Stage 5.5 — Beat Creator buttons match established Drumator hardware (1 November 2026)
+
+- **Exact validated code:** `27106d07bb59ad9342bae63460c456366b130d74` on `develop/v1.5.0`; [GitHub Actions #41281044652](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41281044652) SUCCESS: **32/32 CTests**, **47/47 Steinberg VST3 Validator**, **58 PASS / 0 WARNING / 0 FAIL independent 125A Tester v0.3.2**. Windows VST3 DLL SHA256 `4189f36c5a2dd86aa16995c63fec830c5826c7538f4d5c92bebfcd1f95c7ef74`.
+- **Owner's explicit GUI standard applied:** `GENERATE`, `PLAY A/B/C`, `STOP`, `APPLY`, `CANCEL` now use **95×25 logical pixels**, exactly matching existing `EXPORT`, `PREV PAGE`, `NEXT PAGE` caps. APPLY caption shortened to `APPLY`, overwrite confirmation to `CONFIRM`. Eight genre buttons are **136×25** only because `INDUSTRIAL / NDH` and `DRUM & BASS` need more characters. No giant 154/192px controls.
+- **Panel:** fixed **640×240** logical pixels centered in 1280px-wide editor at all host window heights, including the minimal 254px client area. Four style columns / two rows, exact VSTGUI bitmap-backed dark button skin, same Wave-Editor metal faceplate crop, original common paint/hit rectangles.
+- **BC21/BC22 proof:** built-in layout test compares Generate against `UiV101Layout::footerAdd` width/height, confirms all 17 click targets do not overlap at 254/286/390/420/686px; real native VSTGUI captures at 254px and 686px and pixel-checks photographic faceplate plus dark cap paint. Pattern generator, WAV install, names, transport, undo and engine unchanged.
+- **Windows install artifact:** [complete VST3 ZIP](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41281044652/artifacts/13072979472); [rendered GUI screenshots](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41281044652/artifacts/13073910066).
+- **Not released:** `main` remains v1.0.1 FINAL; no new Gumroad package. Awaiting owner's Studio One visual approval. The temporary factory sample quality and modal instant-close 200ms feedback limitation remain separate future considerations.
+
+---
+
 ## Stage 5.3 — 200ms active-color button flash (1 November 2026)
 
 - **Validated Windows source:** `9c386d28f76caa3dd9c9002d657fc86596f18f38`, branch `develop/v1.5.0`; **[Actions #41276387281](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41276387281)** SUCCESS: **32/32 CTests**, **47/47 Steinberg Validator**, **58 PASS / 0 WARNING / 0 FAIL 125A Independent Tester v0.3.2**. Tested DLL SHA256 `2a55f38194e31d8e7e18a3a3e64de5c27a60b6176cfee93f06c8d947cfdde834`.
