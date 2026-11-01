@@ -1,5 +1,15 @@
 # 125A Drumator — authoritative v1.5 development status
 
+## Stage 5.3 — 200ms active-color button flash (1 November 2026)
+
+- **Validated Windows source:** `9c386d28f76caa3dd9c9002d657fc86596f18f38`, branch `develop/v1.5.0`; **[Actions #41276387281](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41276387281)** SUCCESS: **32/32 CTests**, **47/47 Steinberg Validator**, **58 PASS / 0 WARNING / 0 FAIL 125A Independent Tester v0.3.2**. Tested DLL SHA256 `2a55f38194e31d8e7e18a3a3e64de5c27a60b6176cfee93f06c8d947cfdde834`.
+- **Implementation:** for 200ms following left click, all shared `UiV101NativePreview::cap` hardware buttons render with the **same exact ACTIVE palette/sprite** as latched controls, then return automatically to normal. Includes Beat Creator GENERATE/APPLY/STOP/PLAY/style/complexity, MAIN and SONG buttons, Wave-Editor toolbar/LIVE, SET and footer actions, native popup caps. Persistent toggle states remain unchanged; disabled caps do not flash; separate plugin views cannot leak flash state.
+- **BF20 real Windows pixel regression:** checks exact click-vs-active image parity on representative sizes and labels (GENERATE/APPLY/Pattern/SET/footer/Wave), pressed-sprite priority, disabled-state nonillumination, click outside, and nested paint scope isolation. The existing 33ms meter timer performs the redraw/expiry.
+- **Scope caveat:** the feedback applies to `cap` buttons actually visible at repaint time. Instant-dismissals such as successful Beat Creator and Wave-Editor APPLY/CANCEL, or popup choices that disappear immediately, cannot visibly hold the 200ms highlight with the current synchronous close behavior. SONG-chain tiles, step pads and rotary knobs are custom interactive elements with their own selection/value painting rather than `cap` buttons. Do not describe the change as every interactive pixel flashing.
+- **Artifact:** [Complete Windows VST3 QA ZIP](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41276387281/artifacts/13071438804). `main` remains released 1.0.1, unchanged. This is not a v1.5 Gumroad release.
+
+---
+
 ## Stage 5.2 — compact host GUI + playable kit on APPLY: WINDOWS QA PASS (1 November 2026)
 
 - **Exact validated source:** `87e205d9c2ac07780bf7fddc5de9370395879140` on `develop/v1.5.0`; **[GitHub Actions #41274961846](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41274961846)** SUCCESS: **32/32 CTests**, **47/47 Steinberg Validator**, **58 PASS / 0 WARNING / 0 FAIL 125A Plugin Tester v0.3.2**.
