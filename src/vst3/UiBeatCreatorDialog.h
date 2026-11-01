@@ -21,10 +21,17 @@ struct UiBeatCreatorDialog final {
  static constexpr Rect styleHeading(double h) noexcept {
   const auto p=panel(h);return {p.x0+27.,p.y0+38.,p.x1-27.,p.y0+53.};
  }
- static constexpr Rect style(double h,std::size_t i) noexcept {
+ // The blue recessed mounting bezel and all eight caps use ONE layout.
+ // Four 136px caps + three 10px gutters leave 9px on each side;
+ // two 25px rows + one 6px gutter leave 3px top and bottom.
+ static constexpr Rect styleBezel(double h) noexcept {
   const auto p=panel(h);
-  const double left=p.x0+29.+146.*static_cast<double>(i%4u);
-  const double top=p.y0+57.+31.*static_cast<double>(i/4u);
+  return {p.x0+24.,p.y0+54.,p.x1-24.,p.y0+116.};
+ }
+ static constexpr Rect style(double h,std::size_t i) noexcept {
+  const auto g=styleBezel(h);
+  const double left=g.x0+9.+146.*static_cast<double>(i%4u);
+  const double top=g.y0+3.+31.*static_cast<double>(i/4u);
   return {left,top,left+136.,top+25.};
  }
  // Complexity on one 25px baseline. Compact [-] 10px [value] 10px [+],

@@ -323,6 +323,23 @@ int main(){
     CHECK(D::style(hostHeight,4).y0>D::style(hostHeight,0).y0);
     CHECK(D::style(hostHeight,3).y0==D::style(hostHeight,0).y0);
     CHECK(D::style(hostHeight,7).y0==D::style(hostHeight,4).y0);
+    // BC24: the top blue bezel must be concentric with BOTH style rows;
+    // 9px horizontal, 3px vertical margins. These compare actual
+    // paint/mouse rectangles and catch the previous 5px/13px imbalance.
+    const auto bezel=D::styleBezel(hostHeight);
+    const auto topFirst=D::style(hostHeight,0);
+    const auto topLast=D::style(hostHeight,3);
+    const auto bottomFirst=D::style(hostHeight,4);
+    const auto bottomLast=D::style(hostHeight,7);
+    CHECK(bezel.x0==panel.x0+24.&&bezel.x1==panel.x1-24.);
+    CHECK(bezel.y0==panel.y0+54.&&bezel.y1==panel.y0+116.);
+    CHECK(topFirst.x0-bezel.x0==9.&&bezel.x1-topLast.x1==9.);
+    CHECK(bottomFirst.x0-bezel.x0==9.&&bezel.x1-bottomLast.x1==9.);
+    CHECK(topFirst.y0-bezel.y0==3.&&bezel.y1-bottomFirst.y1==3.);
+    CHECK(bottomFirst.y0-topFirst.y1==6.);
+    CHECK(topFirst.x1<topLast.x0&&bottomFirst.x1<bottomLast.x0);
+    CHECK(topFirst.x0+topLast.x1==bezel.x0+bezel.x1);
+    CHECK(bottomFirst.x0+bottomLast.x1==bezel.x0+bezel.x1);
     const auto generateCap=D::generate(hostHeight);
     CHECK(generateCap.x1-generateCap.x0==95.&&
           generateCap.y1-generateCap.y0==25.);

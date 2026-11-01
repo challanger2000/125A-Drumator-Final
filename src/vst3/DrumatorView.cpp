@@ -1173,10 +1173,9 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c) {
           17,{230,237,243,255});
  // Dark recessed instrument pockets, restrained blue rims, metal texture
  // remains visible around the groups and between the controls.
- P::fill(*c,{box.x0+24.,box.y0+54.,box.x1-24.,box.y0+116.},
-         {14,27,40,172});
- P::border(*c,{box.x0+24.,box.y0+54.,box.x1-24.,box.y0+116.},
-           {56,83,105,255});
+ const auto styleBezel=D::styleBezel(hostHeight);
+ P::fill(*c,paintRect(styleBezel),{14,27,40,172});
+ P::border(*c,paintRect(styleBezel),{56,83,105,255});
  P::fill(*c,{box.x0+54.,box.y0+149.,box.x1-54.,box.y0+180.},
          {14,27,40,160});
  P::border(*c,{box.x0+54.,box.y0+149.,box.x1-54.,box.y0+180.},
