@@ -16,7 +16,6 @@
 #include "core/OfflineWavExport.h"
 #include "core/BeatCreatorAudioPreview.h"
 #include "core/KitPresetCatalog.h"
-#include "core/BeatCreatorFactoryKit.h"
 #include "core/ExportFile.h"
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstmessage.h"
@@ -974,51 +973,25 @@ void Controller::cancelBeatCreator() noexcept {
 bool Controller::sendBeatTriple(const BeatTriple& expected,
                                 const BeatTriple& next,
                                 const BeatLengths& expectedLengths,
-                                const BeatLengths& nextLengths,
-                                std::uint8_t fillMask,bool exposeEight,
-                                KitState* stagedFactory,BeatStyle factoryStyle) {
- try {
-  auto* msg=allocateMessage();
-  ScopedActionMessage own{msg};if(!msg)return false;
-  msg->setMessageID("Drumator.BeatCreatorTriple");
-  auto* a=msg->getAttributes();
-  if(!a||a->setBinary("Before",expected.data(),
-            static_cast<Steinberg::uint32>(sizeof(expected)))!=Steinberg::kResultOk||
-     a->setBinary("After",next.data(),
-            static_cast<Steinberg::uint32>(sizeof(next)))!=Steinberg::kResultOk||
-     a->setBinary("BeforeLengths",expectedLengths.data(),3)!=Steinberg::kResultOk||
-     a->setBinary("AfterLengths",nextLengths.data(),3)!=Steinberg::kResultOk||
-     a->setInt("AutoFillMask",static_cast<Steinberg::int64>(fillMask))!=Steinberg::kResultOk||
-     a->setInt("ExposeEight",exposeEight?1:0)!=Steinberg::kResultOk||
-     a->setInt("FactoryStyle",static_cast<Steinberg::int64>(factoryStyle))!=Steinberg::kResultOk)
-   return false;
-  if(sendEditMessage(msg)!=Steinberg::kResultOk)return false;
-  // Host accepted: update the controller mirror, no allocations.
+                                const BeatLengths& nextLengths) {
+ try{
+  ScopedActionMessage msg{allocateMessage()};
+  if(!msg.p)return false;
+  msg.p->setMessageID("Drumator.BeatCreatorTriple");
+  auto* attr=msg.p->getAttributes();
+  if(!attr||attr->setBinary("Before",expected.data(),
+          static_cast<Steinberg::uint32>(sizeof(expected)))!=Steinberg::kResultOk||
+     attr->setBinary("After",next.data(),
+          static_cast<Steinberg::uint32>(sizeof(next)))!=Steinberg::kResultOk||
+     attr->setBinary("BeforeLengths",expectedLengths.data(),3)!=Steinberg::kResultOk||
+     attr->setBinary("AfterLengths",nextLengths.data(),3)!=Steinberg::kResultOk)
+     return false;
+  if(sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
   for(std::size_t i=0;i<3;++i){
-   std::copy(next[i].begin(),next[i].end(),
-             grid_.begin()+i*kRows*kSteps);
+   std::copy(next[i].begin(),next[i].end(),grid_.begin()+i*kRows*kSteps);
    patternLengths_[i]=nextLengths[i];
   }
-  // The processor has atomically accepted A/B/C and all EMPTY-row assets.
-  // This branch makes only noexcept cache ownership transfers after ACK.
-  if(fillMask&&stagedFactory) {
-   invalidateWaveQuery();
-   for(std::size_t row=0;row<8;++row) {
-    if(!(fillMask&(1u<<row)))continue;
-    samplePresent_[row]=true;
-    labels_[row].swap(stagedFactory->names[row]);
-    if(customNames_[row].empty())
-      customNames_[row].swap(stagedFactory->displayNames[row]);
-    exportWavs_[row].swap(stagedFactory->wav[row]);
-    exportEdits_[row]=SampleEdit{};
-    samplePaths_[row].clear();
-    originIdentityValid_[row]=false;
-    originIdentity_[row]=0;
-   }
-  }
-  const bool relayout=exposeEight&&visibleRows_<8;
-  if(relayout)visibleRows_=8;
-  try {notifyViews(relayout);}catch(...){}
+  try{notifyViews(false);}catch(...){}
   return true;
  }catch(...){return false;}
 }
