@@ -1,6 +1,6 @@
 # 125A Drumator 1.5.0 — Development scope (not released)
 
-**Status (1 November 2026):** Stage 3 eight-sample original audition kit + all 24 WAV loops are rendered and Windows-QA verified ([Actions #41268791112](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41268791112): 32/32 CTests, 47/47 Validator, 58/58 Tester). Stage 2 guarded A/B/C Apply/grouped Undo also passed. Live GUI preview, sample-kit opt-in and Studio One musical acceptance are pending. Source `5f03e2d549f9a406aaabc7ddc71bf759abd10b6c` on `develop/v1.5.0`.
+**Status (1 November 2026):** Stage 5 functional Beat Creator dialog, 8 styles, complexity, 16/32-step GENERATE, audible one-shot PLAY A/B/C and STOP, explicit occupied-pattern confirmation on APPLY, grouped UNDO and CANCEL. Connected Windows BC17 UI test PASS. [Actions #41272670153](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41272670153): **32/32 CTests, 47/47 validator, 58 PASS / 0 WARNING / 0 FAIL independent tester**. Exact validated source `78dbad14674fc2be43469b1d92a3634a80a3f8c3`; the new GUI and audio-preview controls have been wired. **Outstanding:** owner Studio One hands-on/musical acceptance, optional factory-kit load into user session, velocity/SONG workflow improvements, final GUI audit, v1.5 release packaging.
 **Frozen sale version:** `main` stays the independently validated v1.0.1, starting from `f4c5caa4be82626ea89459d9835c12138d7c6a1b`. Do not merge 1.5 development into main, package or market it as released without dedicated approval.
 
 ## Product principle

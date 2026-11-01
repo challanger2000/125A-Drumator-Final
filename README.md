@@ -1,12 +1,12 @@
 # 125A Drumator
 
-> **1.5.0 DEVELOPMENT — NOT RELEASED.** Eight original synthesized audition samples and 24 A/B/C WAV demo loops are now verified (Windows 32/32 CTests, 47/47 Steinberg Validator, 58/58 independent Tester). Beat Creator staging, guarded APPLY and grouped UNDO are also working in the Controller/Processor. **No live GUI/audio audition controls yet.** Released v1.0.1 stays unchanged on [main](https://github.com/challanger2000/125A-Drumator-Final/tree/main). [CURRENT](CURRENT.md) · [Audition kit](docs/BEAT-CREATOR-FACTORY-AUDITION.md) · [Roadmap](docs/ROADMAP-1.5.0.md).
+> **1.5.0 DEVELOPMENT — NOT RELEASED.** Beat Creator now has a functional compact dark VSTGUI dialog with 8 genres, complexity, GENERATE, audible PLAY A/B/C, STOP, protected APPLY/UNDO and CANCEL. Windows **32/32 CTests**, **47/47 Steinberg Validator**, **58 PASS / 0 WARNING / 0 FAIL 125A Plugin Tester** at source `78dbad14674fc2be43469b1d92a3634a80a3f8c3` ([Actions #41272670153](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41272670153)). **Studio One owner test, musical acceptance and final GUI review remain open; no v1.5 release yet.** Released v1.0.1 stays unchanged on [main](https://github.com/challanger2000/125A-Drumator-Final/tree/main). [CURRENT](CURRENT.md) · [Audition kit](docs/BEAT-CREATOR-FACTORY-AUDITION.md) · [Roadmap](docs/ROADMAP-1.5.0.md).
 
 Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style interface.
 
 **Version:** 1.0.1. The F20/F21 layout corrections are included in the updated 1.0.1 customer package prepared for the seller. **No 1.0.2 release.**
 
-**Canonical released source:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main), version 1.0.1. The new `develop/v1.5.0` branch is isolated and has a tested, **not yet user-accessible** generator core and an atomic Controller/Processor APPLY/UNDO route; the plugin still reports 1.0.1 in CMake/factory metadata until a real 1.5 release candidate is built. Historical branches remain available.
+**Canonical released source:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main), version 1.0.1. The new `develop/v1.5.0` branch is isolated, with a functional Beat Creator VSTGUI dialog, audible A/B/C audition and a guarded atomic Controller/Processor APPLY/UNDO route. The development QA VST3 still reports 1.0.1 in factory metadata until a separately accepted 1.5 release candidate is built. Historical branches remain available.
 
 ## Features
 

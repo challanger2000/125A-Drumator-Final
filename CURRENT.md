@@ -1,30 +1,17 @@
 # 125A Drumator — authoritative v1.5 development status
 
-## Stage 5 — Beat Creator dialog integration (Windows QA pending)
+## Stage 5 — Beat Creator GUI/A-B-C listening: WINDOWS QA PASS (1 November 2026)
 
-The first functional dark hardware dialog is wired to the real V1.0.1
-Controller/View on `develop/v1.5.0`. A single **BEAT CREATOR** 83x32 header
-button is placed between SONG EDIT and the slightly tightened SWING/HUMANIZE/
-MASTER controls. The modal has all eight genres, SIMPLE-to-COMPLEX as a single
-0–100% +/- control, GENERATE, one-shot PLAY A/B/C, STOP, guarded APPLY and
-CANCEL. Current pattern length (16/32 steps) is shown and honored.
+- **Validated exact code:** `78dbad14674fc2be43469b1d92a3634a80a3f8c3`, branch `develop/v1.5.0`.
+- **[Windows Actions #41272670153](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41272670153): SUCCESS** — **32/32 CTests**, **47/47 official Steinberg VST3 Validator**, **58 PASS / 0 WARNING / 0 FAIL 125A Plugin Tester v0.3.2**.
+- **Tested VST3 DLL SHA256:** `f101785f24ee8883dcd3fc54949e4b1490bbd98c36fa31a880fecbfbc5762d17`.
+- **Actual V1.0.1 View integration:** one BEAT CREATOR header button between SONG EDIT and three tightened hardware-style rotaries. Small dark modal, eight genre choices, simple 0–100% complexity +/- control, GENERATE, PLAY A/B/C (one-shot), STOP, guarded APPLY, CANCEL. 16/32-step duration follows current pattern. No duplicate sequencer or extra sample kit import.
+- **Safety:** generates into temporary data; previews through Stage 4 ephemeral audition voice. No saved kit/samples/SONG/user patterns changed before APPLY. Occupied A/B/C require explicit second APPLY click; grouped Undo restores all three. D-H and rows 9-16 protected.
+- **BC17 real Windows VSTGUI test:** clicked Beat Creator, selected genre, increased complexity, GENERATED draft, PLAY A yielded real audio, STOP silenced, first APPLY on occupied pattern left project untouched, second APPLY committed A/B/C, grouped UNDO restored, CANCEL discarded second draft. PASS.
+- **GUI/layout tests:** newly tightened header rotaries and 83x32 Beat Creator button have shared paint/hit geometry with nonoverlap assertions; entire 32/32 CTest suite passed.
+- **Not yet approved as v1.5 consumer release:** real owner Studio One functionality and musical-quality acceptance, final GUI design audit, optional preview-kit opt-in integration, remaining roadmap items, signed-off packaging and release are outstanding. No v1.5 Gumroad upload has occurred. The QA build still identifies as 1.0.1 by design.
+- **Stable sales branch:** `main` remains the released v1.0.1 at `f4c5caa4be82626ea89459d9835c12138d7c6a1b` and was not changed.
 
-- A/B/C draft generation and audio audition stay in memory until APPLY.
-- If ANY A/B/C pattern is occupied, the first APPLY asks for an explicit
-  second confirmation; no silent overwrites. Existing Pattern UNDO restores
-  all three patterns as one transaction.
-- Existing samples, rows 9–16, patterns D–H and hidden steps are protected
-  by Stage 2 transactions.
-- Window-only session state is discarded on close/recall; the original
-  samples remain untouched. The modal never adds a second sequencer.
-- Windows BC17 integration test clicks real VSTGUI widgets and checks
-  genre, complexity, GENERATE, A preview, STOP, overwrite guard, group UNDO
-  and CANCEL.
-- **This stage is unverified until the new Windows CTests, Steinberg validator
-  and independent 125A tester report PASS.**
-- No release/version bump, no merge to `main`, no Gumroad package.
-
-The published 1.0.1 is still frozen on `main`.
 
 ---
 
