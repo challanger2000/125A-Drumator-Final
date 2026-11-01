@@ -104,10 +104,12 @@ class BeatCreator final {
     }
    case BeatStyle::House:
     switch(which) {
-     case 0:return {q,e,back,beat(14)};
-     case 1:return {q,static_cast<std::uint16_t>(off|beat(7)|beat(15)),back,beat(14)};
+     case 0:return {q,e,back,static_cast<std::uint16_t>(beat(6)|beat(14))};
+     case 1:return {q,static_cast<std::uint16_t>(off|beat(7)|beat(15)),
+                     back,static_cast<std::uint16_t>(beat(2)|beat(10))};
      default:return {q,static_cast<std::uint16_t>(e|beat(11)),
-                     static_cast<std::uint16_t>(back|beat(15)),beat(14)};
+                     static_cast<std::uint16_t>(back|beat(15)),
+                     static_cast<std::uint16_t>(beat(6)|beat(14))};
     }
    case BeatStyle::Rock:
     switch(which) {
@@ -164,11 +166,20 @@ class BeatCreator final {
    for(unsigned loc=0;loc<16u;++loc) {
     const auto st=offset+loc;
     const auto flag=beat(loc);
-    if(g.kick&flag)
+    // Even at 0% retain each style's skeleton, not the full metal
+    // double-kick barrage. Electronic four-on-floor stays intact.
+    const bool foundation=loc==0u||loc==8u||loc==10u||
+                          (electronic(s.style)&&loc%4u==0u);
+    if((g.kick&flag)&&(busy>=20u||foundation))
      hit(p,BeatRole::BD,st,vel(dynamics,loc%4u==0u?115:95));
     // Preserve a reliable backbeat in all eight existing genre workflows.
     if(loc==4u||loc==12u)
      hit(p,BeatRole::Snare,st,vel(dynamics,loc==12u?116:110));
+    // A two-step DnB pattern needs displaced, quiet ghost snares.
+    // Add one already at the normal 35%, never replacing the backbeat.
+    if(s.style==BeatStyle::DrumAndBass&&busy>=30u&&
+       (loc==7u||(busy>=55u&&loc==15u)))
+     hit(p,BeatRole::Snare,st,vel(dynamics,loc==7u?44:40));
     if(g.clap&flag)
      hit(p,BeatRole::Clap,st,vel(dynamics,87));
     if(g.hat&flag) {
@@ -262,8 +273,8 @@ class BeatCreator final {
     // and three phrasing choices rather than an identical tom roll.
     if(ending==0u) {
      hit(c,BeatRole::LowTom,last,vel(rng,85));
-     hit(c,BeatRole::LowTom,last+1u,vel(rng,78));
-     hit(c,BeatRole::HighTom,last+2u,vel(rng,98));
+     if(busy>=55u)hit(c,BeatRole::LowTom,last+1u,vel(rng,78));
+     if(busy>=25u)hit(c,BeatRole::HighTom,last+2u,vel(rng,98));
      hit(c,BeatRole::HighTom,last+3u,vel(rng,110));
     }else if(ending==1u){
      hit(c,BeatRole::HighTom,last+1u,vel(rng,90));

@@ -128,6 +128,56 @@ int main(){
           "BC26 two-bar phrases repeat excessively");
    }
   }
+  // BC27: musical archetype QA, not merely different random seeds.
+  // Verify genre-specific placement at the default 35% and sparse 0%.
+  for(unsigned seed=0;seed<48u;++seed) {
+    const auto take=[&](BeatStyle style,std::uint8_t busy) {
+      return BeatCreator::preview({style,busy,16},seed+0x4501u);
+    };
+    for(const BeatStyle four:{BeatStyle::IndustrialNDH,BeatStyle::EBM,
+                              BeatStyle::Techno,BeatStyle::House}) {
+      const auto p=take(four,35u);
+      for(unsigned step:{0u,4u,8u,12u})
+        check(get(p.a,BeatRole::BD,step)>0,
+              "BC27 electronic downbeat/four-on-floor missing");
+    }
+    const auto house=take(BeatStyle::House,35u);
+    const auto techno=take(BeatStyle::Techno,35u);
+    check(count(house.a,BeatRole::OHH,16u)>=2,
+          "BC27 House lacks characteristic offbeat open hats");
+    check(count(techno.a,BeatRole::OHH,16u)<=1,
+          "BC27 Techno mistakenly duplicates House open-hat pattern");
+    const auto dnb=take(BeatStyle::DrumAndBass,35u);
+    check(get(dnb.a,BeatRole::Snare,4u)>0&&
+          get(dnb.a,BeatRole::Snare,12u)>0&&
+          get(dnb.a,BeatRole::Snare,7u)>=30u&&
+          get(dnb.a,BeatRole::Snare,7u)<=55u,
+          "BC27 Drum & Bass two-step has no quiet displaced snare");
+    const auto minimalMetal=take(BeatStyle::Metal,0u);
+    const auto normalMetal=take(BeatStyle::Metal,35u);
+    check(count(minimalMetal.a,BeatRole::BD,16u)<=3,
+          "BC27 0% Metal is still an excessively busy double-kick pattern");
+    check(count(normalMetal.a,BeatRole::BD,16u)>=6,
+          "BC27 Metal lost its double-kick identity at default Complexity");
+    check(count(minimalMetal.c,BeatRole::LowTom,16u)+
+          count(minimalMetal.c,BeatRole::HighTom,16u)<=2,
+          "BC27 minimal rock/metal break ignores Complexity");
+    const auto rock=take(BeatStyle::Rock,35u);
+    check(get(rock.a,BeatRole::BD,0u)>0&&
+          get(rock.a,BeatRole::BD,8u)>0,
+          "BC27 Rock groove lost natural kick anchors");
+    const auto hiphop=take(BeatStyle::HipHop,35u);
+    check(get(hiphop.a,BeatRole::BD,4u)==0u&&
+          get(hiphop.a,BeatRole::BD,12u)==0u&&
+          count(hiphop.a,BeatRole::BD,16u)>=3,
+          "BC27 Hip-Hop collapsed into mechanical house kick");
+    for(const auto* p:{&house.a,&techno.a,&dnb.a,&minimalMetal.a,
+                        &normalMetal.a,&rock.a,&hiphop.a}) {
+      for(unsigned st=0;st<16u;++st)
+        check(!(get(*p,BeatRole::OHH,st)&&get(*p,BeatRole::CHH,st)),
+              "BC27 overlapping open/closed hi-hats");
+    }
+  }
   // Isolation: generating a preview cannot modify an existing project.
   PatternSteps occupied{};occupied[0]=127;occupied[kSteps+31]=92;
   const std::array<PatternSteps,3> existing{occupied,{},occupied};
@@ -140,7 +190,7 @@ int main(){
   PatternSteps onlyHidden{};onlyHidden[16]=96;
   check(BeatCreator::occupiedMask(std::array<PatternSteps,3>{PatternSteps{},onlyHidden,PatternSteps{}})==2u,
         "hidden second-bar value not protected");
-  std::cout<<"Beat Creator preview: styles=8, lengths=16/32, 2560 legacy cases + BC26 style variety/two-bar phrases/break variants, A/B/C isolated\n";
+  std::cout<<"Beat Creator preview: styles=8, lengths=16/32, 2560 legacy cases + BC26 diversity + BC27 per-genre musical quality, A/B/C isolated\n";
   return 0;
  }catch(const std::exception& e){std::cerr<<"BEAT CREATOR FAIL: "<<e.what()<<"\n";return 1;}
 }
