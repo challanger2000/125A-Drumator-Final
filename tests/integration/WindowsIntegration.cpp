@@ -1273,6 +1273,61 @@ void testV101Interaction(){
  check(countControls.down(195.,countControls.height()-L::footer+22.)==
           UI::Result::Applied&&emptyRows.c->visibleRows()==9,
        "V101 REMOVE ROW did not restore Controller count");
+ // BC30 real Controller/Processor stroke dispatch. A single gesture must
+ // move several cells, skip blanks, retract lines and Undo as one command.
+ {
+  Fixture g;g.kit(v101PreviewKit());prepareAudio(*g.p);
+  UI velocity(*g.c);
+  const auto pattern=g.c->currentPattern();
+  const std::size_t row=9;
+  for(std::size_t step:{std::size_t{2},std::size_t{4},std::size_t{8}})
+   check(g.c->setStepVelocity(pattern,row,step,100),"BC30 set note fixture");
+  const auto original0=g.c->velocity(pattern,row,0);
+  const auto original4=g.c->velocity(pattern,row,4);
+  const auto original8=g.c->velocity(pattern,row,8);
+  check(original0>0&&original4>0&&original8>0&&
+        g.c->velocity(pattern,row,1)==0,"BC30 setup incorrect");
+  check(velocity.down(1230.,L::header+9*L::rowHeight+12.)==UI::Result::Handled,
+        "BC30 VEL expansion failed");
+  const double top=L::rowTop(velocity.state().firstRow,8,velocity.expandedRows());
+  const auto cell=[](std::size_t step){return L::stepX+8.+L::stepPitch*step;};
+  check(velocity.down(cell(0),top+87.,false,true)==UI::Result::Applied,
+        "BC30 Shift line start");
+  check(velocity.move(cell(8),top+55.)==UI::Result::Applied,
+        "BC30 Shift line end");
+  check(g.c->velocity(pattern,row,4)>g.c->velocity(pattern,row,0)&&
+        g.c->velocity(pattern,row,4)<g.c->velocity(pattern,row,8)&&
+        g.c->velocity(pattern,row,1)==0,"BC30 line interpolation or ghost note");
+  check(velocity.move(cell(4),top+79.)==UI::Result::Applied,
+        "BC30 reverse line failed");
+  check(g.c->velocity(pattern,row,8)==original8,
+        "BC30 retraced line did not restore original");
+  check(velocity.up()==UI::Result::Handled,"BC30 line release");
+  check(g.c->undoCurrentPattern(),"BC30 line one-step Undo unavailable");
+  check(g.c->velocity(pattern,row,0)==original0&&
+        g.c->velocity(pattern,row,4)==original4&&
+        g.c->velocity(pattern,row,8)==original8,"BC30 line Undo failed");
+  check(velocity.down(cell(0),top+88.,false,false,true)==UI::Result::Applied,
+        "BC30 Alt Accent start");
+  check(velocity.move(cell(8),top+76.)==UI::Result::Applied,
+        "BC30 Accent range");
+  check(velocity.up()==UI::Result::Handled,"BC30 Accent release");
+  check(g.c->velocity(pattern,row,0)>=120&&
+        g.c->velocity(pattern,row,4)>=120&&
+        g.c->velocity(pattern,row,8)>=120&&
+        g.c->velocity(pattern,row,1)==0,"BC30 Accent/silent guard");
+  check(g.c->undoCurrentPattern()&&
+        g.c->velocity(pattern,row,0)==original0,"BC30 Accent Undo failed");
+  check(velocity.down(cell(0),top+88.,false,true,true)==UI::Result::Applied,
+        "BC30 Curve start");
+  check(velocity.move(cell(8),top+50.)==UI::Result::Applied,
+        "BC30 Curve end");
+  check(velocity.up()==UI::Result::Handled&&
+        g.c->velocity(pattern,row,4)>g.c->velocity(pattern,row,0),
+        "BC30 Curve commit");
+  check(g.c->undoCurrentPattern(),"BC30 Curve Undo");
+  evidence("BC30 V101 Controller/Processor Shift line/retract, Alt accent, Shift+Alt curve, sparse steps and group Undo PASS");
+ }
  evidence("V101 interactive controller routing: header, patterns, knob drag, VEL rollback, SETTINGS, zoom modal and 16-row paging PASS");
 }
 
