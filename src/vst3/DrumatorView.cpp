@@ -1334,6 +1334,7 @@ void DrumatorView::closeBeatCreator() noexcept {
  (void)controller_.stopBeatCreatorDraft();
  controller_.cancelBeatCreator();
 beatCreatorOpen_=false;
+  previewKitOverwritePending_=false;
   kitBrowserOpen_=false;
   beatCreatorConfirmOverwrite_=false;
  beatCreatorListening_=-1;
@@ -1379,19 +1380,13 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c) {
  P::fill(*c,{box.x0+6.,box.y0+36.,box.x1-6.,box.y0+38.},
          {58,70,82,255});
 P::label(*c,"125A BEAT CREATOR",paintRect(D::title(hostHeight)),
-          15,{230,237,243,255});
- const P::ButtonSprites tabs{
+          16,{230,237,243,255});
+ const P::ButtonSprites buttons{
    v101VintageButtons_[0],v101VintageButtons_[1],
    v101VintageButtons_[2],v101VintageButtons_[3]
  };
- P::cap(*c,D::creatorTab(hostHeight),0.,"BEAT CREATOR",
-        !kitBrowserOpen_,9,&tabs);
- P::cap(*c,D::drumkitsTab(hostHeight),0.,"DRUMKITS",
-        kitBrowserOpen_,10,&tabs);
- if(kitBrowserOpen_){
-   drawKitBrowser(c);
-   return;
- }
+ P::cap(*c,D::loadPreviewKit(hostHeight),0.,"LOAD PREVIEW KIT",
+        previewKitOverwritePending_,10,&buttons);
  // Dark recessed instrument pockets, restrained blue rims, metal texture
  // remains visible around the groups and between the controls.
  const auto styleBezel=D::styleBezel(hostHeight);
@@ -1401,12 +1396,9 @@ P::label(*c,"125A BEAT CREATOR",paintRect(D::title(hostHeight)),
          {14,27,40,160});
  P::border(*c,{box.x0+54.,box.y0+149.,box.x1-54.,box.y0+180.},
            {56,83,105,255});
- P::label(*c,"STYLE  /  SELECT A GENRE",paintRect(D::styleHeading(hostHeight)),
-          10,{197,216,230,255},false);
- const P::ButtonSprites buttons{
-   v101VintageButtons_[0],v101VintageButtons_[1],
-   v101VintageButtons_[2],v101VintageButtons_[3]
- };
+ P::label(*c,beatCreatorNotice_.c_str(),paintRect(D::notice(hostHeight)),
+          10,previewKitOverwritePending_?
+              VSTGUI::CColor{252,187,103,255}:VSTGUI::CColor{197,216,230,255},false);
  // Four columns, two rows at ALL heights. Compact 136x25 style caps are
  // the ONLY width exception to the original 95x25 Drumator hardware keys.
  for(std::size_t i=0;i<BeatCreator::styleNames.size();++i)
@@ -1436,9 +1428,12 @@ P::label(*c,"125A BEAT CREATOR",paintRect(D::title(hostHeight)),
  P::cap(*c,D::stop(hostHeight),0.,"STOP",false,10,&buttons);
 
  const bool ready=controller_.beatCreatorDraft()!=nullptr;
- P::label(*c,beatCreatorNotice_.c_str(),paintRect(D::notice(hostHeight)),
-          10,beatCreatorConfirmOverwrite_?VSTGUI::CColor{252,187,103,255}:
-                 VSTGUI::CColor{197,217,229,255});
+ constexpr const char* labels[8]={"01 BD / KICK","02 SNARE",
+   "03 CLOSED HH","04 OPEN HH","05 LOW TOM","06 HIGH TOM",
+   "07 CRASH","08 CLAP"};
+ for(std::size_t i=0;i<8;++i)
+   P::label(*c,labels[i],paintRect(D::legend(hostHeight,i)),
+            9,{212,225,236,255},false);
  // APPLY/CANCEL are also 95x25, with short captions. Confirmation
  // remains explicit and visible in the status/label but never changes size.
  P::cap(*c,D::apply(hostHeight),0.,
@@ -1453,18 +1448,29 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
 if(!dialogBounds.hit(x,y)) {
    closeBeatCreator();invalid();return true;
  }
- if(D::creatorTab(height).hit(x,y)){
-   kitBrowserOpen_=false;invalid();return true;
- }
- if(D::drumkitsTab(height).hit(x,y)){
-   if(!kitBrowserOpen_)openKitBrowser();
+ if(D::loadPreviewKit(height).hit(x,y)){
+   bool occupied=false;
+   for(std::size_t row=0;row<8;++row)
+     if(controller_.hasSample(row)){occupied=true;break;}
+   if(occupied&&!previewKitOverwritePending_){
+     previewKitOverwritePending_=true;
+     beatCreatorNotice_="REPLACE SLOTS 1-8? CLICK LOAD AGAIN";
+     invalid();return true;
+   }
+   previewKitOverwritePending_=false;
+   (void)controller_.stopBeatCreatorDraft();
+   beatCreatorListening_=-1;
+   const bool ok=controller_.loadPreviewKit();
+   beatCreatorConfirmOverwrite_=false;
+   beatCreatorNotice_=ok?"PREVIEW KIT LOADED - SELECT STYLE / GENERATE":
+                         "PREVIEW KIT MISSING OR INVALID";
    invalid();return true;
  }
- if(kitBrowserOpen_)return kitBrowserMouseDown(x,y);
  for(std::size_t i=0;i<BeatCreator::styleNames.size();++i){
   if(D::style(height,i).hit(x,y)){
    if(static_cast<std::size_t>(beatCreatorStyle_)!=i){
     controller_.cancelBeatCreator();
+    previewKitOverwritePending_=false;
     beatCreatorStyle_=static_cast<BeatStyle>(i);
     beatCreatorConfirmOverwrite_=false;
     beatCreatorListening_=-1;
@@ -1486,6 +1492,7 @@ if(!dialogBounds.hit(x,y)) {
   invalid();return true;
  }
  if(D::generate(height).hit(x,y)) {
+  previewKitOverwritePending_=false;
   const auto steps=controller_.patternLength(controller_.currentPattern());
   const BeatCreatorSettings settings{beatCreatorStyle_,beatCreatorComplexity_,steps};
   // New click produces a different deterministic seed; tests can still use
@@ -3048,6 +3055,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    // adapts to that exact minimum without asking the host to resize.
    v101_.up();
    beatCreatorOpen_=true;
+    previewKitOverwritePending_=false;
    beatCreatorConfirmOverwrite_=false;
    beatCreatorListening_=-1;
    // The opener's click point may coincide with a style underneath the
