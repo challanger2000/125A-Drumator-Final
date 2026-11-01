@@ -3901,6 +3901,69 @@ void testBeatCreatorV15AudiblePreview(){
        "BC16 non-destructive audition modified serialized project");
  evidence("BC16 A/B/C 16+32-step live audio, STOP, CANCEL, state protection PASS");
 }
+void testBeatCreatorV15Dialog(){
+ Fixture f;
+ KitState kit;
+ kit.visible=8;kit.grid.fill(0);kit.patternLengths.fill(16);
+ kit.grid[0]=88; // A occupied: first APPLY must only ask for confirmation.
+ f.kit(kit);prepareAudio(*f.p);
+ f.openV101();
+ auto* view=IntegrationAccess::view(*f.c,0);
+ check(view!=nullptr&&view->isV101(),"BC17 real production V101 editor missing");
+ auto saved=[&]{
+  ResizableMemoryIBStream stream;KitState state;
+  check(f.p->getState(&stream)==kResultOk&&
+    KitCodec::decode(static_cast<const std::uint8_t*>(stream.getData()),
+      static_cast<std::size_t>(stream.getCursor()),state),"BC17 saved state");
+  return state;
+ };
+ const auto before=saved();
+ const double h=view->getViewSize().getHeight();
+ check(h>=420.,"BC17 host window cannot display dialog");
+ const auto p=UiBeatCreatorDialog::panel(h);
+ const auto press=[&](UiBeatCreatorDialog::Rect r){
+  click(*view,(r.x0+r.x1)*.5,(r.y0+r.y1)*.5);
+ };
+ press(UiV101Layout::beatCreatorTrigger);
+ check(f.c->beatCreatorDraft()==nullptr,"BC17 opening the dialog applied a draft");
+ press(UiBeatCreatorDialog::style(h,5)); // METAL
+ press(UiBeatCreatorDialog::complexityPlus(h));
+ press(UiBeatCreatorDialog::generate(h));
+ check(f.c->beatCreatorDraft()!=nullptr,"BC17 GENERATE did not stage A/B/C");
+ check(saved().grid==before.grid&&saved().wav==before.wav,
+      "BC17 GENERATE modified existing kit");
+ press(UiBeatCreatorDialog::preview(h,0));
+ std::array<float,256> left{},right{};
+ float* channels[]{left.data(),right.data()};
+ AudioBusBuffers out{};out.numChannels=2;out.channelBuffers32=channels;
+ ProcessData block{};block.numSamples=256;block.numOutputs=1;
+ block.outputs=&out;block.symbolicSampleSize=kSample32;
+ bool audible=false;
+ for(int b=0;b<8;++b){
+  check(f.p->process(block)==kResultOk,"BC17 preview process");
+  for(auto v:left)if(std::abs(v)>0.0001f)audible=true;
+ }
+ check(audible,"BC17 UI PLAY A generated no audio");
+ press(UiBeatCreatorDialog::stop(h));
+ check(f.p->process(block)==kResultOk,"BC17 STOP process");
+ for(auto v:left)check(std::abs(v)<0.00001f,"BC17 UI STOP left audio playing");
+ press(UiBeatCreatorDialog::apply(h));
+ check(saved().grid==before.grid,"BC17 first APPLY overwrote occupied A");
+ press(UiBeatCreatorDialog::apply(h)); // explicit second confirmation
+ const auto after=saved();
+ check(after.grid!=before.grid&&after.wav==before.wav,
+       "BC17 confirmed APPLY did not update A/B/C safely");
+ check(f.c->canUndoCurrentPattern()&&f.c->undoCurrentPattern(),
+       "BC17 grouped UNDO after dialog APPLY failed");
+ check(saved().grid==before.grid,"BC17 UNDO failed to restore original steps");
+ // CANCEL must never modify active patterns, even with a newly generated draft.
+ press(UiV101Layout::beatCreatorTrigger);
+ press(UiBeatCreatorDialog::generate(h));
+ press(UiBeatCreatorDialog::cancel(h));
+ check(f.c->beatCreatorDraft()==nullptr&&saved().grid==before.grid,
+       "BC17 CANCEL committed or retained draft");
+ evidence("BC17 real V101 dialog, style, complexity, GENERATE, PLAY, STOP, guarded APPLY, UNDO, CANCEL PASS");
+}
 void testBeatCreatorV15GroupApplyUndo(){
  Fixture f;
  KitState kit=namedKit('Q',8);
@@ -5809,6 +5872,7 @@ int main(int argc,char** argv){
  run("V16 1T hidden velocity preservation",testVelocityInactiveBarProtection);
  run("BC15 connected Beat Creator Preview/Apply/group Undo",testBeatCreatorV15GroupApplyUndo);
  run("BC16 audible non-destructive A/B/C preview",testBeatCreatorV15AudiblePreview);
+ run("BC17 real Beat Creator V101 dialog and guarded workflow",testBeatCreatorV15Dialog);
  run("V17 1T row FILL/CLEAR hidden-step protection",testFillActivePatternLength);
  run("UX Velocity empty-step editing",testVelocityLaneExistingStepsOnly);
  run("UX paged Song board",testPagedSongEditor);

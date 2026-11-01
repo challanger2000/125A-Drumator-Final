@@ -1,5 +1,33 @@
 # 125A Drumator — authoritative v1.5 development status
 
+## Stage 5 — Beat Creator dialog integration (Windows QA pending)
+
+The first functional dark hardware dialog is wired to the real V1.0.1
+Controller/View on `develop/v1.5.0`. A single **BEAT CREATOR** 83x32 header
+button is placed between SONG EDIT and the slightly tightened SWING/HUMANIZE/
+MASTER controls. The modal has all eight genres, SIMPLE-to-COMPLEX as a single
+0–100% +/- control, GENERATE, one-shot PLAY A/B/C, STOP, guarded APPLY and
+CANCEL. Current pattern length (16/32 steps) is shown and honored.
+
+- A/B/C draft generation and audio audition stay in memory until APPLY.
+- If ANY A/B/C pattern is occupied, the first APPLY asks for an explicit
+  second confirmation; no silent overwrites. Existing Pattern UNDO restores
+  all three patterns as one transaction.
+- Existing samples, rows 9–16, patterns D–H and hidden steps are protected
+  by Stage 2 transactions.
+- Window-only session state is discarded on close/recall; the original
+  samples remain untouched. The modal never adds a second sequencer.
+- Windows BC17 integration test clicks real VSTGUI widgets and checks
+  genre, complexity, GENERATE, A preview, STOP, overwrite guard, group UNDO
+  and CANCEL.
+- **This stage is unverified until the new Windows CTests, Steinberg validator
+  and independent 125A tester report PASS.**
+- No release/version bump, no merge to `main`, no Gumroad package.
+
+The published 1.0.1 is still frozen on `main`.
+
+---
+
 ## Stage 4 — audible A/B/C audition transport: WINDOWS QA PASS (1 November 2026)
 
 - **Verified code:** `878a2e6eb70341936845b3c92264d4481274a740` on `develop/v1.5.0`.

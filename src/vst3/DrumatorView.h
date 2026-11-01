@@ -10,6 +10,8 @@
 #include "core/SampleEdit.h"
 #include "vst3/UiV101Interaction.h"
 #include "vst3/UiV101Popup.h"
+#include "vst3/UiBeatCreatorDialog.h"
+#include "core/BeatCreator.h"
 #include "vstgui/lib/cvstguitimer.h"
 #include <cstdint>
 #include <chrono>
@@ -81,6 +83,17 @@ private:
  void drawV101Wave(VSTGUI::CDrawContext* c);
  bool v101MouseDown(double x,double y,bool erase,bool fine);
  void drawV101Menu(VSTGUI::CDrawContext* c);
+ // Dialog is UI-only until an explicit transaction is applied to A/B/C.
+ bool beatCreatorOpen_{false};
+ bool beatCreatorConfirmOverwrite_{false};
+ int beatCreatorListening_{-1};
+ BeatStyle beatCreatorStyle_{BeatStyle::IndustrialNDH};
+ std::uint8_t beatCreatorComplexity_{35};
+ std::uint32_t beatCreatorSeed_{0x125A1500u};
+ std::string beatCreatorNotice_{"CHOOSE STYLE, THEN GENERATE"};
+ void drawBeatCreator(VSTGUI::CDrawContext* c);
+ bool beatCreatorMouseDown(double x,double y);
+ void closeBeatCreator() noexcept;
  bool exportSelection(int option);
  bool startExportDrag(int option);
  int dragExportOption_{-1};

@@ -63,7 +63,10 @@ struct UiV101Layout final {
   // Four large machined header keys, all 83x32, with 8px gutters.
   // Keep A-H's compact 35px keycaps and the three real rotary controls.
   static constexpr double headerActionWidth=83.,headerActionGap=8.;
-  static constexpr Rect patternMenu{364.,headerButtonY,447.,
+  // A single unobtrusive entry between SONG EDIT and the tightened header dials.
+   static constexpr Rect beatCreatorTrigger{728.,headerButtonY,811.,
+                                            headerButtonY+headerButtonHeight};
+   static constexpr Rect patternMenu{364.,headerButtonY,447.,
                                     headerButtonY+headerButtonHeight};
   static constexpr Rect barsButton{455.,headerButtonY,538.,
                                    headerButtonY+headerButtonHeight};
@@ -72,7 +75,7 @@ struct UiV101Layout final {
     {637.,headerButtonY,720.,headerButtonY+headerButtonHeight}
   }};
   static constexpr double headerKnobY=114.,headerKnobRadius=18.;
-  static constexpr std::array<double,3> headerKnobCenters{{785.,907.,1029.}};
+  static constexpr std::array<double,3> headerKnobCenters{{849.,941.,1033.}};
   static constexpr Rect headerKnob(std::size_t i) noexcept{
     return {headerKnobCenters[i]-headerKnobRadius,
             headerKnobY-headerKnobRadius,
