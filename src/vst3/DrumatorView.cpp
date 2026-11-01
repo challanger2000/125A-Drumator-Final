@@ -1128,6 +1128,9 @@ void DrumatorView::closeBeatCreator() noexcept {
  beatCreatorOpen_=false;
  beatCreatorConfirmOverwrite_=false;
  beatCreatorListening_=-1;
+ // A click inside the disappearing modal must not illuminate an unrelated
+ // cap in the underlying main/SONG editor for the remaining 200ms.
+ clickFlashArmed_=false;
 }
 void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c) {
  if(!beatCreatorOpen_)return;
@@ -2823,6 +2826,9 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    beatCreatorOpen_=true;
    beatCreatorConfirmOverwrite_=false;
    beatCreatorListening_=-1;
+   // The opener's click point may coincide with a style underneath the
+   // overlay: do not flash a second, unrelated button in the new modal.
+   clickFlashArmed_=false;
    beatCreatorNotice_="CHOOSE STYLE, THEN GENERATE";
    invalid();
    return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
