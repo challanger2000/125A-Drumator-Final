@@ -58,6 +58,11 @@ public:
  bool sampleDropTargetAt(double x,double y) const noexcept;
 private:
  VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> meterTimer_{};
+ // Strictly UI-local, one 200ms amber pulse after a left-button click.
+ // Shared native cap painter uses its own active image for the pulse.
+ bool clickFlashArmed_{false};
+ double clickFlashX_{0.},clickFlashY_{0.};
+ std::chrono::steady_clock::time_point clickFlashUntil_{};
  float mainMeterL_{0.f},mainMeterR_{0.f};
  float holdMeterL_{0.f},holdMeterR_{0.f};
  unsigned holdTicksL_{0},holdTicksR_{0};

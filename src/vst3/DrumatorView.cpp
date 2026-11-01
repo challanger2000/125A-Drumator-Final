@@ -1464,7 +1464,7 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
      settingsFeedbackRow_=setRow;
      settingsFeedbackButton_=setButton;
      settingsFeedbackUntil_=std::chrono::steady_clock::now()+
-                           std::chrono::milliseconds(250);
+                           std::chrono::milliseconds(200);
      if(setButton==2)status_="COPY ROW COMPLETED";
      else if(setButton==3)status_="PASTE ROW COMPLETED";
      else if(setButton==4)status_="CLEAR ROW COMPLETED";
@@ -1749,6 +1749,11 @@ void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
    v101::UiV101NativePreview::zoomPopup(*c,v101_.state().zoomIndex,&songButtonSprites);
 }
 void DrumatorView::draw(VSTGUI::CDrawContext* c) {
+ // A scoped, editor-local paint pulse affects every shared hardware cap.
+ // The 33ms native timer repaints to restore the normal image after 200ms.
+ const v101::UiV101NativePreview::ScopedClickFlash clickFlash(
+     clickFlashX_,clickFlashY_,v101Mode_&&clickFlashArmed_&&
+     std::chrono::steady_clock::now()<clickFlashUntil_);
  if(v101Mode_&&!sampleEditorOpen_){
    if(songEditorOpen_)drawV101Song(c);
    else drawV101(c);
@@ -2754,6 +2759,14 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
  const double x=pos.x,y=pos.y;
  if(!(buttons&VSTGUI::kLButton))return VSTGUI::kMouseEventNotHandled;
+ if(v101Mode_){
+   // A momentary 200ms pulse in the EXISTING active-button color.
+   // No Controller/DSP state changes and no extra GUI menus.
+   clickFlashX_=x;clickFlashY_=y;clickFlashArmed_=true;
+   clickFlashUntil_=std::chrono::steady_clock::now()+
+                    std::chrono::milliseconds(200);
+   invalid(); // covers immediate mouse-down actions too
+ }
  // Modal outranks SONG, normal sequencer, export drag and every popup.
  if(v101Mode_&&beatCreatorOpen_) {
    (void)beatCreatorMouseDown(x,y);

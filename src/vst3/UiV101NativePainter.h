@@ -334,6 +334,29 @@ struct UiV101NativePreview final {
    VSTGUI::CBitmap* pressed{};
    VSTGUI::CBitmap* disabled{};
  };
+ // View-local click pulses are installed only for the duration of one paint.
+ // Scoped thread-local context keeps other editor instances, the pixel fixture,
+ // background callbacks and shared static painters from inheriting the pulse.
+ // Every native cap (MAIN, SONG, popups, Wave, Beat Creator) uses this geometry.
+ struct ClickPoint final {double x{},y{};};
+ inline static thread_local const ClickPoint* paintClick_=nullptr;
+ class ScopedClickFlash final {
+  ClickPoint point_{};
+  const ClickPoint* previous_{};
+ public:
+  ScopedClickFlash(double x,double y,bool enabled) noexcept
+   :point_{x,y},previous_{paintClick_}{
+    paintClick_=enabled?&point_:nullptr;
+  }
+  ~ScopedClickFlash(){paintClick_=previous_;}
+  ScopedClickFlash(const ScopedClickFlash&)=delete;
+  ScopedClickFlash& operator=(const ScopedClickFlash&)=delete;
+ };
+ static bool clickFlashHits(Box b) noexcept {
+  const auto* p=paintClick_;
+  return p&&p->x>=b.left&&p->x<b.right&&
+            p->y>=b.top&&p->y<b.bottom;
+ }
  static bool drawVintageButton(VSTGUI::CDrawContext& c,Box b,
                                 VSTGUI::CBitmap* sprite){
    if(!sprite||!sprite->isLoaded()||sprite->getWidth()!=332.||
@@ -393,6 +416,9 @@ struct UiV101NativePreview final {
                  const ButtonSprites* vintage=nullptr,
                  bool disabled=false,bool pressed=false){
    const Box b{r.x0,y+r.y0,r.x1,y+r.y1};
+   // A momentary click uses EXACTLY the latched-active paint/sprite color.
+   // Disabled caps never flash. The flash never mutates underlying state.
+   active=active||(!disabled&&clickFlashHits(b));
    VSTGUI::CBitmap* sprite=!vintage?nullptr:
       disabled?vintage->disabled:pressed?vintage->pressed:
       active?vintage->active:vintage->normal;
@@ -828,9 +854,11 @@ struct UiV101NativePreview final {
          }};
          for(std::size_t button=0;button<settingsLabels.size();++button)
            cap(c,UiV101Interaction::settingsRect(button),y,
-               settingsLabels[button],button==1&&data.chokeGroup!=0,10,vintageButtons,
-               false,scene.settingsPressedRow==row&&
-                     scene.settingsPressedButton==static_cast<int>(button));
+               settingsLabels[button],
+               (button==1&&data.chokeGroup!=0)||
+                (scene.settingsPressedRow==row&&
+                 scene.settingsPressedButton==static_cast<int>(button)),
+               10,vintageButtons);
        }
      }
    }

@@ -3964,6 +3964,91 @@ void testBeatCreatorCompactHostWindow(){
        "BC18 compact modal changed fixed host viewport");
  evidence("BC18 254px host-constrained BEAT CREATOR overlay, genre, complexity, audio PLAY C/STOP and CANCEL PASS");
 }
+void testV101ButtonClickFlash(){
+ using P=drumator::v101::UiV101NativePreview;
+ Fixture f;
+ f.openV101();
+ auto* view=IntegrationAccess::view(*f.c,0);
+ check(view!=nullptr,"BF20 no native V101 view");
+ const P::ButtonSprites sprites{
+  IntegrationAccess::vintageButton(*view,0),
+  IntegrationAccess::vintageButton(*view,1),
+  IntegrationAccess::vintageButton(*view,2),
+  IntegrationAccess::vintageButton(*view,3)
+ };
+ // Pixel-compare exact active color instead of checking a timestamp or
+ // a debug flag. 398x30 APPLY also checks the non-sprite fallback cap.
+ const auto signature=[&](double width,double height,const char* caption,
+                           bool active,bool pulse,bool disabled,
+                           bool outside)->std::uint64_t{
+   const auto bitmap=VSTGUI::renderBitmapOffscreen({width,height},1.,
+     [&](VSTGUI::CDrawContext& ctx){
+       P::fill(ctx,{0.,0.,width,height},{20,28,38,255});
+       const P::ScopedClickFlash click(
+         outside?width+5.:width/2.,height/2.,pulse);
+       P::cap(ctx,{0.,0.,width,height},0.,caption,active,10,
+              &sprites,disabled);
+     });
+   check(bitmap!=nullptr,"BF20 offscreen render unavailable");
+   auto* pixels=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
+   check(pixels!=nullptr,"BF20 pixel access unavailable");
+   std::uint64_t hash=1469598103934665603ULL;
+   for(unsigned yy=1;yy<static_cast<unsigned>(height);yy+=2)
+     for(unsigned xx=1;xx<static_cast<unsigned>(width);xx+=2){
+       check(pixels->setPosition(xx,yy),"BF20 pixel out of bounds");
+       VSTGUI::CColor color{};pixels->getColor(color);
+       hash^=color.red;hash*=1099511628211ULL;
+       hash^=color.green;hash*=1099511628211ULL;
+       hash^=color.blue;hash*=1099511628211ULL;
+     }
+   pixels->forget();
+   return hash;
+ };
+ struct Candidate{double width,height;const char* text;};
+ for(const Candidate& button:{
+        Candidate{144.,30.,"GENERATE"},Candidate{398.,30.,"APPLY A + B + C"},
+        Candidate{35.,32.,"A"},Candidate{95.,25.,"NEXT PAGE"},
+        Candidate{37.,20.,"COPY ROW"},Candidate{86.,32.,"RESET"}}){
+   const auto normal=signature(button.width,button.height,button.text,
+                               false,false,false,false);
+   const auto selected=signature(button.width,button.height,button.text,
+                                 true,false,false,false);
+   const auto clicked=signature(button.width,button.height,button.text,
+                                false,true,false,false);
+   const auto untouched=signature(button.width,button.height,button.text,
+                                  false,true,false,true);
+   const auto disabled=signature(button.width,button.height,button.text,
+                                 false,false,true,false);
+   const auto disabledClick=signature(button.width,button.height,button.text,
+                                      false,true,true,false);
+   check(normal!=selected,
+       "BF20 active and normal button palettes identical");
+   check(clicked==selected,
+       "BF20 click pulse does not exactly match latched active color");
+   check(untouched==normal,
+       "BF20 click outside changed unrelated button");
+   check(disabledClick==disabled,
+       "BF20 disabled button flashed as if enabled");
+   check(signature(button.width,button.height,button.text,
+                   false,false,false,false)==normal,
+       "BF20 flash leaked into subsequent paints");
+ }
+ {
+  const P::ScopedClickFlash first(20.,12.,true);
+  check(P::clickFlashHits({0.,0.,70.,25.}),
+        "BF20 active painter scope not installed");
+  {
+   const P::ScopedClickFlash second(500.,12.,true);
+   check(!P::clickFlashHits({0.,0.,70.,25.}),
+         "BF20 scoped click leaked across nested draw");
+  }
+  check(P::clickFlashHits({0.,0.,70.,25.}),
+        "BF20 painter scope did not restore previous view");
+ }
+ check(!P::clickFlashHits({0.,0.,70.,25.}),
+       "BF20 click paint state escaped the view");
+ evidence("BF20 native 200ms click-paint support: GENERATE/APPLY/Pattern/footer/SET/Wave active palette, disabled and view isolation PASS");
+}
 void testBeatCreatorV15FactoryKitApply(){
  Fixture f;
  KitState kit;
@@ -5990,6 +6075,7 @@ int main(int argc,char** argv){
  run("BC16 audible non-destructive A/B/C preview",testBeatCreatorV15AudiblePreview);
  run("BC17 real Beat Creator V101 dialog and guarded workflow",testBeatCreatorV15Dialog);
  run("BC19 A/B/C APPLY fills only missing sounds and labels",testBeatCreatorV15FactoryKitApply);
+ run("BF20 native consistent click-active flash button palette",testV101ButtonClickFlash);
  run("BC18 compact 254px host Beat Creator dialog",testBeatCreatorCompactHostWindow);
  run("V17 1T row FILL/CLEAR hidden-step protection",testFillActivePatternLength);
  run("UX Velocity empty-step editing",testVelocityLaneExistingStepsOnly);
