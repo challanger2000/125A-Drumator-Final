@@ -1,5 +1,15 @@
 # 125A Drumator — authoritative v1.5 development status
 
+## Stage 5.8 — BC27 musician-oriented style audit (1 November 2026)
+
+- **Validated exact commit:** `7177afd1201151f4b1aa466e1167d6d2a052ca0b`, `develop/v1.5.0`; [GitHub Actions #41286921291](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41286921291) **SUCCESS**: **32/32 CTests, 47/47 Steinberg Validator, 58 PASS / 0 WARNING / 0 FAIL independent Plugin Tester v0.3.2**. Built Windows VST3 DLL SHA256 `15ad2f5553bac4b534ece863849daa5c176e6f2512644bb55760ebb2db339b91`.
+- **Musical/product judgment (code and rhythmic theory, not an undocumented human listening test):** Keep Industrial/NDH, EBM, Techno, Rock and Hip-Hop structures as they are, because they already have coherent genre-specific foundations. Improve House (two offbeat open hats, different from Techno's single open hat), Drum & Bass (low-velocity ghost snare at step 7 at ordinary 35% Complexity, plus step 15 at higher Complexity), Metal (0%-Complexity kick skeleton reduced from rapid double-kick to a few anchor kicks), and acoustic Rock/Metal break C (tom-roll note density increases with Complexity instead of always being a four-hit roll). All eight genres retain the common strong snare backbeat and the preview/apply/undo flow. No new GUI options, no automatic tempo changes, no changes to existing kit samples.
+- **New BC27 test:** across 48 seeds verifies House offbeat open hats and Techno differentiation, DnB ghost strength 30–55 vs strong backbeat, all electronic quarter-note kicks, sparse-vs-dense Metal, genre-faithful Hip-Hop and Rock kick placement, sparse 0%-Complexity tom fills and zero simultaneous open/closed hi-hats. Earlier BC26 64-seed note-placement-diversity tests remain active.
+- **Current installation package:** [Windows VST3 ZIP](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41286921291/artifacts/13075907546); [15 genre/variation audition WAV examples](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41286921291/artifacts/13076120375).
+- **User release boundary:** `main` remains the sold 1.0.1 version; no release, Gumroad replacement or merge has been made. Successful static/music-theory and real VST3 integration QA does **not** equal proof of subjective musical excellence, which still requires actual hearing with suitable samples.
+
+---
+
 ## Stage 5.7 — Genre-specific Beat Creator groove engine (1 November 2026)
 
 - **Latest tested SOURCE code:** `8386945f34c55babb6488aa53909f2c2aba2e22d` on `develop/v1.5.0`, [GitHub Actions #41284886394](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41284886394) **SUCCESS**, **32/32 CTests, 47/47 Steinberg Validator, 58 PASS / 0 WARNING / 0 FAIL independent 125A Tester v0.3.2**; exact VST3 DLL SHA256 `d0bffe170421819f2e87f9e3502b34792e5ae54b168e9a98591c966659850e9c`.
