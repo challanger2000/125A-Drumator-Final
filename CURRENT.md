@@ -1,11 +1,16 @@
 # 125A Drumator — active development
 
-**1 November 2026 — Drumator 1.5.0 planning branch only.**
+**1 November 2026 — Drumator 1.5.0 Beat Creator core: Windows QA PASS, GUI/integration NOT YET IMPLEMENTED.**
 
-- Branch `develop/v1.5.0` created from certified 1.0.1 head `f4c5caa4be82626ea89459d9835c12138d7c6a1b`.
-- **Released 1.0.1 stays untouched on `main`.** No changed DSP, UI code or distributable VST3 on this 1.5 branch yet.
-- Scope and safeguards: [`docs/ROADMAP-1.5.0.md`](docs/ROADMAP-1.5.0.md).
-- Do not build a v1.5 sales package until implementation, Windows QA and owner Studio One acceptance.
+- Dedicated branch: `develop/v1.5.0`, initially based on released v1.0.1 commit `f4c5caa4be82626ea89459d9835c12138d7c6a1b`.
+- **Stable published v1.0.1 on `main` remains untouched**, source commit unchanged. Nothing here is merged into the product branch or approved for sale.
+- **Validated source SHA:** `6ac507df17ca83552dcf23b7df980b6918ae6e9e`.
+- **[Windows Actions #41265815951](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41265815951) SUCCESS:** 30/30 CTests (including the new Beat Creator tests), Steinberg Validator 47/47, independent 125A Plugin Tester 58 PASS / 0 WARN / 0 FAIL.
+- **Current generated DLL SHA256:** `34e6a78b223e3a6f8cd1623ae0f23b55348ccd5625a06957e6195a1f30c267ce` (regression binary still reports project version 1.0.1; it does **not** contain a Beat Creator GUI or connected controller).
+- **Implemented (pure data core):** `src/core/BeatCreator.h` with eight styles, 16/32 steps, `generate` (A), `variate` (B), `makeBreak` (C), `preview` and occupied-pattern detection. A/B/C remain in memory. Stable mapping: BD, Snare, CHH, OHH, Low Tom, High Tom, Crash, Clap (top rows 1–8). Rows 9–16 are not touched. Regression cases cover 2,560 combinations and native array safety.
+- **Not implemented:** a plugin-facing Beat Creator control, audio audition, sample kit, grouped atomic APPLY/UNDO, UI redesign or user Studio One listening test. The core has only structural/technical validation, not musical listening sign-off.
+- **Read next:** [foundation implementation notes](docs/BEAT-CREATOR-FOUNDATION.md) and [1.5.0 roadmap](docs/ROADMAP-1.5.0.md).
+- No v1.5 VST3 sale package, version bump or deployment is authorized.
 
 ---
 

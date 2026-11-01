@@ -1,12 +1,12 @@
 # 125A Drumator
 
-> **1.5.0 planning branch — not a product release.** Only the roadmap and branch documentation are new here. The tested 1.0.1 is preserved on [main](https://github.com/challanger2000/125A-Drumator-Final/tree/main). Read [the 1.5.0 scope](docs/ROADMAP-1.5.0.md).
+> **1.5.0 development branch — NOT A PRODUCT RELEASE.** The host-independent Beat Creator core is implemented and CI-validated, but it is not connected to the GUI, plugin controller or audition audio. The tested and shipped 1.0.1 remains unchanged on [main](https://github.com/challanger2000/125A-Drumator-Final/tree/main). [Current status](CURRENT.md) · [Technical foundation](docs/BEAT-CREATOR-FOUNDATION.md) · [Roadmap](docs/ROADMAP-1.5.0.md).
 
 Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style interface.
 
 **Version:** 1.0.1. The F20/F21 layout corrections are included in the updated 1.0.1 customer package prepared for the seller. **No 1.0.2 release.**
 
-**Canonical released source:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main), version 1.0.1. The new `develop/v1.5.0` branch is isolated and has no 1.5.0 executable yet. Historical branches remain available.
+**Canonical released source:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main), version 1.0.1. The new `develop/v1.5.0` branch is isolated and has only a tested, **not yet user-accessible** generator core; the plugin still reports 1.0.1 in CMake/factory metadata until a real 1.5 release candidate is built. Historical branches remain available.
 
 ## Features
 

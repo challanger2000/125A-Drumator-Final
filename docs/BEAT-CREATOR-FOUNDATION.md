@@ -1,5 +1,7 @@
 # 125A Drumator v1.5 — Beat Creator foundation
 
+**QA: SUCCESS**, [Windows Actions #41265815951](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41265815951) for `6ac507df17ca83552dcf23b7df980b6918ae6e9e`: 30/30 CTests, Steinberg VST3 Validator 47/47 and 125A Plugin Tester 58 PASS / 0 WARNING / 0 FAIL. The VST3 still has no active Beat Creator UI or controller integration.
+
 ## Reviewed sources (all 125A projects)
 
 - \`challanger2000/125A-Midiator-Final/src/DrumBrain.cpp\` and \`DrumBrain.h\`: source inspiration for a dedicated bounded seeded RNG, separate rhythmic and velocity decisions, genre-aware groove structure, ghost snare, transitional fills, and 16th-step voice/velocity cells. Adapted to Drumator's existing \`PatternSteps\`, no copies of VST output routing.
