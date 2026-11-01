@@ -1,0 +1,54 @@
+name: V1.5 Audition — Eight Optional Drumkits
+on:
+  push:
+    branches:
+      - develop/v1.5.0
+    paths:
+      - '.github/workflows/kit-audition-pack.yml'
+      - 'assets/kit-auditions/**'
+      - 'tools/KitPack.cpp'
+      - 'src/core/KitPresetCatalog.h'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-audition-kits:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure standalone kit packer (no VST3 SDK needed)
+        shell: pwsh
+        run: cmake -S . -B build-kit -A x64 -DDRUMATOR_BUILD_VST3=OFF -DBUILD_TESTING=OFF
+      - name: Build native kit authoring tool
+        shell: pwsh
+        run: cmake --build build-kit --config Release --target drumator_kit_pack --parallel 2
+      - name: Validate and pack exactly eight kits with fixed row names
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'assets/kit-auditions/v1'
+          $kits = @(Get-ChildItem $root -Directory | Sort-Object Name)
+          if ($kits.Count -ne 8) { throw "Expected eight audition kits; found $($kits.Count)" }
+          New-Item -ItemType Directory -Path 'kit-artifact' | Out-Null
+          $expected = @('01_BD.wav','02_Snare.wav','03_CHH.wav','04_OHH.wav','05_LowTom.wav','06_HighTom.wav','07_Crash.wav','08_Clap.wav')
+          foreach ($kit in $kits) {
+            $files = @(Get-ChildItem $kit.FullName -File | Sort-Object Name | ForEach-Object { $_.Name })
+            if (@(Compare-Object $expected $files).Count -ne 0) { throw "Invalid rows: $($kit.Name)" }
+            $target = Join-Path 'kit-artifact' "$($kit.Name).125akit"
+            & ./build-kit/Release/drumator_kit_pack.exe $kit.FullName $target
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path $target)) { throw "Kit packing failed: $($kit.Name)" }
+            $n = (Get-Item $target).Length
+            if ($n -lt 5000) { throw "Suspiciously small kit: $($kit.Name)" }
+            Write-Host "Audition kit: $($kit.Name) = $n bytes"
+          }
+          if (@(Get-ChildItem kit-artifact -Filter '*.125akit').Count -ne 8) { throw 'Missing packaged kit' }
+          Copy-Item 'assets/kit-auditions/README.md' 'kit-artifact/START-HERE.md'
+          Copy-Item 'assets/kit-auditions/sources.tsv' 'kit-artifact/sources.tsv'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 125A-Drumator-V15-8-Kit-Auditions-125akit
+          path: kit-artifact/
+          if-no-files-found: error
+          retention-days: 30
