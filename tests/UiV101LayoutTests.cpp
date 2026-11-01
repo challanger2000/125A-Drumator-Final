@@ -340,6 +340,22 @@ int main(){
       const auto style=D::style(hostHeight,i);
       CHECK(style.x1-style.x0==136.&&style.y1-style.y0==25.);
     }
+    // BC23: the controls must form a visually symmetric minus/value/plus
+    // cluster on one baseline, with exactly 10px gutters. The label has
+    // the same vertical center, and all geometry is height-invariant.
+    const auto label=D::complexityLabel(hostHeight);
+    const auto minus=D::complexityMinus(hostHeight);
+    const auto value=D::complexityValue(hostHeight);
+    const auto plus=D::complexityPlus(hostHeight);
+    CHECK(minus.y0==value.y0&&plus.y0==value.y0&&label.y0==value.y0);
+    CHECK(minus.y1==value.y1&&plus.y1==value.y1&&label.y1==value.y1);
+    CHECK(minus.x1-minus.x0==35.&&plus.x1-plus.x0==35.);
+    CHECK(value.x1-value.x0==52.&&value.y1-value.y0==25.);
+    CHECK(value.x0-minus.x1==10.&&plus.x0-value.x1==10.);
+    CHECK((minus.x0+minus.x1)+(plus.x0+plus.x1)==2.*(value.x0+value.x1));
+    CHECK(minus.x0>label.x1&&plus.x1<D::stepsLabel(hostHeight).x0);
+    CHECK(minus.x0-panel.x0==D::complexityMinus(254.).x0-D::panel(254.).x0);
+    CHECK(plus.x0-panel.x0==D::complexityPlus(686.).x0-D::panel(686.).x0);
     const auto note=D::notice(hostHeight);
     const auto heading=D::styleHeading(hostHeight);
     CHECK(note.x0>=panel.x0&&note.x1<=panel.x1&&

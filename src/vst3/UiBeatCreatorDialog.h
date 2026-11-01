@@ -27,20 +27,22 @@ struct UiBeatCreatorDialog final {
   const double top=p.y0+57.+31.*static_cast<double>(i/4u);
   return {left,top,left+136.,top+25.};
  }
+ // Complexity on one 25px baseline. Compact [-] 10px [value] 10px [+],
+ // equal 35px keys and symmetric centers around the 52px numeric readout.
  static constexpr Rect complexityLabel(double h) noexcept {
-  const auto p=panel(h);return {p.x0+29.,p.y0+119.,p.x0+150.,p.y0+145.};
+  const auto p=panel(h);return {p.x0+29.,p.y0+119.,p.x0+166.,p.y0+144.};
  }
  static constexpr Rect complexityMinus(double h) noexcept {
-  const auto p=panel(h);return {p.x0+165.,p.y0+120.,p.x0+200.,p.y0+145.};
+  const auto p=panel(h);return {p.x0+185.,p.y0+119.,p.x0+220.,p.y0+144.};
  }
  static constexpr Rect complexityValue(double h) noexcept {
-  const auto p=panel(h);return {p.x0+207.,p.y0+119.,p.x0+265.,p.y0+145.};
+  const auto p=panel(h);return {p.x0+230.,p.y0+119.,p.x0+282.,p.y0+144.};
  }
  static constexpr Rect complexityPlus(double h) noexcept {
-  const auto p=panel(h);return {p.x0+275.,p.y0+120.,p.x0+310.,p.y0+145.};
+  const auto p=panel(h);return {p.x0+292.,p.y0+119.,p.x0+327.,p.y0+144.};
  }
  static constexpr Rect stepsLabel(double h) noexcept {
-  const auto p=panel(h);return {p.x0+450.,p.y0+119.,p.x0+610.,p.y0+145.};
+  const auto p=panel(h);return {p.x0+450.,p.y0+119.,p.x0+610.,p.y0+144.};
  }
  // Exactly the original Drumator EXPORT/PAGE geometry: 95 x 25.
  static constexpr Rect action(double h,std::size_t i) noexcept {
