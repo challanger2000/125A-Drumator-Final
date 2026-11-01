@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   sample-qa:
@@ -32,6 +32,18 @@ jobs:
           test "$(find build/genre-kit-candidates -name '*.wav' | wc -l)" -eq 64
           test "$(find build/genre-kit-candidates -name '*.wav' -printf '%h\n' | sort -u | wc -l)" -eq 8
           test -s build/genre-kit-candidates/SOURCE-MANIFEST.json
+      - name: Pin audited WAVs in feature branch (never main)
+        shell: bash
+        run: |
+          mkdir -p assets/beatcreator
+          cp -a build/genre-kit-candidates/. assets/beatcreator/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/beatcreator
+          if ! git diff --cached --quiet; then
+            git commit -m "assets(BC28): vendor 64 checked CC0 WAVs and source manifest [skip ci]"
+            git push origin HEAD:refs/heads/feature/v1.5-eight-genre-kits
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: 125A-Drumator-8-Genre-Kits-CC0-Candidates
