@@ -1619,6 +1619,32 @@ void testV101LiveEditor(){
  click(*view,(every2.x0+every2.x1)/2.,(every2.y0+every2.y1)/2.);
  check(f.c->velocity(2,0,2)>0,
        "V101 attached FILL menu did not edit the real row");
+ // BC30: attached real VSTGUI mouse events must forward Shift/Alt to
+ // the same interpolation model as the detached Controller regression.
+ check(f.c->setStepVelocity(2,0,0,95)&&
+       f.c->setStepVelocity(2,0,4,95),"BC30 attached test note setup");
+ const auto bc30Before0=f.c->velocity(2,0,0);
+ const auto bc30Before2=f.c->velocity(2,0,2);
+ const auto bc30Before4=f.c->velocity(2,0,4);
+ click(*view,1230.,L::header+12.); // VEL expansion, row 1
+ const auto bc30Y=L::header+L::rowHeight;
+ VSTGUI::CPoint bc30Start(L::stepX+8.,bc30Y+87.);
+ (void)view->onMouseDown(bc30Start,VSTGUI::CButtonState(
+       VSTGUI::kLButton|VSTGUI::kShift));
+ VSTGUI::CPoint bc30End(L::stepX+4.*L::stepPitch+8.,bc30Y+55.);
+ (void)view->onMouseMoved(bc30End,VSTGUI::CButtonState(
+       VSTGUI::kLButton|VSTGUI::kShift));
+ (void)view->onMouseUp(bc30End,VSTGUI::CButtonState(VSTGUI::kLButton));
+ check(f.c->velocity(2,0,0)<f.c->velocity(2,0,2)&&
+       f.c->velocity(2,0,2)<f.c->velocity(2,0,4)&&
+       f.c->velocity(2,0,1)==0,
+       "BC30 actual attached Shift line did not interpolate/silence");
+ check(f.c->undoCurrentPattern()&&
+       f.c->velocity(2,0,0)==bc30Before0&&
+       f.c->velocity(2,0,2)==bc30Before2&&
+       f.c->velocity(2,0,4)==bc30Before4,
+       "BC30 actual VSTGUI line Undo failed");
+ evidence("BC30 attached real VSTGUI Shift-drag interpolates multiple occupied steps and one Undo PASS");
  // Mouse-only SET row; OUTPUT and CHOKE popups use the painted hit geometry.
  click(*view,1230.,L::header+36.);
  click(*view,392.,L::header+69.);
