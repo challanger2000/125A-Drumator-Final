@@ -3914,13 +3914,13 @@ void testBeatCreatorUnifiedHardwareView(){
  check(IntegrationAccess::vintageFaceplateLoaded(*view),
        "BC21 metal texture missing from packaged VST3");
  auto* metal=IntegrationAccess::vintageFaceplate(*view);
- check(metal&&metal->isLoaded()&&metal->getWidth()>=840.&&
+ check(metal&&metal->isLoaded()&&metal->getWidth()>=630.&&
        metal->getHeight()>=230.,
        "BC21 Beat Creator texture crop outside original metal artwork");
  for(double height:{254.,686.}){
    view->setViewSize({0.,0.,1280.,height});
    const auto panel=D::panel(height);
-   check(panel.x1-panel.x0==850.&&panel.y1-panel.y0==240.,
+   check(panel.x1-panel.x0==640.&&panel.y1-panel.y0==240.,
          "BC21 modal changed physical dimensions with host row count");
    click(*view,765.,115.);
    check(!IntegrationAccess::clickFlashArmed(*view),
@@ -3939,11 +3939,11 @@ void testBeatCreatorUnifiedHardwareView(){
      VSTGUI::CColor c{};pixels->getColor(c);return c;
    };
    // Every button must have approved dark image-backed geometry, never the
-   // old overwide procedural (silver) fallback. 154x30 is sprite-eligible.
+   // old overwide procedural (silver) fallback. 95x25 is the standard.
    for(const auto rect:{D::generate(height),D::preview(height,0),
                          D::preview(height,1),D::preview(height,2),
                          D::stop(height),D::apply(height),D::cancel(height)}){
-     check(rect.x1-rect.x0==154.&&rect.y1-rect.y0==30.,
+     check(rect.x1-rect.x0==95.&&rect.y1-rect.y0==25.,
            "BC21 action keycap has wrong dimensions");
      const auto pixel=read(rect.x0+8.,rect.y0+9.);
      check(pixel.red<170&&pixel.green<170&&pixel.blue<175,
@@ -3954,8 +3954,8 @@ void testBeatCreatorUnifiedHardwareView(){
    const double x=panel.x0+12.,y=panel.y0+96.;
    auto expected=VSTGUI::renderBitmapOffscreen({1280.,height},1.,
      [&](VSTGUI::CDrawContext& dc){
-       const double sx=(metal->getWidth()-840.)*.5;
-       const double sy=(metal->getHeight()-230.)*.5;
+       const double sx=(metal->getWidth()-(D::width-10.))*.5;
+       const double sy=(metal->getHeight()-(D::height-10.))*.5;
        metal->draw(&dc,{panel.x0+5.,panel.y0+5.,
                          panel.x1-5.,panel.y1-5.},{sx,sy});
      });
@@ -3979,7 +3979,7 @@ void testBeatCreatorUnifiedHardwareView(){
    check(!IntegrationAccess::clickFlashArmed(*view),
          "BC21 modal CANCEL leaked flash onto main editor");
  }
- evidence("BC21 fixed 850x240 dark Beat Creator, original Wave Editor texture, consistent 154x30 caps and 254/686 native screenshots PASS");
+ evidence("BC22 compact 640x240 Beat Creator, original Wave Editor texture, original 95x25 action caps and 254/686 native screenshots PASS");
 }
 void testBeatCreatorCompactHostWindow(){
  Fixture f;
