@@ -1,6 +1,6 @@
 # 125A Drumator 1.5.0 — Development scope (not released)
 
-**Status (1 November 2026):** Generator and transactional Controller/Processor APPLY/UNDO implemented, tested on Windows ([#41267109608](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41267109608): 31/31 CTests, 47/47 validator, 58/58 tester). GUI, sample kit, audible PREVIEW and owner DAW test remain pending. See [Stage 2](docs/BEAT-CREATOR-TRANSACTION.md). Branch: `develop/v1.5.0`.
+**Status (1 November 2026):** Stage 3 eight-sample original audition kit + all 24 WAV loops are rendered and Windows-QA verified ([Actions #41268791112](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41268791112): 32/32 CTests, 47/47 Validator, 58/58 Tester). Stage 2 guarded A/B/C Apply/grouped Undo also passed. Live GUI preview, sample-kit opt-in and Studio One musical acceptance are pending. Source `5f03e2d549f9a406aaabc7ddc71bf759abd10b6c` on `develop/v1.5.0`.
 **Frozen sale version:** `main` stays the independently validated v1.0.1, starting from `f4c5caa4be82626ea89459d9835c12138d7c6a1b`. Do not merge 1.5 development into main, package or market it as released without dedicated approval.
 
 ## Product principle
@@ -55,4 +55,4 @@ Retain the modern dark 3D/hardware faceplate. Review text contrast and dark grou
 4. Use actual Studio One hands-on tests for playback, sample swapping, multi-step painting, export timing and project reopening. CI success does not substitute for owner acceptance.
 5. Version identifiers should become 1.5.0 **only once work starts intentionally** and must never change the safe `main` build. Package/release only after the v1.5.0 candidate is accepted, with START-HERE, DE/EN manual, legal/third-party notices and checksum manifest.
 
-No implementation changes are part of this planning commit.
+Stages 1-3 are implemented on the isolated development branch. None has been merged to `main` or approved as a v1.5.0 release.

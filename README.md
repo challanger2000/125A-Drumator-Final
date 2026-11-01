@@ -1,6 +1,6 @@
 # 125A Drumator
 
-> **1.5.0 DEVELOPMENT — NOT RELEASED.** Beat Creator now has tested Controller/Processor staging, guarded A/B/C APPLY and grouped UNDO. No GUI entry, audible audition or sample kit yet. The current buyer version is still **v1.0.1** on [main](https://github.com/challanger2000/125A-Drumator-Final/tree/main). [Status](CURRENT.md) · [Stage 2 details](docs/BEAT-CREATOR-TRANSACTION.md) · [Roadmap](docs/ROADMAP-1.5.0.md).
+> **1.5.0 DEVELOPMENT — NOT RELEASED.** Eight original synthesized audition samples and 24 A/B/C WAV demo loops are now verified (Windows 32/32 CTests, 47/47 Steinberg Validator, 58/58 independent Tester). Beat Creator staging, guarded APPLY and grouped UNDO are also working in the Controller/Processor. **No live GUI/audio audition controls yet.** Released v1.0.1 stays unchanged on [main](https://github.com/challanger2000/125A-Drumator-Final/tree/main). [CURRENT](CURRENT.md) · [Audition kit](docs/BEAT-CREATOR-FACTORY-AUDITION.md) · [Roadmap](docs/ROADMAP-1.5.0.md).
 
 Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style interface.
 

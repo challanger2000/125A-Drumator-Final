@@ -1,5 +1,22 @@
 # 125A Drumator — authoritative v1.5 development status
 
+**1 November 2026 — Stage 3: Original 8-piece factory audition kit, WAV listening pack and all Windows QA PASS.**
+
+- **Stable released 1.0.1 remains at** \`main\` \`f4c5caa4be82626ea89459d9835c12138d7c6a1b\`, without any v1.5 changes or new product package.
+- **Audition milestone source verified at** \`5f03e2d549f9a406aaabc7ddc71bf759abd10b6c\` on \`develop/v1.5.0\`.
+- **[Windows Actions #41268791112](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41268791112) SUCCESS:** **32/32 CTests**, **47/47 Steinberg Validator**, **58 PASS / 0 WARNING / 0 FAIL independent 125A Plugin Tester**.
+- Audition WAV artifact: **\`125A-Drumator-15-Beat-Creator-Audition-WAVs\`** (GitHub run #41268791112). Contains exactly **8 independently synthesized original** 44.1kHz/16bit mono drum WAVs, **24** 48kHz/24bit stereo A/B/C loops for all eight BeatCreator styles, and a START-HERE text. The ZIP archive was downloaded, CRC-verified, wave-format checked, and sample RMS/peak checked (no silent or full-scale clipped files).
+- Audition render uses the existing **Drumator OfflineWavExport, StepScheduler, SampleVoiceEngine** on an **isolated temporary KitState**. No external/sample-pack audio assets were copied. User samples, loaded kits and patterns are never changed by the audition generation.
+- **Stage 2 stays valid:** controller/processor \`prepareBeatCreator\`, explicit guarded \`applyBeatCreator\` for A/B/C, and grouped undo remain separately tested and available in development code.
+- **Not yet implemented:** in-plugin Beat Creator button/dialog, **live** GUI/audio Preview, automatic sample-kit opt-in, owner Studio One musical listening/release signoff, GUI improvements. 1.5.0 has not been published or activated in the consumer VST3.
+- QA DLL from stage 3 SHA256 \`49850e79c544d25b7434382f0ddfafae63e2cf454fc3e80f756fb19552cc066a\`. Development QA build still identifies as 1.0.1 by design until an actual 1.5.0 release candidate.
+- Engineering: [Stage 3 audition source and test plan](docs/BEAT-CREATOR-FACTORY-AUDITION.md), [Stage 2 transaction](docs/BEAT-CREATOR-TRANSACTION.md), [roadmap](docs/ROADMAP-1.5.0.md).
+
+---
+
+## Previous stage: grouped Apply/Undo (historical)
+# 125A Drumator — authoritative v1.5 development status
+
 **1 November 2026 — Stage 2: Beat Creator A/B/C Preview, explicit Apply and grouped Undo — WINDOWS QA PASS.**
 
 - **Stable product:** \`main\` remains at released v1.0.1, \`f4c5caa4be82626ea89459d9835c12138d7c6a1b\`. No code for v1.5 is merged or released there.
