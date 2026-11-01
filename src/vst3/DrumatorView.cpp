@@ -1189,8 +1189,8 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c) {
 bool DrumatorView::beatCreatorMouseDown(double x,double y) {
  using D=UiBeatCreatorDialog;
  const auto height=getViewSize().getHeight();
- const auto panel=D::panel(height);
- if(!panel.hit(x,y)) {
+ const auto dialogBounds=D::panel(height);
+ if(!dialogBounds.hit(x,y)) {
    closeBeatCreator();invalid();return true;
  }
  for(std::size_t i=0;i<BeatCreator::styleNames.size();++i){
