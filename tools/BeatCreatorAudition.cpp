@@ -59,7 +59,8 @@ int main(int argc,char** argv){
       <<"Grooves: all eight styles, each A/Generate, B/Variate, C/Break.\n"
       <<"Groove previews use the existing Drumator audio renderer at 48kHz/24bit stereo.\n"
       <<"Use a WAV player or import the individual loops into Studio One.\n"
-      <<"The groove tempo is in the filename list written by the preview generator logs.\n"
+      <<"DAW tempos: Industrial/NDH 124, EBM 126, Techno 132, House 124,\\n"
+      <<"Rock 110, Metal 160, Hip-Hop 92, Drum & Bass 174 BPM.\\n"
       <<"Nothing here loads into or replaces any user's Drumator samples or project.\n"
       <<"GUI and live VST3 PREVIEW are NOT implemented yet.\n";
   if(!info)return 8;

@@ -7,6 +7,7 @@ on:
       - 'src/vst3/**'
       - 'resource/**'
       - 'tests/**'
+      - 'tools/**'
       - 'CMakeLists.txt'
       - '.github/workflows/core-ci.yml'
       - '.github/workflows/125a-plugin-tester-qa.yml'
