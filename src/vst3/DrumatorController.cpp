@@ -952,7 +952,7 @@ bool Controller::playBeatCreatorDraft(std::size_t choice,double bpm) noexcept {
   }
   std::vector<std::uint8_t> audio;
   if(!BeatCreatorAudioPreview::encode(
-        beatPreview_,choice,tempo,audio,beatPreviewStyle_,&live))return false;
+        beatPreview_,choice,tempo,audio,live))return false;
   ScopedActionMessage msg{allocateMessage()};
   if(!msg.p)return false;
   msg.p->setMessageID("Drumator.BeatCreatorAudition");
@@ -1021,8 +1021,7 @@ bool Controller::sendBeatTriple(const BeatTriple& expected,
   return true;
  }catch(...){return false;}
 }
-bool Controller::applyBeatCreator(bool allowOccupied,
-                                  bool fillEmptyFactoryRows) {
+bool Controller::applyBeatCreator(bool allowOccupied) {
  if(!beatPreview_.valid||
     !editGeneration_.matches(beatPreviewGeneration_))
   return false;
@@ -1036,22 +1035,9 @@ bool Controller::applyBeatCreator(bool allowOccupied,
  const auto txn=BeatCreatorTransaction::prepare(
      beatPreview_,existing,lengths,allowOccupied);
  if(!txn.valid)return false;
- // A new Drumator has only four visible rows and zero loaded WAVs.
- // Factory sounds and labels accompany GUI APPLY only; bare Controller
- // transaction callers keep the original strictly pattern-only semantics.
- std::uint8_t fillMask=0;
- KitState stagedFactory;
- if(fillEmptyFactoryRows){
-  for(std::size_t row=0;row<8;++row)
-   if(!samplePresent_[row])
-    fillMask=static_cast<std::uint8_t>(fillMask|(1u<<row));
-  if(fillMask) {
-   if(!BeatCreatorFactoryKit::makeGenreKit(stagedFactory,beatPreviewStyle_))return false;
-  }
- }
- if(!sendBeatTriple(txn.before,txn.after,txn.oldLengths,txn.newLengths,
-                    fillMask,fillEmptyFactoryRows,
-                    fillMask?&stagedFactory:nullptr,beatPreviewStyle_))
+ // Beat Creator owns rhythms, never instruments. No sample, row label,
+ // volume, routing, visible-row count or kit resource changes on APPLY.
+ if(!sendBeatTriple(txn.before,txn.after,txn.oldLengths,txn.newLengths))
   return false;
  for(std::size_t i=0;i<3;++i)undo_.consume(i);
  beatGroupUndo_=txn;

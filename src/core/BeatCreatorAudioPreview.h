@@ -15,36 +15,13 @@ class BeatCreatorAudioPreview final {
 public:
  static bool encode(const BeatCreatorPreview& draft,std::size_t choice,double bpm,
                     std::vector<std::uint8_t>& wav16,
-                    BeatStyle style=BeatStyle::Count,
-                    const KitState* loadedKit=nullptr) noexcept {
+                    const KitState& loadedKit) noexcept {
   if(!draft.valid||choice>=3||(draft.steps!=16&&draft.steps!=32)||
      !std::isfinite(bpm)||bpm<20.||bpm>300.)return false;
   try{
-   KitState isolated;
-   if(loadedKit) {
-    // A/B/C must audition exactly the user's currently assigned samples,
-    // trims, pitch, mixer, mute/solo, choke and master settings. The copied
-    // snapshot is never sent back to the project or the real-time engine.
-    isolated=*loadedKit;
-    bool missing=false;
-    for(std::size_t row=0;row<8;++row)
-     if(isolated.wav[row].empty())missing=true;
-    if(missing) {
-     // The GUI APPLY currently populates only *empty* first-eight slots.
-     // Preview exactly those future sounds without overwriting a loaded hit.
-     KitState fallback;
-     if(!(style==BeatStyle::Count?
-          BeatCreatorFactoryKit::makeKit(fallback):
-          BeatCreatorFactoryKit::makeGenreKit(fallback,style)))return false;
-     for(std::size_t row=0;row<8;++row) {
-      if(!isolated.wav[row].empty())continue;
-      isolated.wav[row]=std::move(fallback.wav[row]);
-      isolated.names[row]=std::move(fallback.names[row]);
-     }
-    }
-   }else if(!(style==BeatStyle::Count?
-                BeatCreatorFactoryKit::makeKit(isolated):
-                BeatCreatorFactoryKit::makeGenreKit(isolated,style)))return false;
+   // Exactly the loaded drumset. Unloaded rows stay empty and therefore
+   // silent; never create, borrow or replace samples in a preview.
+   KitState isolated=loadedKit;
    if(!BeatCreatorFactoryKit::setDraft(isolated,draft,choice))return false;
    std::vector<std::uint8_t> wav24;
    if(!OfflineWavExport::renderMemory(isolated,false,bpm,wav24)||

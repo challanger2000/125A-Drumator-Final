@@ -1335,7 +1335,7 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
   const auto ok=controller_.prepareBeatCreator(settings,++beatCreatorSeed_);
   beatCreatorConfirmOverwrite_=false;beatCreatorListening_=-1;
   beatCreatorNotice_=ok?
-    "A/B/C READY - APPLY FILLS EMPTY DRUM ROWS":
+    "A/B/C READY - CURRENT DRUMSET UNCHANGED":
     "GENERATE FAILED - TRY AGAIN";
   invalid();return true;
  }
@@ -1366,7 +1366,7 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
    beatCreatorNotice_="A/B/C OCCUPIED - CONFIRM TO REPLACE";
    invalid();return true;
   }
-  if(controller_.applyBeatCreator(occupied&&beatCreatorConfirmOverwrite_,true)){
+  if(controller_.applyBeatCreator(occupied&&beatCreatorConfirmOverwrite_)){
    closeBeatCreator();
    status_="BEAT CREATOR: A/B/C APPLIED (UNDO AVAILABLE)";
   }else{

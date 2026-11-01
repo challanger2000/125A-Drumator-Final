@@ -3945,6 +3945,10 @@ void testBeatCreatorV15AudiblePreview(){
  Fixture f;
  auto original=namedKit('X',8);
  original.grid.fill(0);original.patternLengths.fill(32);
+ for(std::size_t row=0;row<8;++row){
+  original.wav[row]=BeatCreatorFactoryKit::wav(row);
+  original.names[row]=BeatCreatorFactoryKit::filenames[row];
+ }
  f.kit(original);prepareAudio(*f.p);
  auto saved=[&]{
   ResizableMemoryIBStream s;KitState state;
@@ -4071,6 +4075,10 @@ void testBeatCreatorCompactHostWindow(){
  Fixture f;
  KitState kit;
  kit.visible=8;kit.grid.fill(0);kit.patternLengths.fill(16);
+ for(std::size_t row=0;row<8;++row){
+  kit.wav[row]=BeatCreatorFactoryKit::wav(row);
+  kit.names[row]=BeatCreatorFactoryKit::filenames[row];
+ }
  f.kit(kit);prepareAudio(*f.p);f.openV101();
  auto* view=IntegrationAccess::view(*f.c,0);
  check(view!=nullptr&&view->isV101(),"BC18 real V101 editor unavailable");
@@ -4296,57 +4304,48 @@ void testBeatCreatorV15FactoryKitApply(){
  Fixture f;
  KitState kit;
  kit.visible=4;kit.grid.fill(0);kit.patternLengths.fill(16);
- // Owner's custom sound and display label occupy row zero; never replace.
  kit.wav[0]=BeatCreatorFactoryKit::wav(2);
  kit.names[0]="User_Hat.wav";
  kit.displayNames[0]="My Favorite Kick";
  f.kit(kit);prepareAudio(*f.p);
- const auto before=[&]{
-  ResizableMemoryIBStream stream;KitState state;
+ const auto state=[&]{
+  ResizableMemoryIBStream stream;KitState out;
   check(f.p->getState(&stream)==kResultOk&&
     KitCodec::decode(static_cast<const std::uint8_t*>(stream.getData()),
-       static_cast<std::size_t>(stream.getCursor()),state),"BC19 state");
-  return state;
- }();
+       static_cast<std::size_t>(stream.getCursor()),out),
+       "BC32 serialized state");
+  return out;
+ };
+ const auto before=state();
  const BeatCreatorSettings settings{BeatStyle::IndustrialNDH,35,16};
- check(f.c->prepareBeatCreator(settings,0x1BC19u),"BC19 generate");
- check(f.c->applyBeatCreator(false,true),"BC19 A/B/C+missing kit APPLY");
- ResizableMemoryIBStream output;KitState after;
- check(f.p->getState(&output)==kResultOk&&
-    KitCodec::decode(static_cast<const std::uint8_t*>(output.getData()),
-      static_cast<std::size_t>(output.getCursor()),after),"BC19 saved factory kit");
- check(after.visible==8&&f.c->visibleRows()==8,
-       "BC19 did not expose all eight generated instrument rows");
- check(after.wav[0]==before.wav[0]&&after.names[0]==before.names[0]&&
-       after.displayNames[0]==before.displayNames[0],
-       "BC19 factory kit overwrote user's custom sample/label");
- for(std::size_t i=1;i<8;++i){
-  check(after.wav[i].size()>44u&&after.names[i]==
-          BeatCreatorFactoryKit::filenames[i]&&
-        after.displayNames[i]==BeatCreatorFactoryKit::labels[i],
-       "BC19 missing factory WAV or legible role label");
- }
- for(std::size_t i=8;i<kRows;++i)
-  check(after.wav[i]==before.wav[i]&&
-       after.displayNames[i]==before.displayNames[i],
-       "BC19 modified a non-creator row");
+ check(f.c->prepareBeatCreator(settings,0x1BC19u),"BC32 generate");
+ check(f.c->applyBeatCreator(false),"BC32 pattern-only APPLY");
+ const auto after=state();
+ check(after.grid!=before.grid,"BC32 APPLY failed to produce rhythm");
+ check(after.wav==before.wav&&after.names==before.names&&
+       after.displayNames==before.displayNames&&
+       after.visible==before.visible&&after.gain==before.gain&&
+       after.pan==before.pan&&after.pitch==before.pitch,
+       "BC32 APPLY injected factory WAV or changed kit/mixer");
+ for(std::size_t row=1;row<kRows;++row)
+  check(after.wav[row].empty(),"BC32 empty sample slot was filled");
  check(f.c->canUndoCurrentPattern()&&f.c->undoCurrentPattern(),
-       "BC19 group Undo unavailable");
- // As with ordinary Drumator pattern Undo, audio kit is a separately
- // persisted sample assignment and must remain, avoiding surprise deletion.
- ResizableMemoryIBStream undoStream;KitState afterUndo;
- check(f.p->getState(&undoStream)==kResultOk&&
-    KitCodec::decode(static_cast<const std::uint8_t*>(undoStream.getData()),
-     static_cast<std::size_t>(undoStream.getCursor()),afterUndo),"BC19 after Undo");
- check(afterUndo.grid==before.grid&&afterUndo.wav[1]==after.wav[1],
-       "BC19 pattern undo incorrectly deleted installed samples");
- evidence("BC19 GUI APPLY installs missing factory WAV+labels, exposes eight rows, preserves owner slots and group UNDO PASS");
+       "BC32 grouped Undo unavailable");
+ const auto undone=state();
+ check(undone.grid==before.grid&&undone.wav==before.wav&&
+       undone.names==before.names&&undone.visible==before.visible,
+       "BC32 Undo failed to preserve user kit");
+ evidence("BC32 APPLY only patterns: 15 silent slots untouched; loaded WAVs/mixer/labels/visibility preserved; grouped Undo PASS");
 }
 void testBeatCreatorV15Dialog(){
  Fixture f;
  KitState kit;
  kit.visible=8;kit.grid.fill(0);kit.patternLengths.fill(16);
  kit.grid[0]=88; // A occupied: first APPLY must only ask for confirmation.
+ for(std::size_t row=0;row<8;++row){
+  kit.wav[row]=BeatCreatorFactoryKit::wav(row);
+  kit.names[row]=BeatCreatorFactoryKit::filenames[row];
+ }
  f.kit(kit);prepareAudio(*f.p);
  f.openV101();
  auto* view=IntegrationAccess::view(*f.c,0);
@@ -4392,11 +4391,10 @@ void testBeatCreatorV15Dialog(){
  check(saved().grid==before.grid,"BC17 first APPLY overwrote occupied A");
  press(UiBeatCreatorDialog::apply(h)); // explicit second confirmation
  const auto after=saved();
- check(after.grid!=before.grid&&after.wav[0].size()>44u&&
-       after.wav[1].size()>44u&&after.wav[7].size()>44u&&
-       after.displayNames[0]=="BD"&&after.displayNames[7]=="Clap"&&
-       after.visible>=8,
-       "BC17 UI APPLY did not install playable eight-role drum kit");
+ check(after.grid!=before.grid&&after.wav==before.wav&&
+       after.names==before.names&&after.displayNames==before.displayNames&&
+       after.visible==before.visible&&after.gain==before.gain,
+       "BC32 UI APPLY changed samples or non-rhythm kit state");
  check(f.c->canUndoCurrentPattern()&&f.c->undoCurrentPattern(),
        "BC17 grouped UNDO after dialog APPLY failed");
  check(saved().grid==before.grid,"BC17 UNDO failed to restore original steps");
@@ -6317,7 +6315,7 @@ int main(int argc,char** argv){
  run("BC15 connected Beat Creator Preview/Apply/group Undo",testBeatCreatorV15GroupApplyUndo);
  run("BC16 audible non-destructive A/B/C preview",testBeatCreatorV15AudiblePreview);
  run("BC17 real Beat Creator V101 dialog and guarded workflow",testBeatCreatorV15Dialog);
- run("BC19 A/B/C APPLY fills only missing sounds and labels",testBeatCreatorV15FactoryKitApply);
+ run("BC32 A/B/C APPLY changes only patterns, empty sample rows stay silent",testBeatCreatorV15FactoryKitApply);
  run("BC25 native Complexity numeric 0..100 direct input, ESC and close",testBeatCreatorComplexityDirectEntry);
  run("BF20 native consistent click-active flash button palette",testV101ButtonClickFlash);
  run("BC18 compact 254px host Beat Creator dialog",testBeatCreatorCompactHostWindow);

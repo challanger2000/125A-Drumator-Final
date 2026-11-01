@@ -2,6 +2,7 @@
 #include "core/BeatCreatorAudioPreview.h"
 #include "core/OfflineWavExport.h"
 #include "core/WavPcm16Decoder.h"
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -109,8 +110,8 @@ int main(){
   check(BeatCreatorFactoryKit::setDraft(factory,beat,2),"C draft set");
   check(factory.grid[15]==beat.c[15],"break C mapping");
   check(!BeatCreatorFactoryKit::setDraft(factory,beat,3),"invalid role permitted");
-  // BC31: PLAY A/B/C must use the actual user kit, not a genre override.
-  // Use a full 8-row user kit so the test never depends on installed CC0 files.
+  // BC31/BC32: A/B/C must render the user's kit exactly. Empty rows are
+  // silent; no automatic sample generation or factory sample injection.
   auto loaded=factory;
   loaded.grid[0]=17; // existing song data must not be changed by audition
   loaded.names[0]="MyDeepKick.wav";
@@ -120,31 +121,40 @@ int main(){
   loaded.masterVolume=72;
   const auto ownerBefore=loaded;
   std::vector<std::uint8_t> factoryPreview,userPreview;
-  check(BeatCreatorAudioPreview::encode(beat,0,126.,factoryPreview,
-        BeatStyle::Count),"BC31 baseline preview");
-  check(BeatCreatorAudioPreview::encode(beat,0,126.,userPreview,
-        BeatStyle::Count,&loaded),"BC31 loaded kit preview");
+  check(BeatCreatorAudioPreview::encode(beat,0,126.,factoryPreview,factory),
+        "BC32 baseline loaded-kit preview");
+  check(BeatCreatorAudioPreview::encode(beat,0,126.,userPreview,loaded),
+        "BC32 custom loaded-kit preview");
   check(userPreview!=factoryPreview&&userPreview.size()==factoryPreview.size(),
         "BC31 loaded samples did not affect preview");
   check(loaded.wav==ownerBefore.wav&&loaded.grid==ownerBefore.grid&&
         loaded.names==ownerBefore.names&&loaded.gain==ownerBefore.gain&&
         loaded.pan==ownerBefore.pan&&loaded.masterVolume==ownerBefore.masterVolume,
         "BC31 preview mutated user kit");
-  // Previewing a partly loaded kit borrows only the missing genre sounds.
   auto partial=ownerBefore;
   partial.wav[2].clear();partial.names[2].clear();
   auto partialBefore=partial;
-  std::vector<std::uint8_t> partPreview;
-  check(BeatCreatorAudioPreview::encode(beat,1,126.,partPreview,
-        BeatStyle::Count,&partial),"BC31 partial kit preview");
+  std::vector<std::uint8_t> partPreview,fullPreview;
+  check(BeatCreatorAudioPreview::encode(beat,1,126.,partPreview,partial),
+        "BC32 partially loaded preview");
+  check(BeatCreatorAudioPreview::encode(beat,1,126.,fullPreview,ownerBefore),
+        "BC32 fully loaded preview");
+  check(partPreview!=fullPreview,
+        "BC32 empty instrument must be silent rather than factory-filled");
   check(partial.wav==partialBefore.wav&&partial.names==partialBefore.names,
-        "BC31 temporary fallback persisted into user kit");
-  // A fully loaded user kit must work even if an invalid factory style is
-  // requested: the selected sounds never depend on any external sample pack.
+        "BC32 preview altered empty user slots");
+  KitState empty;
+  std::vector<std::uint8_t> silent;
+  check(BeatCreatorAudioPreview::encode(beat,0,126.,silent,empty),
+        "BC32 fully empty kit preview must render");
+  check(silent.size()>44&&
+        std::all_of(silent.begin()+44,silent.end(),
+                    [](std::uint8_t b){return b==0;}),
+        "BC32 empty kit unexpectedly made sound");
   std::vector<std::uint8_t> directPreview;
-  check(BeatCreatorAudioPreview::encode(beat,2,126.,directPreview,
-        BeatStyle::Count,&loaded),"BC31 loaded-only break preview");
-  std::cout<<"BC31 current-kit A/B/C sound and partial fallback isolation PASS\\n";
+  check(BeatCreatorAudioPreview::encode(beat,2,126.,directPreview,loaded),
+        "BC32 loaded-only break preview");
+  std::cout<<"BC32 loaded-kit A/B/C, silent empty slots and non-destructive preview PASS\\n";
   std::cout<<"Factory kit: eight deterministic original WAVs and real 48k/24bit Drumator offline preview PASS\n";
   return 0;
  }catch(const std::exception& e){

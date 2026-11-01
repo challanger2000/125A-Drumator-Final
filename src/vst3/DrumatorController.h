@@ -129,9 +129,8 @@ public:
   // bpm=0 follows the last host/export tempo; no project state is changed.
   bool playBeatCreatorDraft(std::size_t choice,double bpm=0.) noexcept;
   bool stopBeatCreatorDraft() noexcept;
- // Optional explicit GUI mode: install synthesized preview samples ONLY into
- // presently empty first-eight rows and expose them. Preserve the owner's kit.
- bool applyBeatCreator(bool allowOccupied,bool fillEmptyFactoryRows=false);
+ // Pattern-only commit: sample assignments, mixer and visibility are unchanged.
+ bool applyBeatCreator(bool allowOccupied);
  bool undoBeatCreator();
  // One-shot, per-instrument edit for the forthcoming RANDOM VEL button.
  // Modifies only occupied steps in the active pattern/active bar length,
