@@ -257,81 +257,122 @@ class BeatCreator final {
   PatternSteps c=a;
   if(!valid(s))return c;
   Rng rng(seed^0x4252454Bu);
-  const std::size_t last=static_cast<std::size_t>(s.steps)-4u;
+  const std::size_t start=static_cast<std::size_t>(s.steps)-8u;
   const unsigned ending=rng.next()%3u;
   const unsigned busy=static_cast<unsigned>(s.complexity);
-  // Respect existing material up to the final beat; preserve snare at
-  // step 12 even in the final bar. Break notes remain within four cells.
-  for(std::size_t k=0;k<4u;++k) {
-   c[idx(BeatRole::CHH,last+k)]=0u;
-   c[idx(BeatRole::OHH,last+k)]=0u;
+  // BC39: An effective turnaround develops over the LAST HALF BAR.
+  // Retain all prior material and the beat-four snare at start+4; do
+  // not simply pile four extra notes onto the original final beat.
+  const auto erase=[&](BeatRole role,std::size_t pos) noexcept {
+   c[idx(role,start+pos)]=0u;
+  };
+  const auto add=[&](BeatRole role,std::size_t pos,int velocity) noexcept {
+   hit(c,role,start+pos,vel(rng,velocity));
+  };
+  // Give the transition an audible gap and avoid a long cymbal washing
+  // over the next downbeat. The first half of the measure is untouched.
+  for(std::size_t pos=4u;pos<8u;++pos){
+   erase(BeatRole::CHH,pos);
+   erase(BeatRole::OHH,pos);
   }
-  switch(s.style) {
+  switch(s.style){
    case BeatStyle::Rock:
    case BeatStyle::Metal: {
-    // Natural drum-kit fills: moving low-to-high toms, optional late kick,
-    // and three phrasing choices rather than an identical tom roll.
-    if(ending==0u) {
-     hit(c,BeatRole::LowTom,last,vel(rng,85));
-     if(busy>=55u)hit(c,BeatRole::LowTom,last+1u,vel(rng,78));
-     if(busy>=25u)hit(c,BeatRole::HighTom,last+2u,vel(rng,98));
-     hit(c,BeatRole::HighTom,last+3u,vel(rng,110));
+    // Descending tom accents rather than 16th-note random snare hits.
+    // Remove kicks competing with the fill while keeping the backbeat.
+    for(const auto pos:{2u,3u,6u,7u})erase(BeatRole::BD,pos);
+    if(ending==0u){
+     add(BeatRole::HighTom,2u,88);
+     add(BeatRole::LowTom,6u,95);
+     if(busy>=25u)add(BeatRole::LowTom,7u,107);
     }else if(ending==1u){
-     hit(c,BeatRole::HighTom,last+1u,vel(rng,90));
-     hit(c,BeatRole::LowTom,last+2u,vel(rng,97));
-     hit(c,BeatRole::BD,last+3u,vel(rng,102));
+     add(BeatRole::HighTom,3u,84);
+     if(busy>=25u)add(BeatRole::Snare,5u,78);
+     add(BeatRole::LowTom,7u,110);
     }else{
-     hit(c,BeatRole::LowTom,last,vel(rng,89));
-     hit(c,BeatRole::HighTom,last+2u,vel(rng,106));
-     hit(c,BeatRole::Snare,last+3u,vel(rng,113));
+     add(BeatRole::HighTom,2u,88);
+     if(busy>=40u)add(BeatRole::HighTom,5u,93);
+     add(BeatRole::LowTom,7u,111);
+    }
+    if(s.style==BeatStyle::Metal&&busy>=55u){
+     add(BeatRole::BD,5u,93);
+     if(ending==2u)add(BeatRole::BD,6u,89);
     }
     break;
    }
    case BeatStyle::DrumAndBass: {
-    // Breakbeat-flavoured snare pickups and syncopated closing kicks.
-    hit(c,BeatRole::Snare,last+2u,vel(rng,90));
-    if(ending==0u)hit(c,BeatRole::Snare,last+3u,vel(rng,104));
-    else if(ending==1u)hit(c,BeatRole::BD,last+3u,vel(rng,110));
-    else hit(c,BeatRole::HighTom,last+3u,vel(rng,104));
+    // Deliberate displaced ghost snare and a closing syncopation.
+    // A breakbeat pickup leads to the next measure, not a tom roll.
+    if(ending==0u){
+     add(BeatRole::Snare,2u,55);
+     add(BeatRole::Snare,6u,90);
+     add(BeatRole::BD,7u,104);
+    }else if(ending==1u){
+     add(BeatRole::Snare,3u,53);
+     add(BeatRole::BD,5u,87);
+     add(BeatRole::Snare,7u,104);
+    }else{
+     add(BeatRole::Snare,2u,54);
+     add(BeatRole::BD,5u,88);
+     add(BeatRole::LowTom,7u,98);
+    }
+    if(busy>=60u)add(BeatRole::Snare,6u,65);
     break;
    }
    case BeatStyle::HipHop: {
-    // Sparse, laid-back break: avoid an automatic four-snare machinegun.
-    if(ending==0u)hit(c,BeatRole::Clap,last+2u,vel(rng,85));
-    else if(ending==1u)hit(c,BeatRole::BD,last+3u,vel(rng,83));
-    else hit(c,BeatRole::Snare,last+3u,vel(rng,78));
+    // Restrained: one subtle early pickup, and a single ending.
+    // Keep space between notes; no automatic four-snare barrage.
+    add(BeatRole::CHH,3u,48);
+    if(ending==0u)add(BeatRole::Clap,7u,84);
+    else if(ending==1u)add(BeatRole::Snare,7u,78);
+    else add(BeatRole::BD,7u,90);
+    if(busy>=65u&&ending==2u)add(BeatRole::Snare,6u,58);
     break;
    }
    case BeatStyle::IndustrialNDH:
    case BeatStyle::EBM: {
-    // Percussive electronic turnaround with accent and occasional tom.
-    hit(c,BeatRole::Snare,last+2u,vel(rng,103));
-    if(ending==0u)hit(c,BeatRole::Clap,last+3u,vel(rng,102));
-    else if(ending==1u)hit(c,BeatRole::LowTom,last+3u,vel(rng,103));
-    else hit(c,BeatRole::BD,last+3u,vel(rng,105));
+    // Mechanical early pickup, then a short, decisive final accent.
+    add(BeatRole::Snare,2u,74);
+    if(ending==0u){
+     if(busy>=25u)add(BeatRole::Snare,6u,92);
+     add(BeatRole::Clap,7u,106);
+    }else if(ending==1u){
+     if(busy>=25u)add(BeatRole::LowTom,5u,87);
+     add(BeatRole::LowTom,7u,108);
+    }else{
+     if(busy>=25u)add(BeatRole::Clap,5u,86);
+     add(BeatRole::BD,7u,106);
+    }
+    if(busy>=70u)add(BeatRole::Snare,6u,80);
     break;
    }
    case BeatStyle::Techno:
    case BeatStyle::House: {
-    // Typical dance-music turnaround: snare/clap accents or an opening
-    // hat leading into the next bar, but keep the four-on-the-floor kick.
-    if(ending==0u) {
-     hit(c,BeatRole::Snare,last+2u,vel(rng,97));
-     hit(c,BeatRole::Clap,last+3u,vel(rng,91));
+    // Build and release across half a bar. The four-on-floor skeleton
+    // stays in place, but the last few hats leave room for the pickup.
+    add(BeatRole::Snare,2u,72);
+    if(ending==0u){
+     if(busy>=25u)add(BeatRole::Snare,5u,80);
+     add(BeatRole::Clap,7u,102);
     }else if(ending==1u){
-     hit(c,BeatRole::Clap,last+1u,vel(rng,82));
-     hit(c,BeatRole::Snare,last+3u,vel(rng,107));
+     add(BeatRole::Clap,3u,83);
+     add(BeatRole::Snare,7u,105);
     }else{
-     hit(c,BeatRole::OHH,last+2u,vel(rng,90));
-     hit(c,BeatRole::Clap,last+3u,vel(rng,98));
+     erase(BeatRole::CHH,3u);
+     add(BeatRole::OHH,3u,88);
+     add(BeatRole::Clap,6u,102);
+     // Leave the final 16th open: a breath before the next downbeat.
+     erase(BeatRole::BD,7u);
+     erase(BeatRole::Snare,7u);
+     erase(BeatRole::Clap,7u);
+    }
+    if(busy>=65u&&ending!=2u){
+     add(BeatRole::Snare,6u,76);
     }
     break;
    }
    case BeatStyle::Count:break;
   }
-  // Complexity adds density only when requested; no user-facing fill knob.
-  if(busy>=65u&&ending==2u)
-   hit(c,BeatRole::Snare,last+1u,vel(rng,78));
   return c;
  }
  static BeatCreatorPreview preview(const BeatCreatorSettings& s,
