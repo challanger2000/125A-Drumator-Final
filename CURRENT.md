@@ -1,5 +1,16 @@
 # 125A Drumator — authoritative v1.5 development status
 
+## Stage 6.1 — BC33–BC37 internal drumkit browser (1 November 2026)
+
+- **Development source only**, latest code commit `7e07941efdfa92d90d39915fa4790c86b95159c9` on `develop/v1.5.0`. Windows/Steinberg/independent tester status for the newest changes: **pending verification**. No 1.5 release or owner listening approval.
+- **The user's exact design:** no hidden factory kit fallback. Beat Creator changes rhythms only; PLAY A/B/C uses currently assigned samples and mixer; an unassigned instrument is SILENT. APPLY changes only patterns A/B/C. No sample assignment, row count, song, master or genre-kit loading is allowed from the creator.
+- **Independent real kit browser:** the small KITS button in the MAIN footer opens a modal catalogue with five visible entries/page, PREV/NEXT, LOAD and CLOSE. The browser enumerates `Contents/Resources/Samples/*.125akit` using the VST3 module location, not a DAW-specific preset folder. A `.125akit` is an embedded-audio, checksum-validated KitCodec stream; loading selectively imports WAV/PCM, source names, display names and sample trims. Controller-to-Processor transaction preserves ALL existing steps A–H, song chain, lengths, selected pattern, mute/solo, volume/pan/pitch, automation and visible row count. Failed decoding/preparation must leave the current kit unchanged.
+- **Clear break from rejected material:** all **64 previous genre-kit WAVs**, the old `BeatCreatorFactoryKit` synthesized voices, sample-generator scripts, audition pack CLI and automated factory resource injection were removed, along with legacy CI packaging. The new Windows bundle contains an empty `Contents/Resources/Samples` starter folder, no preloaded drumsets. No `.vstpreset` is required. `drumator_kit_pack` is provided for preparing `.125akit` files from numbered, approved real WAV files; **no drumkit files have yet been approved or added**.
+- **New code/tests:** `KitPresetCatalogTests.cpp` validates listing, sorting, checksum/invalid-file handling; `WindowsIntegration.cpp` tests sound-only Controller/Processor import and preservation of song/other project state; `BeatCreatorAudioPreviewTests.cpp` checks no hidden sound in empty slots. Review `docs/USER-DRUMKITS.md` for file layout. All QA statements must use the *current* commit, not prior validated BC29 factory-kit builds.
+- **Stable release remains unchanged:** `main` is the sold v1.0.1; no Gumroad update has been made.
+
+---
+
 ## Stage 6.0 — BC30 expressive velocity editor (1 November 2026)
 
 - **Exact tested source:** `4cbe891f9942547e4e8996c51a26b627b96f6c8f` on `develop/v1.5.0`; [Windows Actions #41294300629](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41294300629) **SUCCESS**: **33/33 CTests**, **47/47 Steinberg official VST3 Validator**, **58 PASS / 0 WARNING / 0 FAIL independent 125A Tester v0.3.2**.
@@ -7,16 +18,6 @@
 - **Safety/Undo:** no new notes in empty cells, no inactive 17–32 bar edits in one-bar mode, no other-row or other-pattern mutation; retracting an unfinished line restores original values beyond new span; pointer cancel restores original snapshot; entire completed stroke is one undo group. No menus or extra knobs. Three small reminder labels appear in the expanded VEL row.
 - **Tests:** BC30 pure `VelocityStrokeShapeTests.cpp` covers sparse pointer interpolation, 16/32 limits, blank steps, line/retraction, curve, accent. Native Controller/Processor V101 interaction covers Shift/Alt state and Undo. The actual attached VSTGUI mouse event regression validates Shift drag and a single Undo. GUI and default patterns otherwise unchanged.
 - **Development build:** [Windows VST3 ZIP](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41294300629/artifacts/13078048138). No merge into the sold `main` branch or Gumroad replacement. Actual owner Studio One UX/sonic acceptance remains separate from Windows CI.
-
----
-
-## Stage 5.9 — BC29 eight CC0 recorded genre kits: WINDOWS QA PASS (1 November 2026)
-
-- **Exact successfully tested source:** `fdbcf4adeb95712802950f5497adc1ea03e8eff4` on `feature/v1.5-eight-genre-kits`. [GitHub Actions #41289563236](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41289563236) **SUCCESS**: **32/32 CTests**, **47/47 official Steinberg VST3 Validator**, **58 PASS / 0 WARNING / 0 FAIL independent 125A Plugin Tester v0.3.2**.
-- **Eight distinct genre-specific recorded kits / 64 processed PCM16 WAVs** from immutable-commit-pinned CC0 sample sets: Michael Fischer TR-808 recordings ([TidalCycles](https://github.com/tidalcycles/sounds-tr808-fischer)) and Karoryfer *Big Rusty Drums* ([source](https://github.com/sfzinstruments/karoryfer.big-rusty-drums)). See `docs/GENRE-KITS-SOURCES.md`, `assets/beatcreator/SOURCE-MANIFEST.json` for per-file source paths/hashes and exact origin revisions. Some recordings recur across compatible styles; this is 8 curated kits, not 64 independently unique raw captures.
-- **Real VST3 integration:** PLAY A/B/C uses the selected genre's actual recorded kit. On GUI APPLY, only previously empty rows 1–8 receive those same sounds. The Controller and Processor independently load and validate the same packaged resources, and the existing atomic A/B/C edit + no-overwrite protection remains. The 64 WAV files live inside `125A Drumator.vst3/Contents/Resources/BeatCreator/`, with provenance; no external sample library installation is needed. The old synthetic factory implementation remains as a legacy/unit-test helper, not the selected-genre GUI path.
-- **Verification:** native BC16/BC17/BC18/BC19 regression tests, all 32 CTests, packaged VST3/Validator and independent Plugin Tester passed; kit loader unit QA loads and decodes all eight kits. The standalone [candidate kit ZIP](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41288910518/artifacts/13075989066) was separately generated and audited; the [new Windows VST3 bundle](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41289563236/artifacts/13076981140) includes those resources.
-- **Release boundary:** branch is still pre-release. No claim of human musical listening, acoustic genre authenticity or owner Studio One acceptance. `main` and the sold Gumroad 1.0.1 remain untouched. No commercial 1.5 release is authorized by this source/QA milestone.
 
 ---
 
