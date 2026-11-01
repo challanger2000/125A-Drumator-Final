@@ -52,7 +52,8 @@ class OfflineWavExport final {
    at[2]=static_cast<std::uint8_t>(pcm>>16);
  }
  static bool impl(const KitState& kit,bool exportSong,double bpm,
-                  const std::filesystem::path& destination) {
+                  const std::filesystem::path& destination,
+                  std::vector<std::uint8_t>* memory=nullptr) {
    if(!std::isfinite(bpm)||bpm<20.||bpm>300.||
       !KitCodec::valid(kit,true))return false;
    MidiExportConfig sequence{};
@@ -98,9 +99,18 @@ class OfflineWavExport final {
    StereoPeakLimiter limiter;
    if(!limiter.prepare(kRate))return false;
    ExportFile writer(destination);
-   if(!writer.open())return false;
+   if(memory){
+     memory->clear();
+     memory->reserve(static_cast<std::size_t>(44u+nominal*6u));
+   }else if(!writer.open())return false;
+   const auto write=[&](const void* data,std::size_t length)->bool{
+     if(!memory)return writer.write(data,length);
+     const auto* begin=static_cast<const std::uint8_t*>(data);
+     memory->insert(memory->end(),begin,begin+length);
+     return true;
+   };
    const auto blank=header(0);
-   if(!writer.write(blank.data(),blank.size()))return false;
+   if(!write(blank.data(),blank.size()))return false;
    const double master=static_cast<double>(kit.masterVolume)/100.0;
    const bool limitOn=kit.limiter!=0;
    std::array<float,kBlock> left{},right{};
@@ -160,12 +170,17 @@ class OfflineWavExport final {
         pack(r,pcm.data()+encoded*6+3);
         ++encoded;
       }
-      if(encoded&&!writer.write(pcm.data(),encoded*6))return false;
+      if(encoded&&!write(pcm.data(),encoded*6))return false;
       inputFrames+=frames;outputFrames+=encoded;
       if(outputFrames*6>kMaxData)return false;
    }
    if(outputFrames!=nominal||outputFrames*6>kMaxData)return false;
    const auto h=header(static_cast<std::uint32_t>(outputFrames*6));
+   if(memory){
+     if(memory->size()!=44u+static_cast<std::size_t>(outputFrames*6u))return false;
+     std::copy(h.begin(),h.end(),memory->begin());
+     return true;
+   }
    if(!writer.seek(0)||!writer.write(h.data(),h.size())||!writer.finish())return false;
    return true;
  }
@@ -174,6 +189,17 @@ public:
                     const std::filesystem::path& destination)noexcept{
    try{return impl(kit,exportSong,bpm,destination);}
    catch(...){return false;}
+ }
+
+ // A short, isolated audition uses the same render engine without disk I/O.
+ static bool renderMemory(const KitState& kit,bool exportSong,double bpm,
+                          std::vector<std::uint8_t>& bytes)noexcept{
+   try{
+     std::vector<std::uint8_t> staged;
+     if(!impl(kit,exportSong,bpm,{},&staged))return false;
+     bytes=std::move(staged);
+     return true;
+   }catch(...){return false;}
  }
 };
 } // namespace drumator

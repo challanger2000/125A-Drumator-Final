@@ -1,5 +1,24 @@
 # 125A Drumator — authoritative v1.5 development status
 
+**Stage 4 — audio preview transport implemented; Windows QA not yet verified (2026-11-01).**
+The non-destructive 16/32-step Beat Creator draft can now be auditioned from the
+Controller API: `playBeatCreatorDraft(0/1/2, bpm)`, `stopBeatCreatorDraft()` and
+`cancelBeatCreator()`. A/B/C are rendered in RAM with the original audition kit
+through the **existing** OfflineWavExport / StepScheduler / SampleVoiceEngine,
+then streamed via `Drumator.BeatCreatorAudition` to the independent preview voice.
+No temporary disk files, kit/step/project writes or automatic sample loading.
+A dedicated Windows `BC16` integration regression covers audible START,
+STOP, CANCEL, 16/32 steps and unchanged serialized kit.
+
+**Important:** This is a development-only code milestone, not a completed user
+feature: the GUI button/dialog is not wired, no Studio One listening acceptance
+has occurred, and the new Windows tests/Steinberg validator/125A tester must
+pass before claiming Stage 4 QA success. `main` v1.0.1 remains untouched.
+
+---
+
+
+
 **1 November 2026 — Stage 3: Original 8-piece factory audition kit, WAV listening pack and all Windows QA PASS.**
 
 - **Stable released 1.0.1 remains at** `main` `f4c5caa4be82626ea89459d9835c12138d7c6a1b`, without any v1.5 changes or new product package.

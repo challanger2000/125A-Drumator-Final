@@ -14,6 +14,7 @@
 #include "core/Utf8Path.h"
 #include "core/MidiExport.h"
 #include "core/OfflineWavExport.h"
+#include "core/BeatCreatorAudioPreview.h"
 #include "core/ExportFile.h"
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstmessage.h"
@@ -905,6 +906,7 @@ std::uint8_t Controller::beatCreatorOccupiedMask() const noexcept {
 }
 bool Controller::prepareBeatCreator(const BeatCreatorSettings& settings,
                                     std::uint32_t seed) noexcept {
+ (void)stopBeatCreatorDraft();
  beatPreview_.valid=false;
  const auto next=BeatCreator::preview(settings,seed);
  if(!next.valid)return false;
@@ -913,6 +915,37 @@ bool Controller::prepareBeatCreator(const BeatCreatorSettings& settings,
  beatPreviewGeneration_=editGeneration_.current();
  beatPreview_=next;
  return true;
+}
+bool Controller::playBeatCreatorDraft(std::size_t choice,double bpm) noexcept {
+ if(choice>=3||!beatPreview_.valid||
+    !editGeneration_.matches(beatPreviewGeneration_))return false;
+ if(snapshotBeatTriple()!=beatPreviewBefore_)return false;
+ for(std::size_t p=0;p<3;++p)
+  if(patternLengths_[p]!=beatPreviewLengths_[p])return false;
+ // A reusable STOP is reserved before START so a later allocation failure
+ // cannot strand this audition. Audio always remains outside the saved kit.
+ if(previewStopPending_&&!stopBeatCreatorDraft())return false;
+ if(!reservePreviewStop())return false;
+ const double tempo=bpm==0.?exportTempoBpm_:bpm;
+ std::vector<std::uint8_t> audio;
+ if(!BeatCreatorAudioPreview::encode(beatPreview_,choice,tempo,audio))return false;
+ try{
+  ScopedActionMessage msg{allocateMessage()};
+  if(!msg.p)return false;
+  msg.p->setMessageID("Drumator.BeatCreatorAudition");
+  auto* attributes=msg.p->getAttributes();
+  return attributes&&audio.size()<=UINT32_MAX&&
+   attributes->setBinary("Wave",audio.data(),
+     static_cast<Steinberg::uint32>(audio.size()))==Steinberg::kResultOk&&
+   sendMessage(msg.p)==Steinberg::kResultOk;
+ }catch(...){return false;}
+}
+bool Controller::stopBeatCreatorDraft() noexcept {
+ try{return stopSampleEditPreview();}catch(...){return false;}
+}
+void Controller::cancelBeatCreator() noexcept {
+ (void)stopBeatCreatorDraft();
+ beatPreview_.valid=false;
 }
 bool Controller::sendBeatTriple(const BeatTriple& expected,
                                 const BeatTriple& next,
@@ -959,6 +992,7 @@ bool Controller::applyBeatCreator(bool allowOccupied) {
   return false;
  for(std::size_t i=0;i<3;++i)undo_.consume(i);
  beatGroupUndo_=txn;
+ (void)stopBeatCreatorDraft();
  beatPreview_.valid=false;
  return true;
 }

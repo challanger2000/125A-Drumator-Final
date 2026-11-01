@@ -298,7 +298,38 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
  // The commit is prepared off the audio thread. Active voices retain the
  // old immutable PreparedSample via SampleExchange retirement.
 
- if(std::strcmp(id,"Drumator.EditorPreviewStop")==0){
+ if(std::strcmp(id,"Drumator.BeatCreatorAudition")==0){
+    // The resulting sample enters the *independent* audition voice, never
+    // the kit's PCM/sample slots or persistent VST3 component state.
+    auto* a=msg->getAttributes();
+    const void* data=nullptr;
+    Steinberg::uint32 bytes=0;
+    if(!a||a->getBinary("Wave",data,bytes)!=Steinberg::kResultOk||
+       !data||bytes<48u||bytes>3u*1024u*1024u)
+      return Steinberg::kInvalidArgument;
+    const auto rate=outputRate_.load(std::memory_order_acquire);
+    if(!(rate>0.)||!std::isfinite(rate))return Steinberg::kResultFalse;
+    std::unique_ptr<PreparedSample> prepared;
+    if(PreparedSample::fromWav(static_cast<const std::uint8_t*>(data),
+       static_cast<std::size_t>(bytes),rate,0.,1.f,0.f,0,false,prepared)
+       !=PrepareStatus::Ok)return Steinberg::kInvalidArgument;
+    for(;;){auto reclaimed=auditionExchange_.pollReclaim();if(!reclaimed)break;}
+    auditionPublishSequence_.fetch_add(1,std::memory_order_seq_cst); // odd
+    auto obsolete=auditionExchange_.withdraw(0);
+    (void)obsolete;
+    if(!auditionExchange_.publish(0,prepared)){
+      auditionPublishSequence_.fetch_add(1,std::memory_order_seq_cst);
+      return Steinberg::kResultFalse;
+    }
+    auditionStart_.store(true,std::memory_order_release);
+    auto cmd=auditionCommand_.load(std::memory_order_relaxed);
+    while(!auditionCommand_.compare_exchange_weak(
+       cmd,((((cmd>>1)+1u)<<1)|1u),
+       std::memory_order_release,std::memory_order_relaxed)){}
+    auditionPublishSequence_.fetch_add(1,std::memory_order_seq_cst); // even
+    return Steinberg::kResultOk;
+  }
+  if(std::strcmp(id,"Drumator.EditorPreviewStop")==0){
    auditionStopGeneration_.fetch_add(1,std::memory_order_acq_rel);
    auditionStart_.store(false,std::memory_order_release);
    auditionStop_.store(true,std::memory_order_release);

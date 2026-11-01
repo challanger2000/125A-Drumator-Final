@@ -124,7 +124,11 @@ public:
    return beatPreview_.valid?&beatPreview_:nullptr;
  }
  std::uint8_t beatCreatorOccupiedMask() const noexcept;
- void cancelBeatCreator() noexcept {beatPreview_.valid=false;}
+ void cancelBeatCreator() noexcept;
+  // Transient audition: choose 0=Generate, 1=Variate, 2=Break.
+  // bpm=0 follows the last host/export tempo; no project state is changed.
+  bool playBeatCreatorDraft(std::size_t choice,double bpm=0.) noexcept;
+  bool stopBeatCreatorDraft() noexcept;
  bool applyBeatCreator(bool allowOccupied);
  bool undoBeatCreator();
  // One-shot, per-instrument edit for the forthcoming RANDOM VEL button.

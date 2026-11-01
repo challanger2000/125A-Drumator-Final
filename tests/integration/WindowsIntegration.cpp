@@ -3853,6 +3853,54 @@ void testRandomVelocityOneShot(){
  check(f.c->undoCurrentPattern()&&f.c->velocity(0,0,0)==before,"Button Undo failed");
  evidence("RANDOM one-shot occupied-only, 1T/2T, isolated row/pattern and Undo PASS");
 }
+void testBeatCreatorV15AudiblePreview(){
+ Fixture f;
+ auto original=namedKit('X',8);
+ original.grid.fill(0);original.patternLengths.fill(32);
+ f.kit(original);prepareAudio(*f.p);
+ auto saved=[&]{
+  ResizableMemoryIBStream s;KitState state;
+  check(f.p->getState(&s)==kResultOk&&
+    KitCodec::decode(static_cast<const std::uint8_t*>(s.getData()),
+      static_cast<std::size_t>(s.getCursor()),state),"BC16 saved state");
+  return state;
+ };
+ const auto before=saved();
+ std::array<float,256> left{},right{};
+ float* channels[]{left.data(),right.data()};
+ AudioBusBuffers out{};out.numChannels=2;out.channelBuffers32=channels;
+ ProcessData block{};block.numSamples=256;block.numOutputs=1;
+ block.outputs=&out;block.symbolicSampleSize=kSample32;
+ for(unsigned steps:{16u,32u}){
+  const BeatCreatorSettings settings{BeatStyle::IndustrialNDH,55,
+    static_cast<std::uint8_t>(steps)};
+  check(f.c->prepareBeatCreator(settings,steps),"BC16 prepare");
+  check(!f.c->playBeatCreatorDraft(3,124.),"BC16 invalid candidate accepted");
+  for(std::size_t choice=0;choice<3;++choice){
+   check(f.c->playBeatCreatorDraft(choice,124.),"BC16 preview START");
+   bool audible=false;
+   for(unsigned blockNumber=0;blockNumber<8;++blockNumber){
+    check(f.p->process(block)==kResultOk,"BC16 render");
+    for(std::size_t j=0;j<left.size();++j)
+      audible=audible||std::abs(left[j])>0.0001f||std::abs(right[j])>0.0001f;
+   }
+   check(audible,"BC16 preview did not produce audio with stopped host");
+   check(saved().grid==before.grid&&saved().wav==before.wav,
+         "BC16 audition changed user patterns/samples");
+   check(f.c->stopBeatCreatorDraft(),"BC16 STOP");
+   check(f.p->process(block)==kResultOk,"BC16 STOP process");
+   for(std::size_t j=0;j<left.size();++j)
+    check(std::abs(left[j])<0.00001f&&std::abs(right[j])<0.00001f,
+          "BC16 STOP left audition tail");
+  }
+  f.c->cancelBeatCreator();
+  check(!f.c->playBeatCreatorDraft(0,124.),"BC16 CANCEL allowed stale audition");
+ }
+ check(saved().grid==before.grid&&saved().wav==before.wav&&
+       saved().patternLengths==before.patternLengths,
+       "BC16 non-destructive audition modified serialized project");
+ evidence("BC16 A/B/C 16+32-step live audio, STOP, CANCEL, state protection PASS");
+}
 void testBeatCreatorV15GroupApplyUndo(){
  Fixture f;
  KitState kit=namedKit('Q',8);
@@ -5760,6 +5808,7 @@ int main(int argc,char** argv){
  run("VELO 100 reset existing notes",testVelocityResetPattern);
  run("V16 1T hidden velocity preservation",testVelocityInactiveBarProtection);
  run("BC15 connected Beat Creator Preview/Apply/group Undo",testBeatCreatorV15GroupApplyUndo);
+ run("BC16 audible non-destructive A/B/C preview",testBeatCreatorV15AudiblePreview);
  run("V17 1T row FILL/CLEAR hidden-step protection",testFillActivePatternLength);
  run("UX Velocity empty-step editing",testVelocityLaneExistingStepsOnly);
  run("UX paged Song board",testPagedSongEditor);
