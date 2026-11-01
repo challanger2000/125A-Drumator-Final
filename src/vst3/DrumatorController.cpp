@@ -15,6 +15,7 @@
 #include "core/MidiExport.h"
 #include "core/OfflineWavExport.h"
 #include "core/BeatCreatorAudioPreview.h"
+#include "core/BeatCreatorFactoryKit.h"
 #include "core/ExportFile.h"
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstmessage.h"
@@ -950,7 +951,9 @@ void Controller::cancelBeatCreator() noexcept {
 bool Controller::sendBeatTriple(const BeatTriple& expected,
                                 const BeatTriple& next,
                                 const BeatLengths& expectedLengths,
-                                const BeatLengths& nextLengths) {
+                                const BeatLengths& nextLengths,
+                                std::uint8_t fillMask,bool exposeEight,
+                                KitState* stagedFactory) {
  try {
   auto* msg=allocateMessage();
   ScopedActionMessage own{msg};if(!msg)return false;
@@ -961,7 +964,9 @@ bool Controller::sendBeatTriple(const BeatTriple& expected,
      a->setBinary("After",next.data(),
             static_cast<Steinberg::uint32>(sizeof(next)))!=Steinberg::kResultOk||
      a->setBinary("BeforeLengths",expectedLengths.data(),3)!=Steinberg::kResultOk||
-     a->setBinary("AfterLengths",nextLengths.data(),3)!=Steinberg::kResultOk)
+     a->setBinary("AfterLengths",nextLengths.data(),3)!=Steinberg::kResultOk||
+     a->setInt("AutoFillMask",static_cast<Steinberg::int64>(fillMask))!=Steinberg::kResultOk||
+     a->setInt("ExposeEight",exposeEight?1:0)!=Steinberg::kResultOk)
    return false;
   if(sendEditMessage(msg)!=Steinberg::kResultOk)return false;
   // Host accepted: update the controller mirror, no allocations.
@@ -970,11 +975,31 @@ bool Controller::sendBeatTriple(const BeatTriple& expected,
              grid_.begin()+i*kRows*kSteps);
    patternLengths_[i]=nextLengths[i];
   }
-  try {notifyViews(false);}catch(...){}
+  // The processor has atomically accepted A/B/C and all EMPTY-row assets.
+  // This branch makes only noexcept cache ownership transfers after ACK.
+  if(fillMask&&stagedFactory) {
+   invalidateWaveQuery();
+   for(std::size_t row=0;row<8;++row) {
+    if(!(fillMask&(1u<<row)))continue;
+    samplePresent_[row]=true;
+    labels_[row].swap(stagedFactory->names[row]);
+    if(customNames_[row].empty())
+      customNames_[row].swap(stagedFactory->displayNames[row]);
+    exportWavs_[row].swap(stagedFactory->wav[row]);
+    exportEdits_[row]=SampleEdit{};
+    samplePaths_[row].clear();
+    originIdentityValid_[row]=false;
+    originIdentity_[row]=0;
+   }
+  }
+  const bool relayout=exposeEight&&visibleRows_<8;
+  if(relayout)visibleRows_=8;
+  try {notifyViews(relayout);}catch(...){}
   return true;
  }catch(...){return false;}
 }
-bool Controller::applyBeatCreator(bool allowOccupied) {
+bool Controller::applyBeatCreator(bool allowOccupied,
+                                  bool fillEmptyFactoryRows) {
  if(!beatPreview_.valid||
     !editGeneration_.matches(beatPreviewGeneration_))
   return false;
@@ -988,7 +1013,22 @@ bool Controller::applyBeatCreator(bool allowOccupied) {
  const auto txn=BeatCreatorTransaction::prepare(
      beatPreview_,existing,lengths,allowOccupied);
  if(!txn.valid)return false;
- if(!sendBeatTriple(txn.before,txn.after,txn.oldLengths,txn.newLengths))
+ // A new Drumator has only four visible rows and zero loaded WAVs.
+ // Factory sounds and labels accompany GUI APPLY only; bare Controller
+ // transaction callers keep the original strictly pattern-only semantics.
+ std::uint8_t fillMask=0;
+ KitState stagedFactory;
+ if(fillEmptyFactoryRows){
+  for(std::size_t row=0;row<8;++row)
+   if(!samplePresent_[row])
+    fillMask=static_cast<std::uint8_t>(fillMask|(1u<<row));
+  if(fillMask) {
+   if(!BeatCreatorFactoryKit::makeKit(stagedFactory))return false;
+  }
+ }
+ if(!sendBeatTriple(txn.before,txn.after,txn.oldLengths,txn.newLengths,
+                    fillMask,fillEmptyFactoryRows,
+                    fillMask?&stagedFactory:nullptr))
   return false;
  for(std::size_t i=0;i<3;++i)undo_.consume(i);
  beatGroupUndo_=txn;

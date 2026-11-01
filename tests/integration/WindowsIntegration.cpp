@@ -3963,6 +3963,56 @@ void testBeatCreatorCompactHostWindow(){
        "BC18 compact modal changed fixed host viewport");
  evidence("BC18 254px host-constrained BEAT CREATOR overlay, genre, complexity, audio PLAY C/STOP and CANCEL PASS");
 }
+void testBeatCreatorV15FactoryKitApply(){
+ Fixture f;
+ KitState kit;
+ kit.visible=4;kit.grid.fill(0);kit.patternLengths.fill(16);
+ // Owner's custom sound and display label occupy row zero; never replace.
+ kit.wav[0]=BeatCreatorFactoryKit::wav(2);
+ kit.names[0]="User_Hat.wav";
+ kit.displayNames[0]="My Favorite Kick";
+ f.kit(kit);prepareAudio(*f.p);
+ const auto before=[&]{
+  ResizableMemoryIBStream stream;KitState state;
+  check(f.p->getState(&stream)==kResultOk&&
+    KitCodec::decode(static_cast<const std::uint8_t*>(stream.getData()),
+       static_cast<std::size_t>(stream.getCursor()),state),"BC19 state");
+  return state;
+ }();
+ const BeatCreatorSettings settings{BeatStyle::IndustrialNDH,35,16};
+ check(f.c->prepareBeatCreator(settings,0x1BC19u),"BC19 generate");
+ check(f.c->applyBeatCreator(false,true),"BC19 A/B/C+missing kit APPLY");
+ ResizableMemoryIBStream output;KitState after;
+ check(f.p->getState(&output)==kResultOk&&
+    KitCodec::decode(static_cast<const std::uint8_t*>(output.getData()),
+      static_cast<std::size_t>(output.getCursor()),after),"BC19 saved factory kit");
+ check(after.visible==8&&f.c->visibleRows()==8,
+       "BC19 did not expose all eight generated instrument rows");
+ check(after.wav[0]==before.wav[0]&&after.names[0]==before.names[0]&&
+       after.displayNames[0]==before.displayNames[0],
+       "BC19 factory kit overwrote user's custom sample/label");
+ for(std::size_t i=1;i<8;++i){
+  check(after.wav[i].size()>44u&&after.names[i]==
+          BeatCreatorFactoryKit::filenames[i]&&
+        after.displayNames[i]==BeatCreatorFactoryKit::labels[i],
+       "BC19 missing factory WAV or legible role label");
+ }
+ for(std::size_t i=8;i<kRows;++i)
+  check(after.wav[i]==before.wav[i]&&
+       after.displayNames[i]==before.displayNames[i],
+       "BC19 modified a non-creator row");
+ check(f.c->canUndoCurrentPattern()&&f.c->undoCurrentPattern(),
+       "BC19 group Undo unavailable");
+ // As with ordinary Drumator pattern Undo, audio kit is a separately
+ // persisted sample assignment and must remain, avoiding surprise deletion.
+ ResizableMemoryIBStream undoStream;KitState afterUndo;
+ check(f.p->getState(&undoStream)==kResultOk&&
+    KitCodec::decode(static_cast<const std::uint8_t*>(undoStream.getData()),
+     static_cast<std::size_t>(undoStream.getCursor()),afterUndo),"BC19 after Undo");
+ check(afterUndo.grid==before.grid&&afterUndo.wav[1]==after.wav[1],
+       "BC19 pattern undo incorrectly deleted installed samples");
+ evidence("BC19 GUI APPLY installs missing factory WAV+labels, exposes eight rows, preserves owner slots and group UNDO PASS");
+}
 void testBeatCreatorV15Dialog(){
  Fixture f;
  KitState kit;
@@ -4013,8 +4063,11 @@ void testBeatCreatorV15Dialog(){
  check(saved().grid==before.grid,"BC17 first APPLY overwrote occupied A");
  press(UiBeatCreatorDialog::apply(h)); // explicit second confirmation
  const auto after=saved();
- check(after.grid!=before.grid&&after.wav==before.wav,
-       "BC17 confirmed APPLY did not update A/B/C safely");
+ check(after.grid!=before.grid&&after.wav[0].size()>44u&&
+       after.wav[1].size()>44u&&after.wav[7].size()>44u&&
+       after.displayNames[0]=="BD"&&after.displayNames[7]=="Clap"&&
+       after.visible>=8,
+       "BC17 UI APPLY did not install playable eight-role drum kit");
  check(f.c->canUndoCurrentPattern()&&f.c->undoCurrentPattern(),
        "BC17 grouped UNDO after dialog APPLY failed");
  check(saved().grid==before.grid,"BC17 UNDO failed to restore original steps");
@@ -5935,6 +5988,7 @@ int main(int argc,char** argv){
  run("BC15 connected Beat Creator Preview/Apply/group Undo",testBeatCreatorV15GroupApplyUndo);
  run("BC16 audible non-destructive A/B/C preview",testBeatCreatorV15AudiblePreview);
  run("BC17 real Beat Creator V101 dialog and guarded workflow",testBeatCreatorV15Dialog);
+ run("BC19 A/B/C APPLY fills only missing sounds and labels",testBeatCreatorV15FactoryKitApply);
  run("BC18 compact 254px host Beat Creator dialog",testBeatCreatorCompactHostWindow);
  run("V17 1T row FILL/CLEAR hidden-step protection",testFillActivePatternLength);
  run("UX Velocity empty-step editing",testVelocityLaneExistingStepsOnly);

@@ -129,7 +129,9 @@ public:
   // bpm=0 follows the last host/export tempo; no project state is changed.
   bool playBeatCreatorDraft(std::size_t choice,double bpm=0.) noexcept;
   bool stopBeatCreatorDraft() noexcept;
- bool applyBeatCreator(bool allowOccupied);
+ // Optional explicit GUI mode: install synthesized preview samples ONLY into
+ // presently empty first-eight rows and expose them. Preserve the owner's kit.
+ bool applyBeatCreator(bool allowOccupied,bool fillEmptyFactoryRows=false);
  bool undoBeatCreator();
  // One-shot, per-instrument edit for the forthcoming RANDOM VEL button.
  // Modifies only occupied steps in the active pattern/active bar length,
@@ -221,7 +223,9 @@ private:
  BeatTriple snapshotBeatTriple() const noexcept;
  bool sendBeatTriple(const BeatTriple& expected,const BeatTriple& next,
                      const BeatLengths& expectedLengths,
-                     const BeatLengths& nextLengths);
+                     const BeatLengths& nextLengths,
+                     std::uint8_t fillMask=0,bool exposeEight=false,
+                     KitState* stagedFactory=nullptr);
  void invalidateBeatGroupForEdit(std::size_t pattern) noexcept;
  void rememberUndoStep(std::size_t p,std::size_t r,std::size_t s,std::uint8_t next);
  std::array<std::string,kRows> labels_{};
