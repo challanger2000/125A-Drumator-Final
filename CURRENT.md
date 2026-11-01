@@ -1,5 +1,15 @@
 # 125A Drumator — authoritative v1.5 development status
 
+## Stage 6.0 — BC30 expressive velocity editor (1 November 2026)
+
+- **Exact tested source:** `4cbe891f9942547e4e8996c51a26b627b96f6c8f` on `develop/v1.5.0`; [Windows Actions #41294300629](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41294300629) **SUCCESS**: **33/33 CTests**, **47/47 Steinberg official VST3 Validator**, **58 PASS / 0 WARNING / 0 FAIL independent 125A Tester v0.3.2**.
+- **Interaction:** single-bar mouse clicks still set per-note velocity; ordinary mouse dragging paints all occupied steps crossed, including steps skipped by sparse mouse-move events (with linear value interpolation); **Shift+drag** creates a line, **Shift+Alt+drag** creates a smooth ease-in/ease-out curve, **Alt+click/drag** accents only existing notes to at least velocity 120. Ctrl drag continues to set occupied velocity to 1. New gesture modes are latched on mouse-down; Shift fine-control of knobs remains unchanged.
+- **Safety/Undo:** no new notes in empty cells, no inactive 17–32 bar edits in one-bar mode, no other-row or other-pattern mutation; retracting an unfinished line restores original values beyond new span; pointer cancel restores original snapshot; entire completed stroke is one undo group. No menus or extra knobs. Three small reminder labels appear in the expanded VEL row.
+- **Tests:** BC30 pure `VelocityStrokeShapeTests.cpp` covers sparse pointer interpolation, 16/32 limits, blank steps, line/retraction, curve, accent. Native Controller/Processor V101 interaction covers Shift/Alt state and Undo. The actual attached VSTGUI mouse event regression validates Shift drag and a single Undo. GUI and default patterns otherwise unchanged.
+- **Development build:** [Windows VST3 ZIP](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41294300629/artifacts/13078048138). No merge into the sold `main` branch or Gumroad replacement. Actual owner Studio One UX/sonic acceptance remains separate from Windows CI.
+
+---
+
 ## Stage 5.9 — BC29 eight CC0 recorded genre kits: WINDOWS QA PASS (1 November 2026)
 
 - **Exact successfully tested source:** `fdbcf4adeb95712802950f5497adc1ea03e8eff4` on `feature/v1.5-eight-genre-kits`. [GitHub Actions #41289563236](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41289563236) **SUCCESS**: **32/32 CTests**, **47/47 official Steinberg VST3 Validator**, **58 PASS / 0 WARNING / 0 FAIL independent 125A Plugin Tester v0.3.2**.
