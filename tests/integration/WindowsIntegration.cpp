@@ -3984,7 +3984,7 @@ void testV101ButtonClickFlash(){
    const auto bitmap=VSTGUI::renderBitmapOffscreen({width,height},1.,
      [&](VSTGUI::CDrawContext& ctx){
        P::fill(ctx,{0.,0.,width,height},{20,28,38,255});
-       const P::ScopedClickFlash click(
+       const P::ScopedClickFlash clickScope(
          outside?width+5.:width/2.,height/2.,pulse);
        P::cap(ctx,{0.,0.,width,height},0.,caption,active,10,
               &sprites,disabled,down);
