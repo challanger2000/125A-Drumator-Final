@@ -1,6 +1,6 @@
 # 125A Drumator 1.5.0 — Development scope (not released)
 
-**Status:** planned; no 1.5.0 features have been implemented or approved yet. Branch: `develop/v1.5.0`.
+**Status:** first core prototype implemented for testing only; no 1.5.0 VST3 feature or GUI integration is approved. Branch: `develop/v1.5.0`.
 **Frozen sale version:** `main` stays the independently validated v1.0.1, starting from `f4c5caa4be82626ea89459d9835c12138d7c6a1b`. Do not merge 1.5 development into main, package or market it as released without dedicated approval.
 
 ## Product principle
