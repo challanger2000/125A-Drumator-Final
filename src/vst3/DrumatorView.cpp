@@ -1,4 +1,5 @@
 #include "DrumatorView.h"
+#include "core/Utf8Path.h"
 #include "vst3/UiV101Scene.h"
 #include "vst3/UiV101SongPainter.h"
 #include "vst3/UiV101WaveLayout.h"
@@ -1170,6 +1171,9 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
                v101_.state().zoomIndex,v101_.state(),v101FaceplateBitmap_,
                &vintageButtons);
   // New controls share exactly the already approved dark hardware caps.
+ Painter::cap(*c,UiV101Layout::kitBrowserTrigger,
+              v101_.height()-UiV101Layout::footer,"KITS",
+              kitBrowserOpen_,11,&vintageButtons);
  Painter::cap(*c,UiV101Layout::footerExport,
               v101_.height()-UiV101Layout::footer,"EXPORT",
               v101Menu_==UiV101Popup::Kind::Export,11,&vintageButtons);
@@ -1182,6 +1186,122 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  if(v101_.state().zoomOpen)
    Painter::zoomPopup(*c,v101_.state().zoomIndex,&vintageButtons);
  drawV101Menu(c);
+}
+
+namespace {
+struct DrumatorKitBrowserUi final {
+ static constexpr std::size_t pageSize=5;
+ using Rect=UiV101Layout::Rect;
+ static Rect panel(double height) noexcept {
+  const double h=std::min(260.,std::max(226.,height-12.));
+  const double y=std::max(4.,(height-h)*.5);
+  return {370.,y,910.,y+h};
+ }
+ static Rect item(double height,std::size_t i)noexcept {
+  const auto p=panel(height);
+  const double top=p.y0+46.+29.*static_cast<double>(i);
+  return {p.x0+16.,top,p.x1-16.,top+26.};
+ }
+ static Rect previous(double h)noexcept{auto p=panel(h);return {p.x0+16.,p.y1-37.,p.x0+111.,p.y1-12.};}
+ static Rect next(double h)noexcept{auto p=panel(h);return {p.x0+120.,p.y1-37.,p.x0+215.,p.y1-12.};}
+ static Rect load(double h)noexcept{auto p=panel(h);return {p.x1-208.,p.y1-37.,p.x1-113.,p.y1-12.};}
+ static Rect close(double h)noexcept{auto p=panel(h);return {p.x1-104.,p.y1-37.,p.x1-9.,p.y1-12.};}
+};
+}
+
+void DrumatorView::openKitBrowser(){
+ try{
+  kitBrowserEntries_=KitPresetCatalog::list(KitPresetCatalog::bundleDirectory());
+  kitBrowserPage_=0;kitBrowserSelected_=0;
+  kitBrowserNotice_=kitBrowserEntries_.empty()?
+    "NO KITS - ADD .125AKIT FILES TO RESOURCES/SAMPLES":
+    "SELECT A DRUMKIT, THEN LOAD";
+  kitBrowserOpen_=true;
+  clickFlashArmed_=false;
+ }catch(...){
+  kitBrowserEntries_.clear();kitBrowserNotice_="KIT DIRECTORY UNAVAILABLE";
+  kitBrowserOpen_=true;
+ }
+ invalid();
+}
+void DrumatorView::drawKitBrowser(VSTGUI::CDrawContext* c){
+ if(!kitBrowserOpen_)return;
+ using P=v101::UiV101NativePreview;
+ using G=DrumatorKitBrowserUi;
+ const auto height=getViewSize().getHeight();
+ const auto p=G::panel(height);
+ const P::ButtonSprites sprites{
+  v101VintageButtons_[0],v101VintageButtons_[1],
+  v101VintageButtons_[2],v101VintageButtons_[3]
+ };
+ P::fill(*c,{p.x0-5.,p.y0-5.,p.x1+5.,p.y1+5.},{6,13,22,255});
+ P::fill(*c,{p.x0,p.y0,p.x1,p.y1},{20,34,48,255});
+ P::border(*c,{p.x0,p.y0,p.x1,p.y1},{94,124,148,255});
+ P::label(*c,"125A DRUMKIT BROWSER",
+   {p.x0+14.,p.y0+9.,p.x1-14.,p.y0+32.},
+   17,{233,238,244,255},false);
+ P::label(*c,kitBrowserNotice_.c_str(),
+   {p.x0+14.,p.y0+29.,p.x1-14.,p.y0+44.},
+   9,{167,190,204,255},false);
+ const auto first=kitBrowserPage_*G::pageSize;
+ for(std::size_t i=0;i<G::pageSize;++i){
+  const auto pos=first+i;
+  const auto cell=G::item(height,i);
+  if(pos>=kitBrowserEntries_.size()){
+   P::fill(*c,{cell.x0,cell.y0,cell.x1,cell.y1},{24,35,44,255});
+   continue;
+  }
+  const bool selected=pos==kitBrowserSelected_;
+  P::fill(*c,{cell.x0,cell.y0,cell.x1,cell.y1},
+          selected?VSTGUI::CColor{48,77,100,255}:VSTGUI::CColor{26,42,56,255});
+  P::border(*c,{cell.x0,cell.y0,cell.x1,cell.y1},
+            selected?VSTGUI::CColor{124,176,210,255}:VSTGUI::CColor{47,73,94,255});
+  std::string caption=kitBrowserEntries_[pos].title;
+  if(caption.size()>50)caption.resize(50);
+  P::label(*c,caption.c_str(),
+           {cell.x0+12.,cell.y0+2.,cell.x1-12.,cell.y1-2.},
+           11,{225,234,240,255},false);
+ }
+ P::cap(*c,G::previous(height),0.,"PREV",kitBrowserPage_>0,10,&sprites);
+ P::cap(*c,G::next(height),0.,"NEXT",
+         (first+G::pageSize<kitBrowserEntries_.size()),10,&sprites);
+ P::cap(*c,G::load(height),0.,"LOAD",!kitBrowserEntries_.empty(),10,&sprites);
+ P::cap(*c,G::close(height),0.,"CLOSE",false,10,&sprites);
+}
+bool DrumatorView::kitBrowserMouseDown(double x,double y){
+ if(!kitBrowserOpen_)return false;
+ using G=DrumatorKitBrowserUi;
+ const auto height=getViewSize().getHeight();
+ if(G::close(height).hit(x,y)){
+  kitBrowserOpen_=false;invalid();return true;
+ }
+ const auto first=kitBrowserPage_*G::pageSize;
+ if(G::previous(height).hit(x,y)){
+  if(kitBrowserPage_>0)--kitBrowserPage_;
+  kitBrowserSelected_=kitBrowserPage_*G::pageSize;
+  invalid();return true;
+ }
+ if(G::next(height).hit(x,y)){
+  if(first+G::pageSize<kitBrowserEntries_.size())++kitBrowserPage_;
+  kitBrowserSelected_=kitBrowserPage_*G::pageSize;
+  invalid();return true;
+ }
+ for(std::size_t i=0;i<G::pageSize;++i)
+  if(G::item(height,i).hit(x,y)&&first+i<kitBrowserEntries_.size()){
+   kitBrowserSelected_=first+i;kitBrowserNotice_="PRESS LOAD TO CHANGE DRUMKIT";
+   invalid();return true;
+  }
+ if(G::load(height).hit(x,y)){
+  if(kitBrowserSelected_<kitBrowserEntries_.size()){
+   const auto path=pathToUtf8(kitBrowserEntries_[kitBrowserSelected_].path);
+   if(controller_.loadKitPreset(path)){
+    kitBrowserOpen_=false;status_="DRUMKIT LOADED - GROOVES PRESERVED";
+   }else kitBrowserNotice_="KIT REJECTED - SAMPLES UNCHANGED";
+  }
+  invalid();return true;
+ }
+ // Capture click in the modal without changing any underlying sequencer cell.
+ return true;
 }
 void DrumatorView::closeBeatCreator() noexcept {
  if(!beatCreatorOpen_)return;
@@ -1867,6 +1987,7 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
    if(songEditorOpen_)drawV101Song(c);
    else drawV101(c);
    if(beatCreatorOpen_)drawBeatCreator(c);
+   if(kitBrowserOpen_)drawKitBrowser(c);
    setDirty(false);
    return;
  }
@@ -2875,6 +2996,17 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    clickFlashUntil_=std::chrono::steady_clock::now()+
                     std::chrono::milliseconds(200);
    invalid(); // covers immediate mouse-down actions too
+ }
+ // The internal browser owns every click while visible; no host preset path.
+ if(v101Mode_&&kitBrowserOpen_){
+   (void)kitBrowserMouseDown(x,y);
+   return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+ }
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_&&!beatCreatorOpen_&&
+    UiV101Layout::kitBrowserTrigger.hit(
+      x,y-(getViewSize().getHeight()-UiV101Layout::footer))){
+   v101_.up();openKitBrowser();
+   return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
  }
  // Modal outranks SONG, normal sequencer, export drag and every popup.
  if(v101Mode_&&beatCreatorOpen_) {

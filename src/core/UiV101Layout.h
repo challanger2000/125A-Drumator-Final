@@ -87,6 +87,8 @@ struct UiV101Layout final {
   }
   static constexpr Rect meterReset{1132.,98.,1248.,134.};
   static constexpr Rect footerExport{910.,10.,1005.,35.}; // footer-relative
+  // Browser is in the unoccupied footer lane; no header/step/menu relocation.
+  static constexpr Rect kitBrowserTrigger{800.,10.,895.,35.};
   // LIMIT is on the SAME header baseline as ZOOM, immediately to its left.
   // Both use 83x32 caps; the 13px gap preserves a clear bezel.
   static constexpr Rect limiterTrigger{1081.,13.,1164.,45.};

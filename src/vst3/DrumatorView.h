@@ -12,6 +12,8 @@
 #include "vst3/UiV101Popup.h"
 #include "vst3/UiBeatCreatorDialog.h"
 #include "core/BeatCreator.h"
+#include "core/KitPresetCatalog.h"
+#include <vector>
 #include "vstgui/lib/cvstguitimer.h"
 #include <cstdint>
 #include <chrono>
@@ -104,6 +106,15 @@ private:
  void drawBeatCreator(VSTGUI::CDrawContext* c);
  bool beatCreatorMouseDown(double x,double y);
  void closeBeatCreator() noexcept;
+ // Compact modal: file catalogue is UI-only; commit is a single Controller
+ // sound-only transaction. Existing grooves and Song entries remain untouched.
+ bool kitBrowserOpen_{false};
+ std::vector<KitPresetCatalog::Entry> kitBrowserEntries_{};
+ std::size_t kitBrowserPage_{0},kitBrowserSelected_{0};
+ std::string kitBrowserNotice_{};
+ void openKitBrowser();
+ void drawKitBrowser(VSTGUI::CDrawContext* c);
+ bool kitBrowserMouseDown(double x,double y);
  bool exportSelection(int option);
  bool startExportDrag(int option);
  int dragExportOption_{-1};
