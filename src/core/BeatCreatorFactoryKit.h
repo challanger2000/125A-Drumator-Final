@@ -179,7 +179,7 @@ class BeatCreatorFactoryKit final {
  // Root may be supplied explicitly by tests; in VST3 find Contents/Resources.
  static bool makeGenreKit(KitState& result,BeatStyle style,
                           const std::filesystem::path& rootOverride={}) {
-  if(static_cast<unsigned>(style)>=styleNames.size())return false;
+  if(static_cast<unsigned>(style)>=BeatCreator::styleNames.size())return false;
   try {
    static constexpr std::array<const char*,8> directories{{
     "01_Industrial_NDH","02_EBM","03_Techno","04_House",
