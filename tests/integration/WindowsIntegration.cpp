@@ -3901,6 +3901,68 @@ void testBeatCreatorV15AudiblePreview(){
        "BC16 non-destructive audition modified serialized project");
  evidence("BC16 A/B/C 16+32-step live audio, STOP, CANCEL, state protection PASS");
 }
+void testBeatCreatorCompactHostWindow(){
+ Fixture f;
+ KitState kit;
+ kit.visible=8;kit.grid.fill(0);kit.patternLengths.fill(16);
+ f.kit(kit);prepareAudio(*f.p);f.openV101();
+ auto* view=IntegrationAccess::view(*f.c,0);
+ check(view!=nullptr&&view->isV101(),"BC18 real V101 editor unavailable");
+ // Host-declined view growth: the documented V101 minimum is 254px.
+ // Do not request a larger host window or rely on 420px of spare space.
+ constexpr double h=254.;
+ view->setViewSize({0.,0.,1280.,h});
+ check(view->getViewSize().getHeight()==h,
+       "BC18 failed to simulate fixed-height Studio One peer editor");
+ const auto bounds=UiBeatCreatorDialog::panel(h);
+ check(bounds.y0>=0.&&bounds.y1<=h&&bounds.x0>=0.&&bounds.x1<=1280.,
+       "BC18 compact panel outside the real plugin client area");
+ const auto press=[&](UiBeatCreatorDialog::Rect cell){
+  check(cell.x0>=bounds.x0&&cell.x1<=bounds.x1&&
+        cell.y0>=bounds.y0&&cell.y1<=bounds.y1,
+        "BC18 clipped or invisible compact dialog action");
+  click(*view,(cell.x0+cell.x1)*.5,(cell.y0+cell.y1)*.5);
+ };
+ const auto saved=[&]{
+  ResizableMemoryIBStream stream;KitState state;
+  check(f.p->getState(&stream)==kResultOk&&
+    KitCodec::decode(static_cast<const std::uint8_t*>(stream.getData()),
+      static_cast<std::size_t>(stream.getCursor()),state),"BC18 saved state");
+  return state;
+ };
+ const auto before=saved();
+ click(*view,765.,115.); // Actual common painted 83x32 BEAT CREATOR trigger.
+ check(view->getViewSize().getHeight()==254.,"BC18 opening modal resized host");
+ press(UiBeatCreatorDialog::style(h,7)); // DRUM & BASS; second style row.
+ press(UiBeatCreatorDialog::complexityMinus(h));
+ press(UiBeatCreatorDialog::complexityPlus(h));
+ press(UiBeatCreatorDialog::generate(h));
+ check(f.c->beatCreatorDraft()!=nullptr,
+       "BC18 compact Generate unavailable at 254px");
+ press(UiBeatCreatorDialog::preview(h,2)); // PLAY C still accessible.
+ std::array<float,256> left{},right{};
+ float* channels[]{left.data(),right.data()};
+ AudioBusBuffers out{};out.numChannels=2;out.channelBuffers32=channels;
+ ProcessData block{};block.numSamples=256;block.numOutputs=1;
+ block.outputs=&out;block.symbolicSampleSize=kSample32;
+ bool audible=false;
+ for(int b=0;b<8;++b){
+  check(f.p->process(block)==kResultOk,"BC18 compact audio process");
+  for(const float v:left)if(std::abs(v)>0.0001f)audible=true;
+ }
+ check(audible,"BC18 PLAY C produced no audio");
+ press(UiBeatCreatorDialog::stop(h));
+ check(f.p->process(block)==kResultOk,"BC18 STOP audio process");
+ for(const float v:left)check(std::abs(v)<0.00001f,
+      "BC18 STOP left audible tail");
+ press(UiBeatCreatorDialog::cancel(h));
+ check(f.c->beatCreatorDraft()==nullptr&&
+       saved().grid==before.grid&&saved().wav==before.wav,
+       "BC18 cancel changed stored kit in compact view");
+ check(view->getViewSize().getHeight()==254.,
+       "BC18 compact modal changed fixed host viewport");
+ evidence("BC18 254px host-constrained BEAT CREATOR overlay, genre, complexity, audio PLAY C/STOP and CANCEL PASS");
+}
 void testBeatCreatorV15Dialog(){
  Fixture f;
  KitState kit;
@@ -5873,6 +5935,7 @@ int main(int argc,char** argv){
  run("BC15 connected Beat Creator Preview/Apply/group Undo",testBeatCreatorV15GroupApplyUndo);
  run("BC16 audible non-destructive A/B/C preview",testBeatCreatorV15AudiblePreview);
  run("BC17 real Beat Creator V101 dialog and guarded workflow",testBeatCreatorV15Dialog);
+ run("BC18 compact 254px host Beat Creator dialog",testBeatCreatorCompactHostWindow);
  run("V17 1T row FILL/CLEAR hidden-step protection",testFillActivePatternLength);
  run("UX Velocity empty-step editing",testVelocityLaneExistingStepsOnly);
  run("UX paged Song board",testPagedSongEditor);

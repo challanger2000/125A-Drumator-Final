@@ -2,6 +2,8 @@
 #include "core/UiSongLayout.h"
 #include "vst3/UiV101Popup.h"
 #include "vst3/UiV101WaveLayout.h"
+#include "vst3/UiBeatCreatorDialog.h"
+#include <array>
 #include <iostream>
 using L=drumator::UiV101Layout;
 #define CHECK(x) do{if(!(x)){std::cerr<<__LINE__<<" " #x "\n";return 1;}}while(false)
@@ -275,6 +277,40 @@ int main(){
       CHECK(P::hit(kind,geometry,(button.x0+button.x1)/2.,
                    (button.y0+button.y1)/2.)==i);
     }
+  }
+  // BC18: the GUI's 254px host-rejected compact viewport must fit every
+  // clickable cell. Normal 390px dialog geometry remains unchanged at >=420.
+  using D=drumator::UiBeatCreatorDialog;
+  for(const double hostHeight:{254.,286.,390.,420.,686.}){
+    const auto panel=D::panel(hostHeight);
+    CHECK(panel.x0>=0.&&panel.x1<=L::width);
+    CHECK(panel.y0>=0.&&panel.y1<=hostHeight);
+    const std::array<D::Rect,17> controls{{
+      D::style(hostHeight,0),D::style(hostHeight,1),
+      D::style(hostHeight,2),D::style(hostHeight,3),
+      D::style(hostHeight,4),D::style(hostHeight,5),
+      D::style(hostHeight,6),D::style(hostHeight,7),
+      D::complexityMinus(hostHeight),D::complexityPlus(hostHeight),
+      D::generate(hostHeight),D::preview(hostHeight,0),
+      D::preview(hostHeight,1),D::preview(hostHeight,2),
+      D::stop(hostHeight),D::apply(hostHeight),D::cancel(hostHeight)
+    }};
+    for(std::size_t i=0;i<controls.size();++i){
+      const auto a=controls[i];
+      CHECK(a.x0>=panel.x0&&a.x1<=panel.x1&&a.y0>=panel.y0&&a.y1<=panel.y1);
+      CHECK(a.x1-a.x0>=35.&&a.y1-a.y0>=25.);
+      CHECK(a.hit((a.x0+a.x1)/2.,(a.y0+a.y1)/2.));
+      for(std::size_t j=0;j<i;++j){
+        const auto b=controls[j];
+        CHECK(!(a.x0<b.x1&&a.x1>b.x0&&a.y0<b.y1&&a.y1>b.y0));
+      }
+    }
+    const auto note=D::notice(hostHeight);
+    const auto heading=D::styleHeading(hostHeight);
+    CHECK(note.x0>=panel.x0&&note.x1<=panel.x1&&
+          note.y0>=panel.y0&&note.y1<=panel.y1);
+    CHECK(heading.x0>=panel.x0&&heading.x1<=panel.x1&&
+          heading.y0>=panel.y0&&heading.y1<=panel.y1);
   }
   std::cout<<"V1.0.1 independent GUI hit-map PASS\n";
   return 0;

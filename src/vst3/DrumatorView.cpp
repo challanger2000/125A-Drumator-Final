@@ -1140,14 +1140,13 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c) {
  P::satin(*c,{box.x0,box.y0,box.x1,box.y1},
           {74,84,94,255},{39,52,65,255},{20,29,40,255},32);
  P::border(*c,{box.x0,box.y0,box.x1,box.y1},{125,144,157,255});
- P::fill(*c,{box.x0+6.,box.y0+7.,box.x1-6.,box.y0+45.},
+ P::fill(*c,{box.x0+6.,box.y0+6.,box.x1-6.,
+             box.y0+(D::compact(height)?44.:45.)},
           {15,29,43,255});
- P::label(*c,"125A BEAT CREATOR",
-          {box.x0+18.,box.y0+12.,box.x1-18.,box.y0+37.},
-          18,{233,239,245,255});
- P::label(*c,"STYLE - SELECT A GENRE",{
-          box.x0+27.,box.y0+48.,box.x1-27.,box.y0+73.},
-          11,{179,204,221,255},false);
+ P::label(*c,"125A BEAT CREATOR",D::title(height),
+          D::compact(height)?16:18,{233,239,245,255});
+ P::label(*c,"STYLE - SELECT A GENRE",D::styleHeading(height),
+          D::compact(height)?9:11,{179,204,221,255},false);
  const P::ButtonSprites buttons{
    v101VintageButtons_[0],v101VintageButtons_[1],
    v101VintageButtons_[2],v101VintageButtons_[3]
@@ -1155,21 +1154,18 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c) {
  for(std::size_t i=0;i<BeatCreator::styleNames.size();++i)
   P::cap(*c,D::style(height,i),0.,BeatCreator::styleNames[i],
          static_cast<std::size_t>(beatCreatorStyle_)==i,11,&buttons);
- P::label(*c,"COMPLEXITY",{
-          box.x0+25.,box.y0+233.,box.x0+260.,box.y0+261.},
-          12,{213,225,235,255},false);
+ P::label(*c,"COMPLEXITY",D::complexityLabel(height),
+          D::compact(height)?11:12,{213,225,235,255},false);
  P::cap(*c,D::complexityMinus(height),0.,"-",false,15,&buttons);
  P::cap(*c,D::complexityPlus(height),0.,"+",false,15,&buttons);
  char percent[16]{};
  std::snprintf(percent,sizeof(percent),"%u%%",
                static_cast<unsigned>(beatCreatorComplexity_));
- P::label(*c,percent,{box.x0+420.,box.y0+233.,
-                       box.x0+495.,box.y0+260.},14,{241,217,143,255});
+ P::label(*c,percent,D::complexityValue(height),14,{241,217,143,255});
  char duration[30]{};
  std::snprintf(duration,sizeof(duration),"%u STEPS",
     static_cast<unsigned>(controller_.patternLength(controller_.currentPattern())));
- P::label(*c,duration,{box.x0+542.,box.y0+233.,
-                        box.x1-20.,box.y0+260.},11,{189,214,229,255});
+ P::label(*c,duration,D::stepsLabel(height),11,{189,214,229,255});
  P::cap(*c,D::generate(height),0.,"GENERATE",false,11,&buttons);
  const char* names[]={"PLAY A","PLAY B","PLAY C"};
  for(std::size_t i=0;i<3;++i)
@@ -1178,8 +1174,7 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c) {
  P::cap(*c,D::stop(height),0.,"STOP",false,10,&buttons);
  const auto* draft=controller_.beatCreatorDraft();
  const bool ready=draft!=nullptr;
- P::label(*c,beatCreatorNotice_.c_str(),
-          {box.x0+26.,box.y0+314.,box.x1-26.,box.y0+336.},
+ P::label(*c,beatCreatorNotice_.c_str(),D::notice(height),
           11,beatCreatorConfirmOverwrite_?VSTGUI::CColor{254,182,107,255}:
                  VSTGUI::CColor{190,216,225,255});
  P::cap(*c,D::apply(height),0.,beatCreatorConfirmOverwrite_?
@@ -2764,15 +2759,14 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
  if(v101Mode_&&!sampleEditorOpen_&&!v101_.state().zoomOpen&&
     v101Menu_==UiV101Popup::Kind::None&&
     UiV101Layout::beatCreatorTrigger.hit(x,y)){
-   if(getViewSize().getHeight()<420.){
-     status_="BEAT CREATOR NEEDS A TALLER HOST WINDOW";
-   }else {
-     v101_.up();
-     beatCreatorOpen_=true;
-     beatCreatorConfirmOverwrite_=false;
-     beatCreatorListening_=-1;
-     beatCreatorNotice_="CHOOSE STYLE, THEN GENERATE";
-   }
+   // A host may refuse window enlargement and leave one visible row:
+   // 158px header + 48px row + 48px footer = 254px. The dialog now
+   // adapts to that exact minimum without asking the host to resize.
+   v101_.up();
+   beatCreatorOpen_=true;
+   beatCreatorConfirmOverwrite_=false;
+   beatCreatorListening_=-1;
+   beatCreatorNotice_="CHOOSE STYLE, THEN GENERATE";
    invalid();
    return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
  }
