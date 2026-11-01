@@ -1,6 +1,6 @@
 # 125A Drumator 1.5.0 — Development scope (not released)
 
-**Status (1 November 2026):** first core prototype implemented and fully Windows-CI tested (30 CTests, 47 Validator, 58 independent Tester PASS), but not exposed in the plugin/GUI or approved for distribution. Code baseline `6ac507df17ca83552dcf23b7df980b6918ae6e9e`. See `docs/BEAT-CREATOR-FOUNDATION.md`. Branch: `develop/v1.5.0`.
+**Status (1 November 2026):** Generator and transactional Controller/Processor APPLY/UNDO implemented, tested on Windows ([#41267109608](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41267109608): 31/31 CTests, 47/47 validator, 58/58 tester). GUI, sample kit, audible PREVIEW and owner DAW test remain pending. See [Stage 2](docs/BEAT-CREATOR-TRANSACTION.md). Branch: `develop/v1.5.0`.
 **Frozen sale version:** `main` stays the independently validated v1.0.1, starting from `f4c5caa4be82626ea89459d9835c12138d7c6a1b`. Do not merge 1.5 development into main, package or market it as released without dedicated approval.
 
 ## Product principle

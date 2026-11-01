@@ -1,3 +1,20 @@
+# 125A Drumator — authoritative v1.5 development status
+
+**1 November 2026 — Stage 2: Beat Creator A/B/C Preview, explicit Apply and grouped Undo — WINDOWS QA PASS.**
+
+- **Stable product:** \`main\` remains at released v1.0.1, \`f4c5caa4be82626ea89459d9835c12138d7c6a1b\`. No code for v1.5 is merged or released there.
+- **Validated v1.5 development code:** \`fd0ae69a1b6836e8741cbcc963ed0a2cc7e71364\`; branch \`develop/v1.5.0\`.
+- **[Windows workflow #41267109608](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41267109608) SUCCESS:** 31/31 CTests (including real Controller/Processor \`BC15\` integration), Steinberg VST3 Validator 47/47, 125A Plugin Tester v0.3.2 58 PASS / 0 WARN / 0 FAIL.
+- **Exact QA binary SHA256:** \`568fe581e9ac61a6caa1ad13b84b135e999e7a467459c67ca62890c08f45fdb2\`. The plugin factory still identifies as v1.0.1: this is **not** a v1.5 consumer build or release package.
+- **Implemented:** \`BeatCreator::preview\` calculates Generate A, Variate B and Break C for 8 styles, 16/32-step duration; controller holds the preview without modifying the running kit. \`applyBeatCreator\` explicitly refuses occupied A/B/C unless authorized, verifies no intervening edits/recalled kit, and sends one strict binary compare-and-swap IPC. Processor atomically validates and updates all 3 patterns under its control-thread writer mutex. \`undoBeatCreator\` restores A/B/C and their prior lengths in one operation. Existing Pattern MENU UNDO routes into this group when it is active, and manual edits invalidate stale group history.
+- **Protection:** samples, kit metadata, patterns D-H, user rows 9-16 and hidden second-bar steps remain unchanged. Test \`BC15\` verifies Processor save-state, transaction, stale guards, hidden data, ordinary Undo and recall.
+- **Not implemented:** Beat Creator GUI/button/dialog, audio-preview transport, legally cleared factory kit, Studio One audition tests, measured musical quality. There is **no v1.5 customer release**. GUI design comes last by owner instruction.
+- Technical details: [Stage 2 transaction notes](docs/BEAT-CREATOR-TRANSACTION.md), [foundation](docs/BEAT-CREATOR-FOUNDATION.md), [roadmap](docs/ROADMAP-1.5.0.md).
+
+---
+
+## Previous stage: core foundation (historical, superseded)
+
 # 125A Drumator — active development
 
 **1 November 2026 — Drumator 1.5.0 Beat Creator core: Windows QA PASS, GUI/integration NOT YET IMPLEMENTED.**

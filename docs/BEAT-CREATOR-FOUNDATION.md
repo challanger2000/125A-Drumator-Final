@@ -1,3 +1,5 @@
+> **HISTORICAL STAGE 1:** This file describes the original isolated-generator milestone. The later Controller/Processor integration has now passed Windows QA. See [Stage 2 verified transaction](BEAT-CREATOR-TRANSACTION.md) and [CURRENT.md](../CURRENT.md).
+
 # 125A Drumator v1.5 — Beat Creator foundation
 
 **QA: SUCCESS**, [Windows Actions #41265815951](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41265815951) for `6ac507df17ca83552dcf23b7df980b6918ae6e9e`: 30/30 CTests, Steinberg VST3 Validator 47/47 and 125A Plugin Tester 58 PASS / 0 WARNING / 0 FAIL. The VST3 still has no active Beat Creator UI or controller integration.
