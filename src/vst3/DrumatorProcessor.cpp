@@ -575,21 +575,21 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
      if(!std::isfinite(rate)||rate<=0.||
         !BeatCreatorFactoryKit::makeKit(factory))
        return Steinberg::kResultFalse;
-     for(std::size_t row=0;row<8;++row){
-       if(!(fillMask&(1u<<row)))continue;
-       const auto& wav=factory.wav[row];
+     for(std::size_t factoryRow=0;factoryRow<8;++factoryRow){
+       if(!(fillMask&(1u<<factoryRow)))continue;
+       const auto& wav=factory.wav[factoryRow];
        if(PreparedSample::fromWav(wav.data(),wav.size(),rate,
-          static_cast<double>(static_cast<int>(rowPitch_[row].load(
+          static_cast<double>(static_cast<int>(rowPitch_[factoryRow].load(
               std::memory_order_acquire))-24),
-          1.f,0.f,0,false,incoming[row],SampleEdit{},true)!=PrepareStatus::Ok)
+          1.f,0.f,0,false,incoming[factoryRow],SampleEdit{},true)!=PrepareStatus::Ok)
          return Steinberg::kResultFalse;
      }
    }
    std::lock_guard<std::mutex> guard(kitMutex_);
    // Stale GUI/controller rows must NOT overwrite user-imported PCM. Reject
    // the complete transaction rather than silently skipping owned samples.
-   for(std::size_t row=0;row<8;++row)
-     if((fillMask&(1u<<row))&&!kit_.wav[row].empty())
+   for(std::size_t factoryRow=0;factoryRow<8;++factoryRow)
+     if((fillMask&(1u<<factoryRow))&&!kit_.wav[factoryRow].empty())
        return Steinberg::kResultFalse;
    if(!patterns_.replaceFirstThreeIfMatches(
          static_cast<const std::uint8_t*>(before),
@@ -601,28 +601,28 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
      patternLengths_[p].store(lengths[p],std::memory_order_release);
    }
    // After validation and pattern acceptance, assets and metadata are moved
-   // into empty slots. The per-row pending exchange is cleared before
+   // into empty slots. The per-factoryRow pending exchange is cleared before
    // publish; no other producer writes it while kitMutex_ is held.
    if(fillMask){
      for(;;) {auto retired=exchange_.pollReclaim();if(!retired)break;}
-     for(std::size_t row=0;row<8;++row){
-       if(!(fillMask&(1u<<row)))continue;
-       auto oldPending=exchange_.withdraw(row);
+     for(std::size_t factoryRow=0;factoryRow<8;++factoryRow){
+       if(!(fillMask&(1u<<factoryRow)))continue;
+       auto oldPending=exchange_.withdraw(factoryRow);
        (void)oldPending;
-       // Both row and prepared asset were prevalidated. This publish can
+       // Both factoryRow and prepared asset were prevalidated. This publish can
        // only fail on a violation of the single-producer IPC contract.
-       if(!exchange_.publish(row,incoming[row]))
+       if(!exchange_.publish(factoryRow,incoming[factoryRow]))
          return Steinberg::kResultFalse;
-       kit_.wav[row].swap(factory.wav[row]);
-       kit_.names[row].swap(factory.names[row]);
-       if(kit_.displayNames[row].empty())
-         kit_.displayNames[row].swap(factory.displayNames[row]);
-       kit_.sampleEdits[row]=SampleEdit{};
-       previewPending_.fetch_and(~(std::uint32_t{1}<<static_cast<unsigned>(row)),
+       kit_.wav[factoryRow].swap(factory.wav[factoryRow]);
+       kit_.names[factoryRow].swap(factory.names[factoryRow]);
+       if(kit_.displayNames[factoryRow].empty())
+         kit_.displayNames[factoryRow].swap(factory.displayNames[factoryRow]);
+       kit_.sampleEdits[factoryRow]=SampleEdit{};
+       previewPending_.fetch_and(~(std::uint32_t{1}<<static_cast<unsigned>(factoryRow)),
                                   std::memory_order_acq_rel);
-       liveSessions_[row]=0;liveFrameCounts_[row]=0;
-       liveEdits_[row].publish(false,SampleEdit{});
-       ++editorRevisions_[row];
+       liveSessions_[factoryRow]=0;liveFrameCounts_[factoryRow]=0;
+       liveEdits_[factoryRow].publish(false,SampleEdit{});
+       ++editorRevisions_[factoryRow];
      }
    }
    if(expose&&kit_.visible<8){

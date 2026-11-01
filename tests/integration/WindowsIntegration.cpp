@@ -26,6 +26,7 @@
 #include "UiV101NativePreview.h"
 #include "vst3/UiV101ControllerBridge.h"
 #include "vst3/DrumatorProcessor.h"
+#include "core/BeatCreatorFactoryKit.h"
 #include "vst3/DrumatorEditor.h"
 #include "vst3/PluginIDs.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
