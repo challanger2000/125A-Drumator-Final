@@ -3997,7 +3997,7 @@ void testBeatCreatorV15AudiblePreview(){
  original.grid.fill(0);original.patternLengths.fill(32);
  for(std::size_t row=0;row<8;++row){
   original.wav[row]=constantStereo(.32f,.32f);
-  original.names[row]=BeatCreatorFactoryKit::filenames[row];
+  original.names[row]="QA_Sample.wav";
  }
  f.kit(original);prepareAudio(*f.p);
  auto saved=[&]{
@@ -4127,7 +4127,7 @@ void testBeatCreatorCompactHostWindow(){
  kit.visible=8;kit.grid.fill(0);kit.patternLengths.fill(16);
  for(std::size_t row=0;row<8;++row){
   kit.wav[row]=constantStereo(.32f,.32f);
-  kit.names[row]=BeatCreatorFactoryKit::filenames[row];
+  kit.names[row]="QA_Sample.wav";
  }
  f.kit(kit);prepareAudio(*f.p);f.openV101();
  auto* view=IntegrationAccess::view(*f.c,0);
@@ -4394,7 +4394,7 @@ void testBeatCreatorV15Dialog(){
  kit.grid[0]=88; // A occupied: first APPLY must only ask for confirmation.
  for(std::size_t row=0;row<8;++row){
   kit.wav[row]=constantStereo(.32f,.32f);
-  kit.names[row]=BeatCreatorFactoryKit::filenames[row];
+  kit.names[row]="QA_Sample.wav";
  }
  f.kit(kit);prepareAudio(*f.p);
  f.openV101();
