@@ -929,9 +929,30 @@ bool Controller::playBeatCreatorDraft(std::size_t choice,double bpm) noexcept {
  if(previewStopPending_&&!stopBeatCreatorDraft())return false;
  if(!reservePreviewStop())return false;
  const double tempo=bpm==0.?exportTempoBpm_:bpm;
- std::vector<std::uint8_t> audio;
- if(!BeatCreatorAudioPreview::encode(beatPreview_,choice,tempo,audio,beatPreviewStyle_))return false;
  try{
+  // Capture the real kit on the controller thread, without changing project
+  // state. The renderer uses copies of the *same* WAV and mixer data that
+  // APPLY will retain. No fallback sound may replace a loaded user sample.
+  KitState live;
+  live.visible=static_cast<std::uint8_t>(visibleRows_);
+  live.wav=exportWavs_;
+  live.names=labels_;
+  live.displayNames=customNames_;
+  live.sampleEdits=exportEdits_;
+  live.gain=gain_;live.pan=pan_;live.pitch=pitch_;
+  live.choke=choke_;live.output=output_;
+  live.randomVelocity=randomVelocity_;
+  live.swing=static_cast<std::uint8_t>(swingPercent_);
+  live.humanize=static_cast<std::uint8_t>(humanizePercent_);
+  live.masterVolume=static_cast<std::uint8_t>(masterVolume_);
+  live.limiter=limiterEnabled_?1:0;
+  for(std::size_t row=0;row<kRows;++row){
+   if(muted_[row])live.muted|=static_cast<std::uint16_t>(1u<<row);
+   if(solo_[row])live.solo|=static_cast<std::uint16_t>(1u<<row);
+  }
+  std::vector<std::uint8_t> audio;
+  if(!BeatCreatorAudioPreview::encode(
+        beatPreview_,choice,tempo,audio,beatPreviewStyle_,&live))return false;
   ScopedActionMessage msg{allocateMessage()};
   if(!msg.p)return false;
   msg.p->setMessageID("Drumator.BeatCreatorAudition");
