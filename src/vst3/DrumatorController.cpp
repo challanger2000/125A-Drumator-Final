@@ -915,6 +915,7 @@ bool Controller::prepareBeatCreator(const BeatCreatorSettings& settings,
  for(std::size_t i=0;i<3;++i)beatPreviewLengths_[i]=patternLengths_[i];
  beatPreviewGeneration_=editGeneration_.current();
  beatPreview_=next;
+ beatPreviewStyle_=settings.style;
  return true;
 }
 bool Controller::playBeatCreatorDraft(std::size_t choice,double bpm) noexcept {
@@ -929,7 +930,7 @@ bool Controller::playBeatCreatorDraft(std::size_t choice,double bpm) noexcept {
  if(!reservePreviewStop())return false;
  const double tempo=bpm==0.?exportTempoBpm_:bpm;
  std::vector<std::uint8_t> audio;
- if(!BeatCreatorAudioPreview::encode(beatPreview_,choice,tempo,audio))return false;
+ if(!BeatCreatorAudioPreview::encode(beatPreview_,choice,tempo,audio,beatPreviewStyle_))return false;
  try{
   ScopedActionMessage msg{allocateMessage()};
   if(!msg.p)return false;
@@ -953,7 +954,7 @@ bool Controller::sendBeatTriple(const BeatTriple& expected,
                                 const BeatLengths& expectedLengths,
                                 const BeatLengths& nextLengths,
                                 std::uint8_t fillMask,bool exposeEight,
-                                KitState* stagedFactory) {
+                                KitState* stagedFactory,BeatStyle factoryStyle) {
  try {
   auto* msg=allocateMessage();
   ScopedActionMessage own{msg};if(!msg)return false;
@@ -966,7 +967,8 @@ bool Controller::sendBeatTriple(const BeatTriple& expected,
      a->setBinary("BeforeLengths",expectedLengths.data(),3)!=Steinberg::kResultOk||
      a->setBinary("AfterLengths",nextLengths.data(),3)!=Steinberg::kResultOk||
      a->setInt("AutoFillMask",static_cast<Steinberg::int64>(fillMask))!=Steinberg::kResultOk||
-     a->setInt("ExposeEight",exposeEight?1:0)!=Steinberg::kResultOk)
+     a->setInt("ExposeEight",exposeEight?1:0)!=Steinberg::kResultOk||
+     a->setInt("FactoryStyle",static_cast<Steinberg::int64>(factoryStyle))!=Steinberg::kResultOk)
    return false;
   if(sendEditMessage(msg)!=Steinberg::kResultOk)return false;
   // Host accepted: update the controller mirror, no allocations.
@@ -1023,12 +1025,12 @@ bool Controller::applyBeatCreator(bool allowOccupied,
    if(!samplePresent_[row])
     fillMask=static_cast<std::uint8_t>(fillMask|(1u<<row));
   if(fillMask) {
-   if(!BeatCreatorFactoryKit::makeKit(stagedFactory))return false;
+   if(!BeatCreatorFactoryKit::makeGenreKit(stagedFactory,beatPreviewStyle_))return false;
   }
  }
  if(!sendBeatTriple(txn.before,txn.after,txn.oldLengths,txn.newLengths,
                     fillMask,fillEmptyFactoryRows,
-                    fillMask?&stagedFactory:nullptr))
+                    fillMask?&stagedFactory:nullptr,beatPreviewStyle_))
   return false;
  for(std::size_t i=0;i<3;++i)undo_.consume(i);
  beatGroupUndo_=txn;

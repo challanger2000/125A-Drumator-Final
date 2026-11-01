@@ -559,11 +559,13 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
       nBefore!=cells||nAfter!=cells||nOld!=3||nNew!=3)
       return Steinberg::kInvalidArgument;
    const auto* lengths=static_cast<const std::uint8_t*>(newLengths);
-   Steinberg::int64 fillValue=0,expose=0;
+   Steinberg::int64 fillValue=0,expose=0,genre=0;
    // Older pattern-only senders omit both optional factory-kit fields.
    if(attrs->getInt("AutoFillMask",fillValue)!=Steinberg::kResultOk)fillValue=0;
    if(attrs->getInt("ExposeEight",expose)!=Steinberg::kResultOk)expose=0;
-   if(fillValue<0||fillValue>255||(expose!=0&&expose!=1))
+   const auto hasGenre=attrs->getInt("FactoryStyle",genre)==Steinberg::kResultOk;
+   if(fillValue<0||fillValue>255||(expose!=0&&expose!=1)||
+      (fillValue!=0&&(!hasGenre||genre<0||genre>=8)))
      return Steinberg::kInvalidArgument;
    const auto fillMask=static_cast<std::uint8_t>(fillValue);
    // Prepare ALL factory assets before the atomic pattern transaction.
@@ -573,7 +575,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    if(fillMask){
      const auto rate=outputRate_.load(std::memory_order_acquire);
      if(!std::isfinite(rate)||rate<=0.||
-        !BeatCreatorFactoryKit::makeKit(factory))
+        !BeatCreatorFactoryKit::makeGenreKit(factory,static_cast<BeatStyle>(genre)))
        return Steinberg::kResultFalse;
      for(std::size_t factoryRow=0;factoryRow<8;++factoryRow){
        if(!(fillMask&(1u<<factoryRow)))continue;

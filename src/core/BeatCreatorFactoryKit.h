@@ -12,6 +12,18 @@
 #include <cstdint>
 #include <cstring>
 #include <vector>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
 
 namespace drumator {
 class BeatCreatorFactoryKit final {
@@ -156,6 +168,58 @@ class BeatCreatorFactoryKit final {
     candidate.gain[row]=gain[row];
     candidate.pan[row]=pan[row];
     if(candidate.wav[row].empty())return false;
+   }
+   if(!KitCodec::valid(candidate,true))return false;
+   result=std::move(candidate);
+   return true;
+  }catch(...){return false;}
+ }
+ // Stage BC29: recorded CC0 genre-specific WAV assets.
+ // This loader runs only on the controller/control thread, never on audio process().
+ // Root may be supplied explicitly by tests; in VST3 find Contents/Resources.
+ static bool makeGenreKit(KitState& result,BeatStyle style,
+                          const std::filesystem::path& rootOverride={}) {
+  if(static_cast<unsigned>(style)>=styleNames.size())return false;
+  try {
+   static constexpr std::array<const char*,8> directories{{
+    "01_Industrial_NDH","02_EBM","03_Techno","04_House",
+    "05_Rock","06_Metal","07_Hip_Hop","08_Drum_and_Bass"
+   }};
+   std::filesystem::path root=rootOverride;
+   if(root.empty()) {
+#if defined(_WIN32)
+    HMODULE module{};
+    if(!GetModuleHandleExW(
+         GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|
+         GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+         reinterpret_cast<LPCWSTR>(&BeatCreatorFactoryKit::makeGenreKit),&module))
+      return false;
+    wchar_t modulePath[32768]{};
+    const DWORD count=GetModuleFileNameW(module,modulePath,32768u);
+    if(count==0u||count>=32768u)return false;
+    const auto moduleDir=std::filesystem::path(modulePath).parent_path();
+    // Installed VST3: Contents/x86_64-win/*.vst3 -> Contents/Resources/BeatCreator.
+    const auto packaged=moduleDir.parent_path()/"Resources"/"BeatCreator";
+    // Developer legacy single-DLL builds may put BeatCreator beside the module.
+    root=std::filesystem::exists(packaged)?packaged:moduleDir/"BeatCreator";
+#else
+    return false;
+#endif
+   }
+   KitState candidate;
+   if(!makeKit(candidate))return false;
+   const auto directory=root/directories[static_cast<unsigned>(style)];
+   for(std::size_t row=0;row<8;++row) {
+    const auto file=directory/filenames[row];
+    std::ifstream input(file,std::ios::binary|std::ios::ate);
+    if(!input)return false;
+    const auto length=input.tellg();
+    if(length<=44||length>static_cast<std::streamoff>(6*1024*1024))return false;
+    input.seekg(0,std::ios::beg);
+    std::vector<std::uint8_t> bytes(static_cast<std::size_t>(length));
+    if(!input.read(reinterpret_cast<char*>(bytes.data()),
+                   static_cast<std::streamsize>(bytes.size())))return false;
+    candidate.wav[row]=std::move(bytes);
    }
    if(!KitCodec::valid(candidate,true))return false;
    result=std::move(candidate);

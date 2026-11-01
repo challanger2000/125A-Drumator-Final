@@ -206,6 +206,7 @@ private:
  std::uint8_t clipboardLength_{32};
  PatternUndo undo_{};
  BeatCreatorPreview beatPreview_{};
+ BeatStyle beatPreviewStyle_{BeatStyle::IndustrialNDH};
  BeatTriple beatPreviewBefore_{};
  BeatLengths beatPreviewLengths_{};
  KitEditGeneration::Token beatPreviewGeneration_{0};
@@ -225,7 +226,8 @@ private:
                      const BeatLengths& expectedLengths,
                      const BeatLengths& nextLengths,
                      std::uint8_t fillMask=0,bool exposeEight=false,
-                     KitState* stagedFactory=nullptr);
+                     KitState* stagedFactory=nullptr,
+                     BeatStyle factoryStyle=BeatStyle::IndustrialNDH);
  void invalidateBeatGroupForEdit(std::size_t pattern) noexcept;
  void rememberUndoStep(std::size_t p,std::size_t r,std::size_t s,std::uint8_t next);
  std::array<std::string,kRows> labels_{};

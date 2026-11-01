@@ -14,12 +14,15 @@ namespace drumator {
 class BeatCreatorAudioPreview final {
 public:
  static bool encode(const BeatCreatorPreview& draft,std::size_t choice,double bpm,
-                    std::vector<std::uint8_t>& wav16) noexcept {
+                    std::vector<std::uint8_t>& wav16,
+                    BeatStyle style=BeatStyle::Count) noexcept {
   if(!draft.valid||choice>=3||(draft.steps!=16&&draft.steps!=32)||
      !std::isfinite(bpm)||bpm<20.||bpm>300.)return false;
   try{
    KitState isolated;
-   if(!BeatCreatorFactoryKit::makeKit(isolated)||
+   if(!(style==BeatStyle::Count?
+        BeatCreatorFactoryKit::makeKit(isolated):
+        BeatCreatorFactoryKit::makeGenreKit(isolated,style))||
       !BeatCreatorFactoryKit::setDraft(isolated,draft,choice))return false;
    std::vector<std::uint8_t> wav24;
    if(!OfflineWavExport::renderMemory(isolated,false,bpm,wav24)||
