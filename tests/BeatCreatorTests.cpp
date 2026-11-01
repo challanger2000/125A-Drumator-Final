@@ -68,11 +68,20 @@ int main(){
       for(std::size_t step=0;step<length;++step)
        check(!(get(p.a,BeatRole::CHH,step)&&get(p.a,BeatRole::OHH,step)),
              "open+closed hats collide in main beat");
-      const std::size_t breakStart=static_cast<std::size_t>(length)-4;
+      // BC39: A musical fill develops across the final HALF BAR while
+      // leaving the preceding steps and the established backbeat intact.
+      const std::size_t breakStart=static_cast<std::size_t>(length)-8u;
       for(std::size_t row=0;row<kRows;++row)
        for(std::size_t step=0;step<breakStart;++step)
         check(p.a[row*kSteps+step]==p.c[row*kSteps+step],
-              "break modified original groove before transition");
+              "break modified original groove before half-bar transition");
+      bool earlyTurnaround=false;
+      for(std::size_t row=0;row<8;++row)
+       for(std::size_t step=breakStart;step<breakStart+4u;++step)
+        if(p.a[row*kSteps+step]!=p.c[row*kSteps+step])
+         earlyTurnaround=true;
+      check(earlyTurnaround,
+            "BC39 fill is still just a last-four-step ornament");
       check(count(p.a,BeatRole::BD,length)>0&&
             count(p.a,BeatRole::Snare,length)>=2,"silence/weak main groove");
      }
