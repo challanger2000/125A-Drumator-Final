@@ -32,7 +32,7 @@ jobs:
       - name: Configure Windows x64 VST3 and standalone QA
         run: cmake -S . -B build -A x64 -DBUILD_TESTING=ON -DDRUMATOR_BUILD_VST3=ON -DVST3_SDK_ROOT="$env:GITHUB_WORKSPACE/sdk"
       - name: Build tests and Drumator VST3
-        run: cmake --build build --config Release --target drumator_test_suite drumator_editor_smoke drumator_audio_host_smoke Drumator validator moduleinfotool --parallel 2
+        run: cmake --build build --config Release --target drumator_test_suite drumator_beat_creator_preview_pack drumator_editor_smoke drumator_audio_host_smoke Drumator validator moduleinfotool --parallel 2
       - name: Run deterministic regressions
         shell: pwsh
         run: |
@@ -258,6 +258,32 @@ jobs:
             throw 'Verified production MAIN/SONG/WAVE screenshots missing from artifact'
           }
           $bundleFiles | Select-Object FullName,Length | Format-Table
+      - name: Generate independent Beat Creator listening pack (development only)
+        if: github.ref == 'refs/heads/develop/v1.5.0'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $exe=Join-Path $PWD 'build/Release/drumator_beat_creator_preview_pack.exe'
+          if (!(Test-Path -LiteralPath $exe)) { throw 'Preview pack generator binary absent' }
+          $out=Join-Path $PWD 'build/beat-creator-audition'
+          & $exe $out
+          if ($LASTEXITCODE -ne 0) { throw 'Beat Creator preview pack render failed' }
+          $samples=@(Get-ChildItem -LiteralPath (Join-Path $out 'Factory Kit') -Filter '*.wav')
+          $loops=@(Get-ChildItem -LiteralPath (Join-Path $out 'Grooves - A B C') -Filter '*.wav')
+          if ($samples.Count -ne 8 -or $loops.Count -ne 24) {
+            throw "Wrong listening pack contents: samples=$($samples.Count), grooves=$($loops.Count)"
+          }
+          if (!(Test-Path -LiteralPath (Join-Path $out 'START-HERE.txt'))) {
+            throw 'Missing listening-pack instructions'
+          }
+          Write-Output "Beat Creator: 8 original samples and 24 audible A/B/C loops PASS"
+      - name: Upload isolated Beat Creator listening pack
+        if: github.ref == 'refs/heads/develop/v1.5.0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: 125A-Drumator-15-Beat-Creator-Audition-WAVs
+          path: build/beat-creator-audition/
+          if-no-files-found: error
       - name: Archive native VSTGUI pixel renderings
         uses: actions/upload-artifact@v4
         with:
