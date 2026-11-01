@@ -13,7 +13,7 @@ using namespace drumator;
 int main(int argc,char** argv){
  try {
   if(argc!=2){std::cerr<<"Usage: beat_creator_preview_pack <output-directory>\n";return 2;}
-  const std::filesystem::path root=std::filesystem::u8path(argv[1]);
+  const std::filesystem::path root(argv[1]);
   const auto voices=root/"Factory Kit";
   const auto loops=root/"Grooves - A B C";
   std::filesystem::create_directories(voices);
