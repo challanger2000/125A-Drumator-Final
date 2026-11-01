@@ -27,6 +27,7 @@
 #include "vst3/UiV101ControllerBridge.h"
 #include "vst3/DrumatorProcessor.h"
 #include "core/BeatCreatorFactoryKit.h"
+#include "core/KitPresetCatalog.h"
 #include "vst3/DrumatorEditor.h"
 #include "vst3/PluginIDs.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
@@ -3941,6 +3942,56 @@ void testRandomVelocityOneShot(){
  check(f.c->undoCurrentPattern()&&f.c->velocity(0,0,0)==before,"Button Undo failed");
  evidence("RANDOM one-shot occupied-only, 1T/2T, isolated row/pattern and Undo PASS");
 }
+void testUserKitPresetIsSoundOnly(){
+ Fixture f;
+ KitState start;
+ start.visible=4;start.grid[0]=91;start.grid[2*kRows*kSteps+7]=73;
+ start.patternLengths.fill(16);
+ start.songEnabled=1;
+ start.swing=17;
+ start.wav[0]=BeatCreatorFactoryKit::wav(0);
+ start.names[0]="Owner_Kick.wav";
+ start.displayNames[0]="Owner Kick";
+ f.kit(start);prepareAudio(*f.p);
+ const auto capture=[&]{
+  ResizableMemoryIBStream stream;KitState state;
+  check(f.p->getState(&stream)==kResultOk&&
+    KitCodec::decode(static_cast<const std::uint8_t*>(stream.getData()),
+      static_cast<std::size_t>(stream.getCursor()),state),"BC33 snapshot");
+  return state;
+ };
+ const auto before=capture();
+ KitState selected;
+ selected.grid.fill(119);selected.visible=12;selected.selected=4;
+ selected.swing=50;selected.songEnabled=0;
+ selected.wav[0]=BeatCreatorFactoryKit::wav(2);
+ selected.names[0]="OtherKick.wav";
+ selected.displayNames[0]="New Kit Kick";
+ selected.wav[1]=BeatCreatorFactoryKit::wav(1);
+ selected.names[1]="NewSnare.wav";
+ selected.displayNames[1]="New Kit Snare";
+ const auto root=std::filesystem::temp_directory_path()/"125A-BC33-Kit";
+ std::error_code ec;std::filesystem::create_directories(root,ec);
+ const auto path=root/"02_User_Drums.125akit";
+ check(KitPresetCatalog::save(path,selected),"BC33 create preset");
+ check(f.c->loadKitPreset(pathToUtf8(path)),"BC33 Controller sample-kit load");
+ const auto after=capture();
+ check(after.wav[0]==selected.wav[0]&&after.wav[1]==selected.wav[1]&&
+       after.wav[2].empty()&&
+       after.names[0]==selected.names[0]&&
+       after.displayNames[1]==selected.displayNames[1],
+       "BC33 kit did not replace instruments accurately");
+ check(after.grid==before.grid&&
+       after.patternLengths==before.patternLengths&&
+       after.selected==before.selected&&after.visible==before.visible&&
+       after.songEnabled==before.songEnabled&&after.songStartBar==before.songStartBar&&
+       after.swing==before.swing&&after.gain==before.gain&&after.pan==before.pan,
+       "BC33 kit import touched grooves/song/mixer/visible rows");
+ check(!f.c->hasSample(2)&&f.c->hasSample(0)&&f.c->hasSample(1),
+       "BC33 controller state mirror incorrect");
+ std::filesystem::remove_all(root,ec);
+ evidence("BC33 real Controller/Processor .125akit import, empty rows, sample assignment and exact groove/song/host mix preservation PASS");
+}
 void testBeatCreatorV15AudiblePreview(){
  Fixture f;
  auto original=namedKit('X',8);
@@ -6313,6 +6364,7 @@ int main(int argc,char** argv){
  run("VELO 100 reset existing notes",testVelocityResetPattern);
  run("V16 1T hidden velocity preservation",testVelocityInactiveBarProtection);
  run("BC15 connected Beat Creator Preview/Apply/group Undo",testBeatCreatorV15GroupApplyUndo);
+ run("BC33 DAW-independent .125akit sound-only transaction",testUserKitPresetIsSoundOnly);
  run("BC16 audible non-destructive A/B/C preview",testBeatCreatorV15AudiblePreview);
  run("BC17 real Beat Creator V101 dialog and guarded workflow",testBeatCreatorV15Dialog);
  run("BC32 A/B/C APPLY changes only patterns, empty sample rows stay silent",testBeatCreatorV15FactoryKitApply);

@@ -521,6 +521,45 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    return Steinberg::kResultOk;
  }
 
+ // BC33 independent sample-kit preset. This replaces only sound assets,
+ // labels and per-sample trims. Patterns, Song Chain, row count, automation,
+ // mute/solo and mixer settings remain the user's current project.
+ if(std::strcmp(id,"Drumator.LoadKitSounds")==0){
+   auto* a=msg->getAttributes();
+   const void* raw=nullptr;
+   Steinberg::uint32 count=0;
+   if(!a||a->getBinary("EncodedKit",raw,count)!=Steinberg::kResultOk||
+      !raw||count<16u||count>kMaxKitBytes)return Steinberg::kInvalidArgument;
+   KitState selected;
+   if(!KitCodec::decode(static_cast<const std::uint8_t*>(raw),count,selected))
+     return Steinberg::kInvalidArgument;
+   std::lock_guard<std::mutex> guard(kitMutex_);
+   const auto rate=outputRate_.load(std::memory_order_acquire);
+   if(!std::isfinite(rate)||rate<=0.)return Steinberg::kResultFalse;
+   KitState next=kit_; // never publish partial/invalid assets
+   for(std::size_t row=0;row<kRows;++row){
+     next.wav[row].swap(selected.wav[row]);
+     next.names[row].swap(selected.names[row]);
+     next.displayNames[row].swap(selected.displayNames[row]);
+     next.sampleEdits[row]=selected.sampleEdits[row];
+   }
+   if(!KitCodec::valid(next,true)||!publishRestoredKit(next,rate))
+     return Steinberg::kResultFalse;
+   for(std::size_t row=0;row<kRows;++row){
+     kit_.wav[row].swap(next.wav[row]);
+     kit_.names[row].swap(next.names[row]);
+     kit_.displayNames[row].swap(next.displayNames[row]);
+     kit_.sampleEdits[row]=next.sampleEdits[row];
+     previewPending_.fetch_and(~(std::uint32_t{1}<<static_cast<unsigned>(row)),
+                               std::memory_order_acq_rel);
+     liveSessions_[row]=0;liveFrameCounts_[row]=0;
+     liveEdits_[row].publish(false,SampleEdit{});
+     ++editorRevisions_[row];
+   }
+   // Deliberately do NOT touch kit_.grid, patternLengths, selected, chain,
+   // visible, gain/pan/pitch/output/choke, tempo or host automation.
+   return Steinberg::kResultOk;
+ }
  if(std::strcmp(id,"Drumator.EditorPreview")!=0&&
     std::strcmp(id,"Drumator.EditorPreviewStop")!=0&&
     std::strcmp(id,"Drumator.LoadPcm16Wav")!=0&&

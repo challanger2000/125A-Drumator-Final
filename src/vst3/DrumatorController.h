@@ -49,6 +49,8 @@ public:
 
  bool hasSample(std::size_t row) const noexcept {return row<kRows&&samplePresent_[row];}
  bool clearSample(std::size_t row);
+ // User-selected portable .125akit file. Replace instrument sounds only.
+ bool loadKitPreset(const std::string& path);
  bool previewSample(std::size_t row);
  bool previewSampleEdit(std::size_t row,const SampleEdit& edit,
                         std::uint32_t revision=UINT32_MAX);

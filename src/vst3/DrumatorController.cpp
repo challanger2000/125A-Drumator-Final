@@ -15,6 +15,7 @@
 #include "core/MidiExport.h"
 #include "core/OfflineWavExport.h"
 #include "core/BeatCreatorAudioPreview.h"
+#include "core/KitPresetCatalog.h"
 #include "core/BeatCreatorFactoryKit.h"
 #include "core/ExportFile.h"
 #include "base/source/fstreamer.h"
@@ -1867,6 +1868,49 @@ Controller::LoadStatus Controller::stepSample(std::size_t row,int direction) {
  }catch(const std::filesystem::filesystem_error&){return LoadStatus::ReadError;}
   catch(const std::bad_alloc&){return LoadStatus::ReadError;}
 }
+bool Controller::loadKitPreset(const std::string& utf8Path){
+ if(utf8Path.empty()||utf8Path.size()>4096||!getPeer())return false;
+ try{
+  const auto filename=pathFromUtf8(utf8Path);
+  std::string ext=pathToUtf8(filename.extension());
+  std::transform(ext.begin(),ext.end(),ext.begin(),[](unsigned char c){
+    return static_cast<char>(std::tolower(c));
+  });
+  if(ext!=".125akit")return false;
+  KitState source;
+  if(!KitPresetCatalog::read(filename,source))return false;
+  std::vector<std::uint8_t> encoded;
+  if(!KitCodec::encode(source,encoded)||encoded.size()>UINT32_MAX)return false;
+  ScopedActionMessage msg{allocateMessage()};
+  if(!msg.p)return false;
+  msg.p->setMessageID("Drumator.LoadKitSounds");
+  auto* a=msg.p->getAttributes();
+  if(!a||a->setBinary("EncodedKit",encoded.data(),
+          static_cast<Steinberg::uint32>(encoded.size()))!=Steinberg::kResultOk)
+    return false;
+  if(sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+  // Successful audio-side transaction: no more allocations are needed.
+  // The imported KitState is consumed ONLY for its instrument assets.
+  invalidateWaveQuery();
+  for(std::size_t row=0;row<kRows;++row){
+    exportWavs_[row].swap(source.wav[row]);
+    exportEdits_[row]=source.sampleEdits[row];
+    labels_[row].swap(source.names[row]);
+    customNames_[row].swap(source.displayNames[row]);
+    samplePresent_[row]=!exportWavs_[row].empty();
+    samplePaths_[row].clear();originIdentityValid_[row]=false;
+    originIdentity_[row]=0;
+    if(!samplePresent_[row])labels_[row]="EMPTY - LOAD WAV";
+  }
+  // Recreate any future Beat Creator audition with these new instruments.
+  beatPreview_.valid=false;
+  pathsRestoredBeforeComponent_=false;
+  componentStatePendingController_=false;
+  try{notifyViews(false);}catch(...){}
+  return true;
+ }catch(...){return false;}
+}
+
 Controller::LoadStatus Controller::loadWav(std::size_t row,const std::string& path) {
  if(row>=kRows)return LoadStatus::InvalidRow;
  if(path.empty())return LoadStatus::NotFound;
