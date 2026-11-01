@@ -1627,7 +1627,7 @@ void testV101LiveEditor(){
  const auto bc30Before2=f.c->velocity(2,0,2);
  const auto bc30Before4=f.c->velocity(2,0,4);
  click(*view,1230.,L::header+12.); // VEL expansion, row 1
- const auto bc30Y=L::header+L::rowHeight;
+ const auto bc30Y=L::header; // expanded velocity coordinates remain row-relative
  VSTGUI::CPoint bc30Start(L::stepX+8.,bc30Y+87.);
  (void)view->onMouseDown(bc30Start,VSTGUI::CButtonState(
        VSTGUI::kLButton|VSTGUI::kShift));
