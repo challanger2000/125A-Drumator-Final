@@ -1,5 +1,16 @@
 # 125A Drumator — authoritative v1.5 development status
 
+## Stage 5.7 — Genre-specific Beat Creator groove engine (1 November 2026)
+
+- **Latest tested SOURCE code:** `8386945f34c55babb6488aa53909f2c2aba2e22d` on `develop/v1.5.0`, [GitHub Actions #41284886394](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41284886394) **SUCCESS**, **32/32 CTests, 47/47 Steinberg Validator, 58 PASS / 0 WARNING / 0 FAIL independent 125A Tester v0.3.2**; exact VST3 DLL SHA256 `d0bffe170421819f2e87f9e3502b34792e5ae54b168e9a98591c966659850e9c`.
+- **Musical changes:** 3 distinct genre templates for each of 8 genres (Industrial/NDH, EBM, Techno, House, Rock, Metal, Hip-Hop, Drum & Bass), plus 3 controlled 16th-note ornament variants at normal Complexity (up to 9 distinct step patterns/style); consecutive GENERATE seed increments cannot produce the same core motif at the 35% default. Two-bar (32-step) phrases use a different template in their second bar. B changes a genre-dependent closing note rather than always toggling the last kick. C has three separate genre-appropriate last-four-step fills (acoustic tom rolls, industrial/electronic accents, hip-hop sparse fills, drum & bass pickups), preserving the rest of A and the bar's core backbeat.
+- **BC26 deterministic tests:** explicitly compare occupied steps, not just random velocity, across 64 seeds per style at Complexity 35/75, enforce 6+ distinct note-placement structures, prevent identical consecutive default-complexity structures, validate second-bar developments and multiple fill outcomes. Existing A/B/C selection, guarded APPLY, group UNDO, copied patterns D–H, WAV/host engine and all GUI layout stay unchanged.
+- **Earlier Stage 5.6 on same source:** clicking the existing Complexity percentage activates a native inline edit in the same 52×25 area. Enter accepts 0–100 (including 67%), rejects invalid values; ESC/blur/cancel do not commit; `−/+ ` continue to change 10 percentage points. Closing the modal removes the native EDIT safely. Both the centred style bezel and aligned numeric controls remain as in BC23/BC24.
+- **Installation / hearing:** [Current Windows VST3 ZIP](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41284886394/artifacts/13073764936); [15 Beat Creator audition WAVs](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41284886394/artifacts/13074443621); [native GUI shots](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41284886394/artifacts/13075290245).
+- **Release boundary:** no merge into `main`, no release or Gumroad update. Musical approval still needs an actual Studio One listening test against the intended grooves and user samples. These tests verify note placement / stability, not subjective sound quality.
+
+---
+
 ## Stage 5.5 — Beat Creator buttons match established Drumator hardware (1 November 2026)
 
 - **Exact validated code:** `27106d07bb59ad9342bae63460c456366b130d74` on `develop/v1.5.0`; [GitHub Actions #41281044652](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41281044652) SUCCESS: **32/32 CTests**, **47/47 Steinberg VST3 Validator**, **58 PASS / 0 WARNING / 0 FAIL independent 125A Tester v0.3.2**. Windows VST3 DLL SHA256 `4189f36c5a2dd86aa16995c63fec830c5826c7538f4d5c92bebfcd1f95c7ef74`.
