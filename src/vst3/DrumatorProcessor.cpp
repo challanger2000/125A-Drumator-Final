@@ -321,7 +321,8 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
       auditionPublishSequence_.fetch_add(1,std::memory_order_seq_cst);
       return Steinberg::kResultFalse;
     }
-    auditionStart_.store(true,std::memory_order_release);
+    // Keep the existing editor-preview instrumentation anchor unique.
+    auditionStart_.store(true,std::memory_order_seq_cst);
     auto cmd=auditionCommand_.load(std::memory_order_relaxed);
     while(!auditionCommand_.compare_exchange_weak(
        cmd,((((cmd>>1)+1u)<<1)|1u),
