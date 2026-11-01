@@ -1,23 +1,18 @@
 # 125A Drumator — authoritative v1.5 development status
 
-**Stage 4 — audio preview transport implemented; Windows QA not yet verified (2026-11-01).**
-The non-destructive 16/32-step Beat Creator draft can now be auditioned from the
-Controller API: `playBeatCreatorDraft(0/1/2, bpm)`, `stopBeatCreatorDraft()` and
-`cancelBeatCreator()`. A/B/C are rendered in RAM with the original audition kit
-through the **existing** OfflineWavExport / StepScheduler / SampleVoiceEngine,
-then streamed via `Drumator.BeatCreatorAudition` to the independent preview voice.
-No temporary disk files, kit/step/project writes or automatic sample loading.
-A dedicated Windows `BC16` integration regression covers audible START,
-STOP, CANCEL, 16/32 steps and unchanged serialized kit.
+## Stage 4 — audible A/B/C audition transport: WINDOWS QA PASS (1 November 2026)
 
-**Important:** This is a development-only code milestone, not a completed user
-feature: the GUI button/dialog is not wired, no Studio One listening acceptance
-has occurred, and the new Windows tests/Steinberg validator/125A tester must
-pass before claiming Stage 4 QA success. `main` v1.0.1 remains untouched.
+- **Verified code:** `878a2e6eb70341936845b3c92264d4481274a740` on `develop/v1.5.0`.
+- **[Windows Actions #41271108699](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41271108699): SUCCESS.** 32/32 CTests, including BC16 connected Controller/Processor audio-preview regression; 47/47 Steinberg validator; independent 125A Plugin Tester v0.3.2 **58 PASS / 0 WARNING / 0 FAIL**.
+- **Verified Windows DLL SHA256:** `f58ae0afe7c83d8cd11604567ffd570858d1d57a4a1337779bdb11af02361910`.
+- **Implemented:** `playBeatCreatorDraft(0/1/2, bpm)` plays A Generate, B Variate and C Break at 16 or 32 steps through a distinct audition voice, with `stopBeatCreatorDraft()` and `cancelBeatCreator()`. The in-memory audition uses the **existing** `OfflineWavExport`, `StepScheduler`, `SampleVoiceEngine` with the independently synthesized eight-piece factory audition kit. No temporary disk writes, user kit/sample/step changes, SONG changes, or VST3 project-state mutations.
+- **BC16 test:** verifies START audio with stopped host, STOP silences, CANCEL rejects stale drafts, invalid selections are rejected, and processor saved kit/grid and lengths remain unchanged for A/B/C in both 16- and 32-step mode.
+- **Not yet completed:** Beat Creator UI/button/dialog and real owner Studio One audition/quality acceptance. No automatically installed sample kit, no v1.5 consumer package or Gumroad publication. Stage 4 is a **verified technical milestone**, not an end-user feature until its controls are connected.
+- **Frozen release:** `main` continues to serve released **v1.0.1** unchanged. Only `develop/v1.5.0` contains 1.5 development.
 
 ---
 
-
+## Previous stage: Stage 3 factory audition kit (historical)
 
 **1 November 2026 — Stage 3: Original 8-piece factory audition kit, WAV listening pack and all Windows QA PASS.**
 
