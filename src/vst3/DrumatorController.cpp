@@ -1841,7 +1841,14 @@ Controller::LoadStatus Controller::stepSample(std::size_t row,int direction) {
  }catch(const std::filesystem::filesystem_error&){return LoadStatus::ReadError;}
   catch(const std::bad_alloc&){return LoadStatus::ReadError;}
 }
-bool Controller::loadKitPreset(const std::string& utf8Path){
+bool Controller::loadPreviewKit(){
+ try{
+  const auto root=KitPresetCatalog::bundleDirectory();
+  if(root.empty())return false;
+  return loadKitPreset(pathToUtf8(root/"125A_Preview_Kit.125akit"),true);
+ }catch(...){return false;}
+}
+bool Controller::loadKitPreset(const std::string& utf8Path,bool previewOnly){
  if(utf8Path.empty()||utf8Path.size()>4096||!getPeer())return false;
  try{
   const auto filename=pathFromUtf8(utf8Path);
@@ -1852,16 +1859,21 @@ bool Controller::loadKitPreset(const std::string& utf8Path){
   if(ext!=".125akit")return false;
   KitState source;
   if(!KitPresetCatalog::read(filename,source))return false;
+  if(previewOnly){
+   for(std::size_t row=0;row<8;++row)
+    if(source.wav[row].empty())return false;
+  }
+  const auto soundRows=previewOnly?std::size_t{8}:kRows;
   // Pre-stage all labels before sending a transaction that may already
   // commit audio. After ACK, only no-throw swaps/moves are permitted.
   std::array<std::string,kRows> emptyNames{};
-  for(std::size_t row=0;row<kRows;++row)
+  for(std::size_t row=0;row<soundRows;++row)
    if(source.wav[row].empty())emptyNames[row]="EMPTY - LOAD WAV";
   std::vector<std::uint8_t> encoded;
   if(!KitCodec::encode(source,encoded)||encoded.size()>UINT32_MAX)return false;
   ScopedActionMessage msg{allocateMessage()};
   if(!msg.p)return false;
-  msg.p->setMessageID("Drumator.LoadKitSounds");
+  msg.p->setMessageID(previewOnly?"Drumator.LoadPreviewSounds":"Drumator.LoadKitSounds");
   auto* a=msg.p->getAttributes();
   if(!a||a->setBinary("EncodedKit",encoded.data(),
           static_cast<Steinberg::uint32>(encoded.size()))!=Steinberg::kResultOk)
@@ -1870,7 +1882,7 @@ bool Controller::loadKitPreset(const std::string& utf8Path){
   // Successful audio-side transaction: no more allocations are needed.
   // The imported KitState is consumed ONLY for its instrument assets.
   invalidateWaveQuery();
-  for(std::size_t row=0;row<kRows;++row){
+  for(std::size_t row=0;row<soundRows;++row){
     exportWavs_[row].swap(source.wav[row]);
     exportEdits_[row]=source.sampleEdits[row];
     labels_[row].swap(source.names[row]);
