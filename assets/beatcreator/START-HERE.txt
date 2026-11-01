@@ -1,0 +1,10 @@
+125A DRUMATOR 1.5: EIGHT GENRE KITS - DEVELOPMENT CANDIDATES
+
+64 WAVs: 8 kits x 8 roles, 44.1kHz/16-bit/mono.
+These are recorded, CC0-licensed hits, not the previous C++ synthesizer kit.
+Sources: Michael Fischer's real TR-808 recordings (TidalCycles CC0)
+and Karoryfer Big Rusty Drums CC0 (physical acoustic drum recordings).
+No WAVs are embedded in the plugin by this preview-only workflow.
+Inspect the per-sample provenance and SHA-256 hashes in SOURCE-MANIFEST.json.
+No modifications to main, or the user's factory/project kits.
+Do not advertise these as approved without listening/DAW verification.

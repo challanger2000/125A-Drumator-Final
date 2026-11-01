@@ -1,0 +1,738 @@
+{
+  "type": "DEVELOPMENT_CANDIDATE_NOT_RELEASED",
+  "format": "44.1kHz PCM16 mono",
+  "sources": {
+    "808": {
+      "repo": "tidalcycles/sounds-tr808-fischer",
+      "commit": "85fbecf1bec32553395625ea659e2a56dfd7c0e1",
+      "license": "CC0-1.0"
+    },
+    "rusty": {
+      "repo": "sfzinstruments/karoryfer.big-rusty-drums",
+      "commit": "f07ce00df34a46b6b08375be56fe116cf15782bc",
+      "license": "CC0-1.0"
+    }
+  },
+  "kits": {
+    "01_Industrial_NDH": [
+      {
+        "role": "BD",
+        "filename": "01_BD.wav",
+        "source": "rusty",
+        "source_path": "Samples/kick_24/kick/kick/k_vl13_rr1.flac",
+        "source_sha256": "35436a84127b72757e7dc7c266783af7e5f8e4f4244584df083a8cb8b784b768",
+        "wav_sha256": "2b8d78ad9190fdd198226caaab13802d42768a257dd691fb0a9c7c858d053fe7",
+        "frames": 37485,
+        "peak": 0.9,
+        "rms": 0.0882
+      },
+      {
+        "role": "Snare",
+        "filename": "02_Snare.wav",
+        "source": "rusty",
+        "source_path": "Samples/snare_14/rimshot/top/sn_rims_vl5_rr1.flac",
+        "source_sha256": "ca54acdfb20c1f8cbbf997598c7a8bc5d94333e4a7a2d7c7413cdeea56ab1f44",
+        "wav_sha256": "104885637a27a7a72425c5e6b878905ba4b87bb82ebc6dd3e6a30f76a1d45ed9",
+        "frames": 30870,
+        "peak": 0.83,
+        "rms": 0.0279
+      },
+      {
+        "role": "CHH",
+        "filename": "03_CHH.wav",
+        "source": "808",
+        "source_path": "ch8/CH.WAV",
+        "source_sha256": "c9f30ff2b4d73b03f41960e504e03c54e9a59697af666fe4d155bab9cd1ccae6",
+        "wav_sha256": "13d57e7812183daf18cef29eea36ff1024f7137a0dfc66f1a04f2bd83f020d61",
+        "frames": 10143,
+        "peak": 0.64,
+        "rms": 0.0373
+      },
+      {
+        "role": "OHH",
+        "filename": "04_OHH.wav",
+        "source": "rusty",
+        "source_path": "Samples/hihat_14/open/oh/ht_open_vl5_rr1.flac",
+        "source_sha256": "429fac3437e0aa119308bf825c3c81097aa42baae70101e74b219abe48116f39",
+        "wav_sha256": "6f77b3b38d21224afe4b0fac1388a138ff7c0fed27e06a01c6f238bb499f9f67",
+        "frames": 59535,
+        "peak": 0.65,
+        "rms": 0.0309
+      },
+      {
+        "role": "Low_Tom",
+        "filename": "05_Low_Tom.wav",
+        "source": "rusty",
+        "source_path": "Samples/tom_22/center/cl/t22_vl6_rr1.flac",
+        "source_sha256": "eb8bf76f3bea0412ae2d48206598fcb2d15cf1ebf79ff3e1d0402818604cb7ab",
+        "wav_sha256": "8c4f9f866d1c46171f88e8ff449515f1dff325e0782eb88257bb8249dc977bab",
+        "frames": 44100,
+        "peak": 0.7,
+        "rms": 0.0696
+      },
+      {
+        "role": "High_Tom",
+        "filename": "06_High_Tom.wav",
+        "source": "rusty",
+        "source_path": "Samples/tom_14/center/cl/t14_vl5_rr1.flac",
+        "source_sha256": "7aabe82391ff96cda9203cee81fc72fa1665ca225ddfab8bc05abd883c18c727",
+        "wav_sha256": "0bde0b96bcf36f75eeedba28b6b4d80d843016260b5468b1fb57e76d8a8acadf",
+        "frames": 41895,
+        "peak": 0.7,
+        "rms": 0.0645
+      },
+      {
+        "role": "Crash",
+        "filename": "07_Crash.wav",
+        "source": "rusty",
+        "source_path": "Samples/crash_17/cr/oh/cr_vl4_rr1.flac",
+        "source_sha256": "84150bf1f6842d3cb7738c579ac06bdfb5319a5ab180a4b7663e8058fd0a0e46",
+        "wav_sha256": "42335326ab7cbcac8d192db61845e2719975382ec7607192e8f9a815e93d68aa",
+        "frames": 149940,
+        "peak": 0.56,
+        "rms": 0.0226
+      },
+      {
+        "role": "Clap",
+        "filename": "08_Clap.wav",
+        "source": "808",
+        "source_path": "cp8/CP.WAV",
+        "source_sha256": "376429bb81cb48d1f392a11cd066c32ffb7883d445b2488704ea52e46bb08286",
+        "wav_sha256": "b1e4e44b0f17f00d5eb7da45d37344122e1e99538a57d39c5959c28357d96cac",
+        "frames": 30870,
+        "peak": 0.71,
+        "rms": 0.0456
+      }
+    ],
+    "02_EBM": [
+      {
+        "role": "BD",
+        "filename": "01_BD.wav",
+        "source": "808",
+        "source_path": "bd8/BD2550.WAV",
+        "source_sha256": "7cbfb54d75ced8060a28e5989e03cbc79d60d350d161da2228d4d53872f7d562",
+        "wav_sha256": "c9ca8b85fa3f2c13b8607c556a92da1e58c579b3f80cd8f7cb2424508c2648d0",
+        "frames": 37485,
+        "peak": 0.9,
+        "rms": 0.1934
+      },
+      {
+        "role": "Snare",
+        "filename": "02_Snare.wav",
+        "source": "808",
+        "source_path": "sd8/SD5050.WAV",
+        "source_sha256": "6dcbf8acd5cee6d6b7955d26c6b57d8ca413f1ae1c7caafaaec780d83f08d712",
+        "wav_sha256": "5c33b0d479840f34ea35a8437822ce3316d59101fbf1caf73eaf4f83b16f6e73",
+        "frames": 22051,
+        "peak": 0.83,
+        "rms": 0.0563
+      },
+      {
+        "role": "CHH",
+        "filename": "03_CHH.wav",
+        "source": "808",
+        "source_path": "ch8/CH.WAV",
+        "source_sha256": "c9f30ff2b4d73b03f41960e504e03c54e9a59697af666fe4d155bab9cd1ccae6",
+        "wav_sha256": "ca3a7880b5bd9a52d191244cd31c6fdcb8b4976f9df8b3d418badc8667794171",
+        "frames": 10143,
+        "peak": 0.64,
+        "rms": 0.0445
+      },
+      {
+        "role": "OHH",
+        "filename": "04_OHH.wav",
+        "source": "808",
+        "source_path": "oh8/OH25.WAV",
+        "source_sha256": "2674962ca376c0d08ce802423eb696be86b516450fe23707ac69f3878b35f12b",
+        "wav_sha256": "b551183bf6d07a91437675a7dc7534f70fc368b920eaa5e26032a2040778a0ff",
+        "frames": 11026,
+        "peak": 0.65,
+        "rms": 0.1183
+      },
+      {
+        "role": "Low_Tom",
+        "filename": "05_Low_Tom.wav",
+        "source": "808",
+        "source_path": "lt8/LT50.WAV",
+        "source_sha256": "d3720682985a9621c4a67749dfd5336fa4f25564ef7ea2e633ac8ff5fdd64eda",
+        "wav_sha256": "8964b3e51313ed002ed12748cdccfc2ee15672c43534287fbea8d855626ed511",
+        "frames": 44100,
+        "peak": 0.6475,
+        "rms": 0.1013
+      },
+      {
+        "role": "High_Tom",
+        "filename": "06_High_Tom.wav",
+        "source": "808",
+        "source_path": "ht8/HT50.WAV",
+        "source_sha256": "7e0b9eddd95379298aacbf1520929f586191788d9e0841ad752d84bdde910d88",
+        "wav_sha256": "ca899d2ce7955f2ee8be2671c12b9c49da029c50cfc76066e7f88dc0bc7c29ae",
+        "frames": 41895,
+        "peak": 0.7,
+        "rms": 0.0779
+      },
+      {
+        "role": "Crash",
+        "filename": "07_Crash.wav",
+        "source": "808",
+        "source_path": "cy8/CY2550.WAV",
+        "source_sha256": "8006625720c2ec1246bd25c345e2e43f9be59396b07af909f6729e971133b941",
+        "wav_sha256": "20ac932cba456e2f6f235a0791c0856e884080b908a1f77b508150e60f293a4b",
+        "frames": 110251,
+        "peak": 0.56,
+        "rms": 0.0351
+      },
+      {
+        "role": "Clap",
+        "filename": "08_Clap.wav",
+        "source": "808",
+        "source_path": "cp8/CP.WAV",
+        "source_sha256": "376429bb81cb48d1f392a11cd066c32ffb7883d445b2488704ea52e46bb08286",
+        "wav_sha256": "869a44ba2f85c1be33a6068ddb2789d039f66f5d6ae8e6844b64f2130b512ce9",
+        "frames": 30870,
+        "peak": 0.71,
+        "rms": 0.0453
+      }
+    ],
+    "03_Techno": [
+      {
+        "role": "BD",
+        "filename": "01_BD.wav",
+        "source": "808",
+        "source_path": "bd8/BD7550.WAV",
+        "source_sha256": "44dc338b85c2605c6b75465d1d208f4cf58e440a25118fcac64033590a59ca0a",
+        "wav_sha256": "5fa9c50313f4368c2f3086dd87032fdb6743d523b2493227807554d82ec1bf40",
+        "frames": 37485,
+        "peak": 0.9,
+        "rms": 0.1798
+      },
+      {
+        "role": "Snare",
+        "filename": "02_Snare.wav",
+        "source": "808",
+        "source_path": "sd8/SD5010.WAV",
+        "source_sha256": "6832682eeb286223b76bf7ce4daa2c1a2df9e13b722f11c81c44c3a30c607ffc",
+        "wav_sha256": "84f1083e0f21e680a3a72527e9502b3a483513f984f8dcc488b7d159a990d04c",
+        "frames": 22051,
+        "peak": 0.83,
+        "rms": 0.0753
+      },
+      {
+        "role": "CHH",
+        "filename": "03_CHH.wav",
+        "source": "808",
+        "source_path": "ch8/CH.WAV",
+        "source_sha256": "c9f30ff2b4d73b03f41960e504e03c54e9a59697af666fe4d155bab9cd1ccae6",
+        "wav_sha256": "bc849d8a8f2af8382503f0f5dec606cc94f1b8f4d86c7c0abb860872993f07b3",
+        "frames": 10143,
+        "peak": 0.64,
+        "rms": 0.0373
+      },
+      {
+        "role": "OHH",
+        "filename": "04_OHH.wav",
+        "source": "808",
+        "source_path": "oh8/OH75.WAV",
+        "source_sha256": "cde0aec2ca84358067859f52bac7d55b875f30d2baea700923e25e21307803e9",
+        "wav_sha256": "5507b22436bb6db125d51a774feb6dc41c770a1fe607efa28a37ff6e1176717c",
+        "frames": 33076,
+        "peak": 0.65,
+        "rms": 0.0924
+      },
+      {
+        "role": "Low_Tom",
+        "filename": "05_Low_Tom.wav",
+        "source": "808",
+        "source_path": "lt8/LT25.WAV",
+        "source_sha256": "fdd8fbb073407dce560847b2407f16f307463ddc423f0000ee098d75647eee60",
+        "wav_sha256": "8dd05cf598ca13b37c39ed0a79b00e6cac55016ebd9f1130f07b5f3fa5a32a1b",
+        "frames": 44100,
+        "peak": 0.7,
+        "rms": 0.1126
+      },
+      {
+        "role": "High_Tom",
+        "filename": "06_High_Tom.wav",
+        "source": "808",
+        "source_path": "ht8/HT50.WAV",
+        "source_sha256": "7e0b9eddd95379298aacbf1520929f586191788d9e0841ad752d84bdde910d88",
+        "wav_sha256": "f2da7ac0565509aa42d20447e9a3bb6b5cf26f1ce2705d4a9c54e400065b81cc",
+        "frames": 41895,
+        "peak": 0.7,
+        "rms": 0.0774
+      },
+      {
+        "role": "Crash",
+        "filename": "07_Crash.wav",
+        "source": "808",
+        "source_path": "cy8/CY7550.WAV",
+        "source_sha256": "ce99385f835cf38f1be8c73e71c9ee57d2451e3901e0ffffaa0a48b5cb23d33c",
+        "wav_sha256": "98c626ffca1a91ca1e92684dbe8734cca70c21d47da05d1a845ce7109903645b",
+        "frames": 110251,
+        "peak": 0.56,
+        "rms": 0.0279
+      },
+      {
+        "role": "Clap",
+        "filename": "08_Clap.wav",
+        "source": "808",
+        "source_path": "cp8/CP.WAV",
+        "source_sha256": "376429bb81cb48d1f392a11cd066c32ffb7883d445b2488704ea52e46bb08286",
+        "wav_sha256": "8562e309459f4d6896d306ebab740b50d9a2a10846baccdbcb2fe6eeaed6f228",
+        "frames": 30870,
+        "peak": 0.71,
+        "rms": 0.0439
+      }
+    ],
+    "04_House": [
+      {
+        "role": "BD",
+        "filename": "01_BD.wav",
+        "source": "808",
+        "source_path": "bd8/BD5010.WAV",
+        "source_sha256": "42c7c5eebf440437479c9b351b9749b8cbcd08f3fb43b338c61cd28437b43a8d",
+        "wav_sha256": "016ba3de143b2325ba463eb169589d1efa3752793856d19ad4cd41ddea059e5e",
+        "frames": 37485,
+        "peak": 0.9,
+        "rms": 0.3054
+      },
+      {
+        "role": "Snare",
+        "filename": "02_Snare.wav",
+        "source": "808",
+        "source_path": "sd8/SD2525.WAV",
+        "source_sha256": "a843fbb74d9cc90399a518c5ecbff0b515c3a8267c49b539d940ce669d827303",
+        "wav_sha256": "5ca5121f1341647f4d8c6e6a3e681b6a2039f70c068f6edb46772ab4f665d909",
+        "frames": 11026,
+        "peak": 0.83,
+        "rms": 0.1146
+      },
+      {
+        "role": "CHH",
+        "filename": "03_CHH.wav",
+        "source": "808",
+        "source_path": "ch8/CH.WAV",
+        "source_sha256": "c9f30ff2b4d73b03f41960e504e03c54e9a59697af666fe4d155bab9cd1ccae6",
+        "wav_sha256": "3359d723e4d2c82d581acc788d0adefdb14afabb8f998248e791d29caffc7705",
+        "frames": 10143,
+        "peak": 0.64,
+        "rms": 0.0373
+      },
+      {
+        "role": "OHH",
+        "filename": "04_OHH.wav",
+        "source": "808",
+        "source_path": "oh8/OH50.WAV",
+        "source_sha256": "84ae3220fab2396380fb6ba6032bcec7c55a6d3f621d30a13c11fdeaa099aff7",
+        "wav_sha256": "eae460fc915bd446b5c1c4f376e13240f7b1e98497a31f9226f5ee9540122196",
+        "frames": 22051,
+        "peak": 0.65,
+        "rms": 0.1056
+      },
+      {
+        "role": "Low_Tom",
+        "filename": "05_Low_Tom.wav",
+        "source": "808",
+        "source_path": "lt8/LT25.WAV",
+        "source_sha256": "fdd8fbb073407dce560847b2407f16f307463ddc423f0000ee098d75647eee60",
+        "wav_sha256": "ef8387ed1a374dc675241d7829ad234e2e71b84d625e6a28143f6489edd080a2",
+        "frames": 44100,
+        "peak": 0.6225,
+        "rms": 0.0972
+      },
+      {
+        "role": "High_Tom",
+        "filename": "06_High_Tom.wav",
+        "source": "808",
+        "source_path": "ht8/HT25.WAV",
+        "source_sha256": "5ed0365551d140dacd1a2b3c9959657f176a4c221d897700ec42de625c86cc1e",
+        "wav_sha256": "b6b811e0a5bd66e8108a8cc4695debc6158cbc1882ee178aa649df4709106993",
+        "frames": 41895,
+        "peak": 0.6464,
+        "rms": 0.0727
+      },
+      {
+        "role": "Crash",
+        "filename": "07_Crash.wav",
+        "source": "808",
+        "source_path": "cy8/CY5050.WAV",
+        "source_sha256": "3aad28641774c1e7a5502f40ec76d1b219192631547e308ce74c6d4a1c5e70a0",
+        "wav_sha256": "0665b0c8485f605d11948eb777ce14e3472ec09dc44c070bc9e6649b3405ab60",
+        "frames": 110251,
+        "peak": 0.56,
+        "rms": 0.0296
+      },
+      {
+        "role": "Clap",
+        "filename": "08_Clap.wav",
+        "source": "808",
+        "source_path": "cp8/CP.WAV",
+        "source_sha256": "376429bb81cb48d1f392a11cd066c32ffb7883d445b2488704ea52e46bb08286",
+        "wav_sha256": "9bab717b6e343b611e353cf19c0c40d428bf4f8c65e5b3f924396092bc2764b3",
+        "frames": 30870,
+        "peak": 0.71,
+        "rms": 0.0439
+      }
+    ],
+    "05_Rock": [
+      {
+        "role": "BD",
+        "filename": "01_BD.wav",
+        "source": "rusty",
+        "source_path": "Samples/kick_24/kick/kick/k_vl10_rr2.flac",
+        "source_sha256": "edb66f938549d86924ccc2506b8a987f5535b8ae3d77539160e71e5ad7d798c3",
+        "wav_sha256": "2121dfdcd05108ee5299ab3f30b5b17a3d9c2328ef47ba97eaf31c980d01c1f3",
+        "frames": 37485,
+        "peak": 0.9,
+        "rms": 0.0879
+      },
+      {
+        "role": "Snare",
+        "filename": "02_Snare.wav",
+        "source": "rusty",
+        "source_path": "Samples/snare_14/center/top/sn_center_vl8_rr2.flac",
+        "source_sha256": "b3e7d98ffae41f48cd10c05d8acd5c8741abca9c58a61b8f9fbdf56b5c65a506",
+        "wav_sha256": "aa9cf86e2ec4a77f97a8435c0b8f13b65ef30a51f0b789af76b366f37f9c4908",
+        "frames": 30870,
+        "peak": 0.83,
+        "rms": 0.0454
+      },
+      {
+        "role": "CHH",
+        "filename": "03_CHH.wav",
+        "source": "rusty",
+        "source_path": "Samples/hihat_14/cl/cl/ht_cl_vl5_rr2.flac",
+        "source_sha256": "4f73bf9fbcf945420f7c45765c9e23a0e4cb1a063907367757c3e7e161ae69eb",
+        "wav_sha256": "0d1b2380789f5f90ec609129df62bcf0a8c44c9fb35acbd60c0bcd1bfd938645",
+        "frames": 10143,
+        "peak": 0.5659,
+        "rms": 0.0341
+      },
+      {
+        "role": "OHH",
+        "filename": "04_OHH.wav",
+        "source": "rusty",
+        "source_path": "Samples/hihat_14/open/oh/ht_open_vl4_rr2.flac",
+        "source_sha256": "dbdb0091453b63d37439570f84ee58dccb2d1682cf094870bf826f65995386a1",
+        "wav_sha256": "1de39d9d88049693da909eb69dbb2f6f78e8687258b5cb4a73f14e2d43ae8278",
+        "frames": 59535,
+        "peak": 0.65,
+        "rms": 0.034
+      },
+      {
+        "role": "Low_Tom",
+        "filename": "05_Low_Tom.wav",
+        "source": "rusty",
+        "source_path": "Samples/tom_22/center/cl/t22_vl5_rr2.flac",
+        "source_sha256": "caa7d088eb23421c7dba0e0961a6b5fb532ce24ad3b8479b4844e16e700e6dad",
+        "wav_sha256": "4ffb810759b84fcba56b170d20c4812a82efd767ae14110b58135503a7aa6d6e",
+        "frames": 44100,
+        "peak": 0.7,
+        "rms": 0.071
+      },
+      {
+        "role": "High_Tom",
+        "filename": "06_High_Tom.wav",
+        "source": "rusty",
+        "source_path": "Samples/tom_14/center/cl/t14_vl5_rr2.flac",
+        "source_sha256": "60d8d9475ae9a63ca8e2144dd3c854496f11d6bf65ec51c22091c7ac94464b71",
+        "wav_sha256": "66cb68a4c00c8498688882dd390d85fae0b3c6b0decaa32a784211c69df69fbc",
+        "frames": 41895,
+        "peak": 0.7,
+        "rms": 0.0625
+      },
+      {
+        "role": "Crash",
+        "filename": "07_Crash.wav",
+        "source": "rusty",
+        "source_path": "Samples/crash_17/cr/oh/cr_vl3_rr2.flac",
+        "source_sha256": "a320d0d334dad2218c123d314a184a04c255a135c5e0222d23076e326f0b7a99",
+        "wav_sha256": "a980a0ee075ec9e086bd98073b12062a7448ebcdc44ae43c651d53fa5690321b",
+        "frames": 149940,
+        "peak": 0.56,
+        "rms": 0.0218
+      },
+      {
+        "role": "Clap",
+        "filename": "08_Clap.wav",
+        "source": "808",
+        "source_path": "cp8/CP.WAV",
+        "source_sha256": "376429bb81cb48d1f392a11cd066c32ffb7883d445b2488704ea52e46bb08286",
+        "wav_sha256": "dd308c8c94aee76c3d5c8ffaca35e0b63ff188cb7c52bbbf6ca9bcf4ed685d2c",
+        "frames": 30870,
+        "peak": 0.71,
+        "rms": 0.0439
+      }
+    ],
+    "06_Metal": [
+      {
+        "role": "BD",
+        "filename": "01_BD.wav",
+        "source": "rusty",
+        "source_path": "Samples/kick_24/kick/kick/k_vl14_rr3.flac",
+        "source_sha256": "c2956fe4b4ae8930f75af4531d49ff0f63cf22e2d4a1bfd12e67786b294ed0f9",
+        "wav_sha256": "0c437685cfbabd06f87db421130ad4ad64e93b50669c8948443726bb17362e30",
+        "frames": 37485,
+        "peak": 0.9,
+        "rms": 0.0901
+      },
+      {
+        "role": "Snare",
+        "filename": "02_Snare.wav",
+        "source": "rusty",
+        "source_path": "Samples/snare_14/rimshot/top/sn_rims_vl6_rr3.flac",
+        "source_sha256": "7f6b2a29daa88265280720373a413388cabf9663fe3893d3d02c033c8ea29af1",
+        "wav_sha256": "29a5c3d2e9bccce44923c696227f4a7ae92f887d76e312226c0ca84ac659bc63",
+        "frames": 30870,
+        "peak": 0.83,
+        "rms": 0.0273
+      },
+      {
+        "role": "CHH",
+        "filename": "03_CHH.wav",
+        "source": "rusty",
+        "source_path": "Samples/hihat_14/cl/cl/ht_cl_vl6_rr3.flac",
+        "source_sha256": "50276e80230b7c2543845bb25134217c002bad232708d655dec6a17c6af0c8f4",
+        "wav_sha256": "b77b0e5714ad3bcc2d3aefc4ac70774a15e6e21bb9851b37cf849b937b5361d6",
+        "frames": 10143,
+        "peak": 0.5804,
+        "rms": 0.0322
+      },
+      {
+        "role": "OHH",
+        "filename": "04_OHH.wav",
+        "source": "rusty",
+        "source_path": "Samples/hihat_14/open/oh/ht_open_vl6_rr3.flac",
+        "source_sha256": "e617ea78bb14e34b46246ce9e1f5aa2147c2d5be0b96e8ffb5401a39633aa94f",
+        "wav_sha256": "a2d1f4d61524a1cccf096f069ecefb79c47ceefea85b1204e666daae0c6be774",
+        "frames": 59535,
+        "peak": 0.65,
+        "rms": 0.0358
+      },
+      {
+        "role": "Low_Tom",
+        "filename": "05_Low_Tom.wav",
+        "source": "rusty",
+        "source_path": "Samples/tom_22/center/cl/t22_vl7_rr3.flac",
+        "source_sha256": "a39dba84ef1c1567f9b51a7598e232e2657954d02b902e5e83519cb067251ec9",
+        "wav_sha256": "e9d43822542d5d706643b60332654094a21338ceabad856a17676997011f101d",
+        "frames": 44100,
+        "peak": 0.7,
+        "rms": 0.0896
+      },
+      {
+        "role": "High_Tom",
+        "filename": "06_High_Tom.wav",
+        "source": "rusty",
+        "source_path": "Samples/tom_14/center/cl/t14_vl6_rr3.flac",
+        "source_sha256": "ab3f4dc5f1b812ee43750883b0ac169ae0373ccf7f5e4a66d81fa7bfeecb7230",
+        "wav_sha256": "1cbfd78ab482f93982a2ef28687e9edc88c7c83f64cee115a6eb33c1b0c0a1b9",
+        "frames": 41895,
+        "peak": 0.7,
+        "rms": 0.0695
+      },
+      {
+        "role": "Crash",
+        "filename": "07_Crash.wav",
+        "source": "rusty",
+        "source_path": "Samples/crash_17/cr/oh/cr_vl5_rr3.flac",
+        "source_sha256": "8ff1f48e433e0a3355758adf73faae035aa9e573c7eb02d04599e34cc9e07280",
+        "wav_sha256": "7836328ab1929c06c9fa338f0f0573e378b4c4dfc5c35a82250bc31a208df345",
+        "frames": 149940,
+        "peak": 0.56,
+        "rms": 0.0167
+      },
+      {
+        "role": "Clap",
+        "filename": "08_Clap.wav",
+        "source": "808",
+        "source_path": "cp8/CP.WAV",
+        "source_sha256": "376429bb81cb48d1f392a11cd066c32ffb7883d445b2488704ea52e46bb08286",
+        "wav_sha256": "8bf1b14ab52cd62d6872d0e85517674159534a9fa2bf4574361546aea885df0b",
+        "frames": 30870,
+        "peak": 0.71,
+        "rms": 0.0469
+      }
+    ],
+    "07_Hip_Hop": [
+      {
+        "role": "BD",
+        "filename": "01_BD.wav",
+        "source": "808",
+        "source_path": "bd8/BD0075.WAV",
+        "source_sha256": "75ab3c2b179c47c718a740dbae97f792442b739ca28df9e2ab59aea6c26b0496",
+        "wav_sha256": "e8425ddc3b5ee77393600caf93bb20ca851d983aa683c26aedefe2b0f07104d0",
+        "frames": 37485,
+        "peak": 0.9,
+        "rms": 0.2338
+      },
+      {
+        "role": "Snare",
+        "filename": "02_Snare.wav",
+        "source": "808",
+        "source_path": "sd8/SD2550.WAV",
+        "source_sha256": "31692bc1795641de8410fd5aee0eb98c7876100631be4f351a3b87e700acad60",
+        "wav_sha256": "4b17a4e3f63fd912fa780363f0046aaad31a70438af2f2bea7fe5a4a2bf26f70",
+        "frames": 22051,
+        "peak": 0.83,
+        "rms": 0.0739
+      },
+      {
+        "role": "CHH",
+        "filename": "03_CHH.wav",
+        "source": "808",
+        "source_path": "ch8/CH.WAV",
+        "source_sha256": "c9f30ff2b4d73b03f41960e504e03c54e9a59697af666fe4d155bab9cd1ccae6",
+        "wav_sha256": "be987d747b6a8e2d8f4fab846950758ac84732fecc286da2e7a9952c49d2bb81",
+        "frames": 10143,
+        "peak": 0.64,
+        "rms": 0.0433
+      },
+      {
+        "role": "OHH",
+        "filename": "04_OHH.wav",
+        "source": "808",
+        "source_path": "oh8/OH10.WAV",
+        "source_sha256": "1cfdc86ad44525bbef78b2db0bf860dc5abc8fe53636af7920267410666ff782",
+        "wav_sha256": "e3a038f1e039351926622689b620819f5a0a30c1417a65ef63d353e846c10ecc",
+        "frames": 33076,
+        "peak": 0.65,
+        "rms": 0.0947
+      },
+      {
+        "role": "Low_Tom",
+        "filename": "05_Low_Tom.wav",
+        "source": "808",
+        "source_path": "lt8/LT25.WAV",
+        "source_sha256": "fdd8fbb073407dce560847b2407f16f307463ddc423f0000ee098d75647eee60",
+        "wav_sha256": "07622fc3848ced6fa575647058f22b2ded0d750bb0cc24383b14ea32640bb73b",
+        "frames": 44100,
+        "peak": 0.6362,
+        "rms": 0.0986
+      },
+      {
+        "role": "High_Tom",
+        "filename": "06_High_Tom.wav",
+        "source": "808",
+        "source_path": "ht8/HT25.WAV",
+        "source_sha256": "5ed0365551d140dacd1a2b3c9959657f176a4c221d897700ec42de625c86cc1e",
+        "wav_sha256": "ead5f21871b1c4219e47d6395e4b150b5f5403d2ab369722d1f96ad25c351311",
+        "frames": 41895,
+        "peak": 0.6897,
+        "rms": 0.0782
+      },
+      {
+        "role": "Crash",
+        "filename": "07_Crash.wav",
+        "source": "808",
+        "source_path": "cy8/CY0010.WAV",
+        "source_sha256": "5e90c2d127809e66a9d6ccbb41629df877ff7feb105e3f7d6356cc4a83e9a882",
+        "wav_sha256": "74352367e766684353a646ec32c27b9e68c7515ea8e091e8310f96a33c6e965c",
+        "frames": 149940,
+        "peak": 0.56,
+        "rms": 0.0457
+      },
+      {
+        "role": "Clap",
+        "filename": "08_Clap.wav",
+        "source": "808",
+        "source_path": "cp8/CP.WAV",
+        "source_sha256": "376429bb81cb48d1f392a11cd066c32ffb7883d445b2488704ea52e46bb08286",
+        "wav_sha256": "258fd526ed9d50b02bcd1b33c272360f879f3e5f6af77a333694058c69357fa2",
+        "frames": 30870,
+        "peak": 0.71,
+        "rms": 0.0449
+      }
+    ],
+    "08_Drum_and_Bass": [
+      {
+        "role": "BD",
+        "filename": "01_BD.wav",
+        "source": "808",
+        "source_path": "bd8/BD2500.WAV",
+        "source_sha256": "27ce0d3966e9d50f684c6ec20f6e2edfc93dd47166a1f35574ff16607ca93c75",
+        "wav_sha256": "ad2f9a1293dcbd1063eb2839c2d968b902573f667f81bb4022973a7cb0eeef3f",
+        "frames": 11025,
+        "peak": 0.8546,
+        "rms": 0.1508
+      },
+      {
+        "role": "Snare",
+        "filename": "02_Snare.wav",
+        "source": "rusty",
+        "source_path": "Samples/snare_14/center/top/sn_center_vl10_rr4.flac",
+        "source_sha256": "7e8e360835047270c115bcb8c087e44f69d219af16868ca972518e4046c6b41d",
+        "wav_sha256": "828db38e310b4a9cb9bd13e10e01bd497fe6c58038f885158e4e1b23e425657e",
+        "frames": 30870,
+        "peak": 0.83,
+        "rms": 0.0406
+      },
+      {
+        "role": "CHH",
+        "filename": "03_CHH.wav",
+        "source": "808",
+        "source_path": "ch8/CH.WAV",
+        "source_sha256": "c9f30ff2b4d73b03f41960e504e03c54e9a59697af666fe4d155bab9cd1ccae6",
+        "wav_sha256": "153d1e2e5093584146447af4dd2c090ddc351d328259331594b479f50fd6dac3",
+        "frames": 10143,
+        "peak": 0.64,
+        "rms": 0.0378
+      },
+      {
+        "role": "OHH",
+        "filename": "04_OHH.wav",
+        "source": "808",
+        "source_path": "oh8/OH25.WAV",
+        "source_sha256": "2674962ca376c0d08ce802423eb696be86b516450fe23707ac69f3878b35f12b",
+        "wav_sha256": "47b163e0b0227eb4f9d36900730d22185c334943fffa1c13d2f1ce2af96b1269",
+        "frames": 11026,
+        "peak": 0.65,
+        "rms": 0.1221
+      },
+      {
+        "role": "Low_Tom",
+        "filename": "05_Low_Tom.wav",
+        "source": "rusty",
+        "source_path": "Samples/tom_22/center/cl/t22_vl6_rr4.flac",
+        "source_sha256": "2245d8b39e2dd771792d3f23cd8d2959ce4216ec69a66e72c7d7a4cbbc81436b",
+        "wav_sha256": "7be85c8ac1dc76717e9a054522400b110c1415d74536238a104703aad0387760",
+        "frames": 44100,
+        "peak": 0.7,
+        "rms": 0.0723
+      },
+      {
+        "role": "High_Tom",
+        "filename": "06_High_Tom.wav",
+        "source": "rusty",
+        "source_path": "Samples/tom_14/center/cl/t14_vl6_rr4.flac",
+        "source_sha256": "3b4470bff75c93ff3a1df5dc432732f6ef2fe83e10a838d832a107f42078a2c3",
+        "wav_sha256": "6720fa157a63978c424906b43e4fcdca673851d05b6313bf74547c10a81f1922",
+        "frames": 41895,
+        "peak": 0.7,
+        "rms": 0.0669
+      },
+      {
+        "role": "Crash",
+        "filename": "07_Crash.wav",
+        "source": "rusty",
+        "source_path": "Samples/crash_17/cr/oh/cr_vl4_rr4.flac",
+        "source_sha256": "844d0aec4f2dd9b1f7f01237c0f5e427fc6cec32dd8b60b727f526c404123088",
+        "wav_sha256": "4bd8e2f7943b5296d66758f09a99901ba5d745396b98520610a2325ba3488f4a",
+        "frames": 149940,
+        "peak": 0.56,
+        "rms": 0.0245
+      },
+      {
+        "role": "Clap",
+        "filename": "08_Clap.wav",
+        "source": "808",
+        "source_path": "cp8/CP.WAV",
+        "source_sha256": "376429bb81cb48d1f392a11cd066c32ffb7883d445b2488704ea52e46bb08286",
+        "wav_sha256": "af575423c3cfb4a6bd61f4d88b92a1601b84f2ec27eef206fe0629b4e94731f2",
+        "frames": 30870,
+        "peak": 0.71,
+        "rms": 0.0467
+      }
+    ]
+  }
+}
