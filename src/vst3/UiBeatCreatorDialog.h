@@ -16,8 +16,15 @@ struct UiBeatCreatorDialog final {
   return {(UiV101Layout::width-width)/2.,top,
           (UiV101Layout::width+width)/2.,top+height};
  }
- static constexpr Rect title(double h) noexcept {
-  const auto p=panel(h);return {p.x0+18.,p.y0+8.,p.x1-18.,p.y0+35.};
+static constexpr Rect title(double h) noexcept {
+  const auto p=panel(h);return {p.x0+18.,p.y0+8.,p.x0+330.,p.y0+35.};
+ }
+ // One Beat Creator opener in the original HEADER; two tabs inside ONE modal.
+ static constexpr Rect creatorTab(double h) noexcept {
+  const auto p=panel(h);return {p.x0+358.,p.y0+10.,p.x0+453.,p.y0+35.};
+ }
+ static constexpr Rect drumkitsTab(double h) noexcept {
+  const auto p=panel(h);return {p.x0+468.,p.y0+10.,p.x0+563.,p.y0+35.};
  }
  static constexpr Rect styleHeading(double h) noexcept {
   const auto p=panel(h);return {p.x0+27.,p.y0+38.,p.x1-27.,p.y0+53.};
@@ -100,4 +107,10 @@ static_assert(UiBeatCreatorDialog::generate(254.).x1-
               UiBeatCreatorDialog::generate(254.).x0==95.);
 static_assert(UiBeatCreatorDialog::cancel(254.).y1<=
               UiBeatCreatorDialog::panel(254.).y1);
+static_assert(UiBeatCreatorDialog::creatorTab(254.).x1<=
+              UiBeatCreatorDialog::drumkitsTab(254.).x0);
+static_assert(UiBeatCreatorDialog::drumkitsTab(254.).y1<=
+              UiBeatCreatorDialog::styleHeading(254.).y0);
+static_assert(UiBeatCreatorDialog::drumkitsTab(254.).x1<
+              UiBeatCreatorDialog::panel(254.).x1);
 } // namespace drumator

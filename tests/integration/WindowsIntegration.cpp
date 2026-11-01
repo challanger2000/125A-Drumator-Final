@@ -125,7 +125,8 @@ struct IntegrationAccess {
  static std::uint8_t beatCreatorComplexity(const DrumatorView& view){return view.beatCreatorComplexity_;}
  static bool beatCreatorComplexityEditing(const DrumatorView& view){return view.complexityEditActive_;}
  static VSTGUI::CTextEdit* beatCreatorComplexityEdit(DrumatorView& view){return view.complexityEdit_;}
- static bool beatCreatorOpen(const DrumatorView& view){return view.beatCreatorOpen_;}
+static bool beatCreatorOpen(const DrumatorView& view){return view.beatCreatorOpen_;}
+ static bool drumkitsTabOpen(const DrumatorView& view){return view.kitBrowserOpen_;}
  static const std::string& beatCreatorNotice(const DrumatorView& view){return view.beatCreatorNotice_;}
  static std::size_t v101SelectedRow(const DrumatorView& view){return view.v101_.state().selectedRow;}
  static std::size_t v101FirstRow(const DrumatorView& view){return view.v101_.state().firstRow;}
@@ -4060,8 +4061,13 @@ void testBeatCreatorUnifiedHardwareView(){
  for(double height:{254.,686.}){
    view->setViewSize({0.,0.,1280.,height});
    const auto panel=D::panel(height);
-   check(panel.x1-panel.x0==640.&&panel.y1-panel.y0==240.,
-         "BC21 modal changed physical dimensions with host row count");
+check(panel.x1-panel.x0==640.&&panel.y1-panel.y0==240.,
+       "BC21 modal changed physical dimensions with host row count");
+ const auto creatorTab=D::creatorTab(height),drumkitsTab=D::drumkitsTab(height);
+ check(creatorTab.x1-creatorTab.x0==95.&&drumkitsTab.x1-drumkitsTab.x0==95.&&
+       creatorTab.y1<=D::styleHeading(height).y0&&
+       drumkitsTab.x0>=creatorTab.x1,
+       "BC38 tabs overlap or have wrong button size");
    click(*view,765.,115.);
    check(!IntegrationAccess::clickFlashArmed(*view),
          "BC21 BEAT CREATOR opener leaked flash onto underlying HIP-HOP style");
@@ -4414,8 +4420,19 @@ void testBeatCreatorV15Dialog(){
  const auto press=[&](UiBeatCreatorDialog::Rect r){
   click(*view,(r.x0+r.x1)*.5,(r.y0+r.y1)*.5);
  };
- press(UiV101Layout::beatCreatorTrigger);
+press(UiV101Layout::beatCreatorTrigger);
  check(f.c->beatCreatorDraft()==nullptr,"BC17 opening the dialog applied a draft");
+ // BC38: the kit browser is a tab in the SAME window.
+ press(UiBeatCreatorDialog::drumkitsTab(h));
+ check(IntegrationAccess::beatCreatorOpen(*view)&&
+       IntegrationAccess::drumkitsTabOpen(*view),
+       "BC38 DRUMKITS tab did not open in the same Beat Creator modal");
+ check(saved().grid==before.grid&&saved().wav==before.wav,
+       "BC38 tab switch modified patterns or samples");
+ press(UiBeatCreatorDialog::creatorTab(h));
+ check(IntegrationAccess::beatCreatorOpen(*view)&&
+       !IntegrationAccess::drumkitsTabOpen(*view),
+       "BC38 BEAT CREATOR tab failed to restore original controls");
  press(UiBeatCreatorDialog::style(h,5)); // METAL
  press(UiBeatCreatorDialog::complexityPlus(h));
  press(UiBeatCreatorDialog::generate(h));

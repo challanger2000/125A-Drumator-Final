@@ -106,9 +106,9 @@ private:
  void drawBeatCreator(VSTGUI::CDrawContext* c);
  bool beatCreatorMouseDown(double x,double y);
  void closeBeatCreator() noexcept;
- // Compact modal: file catalogue is UI-only; commit is a single Controller
- // sound-only transaction. Existing grooves and Song entries remain untouched.
- bool kitBrowserOpen_{false};
+// DRUMKITS is a tab inside the one Beat Creator modal, not a separate window.
+  // A LOAD transaction changes sounds only and preserves patterns and Song.
+  bool kitBrowserOpen_{false};
  std::vector<KitPresetCatalog::Entry> kitBrowserEntries_{};
  std::size_t kitBrowserPage_{0},kitBrowserSelected_{0};
  std::string kitBrowserNotice_{};
