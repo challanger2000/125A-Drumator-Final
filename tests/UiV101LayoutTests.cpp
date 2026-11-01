@@ -95,13 +95,24 @@ int main(){
   }
   CHECK(L::headerGroup(0).x1+8.==L::headerGroup(1).x0);
   CHECK(L::headerKnobCenters.size()==3);
+  CHECK(L::beatCreatorTrigger.x1-L::beatCreatorTrigger.x0==83.);
+  CHECK(L::beatCreatorTrigger.x0==L::headerGroup(1).x1+8.);
+  CHECK(L::beatCreatorTrigger.y0==L::headerButtonY);
+  CHECK(L::beatCreatorTrigger.x1+15.<L::headerKnobCenters[0]-22.);
+  CHECK(L::beatCreatorTrigger.hit(765.,115.));
   CHECK(L::headerKnob(0).x0>L::headerGroup(1).x1+20.);
   for(std::size_t i=0;i<L::headerKnobCenters.size();++i){
     const auto area=L::headerKnob(i);
     CHECK(area.x1-area.x0==36.);
     CHECK(area.y1-area.y0==36.);
     CHECK(area.hit(L::headerKnobCenters[i],L::headerKnobY));
-    if(i)CHECK(area.x0>L::headerKnob(i-1).x1+60.);
+    if(i){
+      // 1.5: header dials are intentionally tightened to make room for
+      // the Beat Creator key. Their physical 22px mounts and 92px titles
+      // still remain nonoverlapping with the minimum 92px pitch.
+      CHECK(area.x0>L::headerKnob(i-1).x1+40.);
+      CHECK(L::headerKnobCenters[i]-L::headerKnobCenters[i-1]>=92.);
+    }
   }
   CHECK(L::headerKnob(2).x1<1132.);
   // All eight V1.0.1 Wave keys share the exact same paint/hit geometry.
