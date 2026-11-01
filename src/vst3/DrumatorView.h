@@ -108,6 +108,7 @@ private:
  void closeBeatCreator() noexcept;
 // DRUMKITS is a tab inside the one Beat Creator modal, not a separate window.
   // A LOAD transaction changes sounds only and preserves patterns and Song.
+  bool previewKitOverwritePending_{false};
   bool kitBrowserOpen_{false};
  std::vector<KitPresetCatalog::Entry> kitBrowserEntries_{};
  std::size_t kitBrowserPage_{0},kitBrowserSelected_{0};
