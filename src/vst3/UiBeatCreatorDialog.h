@@ -23,6 +23,15 @@ static constexpr Rect title(double h) noexcept {
  static constexpr Rect creatorTab(double h) noexcept {
   const auto p=panel(h);return {p.x0+358.,p.y0+10.,p.x0+453.,p.y0+35.};
  }
+ static constexpr Rect loadPreviewKit(double h) noexcept {
+  const auto p=panel(h);return {p.x0+400.,p.y0+10.,p.x0+610.,p.y0+35.};
+ }
+ static constexpr Rect legend(double h,std::size_t i) noexcept {
+  const auto p=panel(h);
+  const double x=p.x0+27.+146.*static_cast<double>(i%4u);
+  const double y=p.y0+179.+12.*static_cast<double>(i/4u);
+  return {x,y,x+142.,y+12.};
+ }
  static constexpr Rect drumkitsTab(double h) noexcept {
   const auto p=panel(h);return {p.x0+468.,p.y0+10.,p.x0+563.,p.y0+35.};
  }
@@ -88,7 +97,7 @@ static constexpr Rect title(double h) noexcept {
  static constexpr Rect preview(double h,std::size_t i) noexcept {return action(h,i+1u);}
  static constexpr Rect stop(double h) noexcept {return action(h,4);}
  static constexpr Rect notice(double h) noexcept {
-  const auto p=panel(h);return {p.x0+28.,p.y0+179.,p.x1-28.,p.y0+201.};
+  return styleHeading(h);
  }
  static constexpr Rect apply(double h) noexcept {
   const auto p=panel(h);return {p.x0+215.,p.y0+207.,p.x0+310.,p.y0+232.};
@@ -105,6 +114,8 @@ static_assert(UiBeatCreatorDialog::panel(254.).x1==
               UiBeatCreatorDialog::panel(686.).x1);
 static_assert(UiBeatCreatorDialog::generate(254.).x1-
               UiBeatCreatorDialog::generate(254.).x0==95.);
+static_assert(UiBeatCreatorDialog::legend(254.,7).y1<=UiBeatCreatorDialog::apply(254.).y0);
+static_assert(UiBeatCreatorDialog::loadPreviewKit(254.).y1<=UiBeatCreatorDialog::styleHeading(254.).y0);
 static_assert(UiBeatCreatorDialog::cancel(254.).y1<=
               UiBeatCreatorDialog::panel(254.).y1);
 static_assert(UiBeatCreatorDialog::creatorTab(254.).x1<=
