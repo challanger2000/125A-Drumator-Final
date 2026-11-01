@@ -1,0 +1,38 @@
+name: Drumator 1.5 - CC0 genre kit candidates
+on:
+  push:
+    branches:
+      - feature/v1.5-eight-genre-kits
+    paths:
+      - 'tools/build_genre_kits.py'
+      - '.github/workflows/genre-kit-candidates.yml'
+      - 'docs/GENRE-KITS-SOURCES.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sample-qa:
+    name: Build and audit 8 source-recorded kits
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify tooling
+        run: |
+          python3 --version
+          ffmpeg -version | head -n 1
+      - name: Generate 64 samples with provenance
+        run: python3 tools/build_genre_kits.py build/genre-kit-candidates
+      - name: Inspect artifact
+        run: |
+          test "$(find build/genre-kit-candidates -name '*.wav' | wc -l)" -eq 64
+          test "$(find build/genre-kit-candidates -name '*.wav' -printf '%h\n' | sort -u | wc -l)" -eq 8
+          test -s build/genre-kit-candidates/SOURCE-MANIFEST.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 125A-Drumator-8-Genre-Kits-CC0-Candidates
+          path: build/genre-kit-candidates/
+          if-no-files-found: error
+          retention-days: 30
