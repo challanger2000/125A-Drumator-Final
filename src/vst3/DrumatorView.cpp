@@ -1133,56 +1133,97 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c) {
  if(!beatCreatorOpen_)return;
  using P=v101::UiV101NativePreview;
  using D=UiBeatCreatorDialog;
- const auto height=getViewSize().getHeight();
- const auto box=D::panel(height);
+ const double hostHeight=getViewSize().getHeight();
+ const auto box=D::panel(hostHeight);
  const auto paintRect=[](D::Rect r)->VSTGUI::CRect{
    return {r.x0,r.y0,r.x1,r.y1};
  };
- // Modal scrim prevents reading the running sequencer as an editable draft.
- P::fill(*c,{0.,0.,1280.,height},{8,13,21,199});
- P::satin(*c,{box.x0,box.y0,box.x1,box.y1},
-          {74,84,94,255},{39,52,65,255},{20,29,40,255},32);
- P::border(*c,{box.x0,box.y0,box.x1,box.y1},{125,144,157,255});
- P::fill(*c,{box.x0+6.,box.y0+6.,box.x1-6.,
-             box.y0+(D::compact(height)?44.:45.)},
-          {15,29,43,255});
- P::label(*c,"125A BEAT CREATOR",paintRect(D::title(height)),
-          D::compact(height)?16:18,{233,239,245,255});
- P::label(*c,"STYLE - SELECT A GENRE",paintRect(D::styleHeading(height)),
-          D::compact(height)?9:11,{179,204,221,255},false);
+ // ONE fixed-size 850x240 dialog for both short and tall hosts. Height
+ // changes only the vertical centering; every cap and hit cell is identical.
+ // Shared scrim makes the underlying sequencer noninteractive and subordinate.
+ P::fill(*c,{0.,0.,1280.,hostHeight},{8,13,21,199});
+
+ // Reuse the EXACT brushed/industrial faceplate photo as the Wave Editor.
+ // Sample the quiet middle, not its logo or outer bevel. Unlike the old
+ // slate gradient, this makes the Beat Creator part of the Drumator chassis.
+ const bool hasMetal=v101FaceplateBitmap_&&v101FaceplateBitmap_->isLoaded()&&
+                     v101FaceplateBitmap_->getWidth()>=840.&&
+                     v101FaceplateBitmap_->getHeight()>=230.;
+ if(hasMetal){
+   const double cropX=(v101FaceplateBitmap_->getWidth()-840.)*.5;
+   const double cropY=(v101FaceplateBitmap_->getHeight()-230.)*.5;
+   v101FaceplateBitmap_->draw(c,
+       {box.x0+5.,box.y0+5.,box.x1-5.,box.y1-5.},
+       {cropX,cropY});
+ }else{
+   P::satin(*c,{box.x0+5.,box.y0+5.,box.x1-5.,box.y1-5.},
+            {76,83,90,255},{43,52,62,255},{24,33,43,255},20);
+ }
+ P::border(*c,paintRect(box),P::Skin::panelEdge());
+ P::fill(*c,{box.x0+5.,box.y0+5.,box.x1-5.,box.y0+37.},
+         {20,35,51,255});
+ P::fill(*c,{box.x0+6.,box.y0+6.,box.x1-6.,box.y0+8.},
+         {92,111,126,255});
+ P::fill(*c,{box.x0+6.,box.y0+36.,box.x1-6.,box.y0+38.},
+         {58,70,82,255});
+ P::label(*c,"125A BEAT CREATOR",paintRect(D::title(hostHeight)),
+          17,{230,237,243,255});
+ // Dark recessed instrument pockets, restrained blue rims, metal texture
+ // remains visible around the groups and between the controls.
+ P::fill(*c,{box.x0+17.,box.y0+52.,box.x1-17.,box.y0+116.},
+         {14,27,40,172});
+ P::border(*c,{box.x0+17.,box.y0+52.,box.x1-17.,box.y0+116.},
+           {56,83,105,255});
+ P::fill(*c,{box.x0+17.,box.y0+148.,box.x1-17.,box.y0+183.},
+         {14,27,40,160});
+ P::border(*c,{box.x0+17.,box.y0+148.,box.x1-17.,box.y0+183.},
+           {56,83,105,255});
+ P::label(*c,"STYLE  /  SELECT A GENRE",paintRect(D::styleHeading(hostHeight)),
+          10,{197,216,230,255},false);
  const P::ButtonSprites buttons{
    v101VintageButtons_[0],v101VintageButtons_[1],
    v101VintageButtons_[2],v101VintageButtons_[3]
  };
+ // Exactly four columns, two rows at ALL host heights. 192x28 caps use
+ // the same genuine dark 4x sprite/nine-slice as the main Drumator.
  for(std::size_t i=0;i<BeatCreator::styleNames.size();++i)
-  P::cap(*c,D::style(height,i),0.,BeatCreator::styleNames[i],
-         static_cast<std::size_t>(beatCreatorStyle_)==i,11,&buttons);
- P::label(*c,"COMPLEXITY",paintRect(D::complexityLabel(height)),
-          D::compact(height)?11:12,{213,225,235,255},false);
- P::cap(*c,D::complexityMinus(height),0.,"-",false,15,&buttons);
- P::cap(*c,D::complexityPlus(height),0.,"+",false,15,&buttons);
+   P::cap(*c,D::style(hostHeight,i),0.,BeatCreator::styleNames[i],
+          static_cast<std::size_t>(beatCreatorStyle_)==i,10,&buttons);
+ P::label(*c,"COMPLEXITY",paintRect(D::complexityLabel(hostHeight)),
+          11,{218,230,237,255},false);
+ P::cap(*c,D::complexityMinus(hostHeight),0.,"-",false,14,&buttons);
+ P::cap(*c,D::complexityPlus(hostHeight),0.,"+",false,14,&buttons);
  char percent[16]{};
  std::snprintf(percent,sizeof(percent),"%u%%",
                static_cast<unsigned>(beatCreatorComplexity_));
- P::label(*c,percent,paintRect(D::complexityValue(height)),14,{241,217,143,255});
+ P::label(*c,percent,paintRect(D::complexityValue(hostHeight)),
+          14,{244,193,100,255});
  char duration[30]{};
  std::snprintf(duration,sizeof(duration),"%u STEPS",
-    static_cast<unsigned>(controller_.patternLength(controller_.currentPattern())));
- P::label(*c,duration,paintRect(D::stepsLabel(height)),11,{189,214,229,255});
- P::cap(*c,D::generate(height),0.,"GENERATE",false,11,&buttons);
- const char* names[]={"PLAY A","PLAY B","PLAY C"};
+   static_cast<unsigned>(controller_.patternLength(controller_.currentPattern())));
+ P::label(*c,duration,paintRect(D::stepsLabel(hostHeight)),
+          11,{195,215,226,255});
+
+ // All five transport/generate caps are equal-size 154x30 dark hardware
+ // keys. No elongated silver STOP bar or mismatched color fallback.
+ P::cap(*c,D::generate(hostHeight),0.,"GENERATE",false,11,&buttons);
+ constexpr const char* names[]={"PLAY A","PLAY B","PLAY C"};
  for(std::size_t i=0;i<3;++i)
-  P::cap(*c,D::preview(height,i),0.,names[i],
-         beatCreatorListening_==static_cast<int>(i),11,&buttons);
- P::cap(*c,D::stop(height),0.,"STOP",false,10,&buttons);
- const auto* draft=controller_.beatCreatorDraft();
- const bool ready=draft!=nullptr;
- P::label(*c,beatCreatorNotice_.c_str(),paintRect(D::notice(height)),
-          11,beatCreatorConfirmOverwrite_?VSTGUI::CColor{254,182,107,255}:
-                 VSTGUI::CColor{190,216,225,255});
- P::cap(*c,D::apply(height),0.,beatCreatorConfirmOverwrite_?
-         "CONFIRM OVERWRITE":"APPLY A + B + C",ready,11,&buttons);
- P::cap(*c,D::cancel(height),0.,"CANCEL",false,11,&buttons);
+   P::cap(*c,D::preview(hostHeight,i),0.,names[i],
+          beatCreatorListening_==static_cast<int>(i),11,&buttons);
+ P::cap(*c,D::stop(hostHeight),0.,"STOP",false,11,&buttons);
+
+ const bool ready=controller_.beatCreatorDraft()!=nullptr;
+ P::label(*c,beatCreatorNotice_.c_str(),paintRect(D::notice(hostHeight)),
+          10,beatCreatorConfirmOverwrite_?VSTGUI::CColor{252,187,103,255}:
+                 VSTGUI::CColor{197,217,229,255});
+ // APPLY/CANCEL use NORMAL 154x30 caps, exactly like other actions. APPLY
+ // remains disabled until a generated draft is ready, and requires the
+ // existing explicit confirmation for occupied patterns.
+ P::cap(*c,D::apply(hostHeight),0.,
+        beatCreatorConfirmOverwrite_?"CONFIRM OVERWRITE":"APPLY A + B + C",
+        beatCreatorConfirmOverwrite_,10,&buttons,!ready);
+ P::cap(*c,D::cancel(hostHeight),0.,"CANCEL",false,11,&buttons);
 }
 bool DrumatorView::beatCreatorMouseDown(double x,double y) {
  using D=UiBeatCreatorDialog;

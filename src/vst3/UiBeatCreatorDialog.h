@@ -1,120 +1,84 @@
 #pragma once
-// Stage 5.1: one adaptive modal whose painted geometry is also used for input.
-// A 10-row VST3 editor can be 686px high, but a host-constrained peer/editor
-// is legally as small as 158 header + 48 row + 48 footer = 254px.
-// A 420px minimum was incorrect: keep every control accessible at 254px.
+// Beat Creator GUI V1.5: ONE 850x240 hardware panel at every host height.
+// Coordinate functions are shared by painter and hit testing. The host may
+// refuse a resize, leaving only 254px of usable client height: never change
+// columns, size, color or control placement when additional ROWs appear.
 #include "core/UiV101Layout.h"
 #include <cstddef>
 
 namespace drumator {
 struct UiBeatCreatorDialog final {
  using Rect=UiV101Layout::Rect;
- static constexpr bool compact(double height) noexcept {return height<420.;}
- static constexpr Rect panel(double height) noexcept {
-  if(compact(height)){
-   const double top=(height-240.)/2.;
-   return {215.,top,1065.,top+240.};
-  }
-  const double top=(height-390.)/2.;
-  return {330.,top,950.,top+390.};
+ static constexpr double width=850.,height=240.;
+ static constexpr bool compact(double) noexcept {return true;}
+ static constexpr Rect panel(double hostHeight) noexcept {
+  const double top=(hostHeight-height)/2.;
+  return {215.,top,1065.,top+height};
  }
- static constexpr Rect title(double height)noexcept {
-  const auto p=panel(height);
-  return compact(height)?
-   Rect{p.x0+18.,p.y0+4.,p.x1-18.,p.y0+31.}:
-   Rect{p.x0+18.,p.y0+12.,p.x1-18.,p.y0+37.};
+ static constexpr Rect title(double h) noexcept {
+  const auto p=panel(h);return {p.x0+18.,p.y0+8.,p.x1-18.,p.y0+36.};
  }
- static constexpr Rect styleHeading(double height)noexcept{
-  const auto p=panel(height);
-  return compact(height)?
-   Rect{p.x0+22.,p.y0+30.,p.x1-22.,p.y0+44.}:
-   Rect{p.x0+27.,p.y0+48.,p.x1-27.,p.y0+73.};
+ static constexpr Rect styleHeading(double h) noexcept {
+  const auto p=panel(h);return {p.x0+22.,p.y0+37.,p.x1-22.,p.y0+54.};
  }
- static constexpr Rect style(double height,std::size_t i) noexcept {
-  const auto p=panel(height);
-  if(compact(height)){
-   const double left=p.x0+22.+206.*static_cast<double>(i%4u);
-   const double top=p.y0+45.+33.*static_cast<double>(i/4u);
-   return {left,top,left+198.,top+28.};
-  }
-  const double left=p.x0+26.+294.*static_cast<double>(i/4u);
-  const double top=p.y0+78.+35.*static_cast<double>(i%4u);
-  return {left,top,left+276.,top+30.};
- }
- static constexpr Rect complexityLabel(double height)noexcept{
-  const auto p=panel(height);
-  return compact(height)?
-   Rect{p.x0+20.,p.y0+113.,p.x0+234.,p.y0+141.}:
-   Rect{p.x0+25.,p.y0+233.,p.x0+260.,p.y0+261.};
- }
- static constexpr Rect complexityMinus(double h)noexcept{
+ static constexpr Rect style(double h,std::size_t i) noexcept {
   const auto p=panel(h);
-  return compact(h)?
-   Rect{p.x0+250.,p.y0+113.,p.x0+290.,p.y0+142.}:
-   Rect{p.x0+374.,p.y0+231.,p.x0+416.,p.y0+262.};
+  const double left=p.x0+22.+204.*static_cast<double>(i%4u);
+  const double top=p.y0+55.+32.*static_cast<double>(i/4u);
+  return {left,top,left+192.,top+28.};
  }
- static constexpr Rect complexityValue(double h)noexcept {
+ static constexpr Rect complexityLabel(double h) noexcept {
   const auto p=panel(h);
-  return compact(h)?
-   Rect{p.x0+295.,p.y0+113.,p.x0+374.,p.y0+141.}:
-   Rect{p.x0+420.,p.y0+233.,p.x0+495.,p.y0+260.};
+  return {p.x0+22.,p.y0+118.,p.x0+226.,p.y0+145.};
  }
- static constexpr Rect complexityPlus(double h)noexcept {
+ static constexpr Rect complexityMinus(double h) noexcept {
   const auto p=panel(h);
-  return compact(h)?
-   Rect{p.x0+380.,p.y0+113.,p.x0+420.,p.y0+142.}:
-   Rect{p.x0+499.,p.y0+231.,p.x0+541.,p.y0+262.};
+  return {p.x0+250.,p.y0+118.,p.x0+290.,p.y0+145.};
  }
- static constexpr Rect stepsLabel(double h)noexcept{
+ static constexpr Rect complexityValue(double h) noexcept {
   const auto p=panel(h);
-  return compact(h)?
-   Rect{p.x0+500.,p.y0+113.,p.x1-18.,p.y0+141.}:
-   Rect{p.x0+542.,p.y0+233.,p.x1-20.,p.y0+260.};
+  return {p.x0+298.,p.y0+118.,p.x0+373.,p.y0+145.};
  }
- static constexpr Rect generate(double h)noexcept{
+ static constexpr Rect complexityPlus(double h) noexcept {
   const auto p=panel(h);
-  return compact(h)?
-   Rect{p.x0+22.,p.y0+150.,p.x0+166.,p.y0+180.}:
-   Rect{p.x0+26.,p.y0+277.,p.x0+170.,p.y0+311.};
+  return {p.x0+382.,p.y0+118.,p.x0+422.,p.y0+145.};
  }
- static constexpr Rect preview(double h,std::size_t i)noexcept{
+ static constexpr Rect stepsLabel(double h) noexcept {
   const auto p=panel(h);
-  if(compact(h)){
-   const double x=p.x0+174.+133.*static_cast<double>(i);
-   return {x,p.y0+150.,x+125.,p.y0+180.};
-  }
-  const double x=p.x0+180.+111.*static_cast<double>(i);
-  return {x,p.y0+277.,x+105.,p.y0+311.};
+  return {p.x0+606.,p.y0+118.,p.x0+826.,p.y0+145.};
  }
- static constexpr Rect stop(double h)noexcept{
+ // Identical 154x30 keycaps for GENERATE, PLAY A/B/C and STOP.
+ static constexpr Rect action(double h,std::size_t i) noexcept {
   const auto p=panel(h);
-  return compact(h)?
-   Rect{p.x0+580.,p.y0+150.,p.x0+828.,p.y0+180.}:
-   Rect{p.x0+513.,p.y0+277.,p.x0+594.,p.y0+311.};
+  const double left=p.x0+22.+162.*static_cast<double>(i);
+  return {left,p.y0+150.,left+154.,p.y0+180.};
  }
- static constexpr Rect notice(double h)noexcept{
-  const auto p=panel(h);
-  return compact(h)?
-   Rect{p.x0+22.,p.y0+182.,p.x1-22.,p.y0+202.}:
-   Rect{p.x0+26.,p.y0+314.,p.x1-26.,p.y0+336.};
+ static constexpr Rect generate(double h) noexcept {return action(h,0);}
+ static constexpr Rect preview(double h,std::size_t i) noexcept {
+  return action(h,i+1u);
  }
- static constexpr Rect apply(double h)noexcept{
-  const auto p=panel(h);
-  return compact(h)?
-   Rect{p.x0+22.,p.y0+205.,p.x0+420.,p.y0+235.}:
-   Rect{p.x0+26.,p.y0+340.,p.x0+304.,p.y0+374.};
+ static constexpr Rect stop(double h) noexcept {return action(h,4);}
+ static constexpr Rect notice(double h) noexcept {
+  const auto p=panel(h);return {p.x0+22.,p.y0+181.,p.x1-22.,p.y0+202.};
  }
- static constexpr Rect cancel(double h)noexcept{
+ // Normal 154x30 hardware keycaps, not 398/400px silver fallback bars.
+ static constexpr Rect apply(double h) noexcept {
   const auto p=panel(h);
-  return compact(h)?
-   Rect{p.x0+428.,p.y0+205.,p.x0+828.,p.y0+235.}:
-   Rect{p.x0+316.,p.y0+340.,p.x0+594.,p.y0+374.};
+  return {p.x0+265.,p.y0+205.,p.x0+419.,p.y0+235.};
+ }
+ static constexpr Rect cancel(double h) noexcept {
+  const auto p=panel(h);
+  return {p.x0+431.,p.y0+205.,p.x0+585.,p.y0+235.};
  }
 };
-static_assert(UiBeatCreatorDialog::panel(254.).y0>=0.&&
+static_assert(UiBeatCreatorDialog::panel(254.).y0>=0. &&
               UiBeatCreatorDialog::panel(254.).y1<=254.);
 static_assert(UiBeatCreatorDialog::cancel(254.).y1<
               UiBeatCreatorDialog::panel(254.).y1);
 static_assert(UiBeatCreatorDialog::stop(254.).x1<
               UiBeatCreatorDialog::panel(254.).x1);
+static_assert(UiBeatCreatorDialog::panel(254.).x0==
+              UiBeatCreatorDialog::panel(686.).x0 &&
+              UiBeatCreatorDialog::panel(254.).x1==
+              UiBeatCreatorDialog::panel(686.).x1);
 } // namespace drumator

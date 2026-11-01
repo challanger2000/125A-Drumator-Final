@@ -278,8 +278,11 @@ int main(){
                    (button.y0+button.y1)/2.)==i);
     }
   }
-  // BC18: the GUI's 254px host-rejected compact viewport must fit every
-  // clickable cell. Normal 390px dialog geometry remains unchanged at >=420.
+  // BC21: ONE hardware panel and one four-column control geometry for
+  // all host heights (including Studio One refusing window enlargement).
+  // Both button width AND height must use the 4x dark sprite nine-slice,
+  // never the light procedural fallback triggered by >220px keys.
+  // BC18 additionally tests every actionable hit rectangle for overlap.
   using D=drumator::UiBeatCreatorDialog;
   for(const double hostHeight:{254.,286.,390.,420.,686.}){
     const auto panel=D::panel(hostHeight);
@@ -304,6 +307,32 @@ int main(){
         const auto b=controls[j];
         CHECK(!(a.x0<b.x1&&a.x1>b.x0&&a.y0<b.y1&&a.y1>b.y0));
       }
+    }
+    CHECK(panel.x1-panel.x0==850.);
+    CHECK(panel.y1-panel.y0==240.);
+    CHECK(D::style(hostHeight,0).x0==D::style(254.,0).x0);
+    CHECK(D::style(hostHeight,4).x0==D::style(254.,4).x0);
+    CHECK(D::style(hostHeight,4).y0-panel.y0==
+          D::style(254.,4).y0-D::panel(254.).y0);
+    CHECK(D::style(hostHeight,4).x0==D::style(hostHeight,0).x0);
+    CHECK(D::style(hostHeight,4).y0>D::style(hostHeight,0).y0);
+    CHECK(D::style(hostHeight,3).y0==D::style(hostHeight,0).y0);
+    CHECK(D::style(hostHeight,7).y0==D::style(hostHeight,4).y0);
+    const auto action=D::generate(hostHeight);
+    CHECK(action.x1-action.x0==154.&&action.y1-action.y0==30.);
+    for(std::size_t i=0;i<3;++i){
+      const auto preview=D::preview(hostHeight,i);
+      CHECK(preview.x1-preview.x0==154.&&preview.y1-preview.y0==30.);
+    }
+    const auto stop=D::stop(hostHeight);
+    const auto apply=D::apply(hostHeight);
+    const auto cancel=D::cancel(hostHeight);
+    CHECK(stop.x1-stop.x0==154.&&stop.y1-stop.y0==30.);
+    CHECK(apply.x1-apply.x0==154.&&cancel.x1-cancel.x0==154.);
+    CHECK(apply.y1-apply.y0==30.&&cancel.y1-cancel.y0==30.);
+    for(std::size_t i=0;i<8;++i){
+      const auto style=D::style(hostHeight,i);
+      CHECK(style.x1-style.x0==192.&&style.y1-style.y0==28.);
     }
     const auto note=D::notice(hostHeight);
     const auto heading=D::styleHeading(hostHeight);

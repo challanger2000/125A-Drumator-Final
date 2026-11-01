@@ -3902,6 +3902,80 @@ void testBeatCreatorV15AudiblePreview(){
        "BC16 non-destructive audition modified serialized project");
  evidence("BC16 A/B/C 16+32-step live audio, STOP, CANCEL, state protection PASS");
 }
+void testBeatCreatorUnifiedHardwareView(){
+ using D=UiBeatCreatorDialog;
+ Fixture f;
+ KitState kit;kit.visible=4;kit.grid.fill(0);kit.patternLengths.fill(16);
+ f.kit(kit);prepareAudio(*f.p);f.openV101();
+ auto* view=IntegrationAccess::view(*f.c,0);
+ check(view!=nullptr&&view->isV101(),
+       "BC21 native Drumator editor unavailable");
+ check(IntegrationAccess::vintageFaceplateLoaded(*view),
+       "BC21 metal texture missing from packaged VST3");
+ auto* metal=IntegrationAccess::vintageFaceplate(*view);
+ check(metal&&metal->isLoaded()&&metal->getWidth()>=840.&&
+       metal->getHeight()>=230.,
+       "BC21 Beat Creator texture crop outside original metal artwork");
+ for(double height:{254.,686.}){
+   view->setViewSize({0.,0.,1280.,height});
+   const auto panel=D::panel(height);
+   check(panel.x1-panel.x0==850.&&panel.y1-panel.y0==240.,
+         "BC21 modal changed physical dimensions with host row count");
+   click(*view,765.,115.);
+   check(f.c->beatCreatorDraft()==nullptr,
+         "BC21 opening dialog should not generate a beat");
+   auto bitmap=VSTGUI::renderBitmapOffscreen({1280.,height},1.,
+     [&](VSTGUI::CDrawContext& dc){view->draw(&dc);});
+   check(bitmap!=nullptr,"BC21 native Beat Creator raster unavailable");
+   auto* pixels=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
+   check(pixels!=nullptr,"BC21 no native modal pixels");
+   const auto read=[&](double x,double y){
+     check(pixels->setPosition(
+       static_cast<std::uint32_t>(x),static_cast<std::uint32_t>(y)),
+       "BC21 pixel outside fixed host window");
+     VSTGUI::CColor c{};pixels->getColor(c);return c;
+   };
+   // Every button must have approved dark image-backed geometry, never the
+   // old overwide procedural (silver) fallback. 154x30 is sprite-eligible.
+   for(const auto rect:{D::generate(height),D::preview(height,0),
+                         D::preview(height,1),D::preview(height,2),
+                         D::stop(height),D::apply(height),D::cancel(height)}){
+     check(rect.x1-rect.x0==154.&&rect.y1-rect.y0==30.,
+           "BC21 action keycap has wrong dimensions");
+     const auto pixel=read(rect.x0+8.,rect.y0+9.);
+     check(pixel.red<170&&pixel.green<170&&pixel.blue<175,
+           "BC21 button slipped into bright silver fallback");
+   }
+   // Confirm the original Wave Editor faceplate is actually the panel's
+   // background, not merely an added flat graphite/beveled rectangle.
+   const double x=panel.x0+12.,y=panel.y0+96.;
+   auto expected=VSTGUI::renderBitmapOffscreen({1280.,height},1.,
+     [&](VSTGUI::CDrawContext& dc){
+       const double sx=(metal->getWidth()-840.)*.5;
+       const double sy=(metal->getHeight()-230.)*.5;
+       metal->draw(&dc,{panel.x0+5.,panel.y0+5.,
+                         panel.x1-5.,panel.y1-5.},{sx,sy});
+     });
+   check(expected!=nullptr,"BC21 expected original metal pixels unavailable");
+   auto* raw=VSTGUI::CBitmapPixelAccess::create(expected.get(),false);
+   check(raw&&raw->setPosition(
+         static_cast<std::uint32_t>(x),static_cast<std::uint32_t>(y)),
+         "BC21 reference pixel outside faceplate");
+   VSTGUI::CColor original{};raw->getColor(original);raw->forget();
+   const auto shown=read(x,y);
+   check(std::abs(int(shown.red)-int(original.red))<=5&&
+         std::abs(int(shown.green)-int(original.green))<=5&&
+         std::abs(int(shown.blue)-int(original.blue))<=5,
+         "BC21 Beat Creator is not using the original Wave Editor metal");
+   pixels->forget();
+   captureVstgui(*view,height==254.?
+     "beat-creator-unified-254px":"beat-creator-unified-686px",1.);
+   // Modal cancel uses the same geometry in both host heights.
+   const auto cancel=D::cancel(height);
+   click(*view,(cancel.x0+cancel.x1)*.5,(cancel.y0+cancel.y1)*.5);
+ }
+ evidence("BC21 fixed 850x240 dark Beat Creator, original Wave Editor texture, consistent 154x30 caps and 254/686 native screenshots PASS");
+}
 void testBeatCreatorCompactHostWindow(){
  Fixture f;
  KitState kit;
@@ -6080,6 +6154,7 @@ int main(int argc,char** argv){
  run("BC19 A/B/C APPLY fills only missing sounds and labels",testBeatCreatorV15FactoryKitApply);
  run("BF20 native consistent click-active flash button palette",testV101ButtonClickFlash);
  run("BC18 compact 254px host Beat Creator dialog",testBeatCreatorCompactHostWindow);
+ run("BC21 native uniform Beat Creator hardware at 254 and 686px",testBeatCreatorUnifiedHardwareView);
  run("V17 1T row FILL/CLEAR hidden-step protection",testFillActivePatternLength);
  run("UX Velocity empty-step editing",testVelocityLaneExistingStepsOnly);
  run("UX paged Song board",testPagedSongEditor);
