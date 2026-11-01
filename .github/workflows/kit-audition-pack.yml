@@ -52,3 +52,12 @@ jobs:
           path: kit-artifact/
           if-no-files-found: error
           retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 125A-Drumator-V15-8-Kit-Auditions-Raw-WAVs
+          path: |
+            assets/kit-auditions/v1/
+            assets/kit-auditions/README.md
+            assets/kit-auditions/sources.tsv
+          if-no-files-found: error
+          retention-days: 30
