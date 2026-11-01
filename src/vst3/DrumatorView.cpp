@@ -1468,7 +1468,7 @@ bool DrumatorView::applyV101Menu(int option) {
  }
  return false;
 }
-bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine,bool accent) {
+bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine,bool accentGesture) {
  if(v101Menu_!=UiV101Popup::Kind::None) {
    const auto first=v101_.state().firstRow;
    const bool valid=v101MenuRow_>=first&&
@@ -1519,7 +1519,7 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine,bool acc
  // Hold local resize transaction during synchronous Controller fan-out.
  v101LocalRowTransaction_=true;
  UiV101Interaction::Result result;
- try {result=v101_.down(x,y,erase,fine,accent);}
+ try {result=v101_.down(x,y,erase,fine,accentGesture);}
  catch(...) {v101LocalRowTransaction_=false;throw;}
  v101LocalRowTransaction_=false;
  using R=UiV101Interaction::Result;
