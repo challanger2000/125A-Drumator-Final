@@ -149,7 +149,11 @@ class BeatCreator final {
   Rng structure(seed^0x474E5241u),dynamics(seed^0x56454C31u);
   const unsigned busy=static_cast<unsigned>(s.complexity);
   const unsigned style=static_cast<unsigned>(s.style);
-  const unsigned first=busy<15u?0u:structure.next()%3u;
+  // Consecutive GENERATE clicks must not choose the same arrangement:
+  // cycle the 3 core motifs while independently changing the ornamental
+  // variation every third click (up to 9 distinct step structures).
+  const unsigned first=busy<15u?0u:seed%3u;
+  const unsigned ornament=busy<25u?0u:(seed/3u)%3u;
   // A two-bar phrase must develop the initial motif, not mechanically
   // repeat it. At Complexity 0, a deliberately minimal loop is fine.
   const unsigned second=busy<15u?0u:
@@ -172,6 +176,10 @@ class BeatCreator final {
      hit(p,open?BeatRole::OHH:BeatRole::CHH,st,
          vel(dynamics,loc%4u==0u?89:77));
     }
+    // Phrase-level 16th-note pickup, not unbounded random noise. It adds
+    // quiet motion while leaving all foundation beats and snare intact.
+    if(ornament&&loc==(ornament==1u?5u:13u))
+     hit(p,BeatRole::CHH,st,vel(dynamics,53));
     // Keep complexity incremental and style-aware. Extra notes are placed
     // on musically useful pickups, not distributed across random cells.
     if(busy>=50u&&(loc==3u||loc==11u||loc==15u)&&

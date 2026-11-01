@@ -111,9 +111,9 @@ int main(){
      different+=unique?1u:0u;
      differentEndings+=uniqueBreak?1u:0u;
     }
-    check(different>=3u,"BC26 genre lacks 3 distinct step arrangements");
+    check(different>=6u,"BC26 genre lacks six distinct step arrangements");
     check(differentEndings>=3u,"BC26 repeated identical breaks");
-    check(sameAsPrevious<40u,
+    check(sameAsPrevious==0u,
           "BC26 repeated structures too frequently at default Complexity");
     for(unsigned seed=0;seed<64u;++seed){
      const BeatCreatorSettings longSettings{style,density,32};
