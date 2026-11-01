@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 
 namespace drumator {
 enum class BeatStyle : std::uint8_t {
@@ -320,9 +321,10 @@ class BeatCreator final {
     break;
    }
    case BeatStyle::HipHop: {
-    // Restrained: one subtle early pickup, and a single ending.
-    // Keep space between notes; no automatic four-snare barrage.
-    add(BeatRole::CHH,3u,48);
+    // Restrained ghost snare and a single ending. The early pickup
+    // must not depend on whether the base groove already has a hi-hat.
+    add(BeatRole::Snare,2u,48);
+    if(busy>=35u)add(BeatRole::CHH,3u,48);
     if(ending==0u)add(BeatRole::Clap,7u,84);
     else if(ending==1u)add(BeatRole::Snare,7u,78);
     else add(BeatRole::BD,7u,90);
