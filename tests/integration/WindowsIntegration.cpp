@@ -26,7 +26,6 @@
 #include "UiV101NativePreview.h"
 #include "vst3/UiV101ControllerBridge.h"
 #include "vst3/DrumatorProcessor.h"
-#include "core/BeatCreatorFactoryKit.h"
 #include "core/KitPresetCatalog.h"
 #include "vst3/DrumatorEditor.h"
 #include "vst3/PluginIDs.h"
@@ -3949,7 +3948,7 @@ void testUserKitPresetIsSoundOnly(){
  start.patternLengths.fill(16);
  start.songEnabled=1;
  start.swing=17;
- start.wav[0]=BeatCreatorFactoryKit::wav(0);
+ start.wav[0]=constantStereo(.4f,.4f);
  start.names[0]="Owner_Kick.wav";
  start.displayNames[0]="Owner Kick";
  f.kit(start);prepareAudio(*f.p);
@@ -3964,10 +3963,10 @@ void testUserKitPresetIsSoundOnly(){
  KitState selected;
  selected.grid.fill(119);selected.visible=12;selected.selected=4;
  selected.swing=50;selected.songEnabled=0;
- selected.wav[0]=BeatCreatorFactoryKit::wav(2);
+ selected.wav[0]=constantStereo(.3f,-.3f);
  selected.names[0]="OtherKick.wav";
  selected.displayNames[0]="New Kit Kick";
- selected.wav[1]=BeatCreatorFactoryKit::wav(1);
+ selected.wav[1]=constantStereo(.2f,.25f);
  selected.names[1]="NewSnare.wav";
  selected.displayNames[1]="New Kit Snare";
  const auto root=std::filesystem::temp_directory_path()/"125A-BC33-Kit";
@@ -3997,7 +3996,7 @@ void testBeatCreatorV15AudiblePreview(){
  auto original=namedKit('X',8);
  original.grid.fill(0);original.patternLengths.fill(32);
  for(std::size_t row=0;row<8;++row){
-  original.wav[row]=BeatCreatorFactoryKit::wav(row);
+  original.wav[row]=constantStereo(.32f,.32f);
   original.names[row]=BeatCreatorFactoryKit::filenames[row];
  }
  f.kit(original);prepareAudio(*f.p);
@@ -4127,7 +4126,7 @@ void testBeatCreatorCompactHostWindow(){
  KitState kit;
  kit.visible=8;kit.grid.fill(0);kit.patternLengths.fill(16);
  for(std::size_t row=0;row<8;++row){
-  kit.wav[row]=BeatCreatorFactoryKit::wav(row);
+  kit.wav[row]=constantStereo(.32f,.32f);
   kit.names[row]=BeatCreatorFactoryKit::filenames[row];
  }
  f.kit(kit);prepareAudio(*f.p);f.openV101();
@@ -4355,7 +4354,7 @@ void testBeatCreatorV15FactoryKitApply(){
  Fixture f;
  KitState kit;
  kit.visible=4;kit.grid.fill(0);kit.patternLengths.fill(16);
- kit.wav[0]=BeatCreatorFactoryKit::wav(2);
+ kit.wav[0]=constantStereo(.3f,-.3f);
  kit.names[0]="User_Hat.wav";
  kit.displayNames[0]="My Favorite Kick";
  f.kit(kit);prepareAudio(*f.p);
@@ -4394,7 +4393,7 @@ void testBeatCreatorV15Dialog(){
  kit.visible=8;kit.grid.fill(0);kit.patternLengths.fill(16);
  kit.grid[0]=88; // A occupied: first APPLY must only ask for confirmation.
  for(std::size_t row=0;row<8;++row){
-  kit.wav[row]=BeatCreatorFactoryKit::wav(row);
+  kit.wav[row]=constantStereo(.32f,.32f);
   kit.names[row]=BeatCreatorFactoryKit::filenames[row];
  }
  f.kit(kit);prepareAudio(*f.p);
