@@ -1,5 +1,19 @@
 # 125A Drumator — authoritative v1.5 development status
 
+## Stage 5.2 — compact host GUI + playable kit on APPLY: WINDOWS QA PASS (1 November 2026)
+
+- **Exact validated source:** `87e205d9c2ac07780bf7fddc5de9370395879140` on `develop/v1.5.0`; **[GitHub Actions #41274961846](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41274961846)** SUCCESS: **32/32 CTests**, **47/47 Steinberg Validator**, **58 PASS / 0 WARNING / 0 FAIL 125A Plugin Tester v0.3.2**.
+- **Verified Windows VST3 DLL SHA256:** `4f7c52889823f5f6a73fbfcf51f53fbf3e3771035d644b3fba739073db3308cd`.
+- **Owner Studio One findings addressed:** (1) `BEAT CREATOR NEEDS A TALLER HOST WINDOW` on the default small-row editor; (2) APPLY previously transferred only MIDI-style steps, not any WAV/labels, with only four visible rows.
+- **Small host view:** single Beat Creator modal automatically becomes a compact 240px dialog inside a 254px minimum plugin client. No request to enlarge the host window. BC18 tests click real VSTGUI widgets at 254px; all 17 clickable modal rectangles are collision-checked for 254/286/390/420/686px.
+- **PLAYABLE GUI APPLY:** the same A/B/C pattern commit now installs the eight original temporary audition WAVs and legible roles **BD / Snare / CHH / OHH / Low Tom / High Tom / Crash / Clap** into **empty first-eight slots only**, and exposes at least eight instrument ROWs. Existing loaded WAVs, filenames, custom display labels, kit settings, D-H patterns, other rows and Song are protected. Processor prepares all assets off the real-time thread and refuses stale/occupied slots rather than overwriting.
+- **New BC19 integration:** checks visible ROWs=8, factory WAVs/name persistence, preserved user sample and custom name, protection of noncreator rows, and grouped pattern Undo. BC17's GUI APPLY regression now verifies serialized WAV+label installation. Real owner DAW listening and musical acceptance remain necessary (the synthesized kit is an acknowledged low-quality placeholder).
+- **Undo semantics:** the existing grouped Undo reverts A/B/C steps. Installed sample assets remain like ordinary Drumator sample assignments; Undo does NOT silently delete newly imported audio. CANCEL before APPLY still changes no saved kit.
+- **Download validated dev VST3:** [Windows artifact 13071366425](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41274961846/artifacts/13071366425), contains complete `125A Drumator.vst3` folder and resources. QA build identifies as v1.0.1 in host factory metadata by design, not a v1.5 release.
+- **Release unchanged:** `main` remains the published v1.0.1; no merge or Gumroad publication. Future: owner Studio One hands-on test, improved factory drums and rhythmic feel, final GUI audit, v1.5 review.
+
+---
+
 ## Stage 5 — Beat Creator GUI/A-B-C listening: WINDOWS QA PASS (1 November 2026)
 
 - **Validated exact code:** `78dbad14674fc2be43469b1d92a3634a80a3f8c3`, branch `develop/v1.5.0`.
