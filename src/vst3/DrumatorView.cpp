@@ -1217,7 +1217,6 @@ struct DrumatorKitBrowserUi final {
 };
 static_assert(DrumatorKitBrowserUi::item(254.,4).y1<
               DrumatorKitBrowserUi::load(254.).y0);
-};
 }
 
 void DrumatorView::openKitBrowser(){
