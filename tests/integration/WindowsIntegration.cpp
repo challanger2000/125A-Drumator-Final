@@ -121,6 +121,7 @@ struct IntegrationAccess {
  static bool sampleEditorOpen(const DrumatorView& view){return view.sampleEditorOpen_;}
  static bool sampleEditorLive(const DrumatorView& view){return view.sampleEditorLive_;}
  static bool songEditorOpen(const DrumatorView& view){return view.songEditorOpen_;}
+ static bool clickFlashArmed(const DrumatorView& view){return view.clickFlashArmed_;}
  static std::size_t v101SelectedRow(const DrumatorView& view){return view.v101_.state().selectedRow;}
  static std::size_t v101FirstRow(const DrumatorView& view){return view.v101_.state().firstRow;}
  static UiV101Layout::Expansion v101Expansion(const DrumatorView& view){return view.v101_.state().expansion;}
@@ -3922,6 +3923,8 @@ void testBeatCreatorUnifiedHardwareView(){
    check(panel.x1-panel.x0==850.&&panel.y1-panel.y0==240.,
          "BC21 modal changed physical dimensions with host row count");
    click(*view,765.,115.);
+   check(!IntegrationAccess::clickFlashArmed(*view),
+         "BC21 BEAT CREATOR opener leaked flash onto underlying HIP-HOP style");
    check(f.c->beatCreatorDraft()==nullptr,
          "BC21 opening dialog should not generate a beat");
    auto bitmap=VSTGUI::renderBitmapOffscreen({1280.,height},1.,
@@ -3973,6 +3976,8 @@ void testBeatCreatorUnifiedHardwareView(){
    // Modal cancel uses the same geometry in both host heights.
    const auto cancel=D::cancel(height);
    click(*view,(cancel.x0+cancel.x1)*.5,(cancel.y0+cancel.y1)*.5);
+   check(!IntegrationAccess::clickFlashArmed(*view),
+         "BC21 modal CANCEL leaked flash onto main editor");
  }
  evidence("BC21 fixed 850x240 dark Beat Creator, original Wave Editor texture, consistent 154x30 caps and 254/686 native screenshots PASS");
 }
