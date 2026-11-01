@@ -78,6 +78,39 @@ public:
         version_[p].fetch_add(1,std::memory_order_release);
         return true;
     }
+    // F1.5: CAS all three related patterns under ONE write mutex.
+    // Validate *before* any write. The per-pattern odd/even versions
+    // prevent torn reads; no lock is taken by the audio thread.
+    bool replaceFirstThreeIfMatches(const std::uint8_t* expected,
+                                    const std::uint8_t* updated,
+                                    const std::uint8_t* oldLengths,
+                                    const std::uint8_t* newLengths,
+                                    std::size_t count) noexcept {
+        constexpr std::size_t tripleCells=3*kRows*kSteps;
+        if(!expected||!updated||!oldLengths||!newLengths||count!=tripleCells)
+            return false;
+        for(std::size_t p=0;p<3;++p)
+            if((oldLengths[p]!=16&&oldLengths[p]!=32)||
+               (newLengths[p]!=16&&newLengths[p]!=32))return false;
+        for(std::size_t i=0;i<count;++i)
+            if(expected[i]>127||updated[i]>127)return false;
+        std::lock_guard<std::mutex> guard(writeMutex_);
+        for(std::size_t p=0;p<3;++p)
+            if(lengths_[p].load(std::memory_order_relaxed)!=oldLengths[p])
+                return false;
+        for(std::size_t i=0;i<count;++i)
+            if(grid_[i].load(std::memory_order_relaxed)!=expected[i])
+                return false;
+        for(std::size_t p=0;p<3;++p)
+            version_[p].fetch_add(1,std::memory_order_acq_rel);
+        for(std::size_t i=0;i<count;++i)
+            grid_[i].store(updated[i],std::memory_order_relaxed);
+        for(std::size_t p=0;p<3;++p)
+            lengths_[p].store(newLengths[p],std::memory_order_relaxed);
+        for(std::size_t p=0;p<3;++p)
+            version_[p].fetch_add(1,std::memory_order_release);
+        return true;
+    }
     // Host/control-thread project export: lock the same writer mutex as
     // set() and replacePattern(), so a saved kit cannot contain half of
     // an in-flight full-pattern replacement. Never call from process().
