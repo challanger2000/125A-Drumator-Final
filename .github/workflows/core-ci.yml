@@ -269,6 +269,48 @@ jobs:
             throw 'Verified production MAIN/SONG/WAVE screenshots missing from artifact'
           }
           $bundleFiles | Select-Object FullName,Length | Format-Table
+      - name: Stage eight existing genre kits for development VST3
+        if: github.ref == 'refs/heads/develop/v1.5.0'
+        shell: pwsh
+        run: |
+          # DEVELOPMENT ONLY. These are existing audition sources, not the user's
+          # separately supplied 808/909/LinnDrum recordings and not a Gumroad release.
+          $ErrorActionPreference = 'Stop'
+          $packs = [ordered]@{
+            '01_Industrial_NDH' = 'Industrial_NDH'
+            '02_EBM' = 'EBM_LinnDrum'
+            '03_Techno' = 'Techno_909_Style'
+            '04_House' = 'House_TR505'
+            '05_Rock' = 'Studio_Rock_Pearl'
+            '06_Metal' = 'Metal_Raw_Acoustic'
+            '07_HipHop' = 'HipHop_SDB'
+            '08_DrumNBass' = 'DrumNBass_Gogodze'
+          }
+          $samples = Join-Path $PWD 'artifact/125A Drumator.vst3/Contents/Resources/Samples'
+          $packer = Join-Path $PWD 'build/Release/drumator_kit_pack.exe'
+          if (!(Test-Path -LiteralPath $packer)) { throw 'Kit packer missing' }
+          $expected = @('01_BD.wav','02_Snare.wav','03_CHH.wav','04_OHH.wav','05_LowTom.wav','06_HighTom.wav','07_Crash.wav','08_Clap.wav')
+          foreach ($name in $packs.Keys) {
+            $source = Join-Path $PWD "assets/kit-auditions/v1/$($packs[$name])"
+            if (!(Test-Path -LiteralPath $source -PathType Container)) { throw "Missing kit source: $source" }
+            $actual = @(Get-ChildItem -LiteralPath $source -File | Sort-Object Name | ForEach-Object { $_.Name })
+            if (@(Compare-Object $expected $actual).Count -ne 0) { throw "Invalid eight-row kit: $name" }
+            $output = Join-Path $samples "$name.125akit"
+            & $packer $source $output
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $output)) { throw "Packing failed: $name" }
+            if ((Get-Item -LiteralPath $output).Length -lt 5000) { throw "Unexpectedly short kit: $name" }
+          }
+          $made = @(Get-ChildItem -LiteralPath $samples -Filter '*.125akit' -File | Sort-Object Name)
+          if ($made.Count -ne 8) { throw "Expected eight embedded kits; found $($made.Count)" }
+          @'
+          125A Drumator v1.5 DEVELOPMENT KIT AUDITION
+          Eight browser-loadable .125akit files are packed from existing repo WAVs.
+          Techno is still 909-STYLE and Hip-Hop still SDB in this raw CI build.
+          Replace 02_EBM, 03_Techno and 07_HipHop with the owner's
+          separately supplied original-sample .125akit overlay when available.
+          The 1.0.1 customer release remains unchanged.
+          '@ | Set-Content -LiteralPath (Join-Path $samples 'DEVELOPMENT-KIT-SOURCES.txt')
+          Write-Host "::notice title=Eight development drumkits::8 browser-loadable .125akit files packaged; original-sample overlay is separate."
       - name: Archive native VSTGUI pixel renderings
         uses: actions/upload-artifact@v4
         with:
