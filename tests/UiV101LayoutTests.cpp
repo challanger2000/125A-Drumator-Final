@@ -318,8 +318,9 @@ int main(){
     CHECK(D::style(hostHeight,4).y0>D::style(hostHeight,0).y0);
     CHECK(D::style(hostHeight,3).y0==D::style(hostHeight,0).y0);
     CHECK(D::style(hostHeight,7).y0==D::style(hostHeight,4).y0);
-    const auto action=D::generate(hostHeight);
-    CHECK(action.x1-action.x0==154.&&action.y1-action.y0==30.);
+    const auto generateCap=D::generate(hostHeight);
+    CHECK(generateCap.x1-generateCap.x0==154.&&
+          generateCap.y1-generateCap.y0==30.);
     for(std::size_t i=0;i<3;++i){
       const auto preview=D::preview(hostHeight,i);
       CHECK(preview.x1-preview.x0==154.&&preview.y1-preview.y0==30.);
