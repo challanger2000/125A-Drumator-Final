@@ -763,6 +763,15 @@ bool DrumatorView::removed(VSTGUI::CView* parent) {
  detailDragControl_=-1;detailDragRow_=kRows;
  activeKnob_=-1;knobRow_=kRows;
  closeTransientMenus();
+ if(complexityEdit_) {
+  complexityEditActive_=false;
+  if(auto* frame=getFrame();frame&&frame->getFocusView()==complexityEdit_)
+   frame->setFocusView(nullptr);
+  if(complexityEdit_->getPlatformTextEdit())complexityEdit_->looseFocus();
+  complexityEdit_->unregisterTextEditListener(this);
+  if(auto* frame=getFrame())frame->removeView(complexityEdit_);
+  complexityEdit_=nullptr;
+ }
  if(nameEdit_){
    // No pending edit may commit while a native Win32 text HWND is closing.
    editingNameRow_=kRows;
@@ -776,6 +785,32 @@ bool DrumatorView::removed(VSTGUI::CView* parent) {
    editingNameRow_=kRows;
  }
  return CView::removed(parent);
+}
+void DrumatorView::setBeatCreatorComplexity(std::uint8_t requested) {
+ if(requested>100u||requested==beatCreatorComplexity_)return;
+ controller_.cancelBeatCreator(); // Never keep a candidate generated at old complexity.
+ beatCreatorComplexity_=requested;
+ beatCreatorConfirmOverwrite_=false;
+ beatCreatorListening_=-1;
+ beatCreatorNotice_="COMPLEXITY CHANGED - CLICK GENERATE";
+ invalid();
+}
+void DrumatorView::editBeatCreatorComplexity() {
+ if(!beatCreatorOpen_||!getFrame())return;
+ const auto r=UiBeatCreatorDialog::complexityValue(getViewSize().getHeight());
+ char digits[8]{};
+ std::snprintf(digits,sizeof(digits),"%u",static_cast<unsigned>(beatCreatorComplexity_));
+ if(!complexityEdit_) {
+  complexityEdit_=new VSTGUI::CTextEdit(
+      {r.x0+1.,r.y0,r.x1-1.,r.y1},this,1002,digits);
+  complexityEdit_->registerTextEditListener(this);
+  getFrame()->addView(complexityEdit_);
+ }
+ complexityEdit_->setViewSize({r.x0+1.,r.y0,r.x1-1.,r.y1});
+ complexityEdit_->setText(digits);
+ complexityEditActive_=true;
+ complexityEdit_->setVisible(true);
+ complexityEdit_->takeFocus();
 }
 void DrumatorView::editName(std::size_t row) {
  if(row>=controller_.visibleRows()||!getFrame())return;
@@ -799,6 +834,20 @@ void DrumatorView::editName(std::size_t row) {
  nameEdit_->takeFocus();
 }
 void DrumatorView::valueChanged(VSTGUI::CControl* control) {
+ if(control==complexityEdit_) {
+  if(!beatCreatorOpen_||!complexityEditActive_)return;
+  const std::string typed(complexityEdit_->getText().getString());
+  complexityEditActive_=false; // Ignore reentrant focus/close callbacks.
+  complexityEdit_->setVisible(false);
+  std::uint8_t parsed=beatCreatorComplexity_;
+  if(UiBeatCreatorDialog::parseComplexity(typed.c_str(),parsed))
+   setBeatCreatorComplexity(parsed);
+  else {
+   beatCreatorNotice_="INVALID COMPLEXITY - ENTER 0 TO 100";
+   invalid();
+  }
+  return;
+ }
  if(control!=nameEdit_||editingNameRow_>=kRows||
     nameEditGeneration_!=controller_.editGeneration())return;
  const auto text=std::string(nameEdit_->getText().getString());
@@ -835,6 +884,12 @@ bool DrumatorView::changeDetailValue(std::size_t row,int slot,int requested) {
  }
 }
 void DrumatorView::onTextEditPlatformControlLostFocus(VSTGUI::CTextEdit* edit) {
+ if(edit==complexityEdit_){
+  complexityEditActive_=false;
+  complexityEdit_->setVisible(false);
+  invalid();
+  return;
+ }
  if(edit!=nameEdit_)return;
  nameEdit_->setVisible(false);
  editingNameRow_=kRows;
@@ -862,6 +917,13 @@ void DrumatorView::discardTransientEditsForRecall() noexcept {
  fillMenuRow_=-1;
 }
 void DrumatorView::finishTransientEditsAfterRecall() {
+ if(complexityEdit_) {
+  complexityEditActive_=false;
+  if(auto* frame=getFrame();frame&&frame->getFocusView()==complexityEdit_)
+   frame->setFocusView(nullptr);
+  if(complexityEdit_->getPlatformTextEdit())complexityEdit_->looseFocus();
+  complexityEdit_->setVisible(false);
+ }
  if(nameEdit_) {
    // An invisible CTextEdit can still own a visible native EDIT HWND.
    // Losing the frame focus closes the platform control via VSTGUI.
@@ -1123,6 +1185,15 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
 }
 void DrumatorView::closeBeatCreator() noexcept {
  if(!beatCreatorOpen_)return;
+ // The native Win32 EDIT must never survive modal close or take a late
+ // valueChanged into a different project/view. Invalidate BEFORE focus loss.
+ complexityEditActive_=false;
+ if(complexityEdit_) {
+  if(auto* frame=getFrame();frame&&frame->getFocusView()==complexityEdit_)
+   frame->setFocusView(nullptr);
+  if(complexityEdit_->getPlatformTextEdit())complexityEdit_->looseFocus();
+  complexityEdit_->setVisible(false);
+ }
  (void)controller_.stopBeatCreatorDraft();
  controller_.cancelBeatCreator();
  beatCreatorOpen_=false;
@@ -1244,19 +1315,16 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
    invalid();return true;
   }
  }
+ if(D::complexityValue(height).hit(x,y)) {
+  editBeatCreatorComplexity(); // Existing 52x25 readout becomes native input.
+  invalid();return true;
+ }
  const int complexityStep=
     D::complexityMinus(height).hit(x,y)?-10:
     D::complexityPlus(height).hit(x,y)?10:0;
  if(complexityStep) {
-  const auto candidate=static_cast<std::uint8_t>(std::clamp(
-    static_cast<int>(beatCreatorComplexity_)+complexityStep,0,100));
-  if(candidate!=beatCreatorComplexity_){
-   controller_.cancelBeatCreator();
-   beatCreatorComplexity_=candidate;
-   beatCreatorConfirmOverwrite_=false;
-   beatCreatorListening_=-1;
-   beatCreatorNotice_="COMPLEXITY CHANGED - CLICK GENERATE";
-  }
+  setBeatCreatorComplexity(static_cast<std::uint8_t>(std::clamp(
+    static_cast<int>(beatCreatorComplexity_)+complexityStep,0,100)));
   invalid();return true;
  }
  if(D::generate(height).hit(x,y)) {

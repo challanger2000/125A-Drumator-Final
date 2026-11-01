@@ -94,6 +94,11 @@ private:
  int beatCreatorListening_{-1};
  BeatStyle beatCreatorStyle_{BeatStyle::IndustrialNDH};
  std::uint8_t beatCreatorComplexity_{35};
+ // Native platform edit sits on the existing numeric readout; GUI-only state.
+ VSTGUI::CTextEdit* complexityEdit_{nullptr};
+ bool complexityEditActive_{false};
+ void editBeatCreatorComplexity();
+ void setBeatCreatorComplexity(std::uint8_t requested);
  std::uint32_t beatCreatorSeed_{0x125A1500u};
  std::string beatCreatorNotice_{"CHOOSE STYLE, THEN GENERATE"};
  void drawBeatCreator(VSTGUI::CDrawContext* c);

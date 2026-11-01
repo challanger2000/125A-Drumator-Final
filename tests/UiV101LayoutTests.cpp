@@ -278,6 +278,18 @@ int main(){
                    (button.y0+button.y1)/2.)==i);
     }
   }
+  // BC25: direct 0..100% editor accepts exact values, not only +/-10.
+  {
+    using D=drumator::UiBeatCreatorDialog;
+    std::uint8_t v=35;
+    CHECK(D::parseComplexity("0",v)&&v==0u);
+    CHECK(D::parseComplexity("100",v)&&v==100u);
+    CHECK(D::parseComplexity("67",v)&&v==67u);
+    CHECK(D::parseComplexity(" 45 % ",v)&&v==45u);
+    for(const char* invalid:{""," ","-1","101","999999999999","abc","43x","25%%","5.5"})
+      CHECK(!D::parseComplexity(invalid,v)&&v==45u);
+    CHECK(!D::parseComplexity(nullptr,v)&&v==45u);
+  }
   // BC22: original 95x25 standard Drumator action keys, only 136x25 styles.
   // ONE hardware panel and one four-column control geometry for
   // all host heights (including Studio One refusing window enlargement).

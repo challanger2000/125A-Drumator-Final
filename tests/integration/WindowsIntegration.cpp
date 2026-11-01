@@ -122,6 +122,11 @@ struct IntegrationAccess {
  static bool sampleEditorLive(const DrumatorView& view){return view.sampleEditorLive_;}
  static bool songEditorOpen(const DrumatorView& view){return view.songEditorOpen_;}
  static bool clickFlashArmed(const DrumatorView& view){return view.clickFlashArmed_;}
+ static std::uint8_t beatCreatorComplexity(const DrumatorView& view){return view.beatCreatorComplexity_;}
+ static bool beatCreatorComplexityEditing(const DrumatorView& view){return view.complexityEditActive_;}
+ static VSTGUI::CTextEdit* beatCreatorComplexityEdit(DrumatorView& view){return view.complexityEdit_;}
+ static bool beatCreatorOpen(const DrumatorView& view){return view.beatCreatorOpen_;}
+ static const std::string& beatCreatorNotice(const DrumatorView& view){return view.beatCreatorNotice_;}
  static std::size_t v101SelectedRow(const DrumatorView& view){return view.v101_.state().selectedRow;}
  static std::size_t v101FirstRow(const DrumatorView& view){return view.v101_.state().firstRow;}
  static UiV101Layout::Expansion v101Expansion(const DrumatorView& view){return view.v101_.state().expansion;}
@@ -4043,6 +4048,81 @@ void testBeatCreatorCompactHostWindow(){
        "BC18 compact modal changed fixed host viewport");
  evidence("BC18 254px host-constrained BEAT CREATOR overlay, genre, complexity, audio PLAY C/STOP and CANCEL PASS");
 }
+void testBeatCreatorComplexityDirectEntry(){
+ using D=UiBeatCreatorDialog;
+ Fixture f;
+ KitState kit;kit.visible=4;kit.grid.fill(0);kit.patternLengths.fill(16);
+ f.kit(kit);f.openV101();
+ auto* view=IntegrationAccess::view(*f.c,0);
+ check(view!=nullptr,"BC25 native editor unavailable");
+ constexpr double h=254.;
+ view->setViewSize({0.,0.,1280.,h});
+ // Match the real Windows EDIT-focus lifecycle used by the row-name editor.
+ SetActiveWindow(f.frames[0].hwnd);
+ SetForegroundWindow(f.frames[0].hwnd);
+ SetFocus(static_cast<HWND>(
+   f.editors[0]->getFrame()->getPlatformFrame()->getPlatformRepresentation()));
+ pump();
+ click(*view,765.,115.);
+ check(IntegrationAccess::beatCreatorOpen(*view),"BC25 failed to open modal");
+ check(IntegrationAccess::beatCreatorComplexity(*view)==35u,"BC25 default altered");
+ const auto value=D::complexityValue(h);
+ const auto press=[&](D::Rect cell){
+  click(*view,(cell.x0+cell.x1)*.5,(cell.y0+cell.y1)*.5);
+ };
+ const auto beginEdit=[&]()->HWND{
+  press(value);
+  pump();
+  auto* edit=IntegrationAccess::beatCreatorComplexityEdit(*view);
+  check(edit!=nullptr&&IntegrationAccess::beatCreatorComplexityEditing(*view),
+        "BC25 clicking value did not activate native editor");
+  check(edit->getPlatformTextEdit()!=nullptr,
+        "BC25 native CTextEdit platform control missing");
+  HWND hwnd=GetFocus();wchar_t cls[32]{};
+  check(hwnd&&GetClassNameW(hwnd,cls,32)>0&&
+        lstrcmpiW(cls,L"EDIT")==0,"BC25 native EDIT focus missing");
+  return hwnd;
+ };
+ const auto enter=[&](HWND hwnd,const wchar_t* digits){
+  SetWindowTextW(hwnd,digits);
+  SendMessageW(hwnd,WM_KEYDOWN,VK_RETURN,0);
+  pump();
+ };
+ HWND hwnd=beginEdit();
+ enter(hwnd,L"67");
+ check(IntegrationAccess::beatCreatorComplexity(*view)==67u&&
+       !IntegrationAccess::beatCreatorComplexityEditing(*view),
+       "BC25 Enter failed to commit arbitrary 67% value");
+ check(!IsWindow(hwnd),"BC25 Enter leaked native EDIT HWND");
+ press(D::generate(h));
+ check(f.c->beatCreatorDraft()!=nullptr,"BC25 Generate did not stage new draft");
+ hwnd=beginEdit();
+ enter(hwnd,L"101");
+ check(IntegrationAccess::beatCreatorComplexity(*view)==67u&&
+       f.c->beatCreatorDraft()!=nullptr&&
+       IntegrationAccess::beatCreatorNotice(*view).find("INVALID")!=std::string::npos,
+       "BC25 invalid input changed value or destroyed existing preview");
+ hwnd=beginEdit();
+ enter(hwnd,L"0");
+ check(IntegrationAccess::beatCreatorComplexity(*view)==0u&&
+       f.c->beatCreatorDraft()==nullptr,
+       "BC25 changing to zero failed to invalidate obsolete preview");
+ hwnd=beginEdit();
+ SetWindowTextW(hwnd,L"99");
+ SendMessageW(hwnd,WM_KEYDOWN,VK_ESCAPE,0);pump();
+ check(IntegrationAccess::beatCreatorComplexity(*view)==0u,
+       "BC25 Escape incorrectly accepted edited value");
+ hwnd=beginEdit();
+ SetWindowTextW(hwnd,L"88");
+ press(D::cancel(h));
+ pump();
+ check(!IntegrationAccess::beatCreatorOpen(*view)&&
+       !IntegrationAccess::beatCreatorComplexityEditing(*view)&&
+       IntegrationAccess::beatCreatorComplexity(*view)==0u&&
+       !IsWindow(hwnd),
+       "BC25 modal cancel left native editor or committed unapproved value");
+ evidence("BC25 Windows native Complexity direct entry 67/0, reject 101, Esc, modal close and draft invalidation PASS");
+}
 void testV101ButtonClickFlash(){
  using P=drumator::v101::UiV101NativePreview;
  Fixture f;
@@ -6157,6 +6237,7 @@ int main(int argc,char** argv){
  run("BC16 audible non-destructive A/B/C preview",testBeatCreatorV15AudiblePreview);
  run("BC17 real Beat Creator V101 dialog and guarded workflow",testBeatCreatorV15Dialog);
  run("BC19 A/B/C APPLY fills only missing sounds and labels",testBeatCreatorV15FactoryKitApply);
+ run("BC25 native Complexity numeric 0..100 direct input, ESC and close",testBeatCreatorComplexityDirectEntry);
  run("BF20 native consistent click-active flash button palette",testV101ButtonClickFlash);
  run("BC18 compact 254px host Beat Creator dialog",testBeatCreatorCompactHostWindow);
  run("BC21 native uniform Beat Creator hardware at 254 and 686px",testBeatCreatorUnifiedHardwareView);

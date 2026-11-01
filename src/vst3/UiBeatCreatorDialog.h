@@ -5,6 +5,7 @@
 // All ROW/host heights use the same 640 x 240 hardware panel.
 #include "core/UiV101Layout.h"
 #include <cstddef>
+#include <cstdint>
 namespace drumator {
 struct UiBeatCreatorDialog final {
  using Rect=UiV101Layout::Rect;
@@ -44,6 +45,25 @@ struct UiBeatCreatorDialog final {
  }
  static constexpr Rect complexityValue(double h) noexcept {
   const auto p=panel(h);return {p.x0+230.,p.y0+119.,p.x0+282.,p.y0+144.};
+ }
+ // Strict native numeric editor input; no exceptions or silent clamping.
+ // Enter accepts 0..100 (also "45%"), empty/out-of-range stays unchanged.
+ static bool parseComplexity(const char* text,std::uint8_t& out) noexcept {
+  if(!text)return false;
+  const auto space=[](char c){return c==' '||c=='\t';};
+  while(space(*text))++text;
+  if(*text<'0'||*text>'9')return false;
+  unsigned value=0;
+  for(;*text>='0'&&*text<='9';++text){
+   value=value*10u+static_cast<unsigned>(*text-'0');
+   if(value>100u)return false;
+  }
+  while(space(*text))++text;
+  if(*text=='%')++text;
+  while(space(*text))++text;
+  if(*text!='\0')return false;
+  out=static_cast<std::uint8_t>(value);
+  return true;
  }
  static constexpr Rect complexityPlus(double h) noexcept {
   const auto p=panel(h);return {p.x0+292.,p.y0+119.,p.x0+327.,p.y0+144.};
