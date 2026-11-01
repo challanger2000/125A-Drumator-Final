@@ -126,7 +126,7 @@ struct IntegrationAccess {
  static bool beatCreatorComplexityEditing(const DrumatorView& view){return view.complexityEditActive_;}
  static VSTGUI::CTextEdit* beatCreatorComplexityEdit(DrumatorView& view){return view.complexityEdit_;}
 static bool beatCreatorOpen(const DrumatorView& view){return view.beatCreatorOpen_;}
- static bool drumkitsTabOpen(const DrumatorView& view){return view.kitBrowserOpen_;}
+ static bool previewKitConfirmation(const DrumatorView& view){return view.previewKitOverwritePending_;}
  static const std::string& beatCreatorNotice(const DrumatorView& view){return view.beatCreatorNotice_;}
  static std::size_t v101SelectedRow(const DrumatorView& view){return view.v101_.state().selectedRow;}
  static std::size_t v101FirstRow(const DrumatorView& view){return view.v101_.state().firstRow;}
@@ -3950,6 +3950,8 @@ void testUserKitPresetIsSoundOnly(){
  start.songEnabled=1;
  start.swing=17;
  start.wav[0]=constantStereo(.4f,.4f);
+ start.wav[8]=constantStereo(.17f,.17f);
+ start.names[8]="Owner_Row9.wav";
  start.names[0]="Owner_Kick.wav";
  start.displayNames[0]="Owner Kick";
  f.kit(start);prepareAudio(*f.p);
@@ -3974,10 +3976,24 @@ void testUserKitPresetIsSoundOnly(){
  std::error_code ec;std::filesystem::create_directories(root,ec);
  const auto path=root/"02_User_Drums.125akit";
  check(KitPresetCatalog::save(path,selected),"BC33 create preset");
+ check(!f.c->loadKitPreset(pathToUtf8(path),true),
+       "BC40 incomplete preview kit unexpectedly accepted");
+ for(std::size_t row=2;row<8;++row){
+   selected.wav[row]=constantStereo(.13f,.13f);
+   selected.names[row]="BC40_Preview.wav";
+ }
+ check(KitPresetCatalog::save(path,selected),"BC40 write eight-sample preset");
+ check(f.c->loadKitPreset(pathToUtf8(path),true),
+       "BC40 Controller preview-only load rejected");
+ const auto previewAfter=capture();
+ check(previewAfter.wav[8]==before.wav[8]&&
+       previewAfter.grid==before.grid&&
+       previewAfter.wav[0]==selected.wav[0],
+       "BC40 preview load altered slot 9 or grooves");
  check(f.c->loadKitPreset(pathToUtf8(path)),"BC33 Controller sample-kit load");
  const auto after=capture();
  check(after.wav[0]==selected.wav[0]&&after.wav[1]==selected.wav[1]&&
-       after.wav[2].empty()&&
+       after.wav[2]==selected.wav[2]&&
        after.names[0]==selected.names[0]&&
        after.displayNames[1]==selected.displayNames[1],
        "BC33 kit did not replace instruments accurately");
@@ -3987,7 +4003,7 @@ void testUserKitPresetIsSoundOnly(){
        after.songEnabled==before.songEnabled&&after.songStartBar==before.songStartBar&&
        after.swing==before.swing&&after.gain==before.gain&&after.pan==before.pan,
        "BC33 kit import touched grooves/song/mixer/visible rows");
- check(!f.c->hasSample(2)&&f.c->hasSample(0)&&f.c->hasSample(1),
+ check(f.c->hasSample(2)&&f.c->hasSample(0)&&f.c->hasSample(1),
        "BC33 controller state mirror incorrect");
  std::filesystem::remove_all(root,ec);
  evidence("BC33 real Controller/Processor .125akit import, empty rows, sample assignment and exact groove/song/host mix preservation PASS");
@@ -4063,11 +4079,10 @@ void testBeatCreatorUnifiedHardwareView(){
    const auto panel=D::panel(height);
 check(panel.x1-panel.x0==640.&&panel.y1-panel.y0==240.,
        "BC21 modal changed physical dimensions with host row count");
- const auto creatorTab=D::creatorTab(height),drumkitsTab=D::drumkitsTab(height);
- check(creatorTab.x1-creatorTab.x0==95.&&drumkitsTab.x1-drumkitsTab.x0==95.&&
-       creatorTab.y1<=D::styleHeading(height).y0&&
-       drumkitsTab.x0>=creatorTab.x1,
-       "BC38 tabs overlap or have wrong button size");
+ const auto load=D::loadPreviewKit(height);
+ check(load.y1<=D::styleHeading(height).y0&&
+       D::legend(height,7).y1<=D::apply(height).y0,
+       "BC40 preview kit and legend geometry overlap");
    click(*view,765.,115.);
    check(!IntegrationAccess::clickFlashArmed(*view),
          "BC21 BEAT CREATOR opener leaked flash onto underlying HIP-HOP style");
@@ -4422,18 +4437,15 @@ void testBeatCreatorV15Dialog(){
  };
 press(UiV101Layout::beatCreatorTrigger);
  check(f.c->beatCreatorDraft()==nullptr,"BC17 opening the dialog applied a draft");
- // BC38: the kit browser is a tab in the SAME window.
- press(UiBeatCreatorDialog::drumkitsTab(h));
- check(IntegrationAccess::beatCreatorOpen(*view)&&
-       IntegrationAccess::drumkitsTabOpen(*view),
-       "BC38 DRUMKITS tab did not open in the same Beat Creator modal");
- check(saved().grid==before.grid&&saved().wav==before.wav,
-       "BC38 tab switch modified patterns or samples");
- press(UiBeatCreatorDialog::creatorTab(h));
- check(IntegrationAccess::beatCreatorOpen(*view)&&
-       !IntegrationAccess::drumkitsTabOpen(*view),
-       "BC38 BEAT CREATOR tab failed to restore original controls");
- press(UiBeatCreatorDialog::style(h,5)); // METAL
+ // BC40: first click never overwrites samples.
+  press(UiBeatCreatorDialog::loadPreviewKit(h));
+  check(IntegrationAccess::beatCreatorOpen(*view)&&
+        IntegrationAccess::previewKitConfirmation(*view)&&
+        saved().wav==before.wav,
+        "BC40 preview load lacks confirmation");
+  press(UiBeatCreatorDialog::style(h,5)); // METAL
+  check(!IntegrationAccess::previewKitConfirmation(*view),
+        "BC40 style change retains pending overwrite");
  press(UiBeatCreatorDialog::complexityPlus(h));
  press(UiBeatCreatorDialog::generate(h));
  check(f.c->beatCreatorDraft()!=nullptr,"BC17 GENERATE did not stage A/B/C");
