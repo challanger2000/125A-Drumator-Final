@@ -168,7 +168,7 @@ class BeatCreatorFactoryKit final {
   if(!draft.valid||(draft.steps!=16&&draft.steps!=32)||candidate>=3)
    return false;
   const PatternSteps* choice=candidate==0?&draft.a:candidate==1?&draft.b:&draft.c;
-  if(!BeatCreator::occupiedMask({*choice,{},{}})&&emptyPattern(*choice))return false;
+  if(emptyPattern(*choice))return false;
   temporary.grid.fill(0);
   std::copy(choice->begin(),choice->end(),temporary.grid.begin());
   temporary.patternLengths[0]=draft.steps;
