@@ -1,10 +1,21 @@
-# 125A Drumator — authoritative current status
+# 125A Drumator — active development
+
+**1 November 2026 — Drumator 1.5.0 planning branch only.**
+
+- Branch `develop/v1.5.0` created from certified 1.0.1 head `f4c5caa4be82626ea89459d9835c12138d7c6a1b`.
+- **Released 1.0.1 stays untouched on `main`.** No changed DSP, UI code or distributable VST3 on this 1.5 branch yet.
+- Scope and safeguards: [`docs/ROADMAP-1.5.0.md`](docs/ROADMAP-1.5.0.md).
+- Do not build a v1.5 sales package until implementation, Windows QA and owner Studio One acceptance.
+
+---
+
+## Frozen v1.0.1 product baseline (reference only)
 
 **31 October 2026 | Version 1.0.1 | F21 footer alignment complete; verified updated Gumroad customer ZIP prepared.**
 
 ## Authoritative source and build
 
-- **Main and development branch:** same complete 1.0.1 product state after release documentation synchronization. Do not use superseded F18/F19/F20 candidate ZIPs.
+- **Main and previous 1.0.1 development branch:** same complete 1.0.1 product state before creating the 1.5.0 branch. Do not use superseded F18/F19/F20 candidate ZIPs.
 - **Exact product code verified:** `3748b1e9e1867357362304c51bec2cb99ac9657b`.
 - **[Windows Actions #41157069202](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41157069202): SUCCESS.** 29/29 CTests, Steinberg VST3 Validator 47/47, independent 125A Plugin Tester v0.3.2 **58 PASS / 0 WARNING / 0 FAIL**.
 - **Product DLL SHA256:** `06c784854ce4b96763933444c5400ced8c4f5eed5f03339ca6b0f1c071de3278`.

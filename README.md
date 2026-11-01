@@ -1,10 +1,12 @@
 # 125A Drumator
 
+> **1.5.0 planning branch — not a product release.** Only the roadmap and branch documentation are new here. The tested 1.0.1 is preserved on [main](https://github.com/challanger2000/125A-Drumator-Final/tree/main). Read [the 1.5.0 scope](docs/ROADMAP-1.5.0.md).
+
 Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style interface.
 
 **Version:** 1.0.1. The F20/F21 layout corrections are included in the updated 1.0.1 customer package prepared for the seller. **No 1.0.2 release.**
 
-**Canonical source:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main). The `develop/v1.0.1-gui-redesign` branch is synchronized to the same source and status. Former development versions and failed F18/F19 attempts are retained in Git history but are not the current executable.
+**Canonical released source:** [`main`](https://github.com/challanger2000/125A-Drumator-Final/tree/main), version 1.0.1. The new `develop/v1.5.0` branch is isolated and has no 1.5.0 executable yet. Historical branches remain available.
 
 ## Features
 
