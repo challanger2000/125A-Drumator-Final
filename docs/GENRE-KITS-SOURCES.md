@@ -1,8 +1,8 @@
 # 125A Drumator 1.5 — Eight source-recorded kit candidates
 
-**Status: sample-selection and sonic QA staging, NOT production VST3.**
+**Status: BC29 recorded-kit VST3 development integration, Windows QA PASS; not a released product.**
 
-This feature branch creates a separate reproducible archive of 8 × 8 original-recorded drum hits. It does not yet change any code in the shipped VST3, factory-kit integration, user samples, or version numbers.
+The branch contains eight sets of source-recorded 8-piece kits and a Windows VST3 integration. The 64 WAVs ship inside the development `.vst3` bundle at `Contents/Resources/BeatCreator/`; PLAY A/B/C and APPLY use the same selected kit. The sold 1.0.1 binary and `main` remain unchanged. No Studio One owner listening acceptance has been asserted.
 
 ## Source and rights
 
@@ -28,6 +28,6 @@ All kits preserve the existing Beat Creator's eight-row role order: BD, Snare, C
 
 ## Verification/release boundary
 
-The standalone workflow downloads only recordings at pinned upstream commits, derives trimmed PCM16 mono WAVs at 44.1 kHz and checks duration, peak, RMS, clip safety, file count and content diversity. No effect has been added to the VST3 and `main` remains the sold v1.0.1. A complete product integration requires the same samples to sound in PLAY A/B/C and after APPLY, preservation of user kits and undo/recall, correct installation, and a Windows/Studio One audio audition.
+The sample generation workflow downloads only recordings at pinned upstream commits, derives trimmed PCM16 mono WAVs at 44.1 kHz and checks duration, peak, RMS, clip safety, file count and content diversity. The real VST3 loader uses the same WAV files for PLAY A/B/C and for the empty-row-only APPLY transaction; 32/32 CTests, 47/47 Steinberg Validator and 58/58 independent plugin tests passed on GitHub Actions #41289563236. Subjective listening and owner Studio One testing remain separate pre-release checks.
 
 No direct copying from third-party commercial drum-library files. The archive is a development candidate only.

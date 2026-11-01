@@ -1,5 +1,15 @@
 # 125A Drumator — authoritative v1.5 development status
 
+## Stage 5.9 — BC29 eight CC0 recorded genre kits: WINDOWS QA PASS (1 November 2026)
+
+- **Exact successfully tested source:** `fdbcf4adeb95712802950f5497adc1ea03e8eff4` on `feature/v1.5-eight-genre-kits`. [GitHub Actions #41289563236](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41289563236) **SUCCESS**: **32/32 CTests**, **47/47 official Steinberg VST3 Validator**, **58 PASS / 0 WARNING / 0 FAIL independent 125A Plugin Tester v0.3.2**.
+- **Eight distinct genre-specific recorded kits / 64 processed PCM16 WAVs** from immutable-commit-pinned CC0 sample sets: Michael Fischer TR-808 recordings ([TidalCycles](https://github.com/tidalcycles/sounds-tr808-fischer)) and Karoryfer *Big Rusty Drums* ([source](https://github.com/sfzinstruments/karoryfer.big-rusty-drums)). See `docs/GENRE-KITS-SOURCES.md`, `assets/beatcreator/SOURCE-MANIFEST.json` for per-file source paths/hashes and exact origin revisions. Some recordings recur across compatible styles; this is 8 curated kits, not 64 independently unique raw captures.
+- **Real VST3 integration:** PLAY A/B/C uses the selected genre's actual recorded kit. On GUI APPLY, only previously empty rows 1–8 receive those same sounds. The Controller and Processor independently load and validate the same packaged resources, and the existing atomic A/B/C edit + no-overwrite protection remains. The 64 WAV files live inside `125A Drumator.vst3/Contents/Resources/BeatCreator/`, with provenance; no external sample library installation is needed. The old synthetic factory implementation remains as a legacy/unit-test helper, not the selected-genre GUI path.
+- **Verification:** native BC16/BC17/BC18/BC19 regression tests, all 32 CTests, packaged VST3/Validator and independent Plugin Tester passed; kit loader unit QA loads and decodes all eight kits. The standalone [candidate kit ZIP](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41288910518/artifacts/13075989066) was separately generated and audited; the [new Windows VST3 bundle](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41289563236/artifacts/13076981140) includes those resources.
+- **Release boundary:** branch is still pre-release. No claim of human musical listening, acoustic genre authenticity or owner Studio One acceptance. `main` and the sold Gumroad 1.0.1 remain untouched. No commercial 1.5 release is authorized by this source/QA milestone.
+
+---
+
 ## Stage 5.8 — BC27 musician-oriented style audit (1 November 2026)
 
 - **Validated exact commit:** `7177afd1201151f4b1aa466e1167d6d2a052ca0b`, `develop/v1.5.0`; [GitHub Actions #41286921291](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41286921291) **SUCCESS**: **32/32 CTests, 47/47 Steinberg Validator, 58 PASS / 0 WARNING / 0 FAIL independent Plugin Tester v0.3.2**. Built Windows VST3 DLL SHA256 `15ad2f5553bac4b534ece863849daa5c176e6f2512644bb55760ebb2db339b91`.
