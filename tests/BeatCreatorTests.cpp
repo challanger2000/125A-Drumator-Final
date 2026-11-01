@@ -13,6 +13,17 @@ static std::uint8_t get(const PatternSteps& p,BeatRole role,std::size_t step){
 static int count(const PatternSteps& p,BeatRole role,std::size_t n){
  int found=0;for(std::size_t i=0;i<n;++i)found+=get(p,role,i)>0;return found;
 }
+// Musical structure signatures intentionally ignore velocities. Different
+// random gains must NEVER be counted as an alternative groove.
+static std::array<std::uint16_t,8> footprint(const PatternSteps& p,
+                                              std::size_t first) {
+ std::array<std::uint16_t,8> mask{};
+ for(std::size_t role=0;role<8;++role)
+  for(std::size_t step=0;step<16;++step)
+   if(p[role*kSteps+first+step])
+    mask[role]=static_cast<std::uint16_t>(mask[role]|(1u<<step));
+ return mask;
+}
 int main(){
  try{
   check(BeatCreator::styleNames.size()==8,"expected eight meaningful styles");
@@ -68,6 +79,50 @@ int main(){
     }
    }
   }
+  // BC26: check MUSICAL VARIETY at the actual default 35% Complexity,
+  // not just random velocity changes. All 8 genres need multiple distinctly
+  // placed note arrangements, a second-bar development and varied endings.
+  for(unsigned kind=0;kind<8;++kind) {
+   const auto style=static_cast<BeatStyle>(kind);
+   for(const std::uint8_t density:{std::uint8_t{35},std::uint8_t{75}}) {
+    const BeatCreatorSettings shortSettings{style,density,16};
+    std::array<std::array<std::uint16_t,8>,64> structures{};
+    std::array<std::array<std::uint16_t,8>,64> endings{};
+    unsigned sameAsPrevious=0u;
+    for(unsigned seed=0;seed<structures.size();++seed) {
+     const auto p=BeatCreator::preview(shortSettings,seed+0xA570u);
+     structures[seed]=footprint(p.a,0);
+     endings[seed]=footprint(p.c,0);
+     if(seed&&structures[seed]==structures[seed-1u])++sameAsPrevious;
+     for(std::size_t step=0;step<16;++step) {
+      for(const auto* candidate:{&p.a,&p.b,&p.c})
+       check(!(get(*candidate,BeatRole::CHH,step)&&
+               get(*candidate,BeatRole::OHH,step)),
+             "BC26 two simultaneous open and closed hi-hats");
+     }
+    }
+    unsigned different=0u,differentEndings=0u;
+    for(unsigned i=0;i<structures.size();++i){
+     bool unique=true,uniqueBreak=true;
+     for(unsigned j=0;j<i;++j){
+      if(structures[i]==structures[j])unique=false;
+      if(endings[i]==endings[j])uniqueBreak=false;
+     }
+     different+=unique?1u:0u;
+     differentEndings+=uniqueBreak?1u:0u;
+    }
+    check(different>=3u,"BC26 genre lacks 3 distinct step arrangements");
+    check(differentEndings>=3u,"BC26 repeated identical breaks");
+    check(sameAsPrevious<40u,
+          "BC26 repeated structures too frequently at default Complexity");
+    for(unsigned seed=0;seed<64u;++seed){
+     const BeatCreatorSettings longSettings{style,density,32};
+     const auto p=BeatCreator::preview(longSettings,seed+0xB570u);
+     check(footprint(p.a,0)!=footprint(p.a,16),
+           "BC26 two bars have exactly the same rhythmic structure");
+    }
+   }
+  }
   // Isolation: generating a preview cannot modify an existing project.
   PatternSteps occupied{};occupied[0]=127;occupied[kSteps+31]=92;
   const std::array<PatternSteps,3> existing{occupied,{},occupied};
@@ -80,7 +135,7 @@ int main(){
   PatternSteps onlyHidden{};onlyHidden[16]=96;
   check(BeatCreator::occupiedMask(std::array<PatternSteps,3>{PatternSteps{},onlyHidden,PatternSteps{}})==2u,
         "hidden second-bar value not protected");
-  std::cout<<"Beat Creator preview: styles=8, lengths=16/32, 2560 seed/style/complexity cases, A/B/C, safely isolated\n";
+  std::cout<<"Beat Creator preview: styles=8, lengths=16/32, 2560 legacy cases + BC26 style variety/two-bar phrases/break variants, A/B/C isolated\n";
   return 0;
  }catch(const std::exception& e){std::cerr<<"BEAT CREATOR FAIL: "<<e.what()<<"\n";return 1;}
 }

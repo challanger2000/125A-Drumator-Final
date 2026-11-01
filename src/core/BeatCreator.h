@@ -65,67 +65,136 @@ class BeatCreator final {
  static constexpr std::array<const char*,8> styleNames{{
   "INDUSTRIAL / NDH","EBM","TECHNO","HOUSE","ROCK","METAL","HIP-HOP","DRUM & BASS"
  }};
+ // 16-step genre motifs. Each style has three deliberately different
+ // arrangements; seeds select musical templates, not arbitrary step noise.
+ // Bit positions are the 1/16-note cells inside one bar.
+ static constexpr std::uint16_t beat(unsigned n) noexcept {
+  return static_cast<std::uint16_t>(1u<<n);
+ }
+ struct Groove {
+  std::uint16_t kick,hat,clap,open;
+ };
+ static constexpr Groove motif(BeatStyle style,unsigned which) noexcept {
+  constexpr auto q=beat(0)|beat(4)|beat(8)|beat(12);
+  constexpr auto e=beat(0)|beat(2)|beat(4)|beat(6)|
+                   beat(8)|beat(10)|beat(12)|beat(14);
+  constexpr auto off=beat(2)|beat(6)|beat(10)|beat(14);
+  constexpr auto back=beat(4)|beat(12);
+  switch(style) {
+   case BeatStyle::IndustrialNDH:
+    switch(which) {
+     case 0:return {static_cast<std::uint16_t>(q|beat(7)),e,0,beat(14)};
+     case 1:return {static_cast<std::uint16_t>(q|beat(11)),e,0,beat(14)};
+     default:return {static_cast<std::uint16_t>(q|beat(3)|beat(10)),
+                     static_cast<std::uint16_t>(e|beat(15)),0,beat(14)};
+    }
+   case BeatStyle::EBM:
+    switch(which) {
+     case 0:return {q,off,0,beat(14)};
+     case 1:return {q,static_cast<std::uint16_t>(off|beat(7)|beat(15)),0,beat(14)};
+     default:return {static_cast<std::uint16_t>(q|beat(10)),
+                     static_cast<std::uint16_t>(off|beat(3)|beat(11)),0,beat(14)};
+    }
+   case BeatStyle::Techno:
+    switch(which) {
+     case 0:return {q,off,back,beat(14)};
+     case 1:return {q,static_cast<std::uint16_t>(off|beat(7)),back,beat(14)};
+     default:return {q,static_cast<std::uint16_t>(off|beat(3)|beat(11)),
+                     static_cast<std::uint16_t>(back|beat(15)),beat(14)};
+    }
+   case BeatStyle::House:
+    switch(which) {
+     case 0:return {q,e,back,beat(14)};
+     case 1:return {q,static_cast<std::uint16_t>(off|beat(7)|beat(15)),back,beat(14)};
+     default:return {q,static_cast<std::uint16_t>(e|beat(11)),
+                     static_cast<std::uint16_t>(back|beat(15)),beat(14)};
+    }
+   case BeatStyle::Rock:
+    switch(which) {
+     case 0:return {static_cast<std::uint16_t>(beat(0)|beat(8)|beat(10)),e,0,0};
+     case 1:return {static_cast<std::uint16_t>(beat(0)|beat(7)|beat(8)|beat(10)),e,0,0};
+     default:return {static_cast<std::uint16_t>(beat(0)|beat(6)|beat(8)|beat(10)|beat(14)),
+                     static_cast<std::uint16_t>(e|beat(15)),0,0};
+    }
+   case BeatStyle::Metal:
+    switch(which) {
+     case 0:return {static_cast<std::uint16_t>(beat(0)|beat(2)|beat(6)|beat(8)|beat(10)|beat(14)),e,0,0};
+     case 1:return {static_cast<std::uint16_t>(beat(0)|beat(2)|beat(3)|beat(6)|beat(8)|beat(10)|beat(14)),e,0,0};
+     default:return {static_cast<std::uint16_t>(beat(0)|beat(2)|beat(6)|beat(7)|beat(8)|beat(10)|beat(11)|beat(14)),
+                     static_cast<std::uint16_t>(e|beat(15)),0,0};
+    }
+   case BeatStyle::HipHop:
+    switch(which) {
+     case 0:return {static_cast<std::uint16_t>(beat(0)|beat(7)|beat(10)),e,back,0};
+     case 1:return {static_cast<std::uint16_t>(beat(0)|beat(6)|beat(10)),
+                     static_cast<std::uint16_t>(e|beat(11)),back,0};
+     default:return {static_cast<std::uint16_t>(beat(0)|beat(3)|beat(8)|beat(10)),
+                     static_cast<std::uint16_t>(e|beat(7)|beat(15)),back,0};
+    }
+   case BeatStyle::DrumAndBass:
+    switch(which) {
+     case 0:return {static_cast<std::uint16_t>(beat(0)|beat(10)),e,0,0};
+     case 1:return {static_cast<std::uint16_t>(beat(0)|beat(7)|beat(10)),
+                     static_cast<std::uint16_t>(e|beat(15)),0,0};
+     default:return {static_cast<std::uint16_t>(beat(0)|beat(6)|beat(10)|beat(15)),
+                     static_cast<std::uint16_t>(e|beat(11)),0,0};
+    }
+   case BeatStyle::Count:break;
+  }
+  return {};
+ }
  static PatternSteps generate(const BeatCreatorSettings& s,std::uint32_t seed) noexcept {
   PatternSteps p{};
   if(!valid(s))return p;
-  Rng structure(seed^0x474E5241u), dynamics(seed^0x56454C31u);
+  Rng structure(seed^0x474E5241u),dynamics(seed^0x56454C31u);
   const unsigned busy=static_cast<unsigned>(s.complexity);
-  for(std::size_t st=0;st<s.steps;++st) {
-   const auto loc=st%16u;
-   const bool quarter=loc%4u==0u,eighth=loc%2u==0u;
-   const bool snare=loc==4u||loc==12u;
-   bool kick=false,hat=false,clap=false,open=false;
-   switch(s.style) {
-    case BeatStyle::IndustrialNDH:
-     kick=quarter;hat=eighth;break;
-    case BeatStyle::EBM:
-     kick=quarter;hat=loc%4u==2u;clap=snare&&busy>=55;break;
-    case BeatStyle::Techno:
-     kick=quarter;hat=loc%4u==2u;clap=snare;break;
-    case BeatStyle::House:
-     kick=quarter;hat=eighth;clap=snare;break;
-    case BeatStyle::Rock:
-     kick=loc==0u||loc==8u||loc==10u;hat=eighth;break;
-    case BeatStyle::Metal:
-     kick=loc==0u||loc==2u||loc==6u||loc==8u||loc==10u||loc==14u;
-     hat=eighth;break;
-    case BeatStyle::HipHop:
-     kick=loc==0u||loc==7u||loc==10u;hat=eighth;
-     clap=snare&&busy>=40;break;
-    case BeatStyle::DrumAndBass:
-     kick=loc==0u||loc==10u;hat=eighth;break;
-    case BeatStyle::Count:break;
+  const unsigned style=static_cast<unsigned>(s.style);
+  const unsigned first=busy<15u?0u:structure.next()%3u;
+  // A two-bar phrase must develop the initial motif, not mechanically
+  // repeat it. At Complexity 0, a deliberately minimal loop is fine.
+  const unsigned second=busy<15u?0u:
+     (first+1u+(structure.next()%2u))%3u;
+  for(std::size_t bar=0;bar<s.steps/16u;++bar) {
+   const auto g=motif(static_cast<BeatStyle>(style),bar?second:first);
+   const std::size_t offset=bar*16u;
+   for(unsigned loc=0;loc<16u;++loc) {
+    const auto st=offset+loc;
+    const auto flag=beat(loc);
+    if(g.kick&flag)
+     hit(p,BeatRole::BD,st,vel(dynamics,loc%4u==0u?115:95));
+    // Preserve a reliable backbeat in all eight existing genre workflows.
+    if(loc==4u||loc==12u)
+     hit(p,BeatRole::Snare,st,vel(dynamics,loc==12u?116:110));
+    if(g.clap&flag)
+     hit(p,BeatRole::Clap,st,vel(dynamics,87));
+    if(g.hat&flag) {
+     const bool open=(g.open&flag)&&busy>=35u&&electronic(s.style);
+     hit(p,open?BeatRole::OHH:BeatRole::CHH,st,
+         vel(dynamics,loc%4u==0u?89:77));
+    }
+    // Keep complexity incremental and style-aware. Extra notes are placed
+    // on musically useful pickups, not distributed across random cells.
+    if(busy>=50u&&(loc==3u||loc==11u||loc==15u)&&
+       structure.chance((busy-35u)*6u)) {
+     if(s.style==BeatStyle::Metal||s.style==BeatStyle::IndustrialNDH||
+        s.style==BeatStyle::HipHop||s.style==BeatStyle::DrumAndBass)
+      hit(p,BeatRole::BD,st,vel(dynamics,74));
+    }
+    if(busy>=55u&&loc%2u==1u&&
+       structure.chance((busy-40u)*6u) &&
+       !(g.open&flag))
+      hit(p,BeatRole::CHH,st,vel(dynamics,54));
+    if(busy>=70u&&(loc==3u||loc==11u)&&
+       structure.chance((busy-60u)*8u))
+      hit(p,BeatRole::Snare,st,vel(dynamics,41)); // controlled ghost
    }
-   // Structural backbeats and downbeats remain stable, even at 100%.
-   if(kick)hit(p,BeatRole::BD,st,vel(dynamics,loc%4u==0u?115:100));
-   if(snare)hit(p,BeatRole::Snare,st,vel(dynamics,loc==12u?116:110));
-   if(clap)hit(p,BeatRole::Clap,st,vel(dynamics,88));
-   // Hat layers are mutually exclusive; don't choke the same step twice.
-   if(hat){
-    open=electronic(s.style)&&loc==14u&&busy>=35;
-    hit(p,open?BeatRole::OHH:BeatRole::CHH,st,
-        vel(dynamics,loc%4u==0u?88:78));
-   }
-   // Complexity enriches structure in a genre-aware, bounded manner.
-   if(busy>15&&
-      (loc==3u||loc==7u||loc==11u||loc==15u)&&
-      structure.chance((busy-15u)*4u)) {
-    if(s.style==BeatStyle::Metal||s.style==BeatStyle::IndustrialNDH||
-       s.style==BeatStyle::DrumAndBass||s.style==BeatStyle::HipHop)
-     hit(p,BeatRole::BD,st,vel(dynamics,75));
-   }
-   if(busy>30&&loc%2u==1u&&
-      structure.chance((busy-30u)*6u))
-    hit(p,BeatRole::CHH,st,vel(dynamics,54));
-   if(busy>55&&(loc==3u||loc==11u)&&
-      structure.chance((busy-55u)*9u))
-    hit(p,BeatRole::Snare,st,vel(dynamics,43)); // ghost
-   // A two-bar phrase may have a subtle pickup in the second bar.
-   if(s.steps==32&&st==31u&&busy>=60)
-    hit(p,BeatRole::BD,st,vel(dynamics,82));
   }
-  // Crash punctuation is meaningful but not forced on every bar.
-  hit(p,BeatRole::Crash,0,vel(dynamics,110));
+  // Use the crash as an accent, not as an unavoidable sound on EVERY loop.
+  if(busy>=40u&&(s.style==BeatStyle::Rock||
+                 s.style==BeatStyle::Metal||
+                 s.style==BeatStyle::IndustrialNDH||
+                 s.style==BeatStyle::DrumAndBass))
+   hit(p,BeatRole::Crash,0,vel(dynamics,105));
   return p;
  }
  static PatternSteps variate(const PatternSteps& a,
@@ -134,21 +203,33 @@ class BeatCreator final {
   PatternSteps b=a;
   if(!valid(s))return b;
   Rng rng(seed^0x56415231u);
-  const auto busy=static_cast<unsigned>(s.complexity);
-  for(std::size_t bar=0;bar<s.steps/16u;++bar){
-   const std::size_t first=16u*bar;
-   // Recognizable motif: keep all quarter-note kick/snare anchors.
-   if(busy>=20&&rng.chance(350u+busy*3u))
-    hit(b,BeatRole::BD,first+11u,82);
-   if(busy>=40&&rng.chance(200u+busy*4u))
-    hit(b,BeatRole::CHH,first+13u,57);
-   if(busy>=60&&electronic(s.style))
-    hit(b,BeatRole::Clap,first+12u,91);
+  const std::size_t last=static_cast<std::size_t>(s.steps)-1u;
+  // A variation changes a small phrase ending while retaining the entire
+  // core rhythmic identity. The target voice is genre-specific; unlike
+  // the old implementation it does not always toggle the last-step kick.
+  BeatRole role=BeatRole::BD;
+  switch(s.style) {
+   case BeatStyle::IndustrialNDH:role=BeatRole::BD;break;
+   case BeatStyle::EBM:role=BeatRole::CHH;break;
+   case BeatStyle::Techno:role=BeatRole::Clap;break;
+   case BeatStyle::House:role=BeatRole::Clap;break;
+   case BeatStyle::Rock:role=BeatRole::BD;break;
+   case BeatStyle::Metal:role=BeatRole::BD;break;
+   case BeatStyle::HipHop:role=BeatRole::CHH;break;
+   case BeatStyle::DrumAndBass:role=BeatRole::BD;break;
+   case BeatStyle::Count:return b;
   }
-  // Guaranteed audible structural difference, never change beats 1/2/3/4.
-  const auto tail=static_cast<std::size_t>(s.steps)-1u;
-  const auto pos=idx(BeatRole::BD,tail);
-  b[pos]=b[pos]?0u:static_cast<std::uint8_t>(80u);
+  const std::size_t target=role==BeatRole::CHH?
+     last-2u*(rng.next()%2u):last-(rng.next()%3u); // hats: 13 or 15
+  auto& note=b[idx(role,target)];
+  note=note?0u:vel(rng,role==BeatRole::CHH?63:role==BeatRole::Clap?86:89);
+  // A restrained second ornament at higher complexities makes the phrase
+  // less mechanical without replacing the main motif or backbeat.
+  if(s.complexity>=55u){
+   const auto extra=last-2u; // step 13: avoid the open hat at 14
+   if(extra!=target&&rng.chance(450u))
+    hit(b,BeatRole::CHH,extra,vel(rng,56));
+  }
   return b;
  }
  static PatternSteps makeBreak(const PatternSteps& a,
@@ -156,28 +237,82 @@ class BeatCreator final {
                                std::uint32_t seed) noexcept {
   PatternSteps c=a;
   if(!valid(s))return c;
-  Rng dynamics(seed^0x4252454Bu);
+  Rng rng(seed^0x4252454Bu);
   const std::size_t last=static_cast<std::size_t>(s.steps)-4u;
+  const unsigned ending=rng.next()%3u;
   const unsigned busy=static_cast<unsigned>(s.complexity);
-  // Only replace the end of the last bar: retain the groove's identity.
-  for(std::size_t step=last;step<s.steps;++step) {
-   c[idx(BeatRole::CHH,step)]=0;
-   c[idx(BeatRole::OHH,step)]=0;
+  // Respect existing material up to the final beat; preserve snare at
+  // step 12 even in the final bar. Break notes remain within four cells.
+  for(std::size_t k=0;k<4u;++k) {
+   c[idx(BeatRole::CHH,last+k)]=0u;
+   c[idx(BeatRole::OHH,last+k)]=0u;
   }
-  const bool acoustic=s.style==BeatStyle::Rock||s.style==BeatStyle::Metal||
-                      s.style==BeatStyle::DrumAndBass;
-  if(acoustic) {
-   hit(c,BeatRole::LowTom,last,vel(dynamics,88));
-   if(busy>=25)hit(c,BeatRole::LowTom,last+1u,vel(dynamics,86));
-   hit(c,BeatRole::HighTom,last+2u,vel(dynamics,98));
-   hit(c,BeatRole::HighTom,last+3u,vel(dynamics,112));
-  } else {
-   hit(c,BeatRole::Snare,last,vel(dynamics,95));
-   if(busy>=25)hit(c,BeatRole::Snare,last+1u,vel(dynamics,87));
-   hit(c,BeatRole::Snare,last+2u,vel(dynamics,103));
-   hit(c,BeatRole::Snare,last+3u,vel(dynamics,115));
-   hit(c,BeatRole::HighTom,last+3u,vel(dynamics,99));
+  switch(s.style) {
+   case BeatStyle::Rock:
+   case BeatStyle::Metal: {
+    // Natural drum-kit fills: moving low-to-high toms, optional late kick,
+    // and three phrasing choices rather than an identical tom roll.
+    if(ending==0u) {
+     hit(c,BeatRole::LowTom,last,vel(rng,85));
+     hit(c,BeatRole::LowTom,last+1u,vel(rng,78));
+     hit(c,BeatRole::HighTom,last+2u,vel(rng,98));
+     hit(c,BeatRole::HighTom,last+3u,vel(rng,110));
+    }else if(ending==1u){
+     hit(c,BeatRole::HighTom,last+1u,vel(rng,90));
+     hit(c,BeatRole::LowTom,last+2u,vel(rng,97));
+     hit(c,BeatRole::BD,last+3u,vel(rng,102));
+    }else{
+     hit(c,BeatRole::LowTom,last,vel(rng,89));
+     hit(c,BeatRole::HighTom,last+2u,vel(rng,106));
+     hit(c,BeatRole::Snare,last+3u,vel(rng,113));
+    }
+    break;
+   }
+   case BeatStyle::DrumAndBass: {
+    // Breakbeat-flavoured snare pickups and syncopated closing kicks.
+    hit(c,BeatRole::Snare,last+2u,vel(rng,90));
+    if(ending==0u)hit(c,BeatRole::Snare,last+3u,vel(rng,104));
+    else if(ending==1u)hit(c,BeatRole::BD,last+3u,vel(rng,110));
+    else hit(c,BeatRole::HighTom,last+3u,vel(rng,104));
+    break;
+   }
+   case BeatStyle::HipHop: {
+    // Sparse, laid-back break: avoid an automatic four-snare machinegun.
+    if(ending==0u)hit(c,BeatRole::Clap,last+2u,vel(rng,85));
+    else if(ending==1u)hit(c,BeatRole::BD,last+3u,vel(rng,83));
+    else hit(c,BeatRole::Snare,last+3u,vel(rng,78));
+    break;
+   }
+   case BeatStyle::IndustrialNDH:
+   case BeatStyle::EBM: {
+    // Percussive electronic turnaround with accent and occasional tom.
+    hit(c,BeatRole::Snare,last+2u,vel(rng,103));
+    if(ending==0u)hit(c,BeatRole::Clap,last+3u,vel(rng,102));
+    else if(ending==1u)hit(c,BeatRole::LowTom,last+3u,vel(rng,103));
+    else hit(c,BeatRole::BD,last+3u,vel(rng,105));
+    break;
+   }
+   case BeatStyle::Techno:
+   case BeatStyle::House: {
+    // Typical dance-music turnaround: snare/clap accents or an opening
+    // hat leading into the next bar, but keep the four-on-the-floor kick.
+    if(ending==0u) {
+     hit(c,BeatRole::Snare,last+2u,vel(rng,97));
+     hit(c,BeatRole::Clap,last+3u,vel(rng,91));
+    }else if(ending==1u){
+     hit(c,BeatRole::Clap,last+1u,vel(rng,82));
+     hit(c,BeatRole::Snare,last+3u,vel(rng,107));
+    }else{
+     hit(c,BeatRole::OHH,last+2u,vel(rng,90));
+     hit(c,BeatRole::Clap,last+3u,vel(rng,98));
+    }
+    break;
+   }
+   case BeatStyle::Count:break;
   }
+  // Complexity adds density only when requested; no user-facing fill knob.
+  if(busy>=65u&&ending==2u)
+   hit(c,BeatRole::Snare,last+1u,vel(rng,78));
   return c;
  }
  static BeatCreatorPreview preview(const BeatCreatorSettings& s,
