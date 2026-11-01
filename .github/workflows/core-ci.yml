@@ -6,7 +6,6 @@ on:
       - 'src/core/**'
       - 'src/vst3/**'
       - 'resource/**'
-      - 'assets/beatcreator/**'
       - 'tests/**'
       - 'tools/**'
       - 'CMakeLists.txt'
@@ -34,22 +33,10 @@ jobs:
       - name: Configure Windows x64 VST3 and standalone QA
         run: cmake -S . -B build -A x64 -DBUILD_TESTING=ON -DDRUMATOR_BUILD_VST3=ON -DVST3_SDK_ROOT="$env:GITHUB_WORKSPACE/sdk"
       - name: Build tests and Drumator VST3
-        run: cmake --build build --config Release --target drumator_test_suite drumator_beat_creator_preview_pack drumator_editor_smoke drumator_audio_host_smoke Drumator validator moduleinfotool --parallel 2
+        run: cmake --build build --config Release --target drumator_test_suite drumator_editor_smoke drumator_audio_host_smoke Drumator validator moduleinfotool --parallel 2
       - name: Run deterministic regressions
         shell: pwsh
         run: |
-          # During CTest the real controller lives in native test executables,
-          # not yet in the packaged .vst3 bundle. Give those EXEs their own
-          # exact CC0 resource directory; final package uses Contents/Resources.
-          foreach ($root in @('build/Release','build/bin/Release')) {
-            if (Test-Path $root) {
-              Copy-Item -LiteralPath 'assets/beatcreator' -Destination (Join-Path $root 'BeatCreator') -Recurse -Force
-            }
-          }
-          $rawPlugins = @(Get-ChildItem build/VST3 -Filter 'Drumator.vst3' -File -Recurse -ErrorAction SilentlyContinue)
-          foreach ($plugin in $rawPlugins) {
-            Copy-Item -LiteralPath 'assets/beatcreator' -Destination (Join-Path $plugin.DirectoryName 'BeatCreator') -Recurse -Force
-          }
           ctest --test-dir build -C Release --output-on-failure --test-output-size-failed 1000000 --output-log build/ctest-functional.log
           $testExit = $LASTEXITCODE
           # CTest normally hides passing-test stdout. Preserve actual case
@@ -108,12 +95,14 @@ jobs:
           Copy-Item 'resource/125A_Dark_Button_83x32_Deaktiviert_4x.png' -Destination (Join-Path $resourceDirectory '125A_Dark_Button_83x32_Deaktiviert_4x.png')
           Copy-Item -LiteralPath 'resource/DRUMATOR_Logo_Modern_Transparent.png' -Destination (Join-Path $resourceDirectory 'DRUMATOR_Logo_Modern_Transparent.png')
           Copy-Item -LiteralPath 'resource/125A Systems Metall-Logo Badge.png' -Destination (Join-Path $resourceDirectory '125A Systems Metall-Logo Badge.png')
-          # Self-contained genre kit resources are shipped inside the .vst3 bundle.
-          $kitResourceDirectory = Join-Path $resourceDirectory 'BeatCreator'
-          Copy-Item -LiteralPath 'assets/beatcreator' -Destination $kitResourceDirectory -Recurse -Force
-          $kitWavs = @(Get-ChildItem -Path $kitResourceDirectory -Filter '*.wav' -Recurse -File)
-          if ($kitWavs.Count -ne 64) { throw "Expected 64 embedded WAV resources, got $($kitWavs.Count)" }
-          if (!(Test-Path (Join-Path $kitResourceDirectory 'SOURCE-MANIFEST.json'))) { throw 'Factory sample provenance absent' }
+          # No old 808/acoustic factory kits are packaged.
+          # The internal kit browser reads user-authorized .125akit files here.
+          $presetDirectory = Join-Path $resourceDirectory 'Samples'
+          New-Item -ItemType Directory -Path $presetDirectory -Force | Out-Null
+          Copy-Item -LiteralPath 'resource/Samples/START-HERE.txt' -Destination (Join-Path $presetDirectory 'START-HERE.txt')
+          if (@(Get-ChildItem $resourceDirectory -Recurse -File -Filter '*.wav').Count -ne 0) {
+            throw 'Obsolete factory WAV files leaked into production VST3'
+          }
           $moduleInfo = Join-Path $resourceDirectory 'moduleinfo.json'
           # Use the CMake project version for package metadata; verify that
           # the compiled processor/controller factory classes agree below.
@@ -174,12 +163,7 @@ jobs:
             '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Deaktiviert_4x.png',
             '125A Drumator.vst3/Contents/Resources/moduleinfo.json'
           )
-          $expected += $kitWavs | ForEach-Object {
-            '125A Drumator.vst3/Contents/Resources/BeatCreator/' +
-              [System.IO.Path]::GetRelativePath($kitResourceDirectory, $_.FullName).Replace('\','/')
-          }
-          $expected += '125A Drumator.vst3/Contents/Resources/BeatCreator/SOURCE-MANIFEST.json'
-          $expected += '125A Drumator.vst3/Contents/Resources/BeatCreator/START-HERE.txt'
+          $expected += '125A Drumator.vst3/Contents/Resources/Samples/START-HERE.txt'
           $expected = @($expected | Sort-Object)
           $actual = @($bundleFiles | ForEach-Object {
             [System.IO.Path]::GetRelativePath($artifactRoot, $_.FullName).Replace('\','/')
@@ -285,32 +269,6 @@ jobs:
             throw 'Verified production MAIN/SONG/WAVE screenshots missing from artifact'
           }
           $bundleFiles | Select-Object FullName,Length | Format-Table
-      - name: Generate independent Beat Creator listening pack (development only)
-        if: github.ref == 'refs/heads/develop/v1.5.0'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference='Stop'
-          $exe=Join-Path $PWD 'build/Release/drumator_beat_creator_preview_pack.exe'
-          if (!(Test-Path -LiteralPath $exe)) { throw 'Preview pack generator binary absent' }
-          $out=Join-Path $PWD 'build/beat-creator-audition'
-          & $exe $out
-          if ($LASTEXITCODE -ne 0) { throw 'Beat Creator preview pack render failed' }
-          $samples=@(Get-ChildItem -LiteralPath (Join-Path $out 'Factory Kit') -Filter '*.wav')
-          $loops=@(Get-ChildItem -LiteralPath (Join-Path $out 'Grooves - A B C') -Filter '*.wav')
-          if ($samples.Count -ne 8 -or $loops.Count -ne 24) {
-            throw "Wrong listening pack contents: samples=$($samples.Count), grooves=$($loops.Count)"
-          }
-          if (!(Test-Path -LiteralPath (Join-Path $out 'START-HERE.txt'))) {
-            throw 'Missing listening-pack instructions'
-          }
-          Write-Output "Beat Creator: 8 original samples and 24 audible A/B/C loops PASS"
-      - name: Upload isolated Beat Creator listening pack
-        if: github.ref == 'refs/heads/develop/v1.5.0'
-        uses: actions/upload-artifact@v4
-        with:
-          name: 125A-Drumator-15-Beat-Creator-Audition-WAVs
-          path: build/beat-creator-audition/
-          if-no-files-found: error
       - name: Archive native VSTGUI pixel renderings
         uses: actions/upload-artifact@v4
         with:
