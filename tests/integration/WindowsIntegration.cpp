@@ -3853,6 +3853,72 @@ void testRandomVelocityOneShot(){
  check(f.c->undoCurrentPattern()&&f.c->velocity(0,0,0)==before,"Button Undo failed");
  evidence("RANDOM one-shot occupied-only, 1T/2T, isolated row/pattern and Undo PASS");
 }
+void testBeatCreatorV15GroupApplyUndo(){
+ Fixture f;
+ KitState kit=namedKit('Q',8);
+ kit.grid.fill(0);
+ kit.patternLengths[0]=32;kit.patternLengths[1]=16;kit.patternLengths[2]=32;
+ kit.grid[0]=100; // occupied A
+ kit.grid[kRows*kSteps+8*kSteps]=73; // B instrument 9
+ kit.grid[2*kRows*kSteps+10*kSteps+20]=64; // C hidden bar instrument 11
+ kit.grid[27]=84; // A hidden bar, must survive 16-step APPLY
+ f.kit(kit);
+ auto state=[&]{
+  ResizableMemoryIBStream out;KitState snap;
+  check(f.p->getState(&out)==kResultOk&&
+        KitCodec::decode(static_cast<const std::uint8_t*>(out.getData()),
+             static_cast<std::size_t>(out.getCursor()),snap),
+        "BC15 real Processor getState");
+  return snap;
+ };
+ const auto original=state();
+ const BeatCreatorSettings settings{BeatStyle::IndustrialNDH,55,16};
+ check(f.c->prepareBeatCreator(settings,42),"BC15 prepare");
+ check(f.c->beatCreatorDraft()!=nullptr&&state().grid==original.grid,
+       "BC15 preview changed project");
+ check(f.c->beatCreatorOccupiedMask()==7,"BC15 occupied mask");
+ check(!f.c->applyBeatCreator(false)&&state().grid==original.grid,
+       "BC15 silently overwrote occupied A/B/C");
+ check(f.c->applyBeatCreator(true),"BC15 explicit APPLY failed");
+ const auto applied=state();
+ for(std::size_t p=0;p<3;++p){
+  check(applied.patternLengths[p]==16,"BC15 duration");
+  for(std::size_t row=0;row<kRows;++row)
+   for(std::size_t step=0;step<kSteps;++step)
+    if(row>=8||step>=16)
+     check(applied.grid[(p*kRows+row)*kSteps+step]==
+           original.grid[(p*kRows+row)*kSteps+step],
+           "BC15 changed user rows or hidden bar");
+ }
+ for(std::size_t p=3;p<kPatterns;++p)
+  for(std::size_t i=0;i<kRows*kSteps;++i)
+   check(applied.grid[p*kRows*kSteps+i]==original.grid[p*kRows*kSteps+i],
+         "BC15 changed D-H");
+ check(f.c->beatCreatorDraft()==nullptr&&f.c->canUndoCurrentPattern(),
+       "BC15 APPLY state/UNDO missing");
+ check(f.c->undoCurrentPattern(),"BC15 group UNDO failed");
+ check(state().grid==original.grid&&
+       state().patternLengths==original.patternLengths,
+       "BC15 UNDO did not restore A/B/C");
+ check(!f.c->undoBeatCreator(),"BC15 double UNDO accepted");
+ check(f.c->prepareBeatCreator(settings,17),"BC15 stale preview setup");
+ check(f.c->setStepVelocity(0,0,2,70),"BC15 intervening edit");
+ auto edited=state();
+ check(!f.c->applyBeatCreator(true)&&state().grid==edited.grid,
+       "BC15 stale PREVIEW overwrote later edit");
+ check(f.c->prepareBeatCreator(settings,18),"BC15 second preview");
+ check(f.c->applyBeatCreator(true),"BC15 second APPLY");
+ check(f.c->setStepVelocity(0,0,2,41),"BC15 edit after apply");
+ edited=state();
+ check(!f.c->undoBeatCreator()&&state().grid==edited.grid,
+       "BC15 grouped UNDO overwrote later edit");
+ check(f.c->undoCurrentPattern(),"BC15 ordinary edit UNDO lost");
+ check(f.c->prepareBeatCreator(settings,19),"BC15 preview before recall");
+ f.kit(kit);
+ check(f.c->beatCreatorDraft()==nullptr&&!f.c->undoBeatCreator(),
+       "BC15 stale history survived component recall");
+ evidence("BC15 connected A/B/C preview, approved APPLY, grouped UNDO, stale guard, hidden bar/rows and recall PASS");
+}
 void testFillActivePatternLength(){
  // V17: all nine FILL variants, including CLEAR, modify only the visible
  // musical bar in 1T while preserving stored bar-two notes for later 2T.
@@ -5693,6 +5759,7 @@ int main(int argc,char** argv){
   run("SOR01 new Step Velocity 100",testNewStepDefault100);
  run("VELO 100 reset existing notes",testVelocityResetPattern);
  run("V16 1T hidden velocity preservation",testVelocityInactiveBarProtection);
+ run("BC15 connected Beat Creator Preview/Apply/group Undo",testBeatCreatorV15GroupApplyUndo);
  run("V17 1T row FILL/CLEAR hidden-step protection",testFillActivePatternLength);
  run("UX Velocity empty-step editing",testVelocityLaneExistingStepsOnly);
  run("UX paged Song board",testPagedSongEditor);
