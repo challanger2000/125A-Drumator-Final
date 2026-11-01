@@ -2,7 +2,7 @@
 // Ephemeral A/B/C audition. No project, sample or pattern mutation.
 // Drumator's OfflineWavExport/StepScheduler/SampleVoiceEngine supply the sound.
 // A PCM16 container permits playback by the existing real-time audition voice.
-#include "BeatCreatorFactoryKit.h"
+#include "BeatCreatorDraftRenderer.h"
 #include "OfflineWavExport.h"
 #include <cmath>
 #include <cstdint>
@@ -22,7 +22,7 @@ public:
    // Exactly the loaded drumset. Unloaded rows stay empty and therefore
    // silent; never create, borrow or replace samples in a preview.
    KitState isolated=loadedKit;
-   if(!BeatCreatorFactoryKit::setDraft(isolated,draft,choice))return false;
+   if(!BeatCreatorDraftRenderer::setDraft(isolated,draft,choice))return false;
    std::vector<std::uint8_t> wav24;
    if(!OfflineWavExport::renderMemory(isolated,false,bpm,wav24)||
       wav24.size()<44u||(wav24.size()-44u)%6u!=0u)return false;
