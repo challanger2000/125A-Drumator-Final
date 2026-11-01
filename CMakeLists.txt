@@ -8,6 +8,8 @@ include(CTest)
 if(BUILD_TESTING)
   add_executable(drumator_beat_creator_factory_tests tests/BeatCreatorFactoryKitTests.cpp)
   target_link_libraries(drumator_beat_creator_factory_tests PRIVATE drumator_core)
+  target_compile_definitions(drumator_beat_creator_factory_tests PRIVATE
+    DRUMATOR_CC0_KIT_TEST_ROOT="${CMAKE_SOURCE_DIR}/assets/beatcreator")
   if(MSVC)
     target_compile_options(drumator_beat_creator_factory_tests PRIVATE /W4 /WX)
   else()

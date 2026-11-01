@@ -1,11 +1,12 @@
 name: Drumator Windows Core and VST3 Integration
 on:
   push:
-    branches: [main, release/v1.0.0, develop/v1.0.1-gui-redesign, develop/v1.5.0]
+    branches: [main, release/v1.0.0, develop/v1.0.1-gui-redesign, develop/v1.5.0, feature/v1.5-eight-genre-kits]
     paths:
       - 'src/core/**'
       - 'src/vst3/**'
       - 'resource/**'
+      - 'assets/beatcreator/**'
       - 'tests/**'
       - 'tools/**'
       - 'CMakeLists.txt'
@@ -95,6 +96,12 @@ jobs:
           Copy-Item 'resource/125A_Dark_Button_83x32_Deaktiviert_4x.png' -Destination (Join-Path $resourceDirectory '125A_Dark_Button_83x32_Deaktiviert_4x.png')
           Copy-Item -LiteralPath 'resource/DRUMATOR_Logo_Modern_Transparent.png' -Destination (Join-Path $resourceDirectory 'DRUMATOR_Logo_Modern_Transparent.png')
           Copy-Item -LiteralPath 'resource/125A Systems Metall-Logo Badge.png' -Destination (Join-Path $resourceDirectory '125A Systems Metall-Logo Badge.png')
+          # Self-contained genre kit resources are shipped inside the .vst3 bundle.
+          $kitResourceDirectory = Join-Path $resourceDirectory 'BeatCreator'
+          Copy-Item -LiteralPath 'assets/beatcreator' -Destination $kitResourceDirectory -Recurse -Force
+          $kitWavs = @(Get-ChildItem -Path $kitResourceDirectory -Filter '*.wav' -Recurse -File)
+          if ($kitWavs.Count -ne 64) { throw "Expected 64 embedded WAV resources, got $($kitWavs.Count)" }
+          if (!(Test-Path (Join-Path $kitResourceDirectory 'SOURCE-MANIFEST.json'))) { throw 'Factory sample provenance absent' }
           $moduleInfo = Join-Path $resourceDirectory 'moduleinfo.json'
           # Use the CMake project version for package metadata; verify that
           # the compiled processor/controller factory classes agree below.
@@ -154,7 +161,14 @@ jobs:
             '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Deaktiviert_1x.png',
             '125A Drumator.vst3/Contents/Resources/125A_Dark_Button_83x32_Deaktiviert_4x.png',
             '125A Drumator.vst3/Contents/Resources/moduleinfo.json'
-          ) | Sort-Object
+          )
+          $expected += $kitWavs | ForEach-Object {
+            '125A Drumator.vst3/Contents/Resources/BeatCreator/' +
+              [System.IO.Path]::GetRelativePath($kitResourceDirectory, $_.FullName).Replace('\','/')
+          }
+          $expected += '125A Drumator.vst3/Contents/Resources/BeatCreator/SOURCE-MANIFEST.json'
+          $expected += '125A Drumator.vst3/Contents/Resources/BeatCreator/START-HERE.txt'
+          $expected = @($expected | Sort-Object)
           $actual = @($bundleFiles | ForEach-Object {
             [System.IO.Path]::GetRelativePath($artifactRoot, $_.FullName).Replace('\','/')
           }) | Sort-Object

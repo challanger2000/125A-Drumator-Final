@@ -47,6 +47,36 @@ int main(){
    check(rms>0.001&&rms<0.5&&maxVal<0.99,"silent/clipped source sample");
    check(firstWindow>0.001,"sample onset silent");
   }
+  // BC29: all eight recorded kits, exact source role order and isolation.
+  // Reads committed CC0 assets by project-root path, never changes user kit.
+  const auto sourceRoot=std::filesystem::path(DRUMATOR_CC0_KIT_TEST_ROOT);
+  check(std::filesystem::exists(sourceRoot/"SOURCE-MANIFEST.json"),
+        "missing pinned CC0 provenance");
+  std::array<std::vector<std::uint8_t>,8> renderedKicks{};
+  for(unsigned style=0;style<8;++style) {
+   KitState recorded;
+   check(BeatCreatorFactoryKit::makeGenreKit(
+           recorded,static_cast<BeatStyle>(style),sourceRoot),
+         "cannot load CC0 recorded factory genre");
+   for(unsigned role=0;role<8;++role) {
+    DecodedWav hit;
+    check(WavPcm16Decoder::decode(recorded.wav[role].data(),
+              recorded.wav[role].size(),hit)==WavError::Ok,
+          "source-recorded genre WAV invalid");
+    check(!recorded.wav[role].empty(),"missing genre instrument role");
+   }
+   renderedKicks[style]=recorded.wav[0];
+  }
+  unsigned distinctKicks=0;
+  for(unsigned i=0;i<8;++i) {
+   bool unique=true;
+   for(unsigned j=0;j<i;++j)
+    if(renderedKicks[i]==renderedKicks[j])unique=false;
+   if(unique)++distinctKicks;
+  }
+  check(distinctKicks==8,"genre kicks are not distinct");
+  check(!BeatCreatorFactoryKit::makeGenreKit(
+         factory,BeatStyle::Count,sourceRoot),"invalid genre accepted");
   check(original.grid==snapshot.grid&&original.names==snapshot.names,
         "factory unexpectedly changed original KitState");
   check(BeatCreatorFactoryKit::wav(8).empty(),"invalid source row accepted");
