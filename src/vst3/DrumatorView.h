@@ -86,7 +86,7 @@ private:
  void drawV101(VSTGUI::CDrawContext* c);
  void drawV101Song(VSTGUI::CDrawContext* c);
  void drawV101Wave(VSTGUI::CDrawContext* c);
- bool v101MouseDown(double x,double y,bool erase,bool fine);
+ bool v101MouseDown(double x,double y,bool erase,bool fine,bool accent=false);
  void drawV101Menu(VSTGUI::CDrawContext* c);
  // Dialog is UI-only until an explicit transaction is applied to A/B/C.
  bool beatCreatorOpen_{false};
