@@ -537,6 +537,8 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    if(!std::isfinite(rate)||rate<=0.)return Steinberg::kResultFalse;
    KitState next=kit_; // never publish partial/invalid assets
    for(std::size_t row=0;row<kRows;++row){
+     // Render with the ACTIVE automated pitch, never a stale serialized value.
+     next.pitch[row]=rowPitch_[row].load(std::memory_order_acquire);
      next.wav[row].swap(selected.wav[row]);
      next.names[row].swap(selected.names[row]);
      next.displayNames[row].swap(selected.displayNames[row]);

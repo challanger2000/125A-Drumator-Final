@@ -1852,6 +1852,11 @@ bool Controller::loadKitPreset(const std::string& utf8Path){
   if(ext!=".125akit")return false;
   KitState source;
   if(!KitPresetCatalog::read(filename,source))return false;
+  // Pre-stage all labels before sending a transaction that may already
+  // commit audio. After ACK, only no-throw swaps/moves are permitted.
+  std::array<std::string,kRows> emptyNames{};
+  for(std::size_t row=0;row<kRows;++row)
+   if(source.wav[row].empty())emptyNames[row]="EMPTY - LOAD WAV";
   std::vector<std::uint8_t> encoded;
   if(!KitCodec::encode(source,encoded)||encoded.size()>UINT32_MAX)return false;
   ScopedActionMessage msg{allocateMessage()};
@@ -1873,7 +1878,7 @@ bool Controller::loadKitPreset(const std::string& utf8Path){
     samplePresent_[row]=!exportWavs_[row].empty();
     samplePaths_[row].clear();originIdentityValid_[row]=false;
     originIdentity_[row]=0;
-    if(!samplePresent_[row])labels_[row]="EMPTY - LOAD WAV";
+    if(!samplePresent_[row])labels_[row].swap(emptyNames[row]);
   }
   // Recreate any future Beat Creator audition with these new instruments.
   beatPreview_.valid=false;
