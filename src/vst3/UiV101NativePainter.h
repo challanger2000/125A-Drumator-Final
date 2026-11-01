@@ -420,8 +420,8 @@ struct UiV101NativePreview final {
    // Disabled caps never flash. The flash never mutates underlying state.
    active=active||(!disabled&&clickFlashHits(b));
    VSTGUI::CBitmap* sprite=!vintage?nullptr:
-      disabled?vintage->disabled:pressed?vintage->pressed:
-      active?vintage->active:vintage->normal;
+      disabled?vintage->disabled:active?vintage->active:
+      pressed?vintage->pressed:vintage->normal;
    if(sprite&&drawVintageButton(c,b,sprite)){
      // Keep all labels native, crisp and dynamically localized/stateful.
      label(c,text,{b.left+2.,b.top+2.,b.right-2.,b.bottom-2.},

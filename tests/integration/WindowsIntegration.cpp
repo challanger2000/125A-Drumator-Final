@@ -3980,14 +3980,14 @@ void testV101ButtonClickFlash(){
  // a debug flag. 398x30 APPLY also checks the non-sprite fallback cap.
  const auto signature=[&](double width,double height,const char* caption,
                            bool active,bool pulse,bool disabled,
-                           bool outside)->std::uint64_t{
+                           bool outside,bool down=false)->std::uint64_t{
    const auto bitmap=VSTGUI::renderBitmapOffscreen({width,height},1.,
      [&](VSTGUI::CDrawContext& ctx){
        P::fill(ctx,{0.,0.,width,height},{20,28,38,255});
        const P::ScopedClickFlash click(
          outside?width+5.:width/2.,height/2.,pulse);
        P::cap(ctx,{0.,0.,width,height},0.,caption,active,10,
-              &sprites,disabled);
+              &sprites,disabled,down);
      });
    check(bitmap!=nullptr,"BF20 offscreen render unavailable");
    auto* pixels=VSTGUI::CBitmapPixelAccess::create(bitmap.get(),false);
@@ -4025,6 +4025,9 @@ void testV101ButtonClickFlash(){
        "BF20 active and normal button palettes identical");
    check(clicked==selected,
        "BF20 click pulse does not exactly match latched active color");
+   check(signature(button.width,button.height,button.text,
+                   false,true,false,false,true)==selected,
+       "BF20 momentary click did not override old pressed image");
    check(untouched==normal,
        "BF20 click outside changed unrelated button");
    check(disabledClick==disabled,
