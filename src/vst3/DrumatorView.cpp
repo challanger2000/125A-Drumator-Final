@@ -1135,6 +1135,9 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c) {
  using D=UiBeatCreatorDialog;
  const auto height=getViewSize().getHeight();
  const auto box=D::panel(height);
+ const auto paintRect=[](D::Rect r)->VSTGUI::CRect{
+   return {r.x0,r.y0,r.x1,r.y1};
+ };
  // Modal scrim prevents reading the running sequencer as an editable draft.
  P::fill(*c,{0.,0.,1280.,height},{8,13,21,199});
  P::satin(*c,{box.x0,box.y0,box.x1,box.y1},
@@ -1143,9 +1146,9 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c) {
  P::fill(*c,{box.x0+6.,box.y0+6.,box.x1-6.,
              box.y0+(D::compact(height)?44.:45.)},
           {15,29,43,255});
- P::label(*c,"125A BEAT CREATOR",D::title(height),
+ P::label(*c,"125A BEAT CREATOR",paintRect(D::title(height)),
           D::compact(height)?16:18,{233,239,245,255});
- P::label(*c,"STYLE - SELECT A GENRE",D::styleHeading(height),
+ P::label(*c,"STYLE - SELECT A GENRE",paintRect(D::styleHeading(height)),
           D::compact(height)?9:11,{179,204,221,255},false);
  const P::ButtonSprites buttons{
    v101VintageButtons_[0],v101VintageButtons_[1],
@@ -1154,18 +1157,18 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c) {
  for(std::size_t i=0;i<BeatCreator::styleNames.size();++i)
   P::cap(*c,D::style(height,i),0.,BeatCreator::styleNames[i],
          static_cast<std::size_t>(beatCreatorStyle_)==i,11,&buttons);
- P::label(*c,"COMPLEXITY",D::complexityLabel(height),
+ P::label(*c,"COMPLEXITY",paintRect(D::complexityLabel(height)),
           D::compact(height)?11:12,{213,225,235,255},false);
  P::cap(*c,D::complexityMinus(height),0.,"-",false,15,&buttons);
  P::cap(*c,D::complexityPlus(height),0.,"+",false,15,&buttons);
  char percent[16]{};
  std::snprintf(percent,sizeof(percent),"%u%%",
                static_cast<unsigned>(beatCreatorComplexity_));
- P::label(*c,percent,D::complexityValue(height),14,{241,217,143,255});
+ P::label(*c,percent,paintRect(D::complexityValue(height)),14,{241,217,143,255});
  char duration[30]{};
  std::snprintf(duration,sizeof(duration),"%u STEPS",
     static_cast<unsigned>(controller_.patternLength(controller_.currentPattern())));
- P::label(*c,duration,D::stepsLabel(height),11,{189,214,229,255});
+ P::label(*c,duration,paintRect(D::stepsLabel(height)),11,{189,214,229,255});
  P::cap(*c,D::generate(height),0.,"GENERATE",false,11,&buttons);
  const char* names[]={"PLAY A","PLAY B","PLAY C"};
  for(std::size_t i=0;i<3;++i)
@@ -1174,7 +1177,7 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c) {
  P::cap(*c,D::stop(height),0.,"STOP",false,10,&buttons);
  const auto* draft=controller_.beatCreatorDraft();
  const bool ready=draft!=nullptr;
- P::label(*c,beatCreatorNotice_.c_str(),D::notice(height),
+ P::label(*c,beatCreatorNotice_.c_str(),paintRect(D::notice(height)),
           11,beatCreatorConfirmOverwrite_?VSTGUI::CColor{254,182,107,255}:
                  VSTGUI::CColor{190,216,225,255});
  P::cap(*c,D::apply(height),0.,beatCreatorConfirmOverwrite_?
