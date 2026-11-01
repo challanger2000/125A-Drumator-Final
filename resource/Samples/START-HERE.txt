@@ -1,0 +1,8 @@
+125A DRUMATOR - KIT LIBRARY
+
+Place authentic drumkits as .125akit files in this directory.
+In the plugin, click KITS, select a drumkit and press LOAD.
+Only sample assets, names and per-sample trims are imported.
+Your existing patterns, grooves, song chain and mixer settings are preserved.
+Empty instrument slots remain silent. No old automatic/factory drumkits are included.
+Kit files must be encoded using the verified KitCodec format; renaming a .vstpreset will not convert it.
