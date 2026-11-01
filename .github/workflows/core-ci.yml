@@ -38,6 +38,18 @@ jobs:
       - name: Run deterministic regressions
         shell: pwsh
         run: |
+          # During CTest the real controller lives in native test executables,
+          # not yet in the packaged .vst3 bundle. Give those EXEs their own
+          # exact CC0 resource directory; final package uses Contents/Resources.
+          foreach ($root in @('build/Release','build/bin/Release')) {
+            if (Test-Path $root) {
+              Copy-Item -LiteralPath 'assets/beatcreator' -Destination (Join-Path $root 'BeatCreator') -Recurse -Force
+            }
+          }
+          $rawPlugins = @(Get-ChildItem build/VST3 -Filter 'Drumator.vst3' -File -Recurse -ErrorAction SilentlyContinue)
+          foreach ($plugin in $rawPlugins) {
+            Copy-Item -LiteralPath 'assets/beatcreator' -Destination (Join-Path $plugin.DirectoryName 'BeatCreator') -Recurse -Force
+          }
           ctest --test-dir build -C Release --output-on-failure --test-output-size-failed 1000000 --output-log build/ctest-functional.log
           $testExit = $LASTEXITCODE
           # CTest normally hides passing-test stdout. Preserve actual case
