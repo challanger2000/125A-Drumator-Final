@@ -76,9 +76,9 @@ int main(){
   auto candidate=BeatCreator::preview({},0x3456u);
   check(candidate.valid,"default preview invalid");
   check(existing==before,"preview modified user project");
-  check(BeatCreator::occupiedMask({{},{},{}})==0u,"empty kit mask");
+  check(BeatCreator::occupiedMask(std::array<PatternSteps,3>{})==0u,"empty kit mask");
   PatternSteps onlyHidden{};onlyHidden[16]=96;
-  check(BeatCreator::occupiedMask({{},onlyHidden,{}})==2u,
+  check(BeatCreator::occupiedMask(std::array<PatternSteps,3>{PatternSteps{},onlyHidden,PatternSteps{}})==2u,
         "hidden second-bar value not protected");
   std::cout<<"Beat Creator preview: styles=8, lengths=16/32, 2560 seed/style/complexity cases, A/B/C, safely isolated\n";
   return 0;
