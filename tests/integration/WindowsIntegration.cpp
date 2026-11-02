@@ -1153,8 +1153,12 @@ void testV101Interaction(){
        "V101 lane activated empty note");
  check(ui.down(L::stepX+8.,expandedTop+72.)==UI::Result::Applied,
        "V101 second velocity begin failed");
- check(ui.up()==UI::Result::Handled&&f.c->velocity(2,9,0)==64,
-       "V101 velocity commit did not retain edited value");
+ // BC47: use the exact shared 1..127 native geometry. The old 48px
+ // input scale gave 64 at y+72; the corrected visible 36px lane gives 61.
+ const auto expectedVelocity=UI::laneValue(72.);
+ check(expectedVelocity==61&&ui.up()==UI::Result::Handled&&
+       f.c->velocity(2,9,0)==expectedVelocity,
+       "V101 velocity commit did not retain shared visual-scale value");
  // VEL owns both row-local one-shot operations, not SET. Validate live
  // controller contents, note occupancy and non-selected instrument isolation.
  check(UI::velocityAt(190.,76.)==UI::SettingsAction::RandomVelocity&&
@@ -1164,7 +1168,7 @@ void testV101Interaction(){
        "V101 random/reset one-shot hit regions are not Velocity-only");
  const auto otherRowBefore=f.c->velocity(2,8,0);
  check(ui.down(190.,expandedTop+76.)==UI::Result::Applied&&
-       f.c->velocity(2,9,0)!=64,
+       f.c->velocity(2,9,0)!=expectedVelocity,
        "V101 VEL random did not vary occupied row note");
  check(ui.down(330.,expandedTop+76.)==UI::Result::Applied&&
        f.c->velocity(2,9,0)==100&&f.c->velocity(2,9,1)==0&&

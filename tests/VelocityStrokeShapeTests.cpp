@@ -119,8 +119,9 @@ int main(){
   ck(reverse[0]==1&&reverse[15]==127&&reverse[16]==64,
      "right-to-left ramp broken");
   reverse=shape.advance(10,75);
-  ck(reverse[0]==64&&reverse[10]==75&&reverse[11]==64,
-     "retract failed to restore old values");
+  ck(reverse[0]==64&&reverse[9]==64&&reverse[10]==75&&
+     reverse[15]==127&&reverse[16]==64,
+     "retract must restore values outside the new end while retaining the anchor");
   std::cout<<"BC46 V1.5 click/paint/Shift line/curve/Alt/16-32/empty plus BC45 scale PASS\n";
   return 0;
  }catch(const std::exception& e){std::cerr<<"BC30 FAIL: "<<e.what()<<"\n";return 1;}
