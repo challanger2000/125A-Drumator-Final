@@ -56,14 +56,20 @@ early break conservation and occupied-pattern confirmation.
 `drumator_velocity_stroke_shape_tests` checks the preserved
 BC30 paint/line/curve/accent calculations from the previous prototype.
 
-## Pending VST3 integration (intentionally NOT done in BC40)
-1. Compare the already recovered, verified 2026-10-31 Gumroad release archive to the new VST3 build; do not ask for the ZIP again.
-2. Port the already reviewed Beat Creator controller/processor transaction with minimal changes.
-3. Port the BC30 velocity **mouse gesture UI** (not just its isolated algorithm), preserving existing v1.0.1 features.
-4. Implement compact genre dropdown, permanently visible slot legend, no Preview Kit button or bundled kit code.
-5. End-to-end Studio One practice tests: 16/32 steps, undo, save/recall, A/B/C preview,
-   44.1 kHz, song chaining and **actual DAW-tempo-correct WAV export**.
-   The prior export tempo bug remains unresolved and must not be called fixed.
-6. Compare complete v1.0.1 archive vs candidate resource tree before release.
+## BC41 and BC42 implementation – 02 November 2026
 
-No changes to Gumroad/stable release occur without separate approval.
+- BC41: copied the proven V1.5 velocity shape implementation into the original V1.0.1 VSTGUI interaction and only forwarded Shift/Alt modifiers from the V1.0.1 View. The Windows build [41373979469](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41373979469) **SUCCESS**. Do not implement these gestures again.
+- BC42: added one 83×32 BEAT CREATOR header key, a **single ten-style dropdown** in the existing 640×240 native metal modal, inline Complexity readout and +/- controls, 16/32-step choice, read-only A/B/C visual previews, 8-role text legend and GENERATE/APPLY/CONFIRM/CANCEL. No kit browser, no demo samples, no replacement of user WAV/FLAC.
+- BC42 controller ports the verified atomic group transaction from V1.5 without the sample-audition code. The processor ports the original first-three-pattern compare-and-swap, keeping note/length snapshots coherent. Grouped undo and explicit overwrite confirmation are retained.
+- The generator does not call the Offline WAV exporter and never modifies sample mappings, kit state or song arrangements; the old V1.5 tempo-export defect has **not** been incorporated or claimed fixed.
+- Latest code-revision [7f048b8c](https://github.com/challanger2000/125A-Drumator-Final/commit/7f048b8cf1cc85fbd5f37ec6c81c113f57f8a6b5); code and workflow QC status **must be rechecked**. [Workflow run 41376112322](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41376112322).
+- A prior simultaneous Windows CI run built the plugin but failed **1 of 31 CTests**, a timed 64-voice source-swap deadline. Do not label candidate release-ready before the latest isolated full QA passes; multiple concurrently launched Windows builds may distort timing. Workflow concurrency control has since been added.
+
+## Still open before release
+1. Finish full Windows CI (all CTests, 47/47 Steinberg validator, independent 125A Tester) on the latest code.
+2. Verify complete GUI painter/hit testing at 100%, 130%, 150% and minimum host viewport.
+3. End-to-end Studio One check using the original verified Gumroad v1.0.1 as reference: Velocity gestures and grouped Undo; ten selectable styles; generation A/B/C; 1/2 bars; no user samples altered; save/recall; pattern and song playback; 44.1 kHz.
+4. Check exported MIDI/WAV duration and actual DAW BPM with several BPM values; only claim fixed after measured tests. Earlier V1.5 had tempo-related issues.
+5. Do not touch `main`, release 1.0.1, or the live Gumroad listing without separate owner decision.
+
+Canonical detailed handoff: [START-HERE.md](../START-HERE.md).
