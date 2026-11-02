@@ -1200,7 +1200,7 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
  using P=v101::UiV101NativePreview;
  using D=UiBeatCreatorDialog;
  const double h=getViewSize().getHeight();
- const auto panel=D::panel(h);
+ const auto shell=D::panel(h);
  const auto rect=[](D::Rect r)->VSTGUI::CRect{return {r.x0,r.y0,r.x1,r.y1};};
  const P::ButtonSprites buttons{
   v101VintageButtons_[0],v101VintageButtons_[1],
@@ -1212,14 +1212,14 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
     v101FaceplateBitmap_->getHeight()>=230.){
   const double cropX=(v101FaceplateBitmap_->getWidth()-630.)*.5;
   const double cropY=(v101FaceplateBitmap_->getHeight()-230.)*.5;
-  v101FaceplateBitmap_->draw(c,{panel.x0+5.,panel.y0+5.,panel.x1-5.,panel.y1-5.},
+  v101FaceplateBitmap_->draw(c,{shell.x0+5.,shell.y0+5.,shell.x1-5.,shell.y1-5.},
                              {cropX,cropY});
  }else{
-  P::satin(*c,{panel.x0+5.,panel.y0+5.,panel.x1-5.,panel.y1-5.},
+  P::satin(*c,{shell.x0+5.,shell.y0+5.,shell.x1-5.,shell.y1-5.},
            {70,80,90,255},{42,52,64,255},{22,32,44,255},20);
  }
- P::border(*c,rect(panel),P::Skin::panelEdge());
- P::fill(*c,{panel.x0+5.,panel.y0+5.,panel.x1-5.,panel.y0+37.},{20,35,51,255});
+ P::border(*c,rect(shell),P::Skin::panelEdge());
+ P::fill(*c,{shell.x0+5.,shell.y0+5.,shell.x1-5.,shell.y0+37.},{20,35,51,255});
  P::label(*c,"125A BEAT CREATOR",rect(D::title(h)),16,{230,237,243,255});
  const auto styleIndex=static_cast<unsigned>(beatCreatorStyle_);
  char styleCaption[64]{};
