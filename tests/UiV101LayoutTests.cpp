@@ -292,7 +292,20 @@ int main(){
     CHECK(BC::styleSelect(hostHeight).x0>=panel.x0);
     CHECK(BC::styleSelect(hostHeight).x1<=panel.x1);
     CHECK(BC::styleSelect(hostHeight).y1<list.y0);
-    for(std::size_t i=0;i<10;++i){
+         // BC52: exact symmetry for every style row and host height.
+     for(std::size_t row=0;row<5;++row){
+      const auto left=BC::styleOption(hostHeight,row);
+      const auto right=BC::styleOption(hostHeight,row+5);
+      CHECK(left.x0-list.x0==list.x1-right.x1);
+      CHECK(left.x1-left.x0==right.x1-right.x0);
+      CHECK(right.x0-left.x1==8.);
+      CHECK(left.y0==right.y0&&left.y1==right.y1);
+      CHECK(left.x0==BC::styleOption(hostHeight,0).x0);
+      CHECK(right.x1==BC::styleOption(hostHeight,5).x1);
+     }
+     CHECK(BC::styleOption(hostHeight,0).x0-list.x0==5.);
+     CHECK(list.x1-BC::styleOption(hostHeight,5).x1==5.);
+for(std::size_t i=0;i<10;++i){
       const auto cell=BC::styleOption(hostHeight,i);
       CHECK(cell.x0>=list.x0&&cell.x1<=list.x1);
       CHECK(cell.y0>=list.y0&&cell.y1<=list.y1);
