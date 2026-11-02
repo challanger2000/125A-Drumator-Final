@@ -29,14 +29,14 @@ Stand: 02.11.2026. **Zuerst dieses Dokument und CURRENT.md lesen, bevor Dateien 
 - **80 fest definierte Groove-Motive (8 pro Genre)**; A Hauptgroove, B passende Variation, C halbtaktiger genrebezogener Break; Complexity, Velocity, 1/2 Takte.
 - **KEINE mitgelieferten Samples, KEIN Kit-Browser, KEIN Preview-Kit-Button.** Nutzer lädt seine WAV/FLAC separat. Der Creator schreibt nur Steps und Velocity.
 - Feste Legende: 01 Kick, 02 Snare, 03 Closed HH, 04 Open HH, 05 Low Tom, 06 High Tom, 07 Crash, 08 Clap. Reihen 9–16 unangetastet.
-- Velocity-Tools von der vorherigen Entwicklung (Paint, Shift-Line, Shift+Alt-Curve, Alt-Accent) als **isolierter Algorithmus plus Regressionstests** übernommen. Die reale GUI-Gestenintegration ist NOCH OFFEN.
+- Velocity-Tools von der vorherigen Entwicklung (Paint, Shift-Line, Shift+Alt-Curve, Alt-Accent) als **isolierter Algorithmus plus Regressionstests** übernommen. Die GUI-Gestenintegration wurde in BC41 direkt aus dem bewährten V1.5-Code übernommen: `src/vst3/UiV101Interaction.h` ist **byteidentisch** zur V1.5-Implementation, in `src/vst3/DrumatorView.h/.cpp` wurde nur die Weitergabe von Alt/Shift ergänzt. **Windows-CI für BC41 ist noch zu prüfen, keine Studio-One-Praxisbestätigung.**
 - **CI** [Run 41371936461](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41371936461) für Code-Commit `2e14f9af`: Windows und unabhängiger Tester **SUCCESS**. Danach nur Dokumentationsänderungen. Die ersten beiden Zwischenläufe scheiterten an Compile-Fehlern, die im Erfolgsstand korrigiert wurden.
 - Den Detailvertrag enthält [docs/BEAT-CREATOR-BC40-10-ELECTRONIC-STYLES.md](docs/BEAT-CREATOR-BC40-10-ELECTRONIC-STYLES.md).
 
 ## 4. Nächste Arbeiten – ohne weitere Nutzer-Rückfragen zur Basis
 1. Nur vom geprüften 1.0.1-Code aus entwickeln; Quell-/Binary-Referenz gegen Gumroad-Paket sichern.
 2. Beat Creator mit einem Style-Dropdown und fester 8-Slot-Legende in die GUI integrieren; Transaktion/A/B/C/Undo und Preview testbar machen.
-3. BC30 Velocity-Mausgesten vollständig und ohne Regression der bisherigen V1.0.1 integrieren.
+3. BC41 Velocity-Mausgesten wurden bereits in die V1.0.1-Oberfläche übernommen. **Nicht erneut implementieren**; nur BC41-Windows-CI und Studio-One-Bedienung überprüfen und eventuelle konkrete Regressionen beheben.
 4. **Vor Ausgabe einer Test-VST3**: MIDI-/WAV-Export (DAW-BPM, Patterns/Song, unterschiedliche BPM), Song, Recall, GUI, Velocity, unabhängiger Tester und Studio-One-Praxistest validieren. Keine unbewiesene Tempo-Korrektur behaupten.
 5. Änderungen ausschließlich in diesem isolierten Branch; **keine** Release-Änderung, kein Gumroad-Upload, kein direktes Überschreiben von `main`.
 
