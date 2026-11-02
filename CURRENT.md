@@ -1,5 +1,9 @@
 # 125A Drumator — authoritative current status
 
+> **AKTUELLER ENTWICKLUNGSSTAND – 02.11.2026:** Dieser Branch `develop/beat-creator-10-styles-20261102` enthält den neuen unabhängigen 10-Style-Beat-Creator-Kern (80 Groove-Motive) und BC30-Velocity-Rechenfunktionen, **noch keine integrierte VST3-GUI**. Windows-CI [41371936461](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41371936461) für den Code-Commit `2e14f9af` SUCCESS; die folgenden Commits ändern ausschließlich Dokumentation. **VERBINDLICHE ÜBERGABE: [START-HERE.md](START-HERE.md).** Die originale Gumroad-ZIP `125A_Drumator_v1.0.1_Gumroad_Final.zip` und zwei byteidentische Library-Pakete (SHA256 `cb263d6b3a66a125b967661942f36e3011b2ce8c3995325d0e12cceccf2084eb`) sind vorhanden und geprüft; **nicht erneut anfordern**. Der unten dokumentierte V1.0.1-Verkaufsstand bleibt unverändert.
+
+---
+
 **31 October 2026 | Version 1.0.1 | F21 footer alignment complete; verified updated Gumroad customer ZIP prepared.**
 
 ## Authoritative source and build
