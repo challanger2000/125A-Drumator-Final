@@ -257,6 +257,21 @@ int main(){
     const auto two=BeatCreator::preview({static_cast<BeatStyle>(t),35,16},0);
     ck(structure(one.a)!=structure(two.a),"two genres share identical factory groove");
    }
+  // BC57: the old single-seed cross-style check missed four
+  // note-identical motifs in the 8x10 authored variants. Reject any
+  // complete A groove copied across two different genres at 35%.
+  for(unsigned leftStyle=0;leftStyle<10u;++leftStyle)
+   for(unsigned rightStyle=leftStyle+1u;rightStyle<10u;++rightStyle)
+    for(unsigned leftMotif=0;leftMotif<8u;++leftMotif){
+     const auto left=BeatCreator::generate(
+         {static_cast<BeatStyle>(leftStyle),35,16},leftMotif);
+     for(unsigned rightMotif=0;rightMotif<8u;++rightMotif){
+      const auto right=BeatCreator::generate(
+          {static_cast<BeatStyle>(rightStyle),35,16},rightMotif);
+      ck(structure(left)!=structure(right),
+         "two genres share an identical authored base groove");
+     }
+    }
   // Neither PREVIEW nor APPLY may overwrite samples or user slots 9-16.
   PatternSteps original{};original[0]=100;original[8*kSteps+13]=92;
   original[9*kSteps+23]=83;original[0*kSteps+29]=97;
