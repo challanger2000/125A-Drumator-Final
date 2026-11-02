@@ -37,7 +37,7 @@ class BeatCreator final {
   return mask;
  }
  struct Motif {std::uint16_t kick,snare,hat,open,clap;};
- static constexpr std::array<std::array<Motif,8>,10> motifs_{{
+ static inline const std::array<std::array<Motif,8>,10> motifs_{{
   {{ // 80s SYNTHPOP: eight authored rhythmic archetypes
    Motif{bits("0 8"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 1
    Motif{bits("0 6 8"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 2
