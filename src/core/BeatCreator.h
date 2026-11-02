@@ -49,7 +49,7 @@ class BeatCreator final {
    Motif{bits("0 8 15"), bits("4 12"), bits("0 2 4 8 10 12 14"), bits("6"), bits("")}, // 8
   }},
   {{ // ITALO DISCO: eight authored rhythmic archetypes
-   Motif{bits("0 4 8 12"), bits("4 12"), bits("0 4 8 12"), bits("2 6 10 14"), bits("4 12")}, // 1
+   Motif{bits("0 4 8 12"), bits("4 12"), bits("0 3 4 7 8 11 12 15"), bits("6 14"), bits("4 12")}, // 1
    Motif{bits("0 4 8 12"), bits("4 12"), bits("0 3 4 7 8 11 12 15"), bits("2 6 10 14"), bits("4 12")}, // 2
    Motif{bits("0 4 8 12 15"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("6 14"), bits("4 12")}, // 3
    Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 4 8 10 12"), bits("6 14"), bits("4 12 15")}, // 4
