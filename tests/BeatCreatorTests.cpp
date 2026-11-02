@@ -118,6 +118,27 @@ int main(){
      }
     }
    }
+   // BC49: each style has six different audible 1/2-bar fill phrases,
+   // including kits that load only Kick, Snare and Closed HH.
+   const BeatCreatorSettings fillSettings{s,35,16};
+   const auto base=BeatCreator::generate(fillSettings,0);
+   std::array<std::array<std::uint16_t,8>,6> endings{};
+   for(unsigned variant=0;variant<6u;++variant){
+    const auto fill=BeatCreator::makeBreak(base,fillSettings,variant);
+    endings[variant]=structure(fill);
+    for(unsigned previous=0;previous<variant;++previous)
+     ck(endings[variant]!=endings[previous],"duplicate rhythm fill ending");
+    unsigned coreChanges=0;
+    for(const auto role:{BeatRole::BD,BeatRole::Snare,BeatRole::CHH})
+     for(std::size_t step=8;step<16;++step)
+      coreChanges+=(v(fill,role,step)!=0u)!=(v(base,role,step)!=0u);
+    ck(coreChanges>=2u,"C fill relies on missing tom/crash/clap");
+    ck(v(fill,BeatRole::Snare,12)>0u,"C fill removed downbeat backbeat");
+    for(std::size_t row=0;row<kRows;++row)
+     for(std::size_t step=0;step<8;++step)
+      ck(base[row*kSteps+step]==fill[row*kSteps+step],
+         "fill modified early part of 1-bar groove");
+   }
    // Every two-bar phrase must develop, not repeat, bar one.
    for(unsigned seed=0;seed<32u;++seed) {
     const auto p=BeatCreator::preview({s,35,32},seed);

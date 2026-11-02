@@ -286,96 +286,83 @@ public:
   }
   return b;
  }
+ // BC49: 6 authored style-specific 16th-note fills per genre, in the
+ // final half-bar. Kick/Snare/CHH alone carry every fill; optional lanes
+ // may enrich it, but missing tom/cymbal samples never silence the break.
  static PatternSteps makeBreak(const PatternSteps& a,const BeatCreatorSettings& settings,
                                std::uint32_t seed) noexcept {
   PatternSteps c=a;
   if(!valid(settings))return c;
-  Rng r(seed^0x71ba02dfu);
-  const std::size_t start=static_cast<std::size_t>(settings.steps)-8u;
-  const unsigned ending=seed%3u;
-  const unsigned complexity=settings.complexity;
-  const auto put=[&](BeatRole role,unsigned pos,int v){
-   const auto step=start+pos;
-   // A note may not be simultaneously an open and a closed hi-hat.
+  Rng rng(seed^0x71ba02dfu);
+  const auto complexity=static_cast<unsigned>(settings.complexity);
+  const auto style=static_cast<unsigned>(settings.style);
+  const unsigned ending=seed%6u;
+  const auto first=static_cast<std::size_t>(settings.steps)-8u;
+  static constexpr std::array<std::array<std::uint16_t,6>,10> rolls{{
+   {{bits("2 4 7"),bits("3 4 6"),bits("2 4 5 7"),bits("3 4 5"),bits("2 4 6 7"),bits("3 4 5 7")}},
+   {{bits("3 4 7"),bits("2 4 6"),bits("3 4 5 7"),bits("2 4 5"),bits("2 4 6 7"),bits("3 4 6 7")}},
+   {{bits("2 4 7"),bits("3 4 5"),bits("2 4 6 7"),bits("3 4 7"),bits("2 4 5 6"),bits("3 4 5 7")}},
+   {{bits("3 4 7"),bits("2 4 6"),bits("3 4 6 7"),bits("2 4 5"),bits("3 4 5 7"),bits("2 4 5 6")}},
+   {{bits("3 4 6 7"),bits("2 4 5 7"),bits("3 4 5 6"),bits("2 4 6 7"),bits("2 4 5 6 7"),bits("3 4 5 7")}},
+   {{bits("3 4 7"),bits("2 4 6"),bits("3 4 6 7"),bits("2 4 5"),bits("3 4 5 7"),bits("2 4 6 7")}},
+   {{bits("2 4 7"),bits("3 4 6"),bits("2 4 5 7"),bits("3 4 5"),bits("2 4 6 7"),bits("3 4 5 7")}},
+   {{bits("3 4 6 7"),bits("2 4 5 7"),bits("3 4 5 6"),bits("2 4 6 7"),bits("2 4 5 6 7"),bits("3 4 5 7")}},
+   {{bits("3 4 7"),bits("2 4 6"),bits("3 4 5 7"),bits("2 4 5"),bits("3 4 6 7"),bits("2 4 5 6")}},
+   {{bits("2 4 6 7"),bits("3 4 5 7"),bits("2 4 5 6"),bits("3 4 6 7"),bits("2 4 5 7"),bits("3 4 5 6")}}
+  }};
+  const auto put=[&](BeatRole role,unsigned pos,int vel){
+   const auto step=first+pos;
    if(role==BeatRole::OHH)c[at(BeatRole::CHH,step)]=0;
    if(role==BeatRole::CHH)c[at(BeatRole::OHH,step)]=0;
-   set(c,role,step,v+r.deviation(3));
+   set(c,role,step,vel+rng.deviation(3));
   };
-  const auto erase=[&](BeatRole role,unsigned pos){c[at(role,start+pos)]=0;};
-  // A / B / C differ only in the final half-bar: a musically meaningful turnaround.
-  for(unsigned pos=4;pos<8;++pos){erase(BeatRole::CHH,pos);erase(BeatRole::OHH,pos);}
-  switch(settings.style){
-   case BeatStyle::Synthpop80s:
-     put(BeatRole::HighTom,2,80);
-     if(complexity>=25u)put(BeatRole::LowTom,5,89);
-     if(ending==0u)put(BeatRole::LowTom,7,100);
-     else if(ending==1u)put(BeatRole::Clap,7,92);
-     else put(BeatRole::Snare,7,91);
-     break;
-   case BeatStyle::ItaloDisco:
-     put(BeatRole::CHH,3,70);
-     if(complexity>=25u)put(BeatRole::Clap,5,84);
-     if(ending==0u)put(BeatRole::Clap,7,103);
-     else if(ending==1u)put(BeatRole::Snare,7,99);
-     else put(BeatRole::OHH,7,96);
-     break;
-   case BeatStyle::Synthwave:
-     put(BeatRole::HighTom,2,80);
-     if(complexity>=35u)put(BeatRole::LowTom,5,94);
-     if(ending==0u)put(BeatRole::LowTom,7,107);
-     else if(ending==1u)put(BeatRole::Snare,7,100);
-     else {erase(BeatRole::BD,7);put(BeatRole::Crash,7,94);}
-     break;
-   case BeatStyle::EBM:
-     put(BeatRole::BD,3,91);
-     if(complexity>=35u)put(BeatRole::Snare,5,76);
-     if(ending==0u)put(BeatRole::Clap,7,105);
-     else if(ending==1u)put(BeatRole::BD,7,108);
-     else put(BeatRole::Snare,7,106);
-     break;
-   case BeatStyle::Eurodance90s:
-     put(BeatRole::Clap,3,79);
-     if(complexity>=25u)put(BeatRole::Snare,5,82);
-     if(ending==0u){put(BeatRole::Snare,6,87);put(BeatRole::Snare,7,110);}
-     else if(ending==1u){put(BeatRole::Clap,6,90);put(BeatRole::Snare,7,110);}
-     else {put(BeatRole::Snare,7,109);put(BeatRole::Crash,7,95);}
-     break;
-   case BeatStyle::House:
-     put(BeatRole::CHH,3,64);
-     if(complexity>=35u)put(BeatRole::Clap,5,83);
-     if(ending==0u)put(BeatRole::Clap,7,101);
-     else if(ending==1u)put(BeatRole::Snare,7,95);
-     else {erase(BeatRole::BD,7);put(BeatRole::OHH,7,89);}
-     break;
-   case BeatStyle::Techno:
-     put(BeatRole::CHH,3,78);
-     if(complexity>=35u)put(BeatRole::CHH,5,87);
-     if(ending==0u)put(BeatRole::Snare,7,99);
-     else if(ending==1u)put(BeatRole::CHH,7,103);
-     else put(BeatRole::BD,7,99);
-     break;
-   case BeatStyle::Trance:
-     put(BeatRole::Snare,3,70);
-     if(complexity>=25u)put(BeatRole::Snare,5,82);
-     if(ending==0u){put(BeatRole::Snare,6,94);put(BeatRole::Snare,7,109);}
-     else if(ending==1u){put(BeatRole::Clap,6,88);put(BeatRole::Snare,7,105);}
-     else {put(BeatRole::Snare,7,107);put(BeatRole::Crash,7,102);}
-     break;
-   case BeatStyle::HipHop:
-     put(BeatRole::Snare,2,46);
-     if(complexity>=35u)put(BeatRole::CHH,3,52);
-     if(ending==0u)put(BeatRole::BD,7,95);
-     else if(ending==1u)put(BeatRole::Snare,7,77);
-     else put(BeatRole::Clap,7,82);
-     break;
-   case BeatStyle::DrumAndBass:
-     put(BeatRole::Snare,2,54);
-     if(complexity>=35u)put(BeatRole::Snare,5,67);
-     if(ending==0u){put(BeatRole::Snare,6,87);put(BeatRole::BD,7,99);}
-     else if(ending==1u){put(BeatRole::BD,5,88);put(BeatRole::Snare,7,108);}
-     else {put(BeatRole::Snare,6,78);put(BeatRole::LowTom,7,97);}
-     break;
-   case BeatStyle::Count:break;
+  // Make room for the turnaround while keeping beat-four Snare and
+  // quarter-note Kicks. Leave every earlier row/step untouched.
+  for(unsigned pos=4;pos<8u;++pos){
+   c[at(BeatRole::CHH,first+pos)]=0;
+   c[at(BeatRole::OHH,first+pos)]=0;
+  }
+  const auto mask=rolls[style][ending];
+  for(unsigned pos=0;pos<8u;++pos){
+   if(!(mask&(1u<<pos)))continue;
+   if(complexity<20u&&pos!=7u)continue;
+   if(pos==4u){
+    if(c[at(BeatRole::Snare,first+pos)]<105u)put(BeatRole::Snare,pos,109);
+   }else put(BeatRole::Snare,pos,
+              static_cast<int>(std::min(124u,56u+pos*8u+(pos==7u?10u:0u))));
+  }
+  if(complexity<20u&&!roleAt(c,BeatRole::Snare,first+7u))
+   put(BeatRole::Snare,7u,91);
+  if(complexity>=25u){
+   if(settings.style==BeatStyle::EBM||settings.style==BeatStyle::Techno)
+    put(BeatRole::BD,ending%2u?3u:6u,93);
+   else if(settings.style==BeatStyle::HipHop||settings.style==BeatStyle::DrumAndBass)
+    put(BeatRole::BD,ending%2u?5u:7u,91);
+   else if(ending%2u==0u)put(BeatRole::BD,7u,88);
+  }
+  if(complexity>=35u){
+   const unsigned beat=ending%2u?3u:5u;
+   if(settings.style==BeatStyle::ItaloDisco||
+      settings.style==BeatStyle::Eurodance90s||
+      settings.style==BeatStyle::House||settings.style==BeatStyle::Trance)
+    put(BeatRole::Clap,beat,86);
+   if(settings.style==BeatStyle::Synthpop80s||settings.style==BeatStyle::Synthwave)
+    put(BeatRole::HighTom,beat,76);
+   if(settings.style==BeatStyle::EBM||settings.style==BeatStyle::Techno)
+    put(BeatRole::CHH,3u,75);
+  }
+  if(complexity>=65u){
+   put(BeatRole::CHH,5u,63);
+   if(ending%2u==0u)put(BeatRole::CHH,7u,84);
+   if(settings.style==BeatStyle::Synthpop80s||
+      settings.style==BeatStyle::Synthwave||settings.style==BeatStyle::DrumAndBass)
+    put(BeatRole::LowTom,6u,92);
+   else if(!roleAt(c,BeatRole::Snare,first+6u))put(BeatRole::Snare,6u,86);
+  }
+  if(complexity>=85u){
+   for(unsigned pos=5;pos<8u;++pos)
+    put(BeatRole::Snare,pos,static_cast<int>(80u+(pos-5u)*19u));
+   if(ending%3u==0u)put(BeatRole::Crash,7u,102);
   }
   return c;
  }
