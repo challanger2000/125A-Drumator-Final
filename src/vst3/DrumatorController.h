@@ -116,6 +116,14 @@ public:
  bool duplicateCurrentPattern(bool* selectedCopy=nullptr);
  bool clearCurrentPattern();
  bool undoCurrentPattern();
+ // BC59: The selected genre is an instance preference, not a View lifetime.
+ // Recreating the native editor must not reset it to the default style.
+ BeatStyle beatCreatorStyle() const noexcept {return beatCreatorStyle_;}
+ bool selectBeatCreatorStyle(BeatStyle style) noexcept {
+  if(style>=BeatStyle::Count)return false;
+  beatCreatorStyle_=style;
+  return true;
+ }
  bool prepareBeatCreator(const BeatCreatorSettings& settings,std::uint32_t seed) noexcept;
  const BeatCreatorPreview* beatCreatorDraft() const noexcept {
   return beatPreview_.valid?&beatPreview_:nullptr;
@@ -200,6 +208,7 @@ private:
  PatternSteps clipboard_{};
  std::uint8_t clipboardLength_{32};
  PatternUndo undo_{};
+ BeatStyle beatCreatorStyle_{BeatStyle::Synthpop80s}; // BC59: survives editor close/reopen
  BeatCreatorPreview beatPreview_{};
  BeatTriple beatPreviewBefore_{};
  BeatLengths beatPreviewLengths_{};

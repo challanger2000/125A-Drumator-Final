@@ -1332,7 +1332,8 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
   for(std::size_t i=0;i<BeatCreator::styleNames.size();++i)
    if(D::styleOption(h,i).hit(x,y)){
     if(static_cast<std::size_t>(beatCreatorStyle_)!=i){
-     beatCreatorStyle_=static_cast<BeatStyle>(i);
+     if(!controller_.selectBeatCreatorStyle(static_cast<BeatStyle>(i)))return true;
+     beatCreatorStyle_=controller_.beatCreatorStyle();
      controller_.cancelBeatCreator();
      beatCreatorConfirmOverwrite_=false;
      beatCreatorNotice_="STYLE CHANGED - GENERATE";
@@ -3069,6 +3070,9 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
     UiV101Layout::beatCreatorTrigger.hit(x,y)){
   (void)v101_.up();
   beatCreatorOpen_=true;
+  // BC59: synchronize from the instance-owned preference on every opening,
+  // including a fresh editor and another simultaneously attached editor.
+  beatCreatorStyle_=controller_.beatCreatorStyle();
   beatCreatorSteps_=controller_.patternLength(controller_.currentPattern());
   beatCreatorStyleMenu_=false;
   beatCreatorConfirmOverwrite_=false;

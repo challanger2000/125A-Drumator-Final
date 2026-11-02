@@ -231,6 +231,8 @@ struct IntegrationAccess {
      v.velocityRow_,v.velocityStep_,v.firstRow_,v.songSlot_,v.songEditorOpen_,
      v.compactViewport_,v.compactPageRows_,v.velocityExpanded_,v.popup_,v.popupRow_,v.activeKnob_,v.knobRow_,v.knobStartY_,v.knobStartValue_,v.knobGeneration_,v.status_};
  }
+ static BeatStyle beatCreatorStyle(const DrumatorView& v) noexcept {return v.beatCreatorStyle_;}
+ static bool beatCreatorOpen(const DrumatorView& v) noexcept {return v.beatCreatorOpen_;}
  static std::size_t viewCount(const Controller& c){return c.views_.size();}
  static DrumatorView* view(Controller& c,std::size_t n){check(n<c.views_.size(),"real custom view absent");return c.views_[n];}
  static VSTGUI::CTextEdit* edit(DrumatorView& v){return v.nameEdit_;}
@@ -651,6 +653,81 @@ void testLegacyReject(){
  }
  evidence("Z01 Legacy PASS: DMR1/2/3 48 actual default-name OOM rejections and successful recalls");
 }
+
+// BC59: A Style selected through the genuine native popup must survive
+// Cancel, native editor destruction/recreation, and another view of the same
+// VST3 instance. It must not bleed into an independent VST3 instance.
+void testBeatCreatorStyleEditorReopen(){
+ Fixture f;
+ KitState kit{};kit.visible=8;
+ f.kit(kit);
+ f.openV101();
+ auto* view=IntegrationAccess::view(*f.c,0);
+ const auto choose=[&](DrumatorView& editor,std::size_t index){
+  const auto h=editor.getViewSize().getHeight();
+  const auto trigger=UiV101Layout::beatCreatorTrigger;
+  click(editor,(trigger.x0+trigger.x1)*.5,(trigger.y0+trigger.y1)*.5);
+  check(IntegrationAccess::beatCreatorOpen(editor),"BC59 native Beat Creator did not open");
+  const auto select=UiBeatCreatorDialog::styleSelect(h);
+  click(editor,(select.x0+select.x1)*.5,(select.y0+select.y1)*.5);
+  const auto option=UiBeatCreatorDialog::styleOption(h,index);
+  click(editor,(option.x0+option.x1)*.5,(option.y0+option.y1)*.5);
+  check(static_cast<std::size_t>(IntegrationAccess::beatCreatorStyle(editor))==index,
+        "BC59 native Style menu did not display selected genre");
+  check(static_cast<std::size_t>(f.c->beatCreatorStyle())==index,
+        "BC59 native Style click did not update instance preference");
+ };
+ const auto openAndCheck=[&](DrumatorView& editor,BeatStyle expected){
+  const auto trigger=UiV101Layout::beatCreatorTrigger;
+  click(editor,(trigger.x0+trigger.x1)*.5,(trigger.y0+trigger.y1)*.5);
+  check(IntegrationAccess::beatCreatorOpen(editor)&&
+        IntegrationAccess::beatCreatorStyle(editor)==expected,
+        "BC59 reopened native Beat Creator reset Style to Synthpop");
+ };
+ const auto cancel=[&](DrumatorView& editor){
+  const auto r=UiBeatCreatorDialog::cancel(editor.getViewSize().getHeight());
+  click(editor,(r.x0+r.x1)*.5,(r.y0+r.y1)*.5);
+  check(!IntegrationAccess::beatCreatorOpen(editor),
+        "BC59 Beat Creator Cancel left popup open");
+ };
+ check(f.c->beatCreatorStyle()==BeatStyle::Synthpop80s,
+       "BC59 fresh instance must default to 80s Synthpop");
+ choose(*view,3u); // EBM, not the first style
+ cancel(*view);
+ openAndCheck(*view,BeatStyle::EBM);
+ cancel(*view);
+ f.closeLast(); // real Win32 VST3 editor destruction, Controller stays alive
+ check(IntegrationAccess::viewCount(*f.c)==0&&
+       f.c->beatCreatorStyle()==BeatStyle::EBM,
+       "BC59 destroying native editor lost selected Style");
+ f.openV101();
+ view=IntegrationAccess::view(*f.c,0);
+ openAndCheck(*view,BeatStyle::EBM);
+ cancel(*view);
+ // Separate editors on the same VST3 instance use its latest selection.
+ f.openV101();
+ auto* second=IntegrationAccess::view(*f.c,1);
+ choose(*second,7u); // TRANCE
+ cancel(*second);
+ openAndCheck(*view,BeatStyle::Trance);
+ cancel(*view);
+ f.closeLast();
+ f.closeLast();
+ f.openV101();
+ view=IntegrationAccess::view(*f.c,0);
+ openAndCheck(*view,BeatStyle::Trance);
+ cancel(*view);
+ // A second plugin instance starts at the default; no global/static state.
+ Fixture independent;
+ independent.kit(kit);
+ check(independent.c->beatCreatorStyle()==BeatStyle::Synthpop80s,
+       "BC59 Style leaked between separate VST3 instances");
+ check(!f.c->selectBeatCreatorStyle(BeatStyle::Count)&&
+       f.c->beatCreatorStyle()==BeatStyle::Trance,
+       "BC59 invalid Style enum accepted");
+ evidence("BC59 genuine VST3 Style selection survives Cancel, editor close/reopen and two views; instances isolated PASS");
+}
+
 void testMultiViewLifecycleNotifications(){
  // V18: attached native views receive controller notifications while
  // both exist; removing one must leave no dangling registration.
@@ -5675,6 +5752,7 @@ int main(int argc,char** argv){
  }
  run("Z01 full Controller allocation injection",testRecallOOM);
  run("Z01 legacy Controller",testLegacyReject);
+ run("BC59 Beat Creator genre survives native editor close/reopen",testBeatCreatorStyleEditorReopen);
  run("V18 multi-view native lifecycle",testMultiViewLifecycleNotifications);
  run("Z02 native attached views",testZoom);
  run("VSTGUI precision controls",testPrecisionPanel);
