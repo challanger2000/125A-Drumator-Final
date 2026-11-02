@@ -795,11 +795,10 @@ struct UiV101NativePreview final {
            }else{
              const double barHeight=VelocityLaneScale::heightFor(velocity);
              // MIDI 1 is a 1px bar, MIDI 127 reaches the visible 35px top.
-             // The input and painted bar have exactly the same vertical range.
+             // BC54: one subdued, semi-transparent bar without the bright
+             // upper edge. Preserve pixel geometry and input height mapping.
              fill(c,{xx+2.,y+89.-barHeight,xx+15.,y+89.},
-                  {32,165,195,255});
-             fill(c,{xx+3.,y+89.-barHeight,xx+14.,y+90.-barHeight},
-                  {141,233,247,255});
+                  {32,165,195,205});
            }
          }
          cap(c,UiV101Interaction::realtimeMinus,y,"-",false,13,vintageButtons);
