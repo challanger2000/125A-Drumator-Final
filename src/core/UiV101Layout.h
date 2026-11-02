@@ -63,6 +63,9 @@ struct UiV101Layout final {
   // Four large machined header keys, all 83x32, with 8px gutters.
   // Keep A-H's compact 35px keycaps and the three real rotary controls.
   static constexpr double headerActionWidth=83.,headerActionGap=8.;
+  // BC42: one generator entry in the unused gap before SWING knob.
+  static constexpr Rect beatCreatorTrigger{728.,headerButtonY,811.,
+                                            headerButtonY+headerButtonHeight};
   static constexpr Rect patternMenu{364.,headerButtonY,447.,
                                     headerButtonY+headerButtonHeight};
   static constexpr Rect barsButton{455.,headerButtonY,538.,
