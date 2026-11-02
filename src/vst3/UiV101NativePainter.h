@@ -547,6 +547,30 @@ struct UiV101NativePreview final {
    fill(c,{p.x0+3.,outer.bottom-3.,p.x1-3.,outer.bottom-2.},
         {11,21,31,255});
  }
+ // PERF02: draw only the 127x32 LED meter well; do not rebuild the
+ // 1280px faceplate, instrument lanes or controller-scene on meter updates.
+ static void drawMeterDisplay(VSTGUI::CDrawContext& c,float meterLeft,
+                              float meterRight,bool clipped) {
+   fill(c,{1133.,100.,1260.,132.},Skin::navyWell());
+   border(c,{1133.,100.,1260.,132.},Skin::navyTrim());
+   const auto miniMeter=[&](float value,double top){
+     const auto db=value>0.f?20.*std::log10(static_cast<double>(value)):-120.;
+     for(int index=0;index<12;++index){
+       const double threshold=-54.+5.*index;
+       const double left=1138.+index*5.5;
+       const auto lit=index<8?Color{44,187,125,255}:
+                      index<10?Color{243,183,50,255}:Color{238,76,53,255};
+       fill(c,{left,top,left+4.,top+7.},
+            db>=threshold?lit:Color{34,55,63,255});
+     }
+   };
+   miniMeter(meterLeft,105.);
+   miniMeter(meterRight,118.);
+   label(c,"L",{1207.,102.,1221.,115.},10,{218,227,233,255});
+   label(c,"R",{1207.,117.,1221.,129.},10,{218,227,233,255});
+   fill(c,{1230.,105.,1241.,116.},
+        clipped?Color{251,45,36,255}:Color{75,34,31,255});
+ }
  static void draw(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* knobSprite,
                   VSTGUI::CBitmap* titlePng,TitleBounds titleBounds,
                   const Scene& scene,
@@ -641,29 +665,8 @@ struct UiV101NativePreview final {
               "HUMANIZE",humanText);
    headerDial(c,knobSprite,L::headerKnobCenters[2],L::headerKnobY,scene.master/200.,
               "MASTER",masterText);
-   // Actual timer-sampled post-master MAIN L/R levels from the live view,
-   // never decorative LEDs. Clipping is the real Controller meter bitfield.
-   // Finish the LED meter well at the same x=1260 dark-panel edge as
-   // the heading/rack surround beneath it, not short of the border.
-   fill(c,{1133.,100.,1260.,132.},Skin::navyWell());
-   border(c,{1133.,100.,1260.,132.},Skin::navyTrim());
-   const auto miniMeter=[&](float value,double top){
-     const auto db=value>0.f?20.*std::log10(static_cast<double>(value)):-120.;
-     for(int index=0;index<12;++index){
-       const double threshold=-54.+5.*index;
-       const double left=1138.+index*5.5;
-       const auto lit=index<8?Color{44,187,125,255}:
-                      index<10?Color{243,183,50,255}:Color{238,76,53,255};
-       fill(c,{left,top,left+4.,top+7.},
-            db>=threshold?lit:Color{34,55,63,255});
-     }
-   };
-   miniMeter(scene.meterLeft,105.);
-   miniMeter(scene.meterRight,118.);
-   label(c,"L",{1207.,102.,1221.,115.},10,{218,227,233,255});
-   label(c,"R",{1207.,117.,1221.,129.},10,{218,227,233,255});
-   fill(c,{1230.,105.,1241.,116.},
-        scene.clipped?Color{251,45,36,255}:Color{75,34,31,255});
+   // Full painter shares precisely the same pixels as the LED fast path.
+   drawMeterDisplay(c,scene.meterLeft,scene.meterRight,scene.clipped);
    // Column headings remain outside the 48px-high channels.
    fill(c,{12.,142.,1261.,157.},Skin::navyWell());
    fill(c,{12.,142.,1261.,143.},Skin::navyTrim());

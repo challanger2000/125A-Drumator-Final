@@ -31,6 +31,8 @@ public:
  DrumatorView(const VSTGUI::CRect& size,Controller& controller,
               VSTGUI::VST3Editor& editor);
  void draw(VSTGUI::CDrawContext* context) override;
+ void drawRect(VSTGUI::CDrawContext* context,
+               const VSTGUI::CRect& updateRect) override;
  // Explicit candidate view: V1.0.0 production editor remains the default
  // until the host-side V1.0.1 controls pass migration QA.
  void enableV101() noexcept {v101Mode_=true;}

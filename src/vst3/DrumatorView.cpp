@@ -1042,7 +1042,7 @@ void DrumatorView::pollMeter() noexcept {
    const bool feedbackActive=now<buttonFlashUntil_||
                              now<settingsFeedbackUntil_;
    if(feedbackActive||meterFeedbackLastTick_)invalid();
-   else invalidRect({1132.,99.,1262.,134.});
+   else invalidRect({1133.,100.,1260.,132.});
    meterFeedbackLastTick_=feedbackActive;
  }else invalid(); // Legacy and WAVE editors unchanged.
 }
@@ -2024,6 +2024,23 @@ void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
  drawV101Menu(c);
  if(v101_.state().zoomOpen)
    v101::UiV101NativePreview::zoomPopup(*c,v101_.state().zoomIndex,&songButtonSprites);
+}
+// PERF02: VSTGUI's default drawRect calls draw(), rebuilding the whole
+// chassis even for LED-only invalidation. An isolated meter update now draws
+// exactly those pixels. Larger/overlapping repaints use the original renderer.
+void DrumatorView::drawRect(VSTGUI::CDrawContext* c,
+                            const VSTGUI::CRect& updateRect) {
+ const bool meterOnly=v101Mode_&&!sampleEditorOpen_&&!beatCreatorOpen_&&
+    v101Menu_==UiV101Popup::Kind::None&&!v101_.state().zoomOpen&&
+    updateRect.left>=1133.&&updateRect.top>=100.&&
+    updateRect.right<=1260.&&updateRect.bottom<=132.;
+ if(meterOnly){
+   v101::UiV101NativePreview::drawMeterDisplay(
+       *c,mainMeterL_,mainMeterR_,controller_.meterState().clip!=0);
+   setDirty(false);
+   return;
+ }
+ draw(c);
 }
 void DrumatorView::draw(VSTGUI::CDrawContext* c) {
  if(v101Mode_&&!sampleEditorOpen_){
