@@ -89,6 +89,7 @@ private:
  bool beatCreatorConfirmOverwrite_{false};
  BeatStyle beatCreatorStyle_{BeatStyle::Synthpop80s};
  std::uint8_t beatCreatorComplexity_{35};
+ std::uint8_t beatCreatorSteps_{16};
  std::uint32_t beatCreatorSeed_{0x125A1500u};
  std::string beatCreatorNotice_{"SELECT STYLE - GENERATE"};
  VSTGUI::CTextEdit* complexityEdit_{nullptr};
