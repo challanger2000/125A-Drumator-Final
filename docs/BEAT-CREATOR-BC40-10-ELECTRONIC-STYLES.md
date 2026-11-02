@@ -6,6 +6,7 @@ The existing Library contains the commercially packaged v1.0.1 release:
 - `125A_Drumator_v1.0.1_Gumroad_Update_2026-10-31.zip`
 - `Drumator_1.0.1_Gumroad_NEU.zip`
 These two archives have **identical SHA-256** `cb263d6b3a66a125b967661942f36e3011b2ce8c3995325d0e12cceccf2084eb` and each contains 26 files, including the Windows x64 VST3, two manuals, build/checksum information and START-HERE-DE. ZIP CRC integrity check passed.
+Both packages' `BUILD-INFO.txt` explicitly names the compiled source revision `3748b1e9e1867357362304c51bec2cb99ac9657b` and Windows CI run `41157069202`, plus the VST3 binary SHA256 `06c784854ce4b96763933444c5400ced8c4f5eed5f03339ca6b0f1c071de3278`. `main` at `f4c5caa4` adds documentation to that final hotfix revision, without changing source/binary. The release ZIP is a verified binary reference; do not infer a new plugin has been tested against it until the output binary is compared and run through QA.
 The earlier `125A_Drumator_v1.0.1_Gumroad_Final_GUI_Fixes.zip` is different (SHA-256 `f455403523951bdc829c73eaca41437f1ed351ec374c93dd0c291cf774e136d7`). The **October 31 package** is the verified latest available release baseline, not a missing attachment.
 Therefore **do not ship this branch as a Gumroad update** before binary-baseline reconciliation and Studio One manual QA.
 No changes were made to WAV export, host tempo, processor, controller, sample loader or VST3 GUI in this milestone.
