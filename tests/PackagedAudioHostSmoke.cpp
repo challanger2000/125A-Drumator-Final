@@ -219,7 +219,7 @@ int main(int argc,char** argv) {
          "F15 DZM4 zoom preference failed roundtrip size");
  const auto* z=static_cast<const std::uint8_t*>(zoomSaved.getData());
  require(z[0]=='D'&&z[1]=='Z'&&z[2]=='M'&&z[3]=='4'&&z[4]==3&&
-         z[5+2*drumator::kRows]==static_cast<std::uint8_t>(drumator::BeatStyle::Synthpop80s),
+         z[5+2*drumator::kRows]==0u // legacy DZM1 defaults to Synthpop80s,
          "F15 legacy DZM1 zoom recall was not upgraded to DZM4 with default genre");
  std::cout<<"F15 controller zoom preference project-state PASS\\n";
  require(controlPoint->connect(processorPoint)==kResultOk,"Controller connection");
