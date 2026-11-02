@@ -779,6 +779,10 @@ struct UiV101NativePreview final {
        fill(c,{15.,y+50.,1258.,y+94.},Skin::navyA());
        if(ui.expansion==L::Expansion::Velocity){
          label(c,"VELOCITY",{132.,y+49.,400.,y+63.},9,{183,202,218,255},false);
+         // Original V1.5 quick guide, inside the unused left 102px fascia.
+         label(c,"SHIFT  LINE",{22.,y+51.,124.,y+63.},8,{138,161,178,255},false);
+         label(c,"SHIFT+ALT  CURVE",{22.,y+64.,124.,y+76.},8,{138,161,178,255},false);
+         label(c,"ALT  ACCENT",{22.,y+77.,124.,y+89.},8,{138,161,178,255},false);
          cap(c,UiV101Interaction::velocityRandom,y,"RANDOM VEL",false,10,vintageButtons);
          cap(c,UiV101Interaction::velocityReset,y,"RESET VEL",false,10,vintageButtons);
          fill(c,{417.,y+53.,1031.,y+92.},{4,13,25,255});

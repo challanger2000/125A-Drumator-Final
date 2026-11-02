@@ -1,4 +1,5 @@
 #include "core/VelocityStrokeShape.h"
+#include <array>
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
@@ -67,7 +68,60 @@ int main(){
    ck(ramp[i]>=ramp[i-1],"Ctrl ramp is not monotonic");
   for(std::size_t i=16;i<32;++i)
    ck(ramp[i]==populated[i],"Ctrl ramp touched inactive bar");
-  std::cout<<"BC45 Ctrl line 1..127 input/visual geometry, modifiers and BC30 strokes PASS\n";
+
+  // BC46: original V1.5 modifier controls, 16/32 bar limits and empty cells.
+  ck(velocityStrokeGesture(false,false,false).mode==VelocityStrokeMode::Paint,
+     "plain V1.5 click must paint");
+  const auto shift=velocityStrokeGesture(false,true,false);
+  ck(shift.mode==VelocityStrokeMode::Line&&!shift.minimum,
+     "Shift+drag must draw a straight line");
+  const auto v15Curve=velocityStrokeGesture(false,true,true);
+  ck(v15Curve.mode==VelocityStrokeMode::Curve&&!v15Curve.minimum,
+     "Shift+Alt must draw a curve");
+  const auto v15Accent=velocityStrokeGesture(false,false,true);
+  ck(v15Accent.mode==VelocityStrokeMode::Accent&&!v15Accent.minimum,
+     "Alt must accent");
+  S::Values complete{}; complete.fill(64);
+  ck(shape.begin(complete,32,0,100,VelocityStrokeMode::Paint),"single click start");
+  const auto single=shape.values();
+  for(std::size_t i=0;i<32;++i)
+   ck(single[i]==(i==0?100:64),"single click touched unrelated step");
+  ck(shape.begin(complete,32,0,1,shift.mode),"32-step Shift ramp start");
+  auto full=shape.advance(31,127);
+  ck(full[0]==1&&full[31]==127&&full[15]==62&&full[16]==66,
+     "32-step Shift ramp is not exact");
+  for(std::size_t i=1;i<32;++i)
+   ck(full[i]>=full[i-1],"Shift ramp not monotonic");
+  ck(shape.begin(complete,16,0,1,shift.mode),"16-step Shift ramp start");
+  const auto shortRamp=shape.advance(15,127);
+  ck(shortRamp[0]==1&&shortRamp[15]==127&&shortRamp[16]==64&&
+     shortRamp[31]==64,"16-step ramp touched inactive second bar");
+  S::Values holes=complete;holes[5]=0;holes[23]=0;
+  ck(shape.begin(holes,32,0,1,shift.mode),"gapped Shift ramp start");
+  const auto missing=shape.advance(31,127);
+  ck(missing[5]==0&&missing[23]==0&&missing[0]==1&&missing[31]==127,
+     "shift ramp created an empty step");
+  ck(!shape.begin(holes,32,5,50,shift.mode),"empty note is an illegal anchor");
+  ck(shape.begin(holes,32,0,1,v15Curve.mode),"curve start");
+  const auto curved=shape.advance(31,127);
+  ck(curved[5]==0&&curved[23]==0&&curved[8]<full[8]&&
+     curved[24]>full[24],"Shift+Alt ease-in/ease-out or blanks wrong");
+  ck(shape.begin(holes,32,1,50,v15Accent.mode),"accent start");
+  const auto accented=shape.advance(31,5);
+  ck(accented[1]>=120&&accented[31]>=120&&
+     accented[5]==0&&accented[23]==0,"Alt accent not 120+ or touched empty");
+  ck(shape.begin(holes,32,0,1,VelocityStrokeMode::Paint),"ordinary drag start");
+  const auto brushed=shape.advance(31,127);
+  ck(brushed[5]==0&&brushed[23]==0&&brushed[2]>1&&brushed[30]<127,
+     "sparse host drag interpolation broken");
+  ck(shape.begin(complete,16,15,127,shift.mode),"reverse line start");
+  auto reverse=shape.advance(0,1);
+  ck(reverse[0]==1&&reverse[15]==127&&reverse[16]==64,
+     "right-to-left ramp broken");
+  reverse=shape.advance(10,75);
+  ck(reverse[0]==64&&reverse[10]==75&&reverse[11]==64,
+     "retract failed to restore old values");
+  std::cout<<"BC46 V1.5 click/paint/Shift line/curve/Alt/16-32/empty plus BC45 scale PASS\n";
   return 0;
  }catch(const std::exception& e){std::cerr<<"BC30 FAIL: "<<e.what()<<"\n";return 1;}
 }

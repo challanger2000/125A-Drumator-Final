@@ -7,9 +7,9 @@
 #include <cstdint>
 namespace drumator {
 enum class VelocityStrokeMode : std::uint8_t { Paint, Line, Curve, Accent };
-// BC45: shared, host-independent modifier contract. Ctrl+drag creates
-// a straight ramp. Ctrl+Alt retains the legacy minimum-velocity brush;
-// Shift+Alt creates a curve and Alt alone emphasizes existing steps.
+// V1.5 controls: normal drag Paint, Shift Line, Shift+Alt Curve, Alt Accent.
+// BC45 additionally lets Ctrl+drag act as a Line alias for existing users.
+// Ctrl+Alt retains minimum-velocity painting; blank notes stay inactive.
 struct VelocityStrokeGesture final {
  VelocityStrokeMode mode;
  bool minimum;
