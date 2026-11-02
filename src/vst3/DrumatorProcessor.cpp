@@ -493,6 +493,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
     std::strcmp(id,"Drumator.LoadPcm16Wav")!=0&&
     std::strcmp(id,"Drumator.StepEdit")!=0&&
     std::strcmp(id,"Drumator.PatternReplace")!=0&&
+    std::strcmp(id,"Drumator.BeatCreatorTriple")!=0&&
     std::strcmp(id,"Drumator.VisibleRows")!=0&&
     std::strcmp(id,"Drumator.RowGate")!=0&&
     std::strcmp(id,"Drumator.RowMix")!=0&&
@@ -512,6 +513,31 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
  auto* attrs=msg->getAttributes();
  if(!attrs)return Steinberg::kInvalidArgument;
  Steinberg::int64 row=-1;
+ // One IPC for all three patterns; reject a stale/malformed before-image.
+ if(std::strcmp(id,"Drumator.BeatCreatorTriple")==0) {
+   const void *before=nullptr,*after=nullptr,*oldLengths=nullptr,*newLengths=nullptr;
+   Steinberg::uint32 nBefore=0,nAfter=0,nOld=0,nNew=0;
+   constexpr auto cells=3u*static_cast<unsigned>(kRows*kSteps);
+   if(attrs->getBinary("Before",before,nBefore)!=Steinberg::kResultOk||
+      attrs->getBinary("After",after,nAfter)!=Steinberg::kResultOk||
+      attrs->getBinary("BeforeLengths",oldLengths,nOld)!=Steinberg::kResultOk||
+      attrs->getBinary("AfterLengths",newLengths,nNew)!=Steinberg::kResultOk||
+      !before||!after||!oldLengths||!newLengths||
+      nBefore!=cells||nAfter!=cells||nOld!=3||nNew!=3)
+      return Steinberg::kInvalidArgument;
+   const auto* lengths=static_cast<const std::uint8_t*>(newLengths);
+   std::lock_guard<std::mutex> guard(kitMutex_);
+   if(!patterns_.replaceFirstThreeIfMatches(
+         static_cast<const std::uint8_t*>(before),
+         static_cast<const std::uint8_t*>(after),
+         static_cast<const std::uint8_t*>(oldLengths),lengths,cells))
+      return Steinberg::kResultFalse;
+   for(std::size_t p=0;p<3;++p){
+     kit_.patternLengths[p]=lengths[p];
+     patternLengths_[p].store(lengths[p],std::memory_order_release);
+   }
+   return Steinberg::kResultOk;
+ }
  if(std::strcmp(id,"Drumator.PatternLength")==0) {
    Steinberg::int64 index=-1,steps=-1;
    if(attrs->getInt("Pattern",index)!=Steinberg::kResultOk||
