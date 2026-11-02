@@ -762,6 +762,15 @@ bool DrumatorView::removed(VSTGUI::CView* parent) {
  detailDragControl_=-1;detailDragRow_=kRows;
  activeKnob_=-1;knobRow_=kRows;
  closeTransientMenus();
+ if(complexityEdit_){
+   complexityEditActive_=false;
+   if(auto* frame=getFrame();frame&&frame->getFocusView()==complexityEdit_)
+     frame->setFocusView(nullptr);
+   if(complexityEdit_->getPlatformTextEdit())complexityEdit_->looseFocus();
+   complexityEdit_->unregisterTextEditListener(this);
+   if(auto* frame=getFrame())frame->removeView(complexityEdit_);
+   complexityEdit_=nullptr;
+ }
  if(nameEdit_){
    // No pending edit may commit while a native Win32 text HWND is closing.
    editingNameRow_=kRows;
