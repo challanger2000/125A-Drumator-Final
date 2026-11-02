@@ -95,6 +95,7 @@ void operator delete[](void* p) noexcept{std::free(p);}
 void operator delete(void* p,std::size_t) noexcept{std::free(p);}
 void operator delete[](void* p,std::size_t) noexcept{std::free(p);}
 namespace drumator::qa {
+std::function<bool(VSTGUI::IDataPackage*)> exportDragObserver;
 thread_local bool legacyTriggerOrdering=false;
 std::atomic<AuditMutation> auditMutation{AuditMutation::none};
 std::atomic<bool> suppressRotaryFace{false};
@@ -117,6 +118,7 @@ namespace drumator {
 // Added as a friend in generated TEST headers only. Observes real state,
 // including Undo/clipboard/paths, rather than mirroring the commit algorithm.
 struct IntegrationAccess {
+ static void exportMenu(DrumatorView& view){view.v101Menu_=UiV101Popup::Kind::Export;}
  static bool sampleEditorOpen(const DrumatorView& view){return view.sampleEditorOpen_;}
  static bool sampleEditorLive(const DrumatorView& view){return view.sampleEditorLive_;}
  static bool songEditorOpen(const DrumatorView& view){return view.songEditorOpen_;}
@@ -5239,6 +5241,7 @@ void testTransportJumpRetiresOldVoices(){
 #include "FinalAudit20261023.inl"
 #include "V101FullGuiAudit.inl"
 #include "V101AutomationAudit.inl"
+#include "ExportTempoAudit.inl"
 
 struct A01SerializedConnection final:Steinberg::Vst::IConnectionPoint {
  IConnectionPoint* target;
@@ -5666,6 +5669,8 @@ int main(int argc,char** argv){
  run("V101 actual Controller to native visual scene",testV101ControllerScene);
  run("V101 native interactive controller, lane and zoom actions",testV101Interaction);
  run("V101 real VST3 editor attach, mouse dispatch, dialogs and zoom",testV101LiveEditor);
+ run("EXPTEMPO connected host BPM and every live/export PCM frame",testExportTempoHostRoundTrip);
+ run("EXPTEMPO failed transfer must preserve destination",testExportTempoFailedTransfer);
  run("V101 connected Controller/Processor exports and limiter",testV101ConnectedPatternSongExportsAndLimiter);
  run("Codex01 paired legacy recall clears Export and LIMIT",testCodexLegacyControllerExportReset);
  run("Codex02 Controller IPC actions OOM-safe",testCodexControllerActionOOM);

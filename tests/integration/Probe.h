@@ -1,7 +1,12 @@
 #pragma once
 #include <cstddef>
 #include <atomic>
+#include <functional>
+namespace VSTGUI {class IDataPackage;}
 namespace drumator::qa {
+// Observe the real prepared file package before OLE enters a host-owned loop.
+// Only generated QA sources use this hook; no DAW acceptance is simulated.
+extern std::function<bool(VSTGUI::IDataPackage*)> exportDragObserver;
 extern thread_local bool legacyTriggerOrdering; // regression negative, test EXE only
 enum class AuditMutation { none, suppressZeroStop, staleDuration, skipPeerCommit,
  basenameOnly, delayMidiOne, dropMidi, doubleMidi, zeroPrefix,

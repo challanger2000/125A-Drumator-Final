@@ -76,6 +76,8 @@ function(reaudit_instrument name variable)
     qa_replace(_code "if(!sameName||(!pathsRestoredBeforeComponent_&&"
       "if(!sameName||(drumator::qa::auditMutation.load()!=drumator::qa::AuditMutation::basenameOnly&&\n                     !pathsRestoredBeforeComponent_&&")
   elseif(name STREQUAL "DrumatorView")
+    qa_replace(_code "const bool started=doDrag(VSTGUI::DragDescription(source));"
+      "const bool started=drumator::qa::exportDragObserver?drumator::qa::exportDragObserver(source.get()):doDrag(VSTGUI::DragDescription(source));")
     # RV04: restore the EXACT historical fade calculation (2026-10-23
     # baseline), including its missing Gain factor and its float endpoint.
     # Run only in the generated QA translation unit.
