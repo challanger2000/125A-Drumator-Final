@@ -728,6 +728,99 @@ void testBeatCreatorStyleEditorReopen(){
  evidence("BC59 genuine VST3 Style selection survives Cancel, editor close/reopen and two views; instances isolated PASS");
 }
 
+// BC60: A host saves the complete Processor and Controller state streams.
+// Recreate BOTH VST3 objects and restore in either legal order, then open
+// the real native Beat Creator UI. Test invalid and legacy Controller states.
+void testBeatCreatorStyleProjectRecall(){
+ Fixture source;
+ KitState kit{};kit.visible=8;
+ source.kit(kit);
+ check(source.c->selectBeatCreatorStyle(BeatStyle::Trance),
+       "BC60 source style selection rejected");
+ ResizableMemoryIBStream componentStream,controllerStream;
+ check(source.p->getState(&componentStream)==kResultOk&&
+       source.c->getState(&controllerStream)==kResultOk,
+       "BC60 failed to save both real VST3 project states");
+ const auto* componentRaw=static_cast<const std::uint8_t*>(componentStream.getData());
+ const auto* controllerRaw=static_cast<const std::uint8_t*>(controllerStream.getData());
+ const std::vector<std::uint8_t> componentBytes{
+   componentRaw,componentRaw+static_cast<std::size_t>(componentStream.getCursor())};
+ const std::vector<std::uint8_t> controllerBytes{
+   controllerRaw,controllerRaw+static_cast<std::size_t>(controllerStream.getCursor())};
+ check(controllerBytes.size()==6+2*kRows&&
+       controllerBytes[0]=='D'&&controllerBytes[1]=='Z'&&
+       controllerBytes[2]=='M'&&controllerBytes[3]=='4'&&
+       controllerBytes.back()==static_cast<std::uint8_t>(BeatStyle::Trance),
+       "BC60 controller state did not serialize selected style");
+
+ const auto recallController=[&](Controller& controller,const std::vector<std::uint8_t>& bytes){
+   qa::ByteStream stream(bytes.data(),bytes.size());
+   return controller.setState(&stream);
+ };
+ for(bool controllerFirst:{false,true}){
+   Fixture reopened;
+   check(reopened.c->beatCreatorStyle()==BeatStyle::Synthpop80s,
+         "BC60 new VST3 instance inherited previous instance style");
+   qa::ByteStream processorState(componentBytes.data(),componentBytes.size());
+   check(reopened.p->setState(&processorState)==kResultOk,
+         "BC60 fresh Processor rejected saved project");
+   if(controllerFirst)
+     check(recallController(*reopened.c,controllerBytes)==kResultOk,
+           "BC60 Controller-first restore failed");
+   check(reopened.recall(componentBytes)==kResultOk,
+         "BC60 fresh Controller rejected component state");
+   if(!controllerFirst)
+     check(recallController(*reopened.c,controllerBytes)==kResultOk,
+           "BC60 Component-first restore failed");
+   check(reopened.c->beatCreatorStyle()==BeatStyle::Trance,
+         "BC60 fresh instance lost Trance style");
+   reopened.openV101();
+   auto* view=IntegrationAccess::view(*reopened.c,0);
+   const auto trigger=UiV101Layout::beatCreatorTrigger;
+   click(*view,(trigger.x0+trigger.x1)*.5,(trigger.y0+trigger.y1)*.5);
+   check(IntegrationAccess::beatCreatorOpen(*view)&&
+         IntegrationAccess::beatCreatorStyle(*view)==BeatStyle::Trance,
+         "BC60 restored native Beat Creator shows wrong style");
+
+   // Invalid or truncated DZM4 must not commit any preference or zoom.
+   auto invalid=controllerBytes;invalid.back()=0xff;
+   const auto zoomBefore=reopened.c->preferredZoom();
+   check(recallController(*reopened.c,invalid)!=kResultOk&&
+         reopened.c->beatCreatorStyle()==BeatStyle::Trance&&
+         reopened.c->preferredZoom()==zoomBefore,
+         "BC60 invalid genre changed live project state");
+   invalid=controllerBytes;invalid.pop_back();
+   check(recallController(*reopened.c,invalid)!=kResultOk&&
+         reopened.c->beatCreatorStyle()==BeatStyle::Trance,
+         "BC60 truncated genre changed live project state");
+
+   // Authentic DZM3 files have no style. They default to 80s Synthpop.
+   auto legacy=controllerBytes;legacy[3]='3';legacy.pop_back();
+   check(recallController(*reopened.c,legacy)==kResultOk&&
+         reopened.c->beatCreatorStyle()==BeatStyle::Synthpop80s,
+         "BC60 legacy DZM3 style migration not deterministic");
+   check(recallController(*reopened.c,controllerBytes)==kResultOk&&
+         reopened.c->beatCreatorStyle()==BeatStyle::Trance,
+         "BC60 DZM4 reload after legacy migration lost style");
+   reopened.closeLast();
+ }
+ // Every authored genre is encodable; a second instance starts at its default.
+ Fixture boundary;
+ for(std::size_t i=0;i<static_cast<std::size_t>(BeatStyle::Count);++i) {
+   const auto style=static_cast<BeatStyle>(i);
+   check(boundary.c->selectBeatCreatorStyle(style),
+         "BC60 accepted genre rejected by controller");
+   ResizableMemoryIBStream saved;
+   check(boundary.c->getState(&saved)==kResultOk,
+         "BC60 cannot serialize authored genre");
+   qa::ByteStream in(saved.getData(),static_cast<std::size_t>(saved.getCursor()));
+   Fixture fresh;
+   check(fresh.c->setState(&in)==kResultOk&&fresh.c->beatCreatorStyle()==style,
+         "BC60 a genre changed on fresh VST3 restore");
+ }
+ evidence("BC60 both VST3 state streams, both orders, native UI, 10 genres, DZM3 migration and corrupt/truncated rollback PASS");
+}
+
 void testMultiViewLifecycleNotifications(){
  // V18: attached native views receive controller notifications while
  // both exist; removing one must leave no dangling registration.
@@ -778,17 +871,18 @@ void testZoom(){
    drumator::qa::ByteStream in(v2.data(),v2.size());
    check(f.c->setState(&in)==kResultOk&&v->zoomMatches(entry.first),"Z02 DZM2 intermediate zoom recall");
    ResizableMemoryIBStream written;
-   check(f.c->getState(&written)==kResultOk&&written.getCursor()==5+2*kRows,
-         "Z02 DZM3 state length with empty sample paths");
+   check(f.c->getState(&written)==kResultOk&&written.getCursor()==6+2*kRows,
+         "Z02 DZM4 state length with empty sample paths");
    const auto* b=static_cast<const std::uint8_t*>(written.getData());
-   check(b[0]=='D'&&b[1]=='Z'&&b[2]=='M'&&b[3]=='3'&&b[4]==entry.second,
-         "Z02 intermediate zoom not persisted in DZM3");
+   check(b[0]=='D'&&b[1]=='Z'&&b[2]=='M'&&b[3]=='4'&&b[4]==entry.second&&
+         b[5+2*kRows]==static_cast<std::uint8_t>(BeatStyle::Synthpop80s),
+         "Z02 intermediate zoom and default style not persisted in DZM4");
  }
  check(zoom(*f.c,true)==kResultOk,"Z02 saved preference set");
  ResizableMemoryIBStream saved;
- check(f.c->getState(&saved)==kResultOk&&saved.getCursor()==5+2*kRows&&
+ check(f.c->getState(&saved)==kResultOk&&saved.getCursor()==6+2*kRows&&
    static_cast<const std::uint8_t*>(saved.getData())[4]==3,
-   "Z02 saved DZM3 zoom bytes disagree");
+   "Z02 saved DZM4 zoom bytes disagree");
  f.closeLast();
  auto& reopened=f.open();check(std::abs(reopened.getZoomFactor()-1.5)<.001,"Z02 reopen lost preference");
  // Both views need a change: policy must reject before any native host request.
@@ -5753,6 +5847,7 @@ int main(int argc,char** argv){
  run("Z01 full Controller allocation injection",testRecallOOM);
  run("Z01 legacy Controller",testLegacyReject);
  run("BC59 Beat Creator genre survives native editor close/reopen",testBeatCreatorStyleEditorReopen);
+ run("BC60 Beat Creator genre survives full project save and fresh VST3 instance",testBeatCreatorStyleProjectRecall);
  run("V18 multi-view native lifecycle",testMultiViewLifecycleNotifications);
  run("Z02 native attached views",testZoom);
  run("VSTGUI precision controls",testPrecisionPanel);

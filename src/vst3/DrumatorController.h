@@ -119,11 +119,7 @@ public:
  // BC59: The selected genre is an instance preference, not a View lifetime.
  // Recreating the native editor must not reset it to the default style.
  BeatStyle beatCreatorStyle() const noexcept {return beatCreatorStyle_;}
- bool selectBeatCreatorStyle(BeatStyle style) noexcept {
-  if(style>=BeatStyle::Count)return false;
-  beatCreatorStyle_=style;
-  return true;
- }
+ bool selectBeatCreatorStyle(BeatStyle style) noexcept;
  bool prepareBeatCreator(const BeatCreatorSettings& settings,std::uint32_t seed) noexcept;
  const BeatCreatorPreview* beatCreatorDraft() const noexcept {
   return beatPreview_.valid?&beatPreview_:nullptr;
@@ -208,7 +204,7 @@ private:
  PatternSteps clipboard_{};
  std::uint8_t clipboardLength_{32};
  PatternUndo undo_{};
- BeatStyle beatCreatorStyle_{BeatStyle::Synthpop80s}; // BC59: survives editor close/reopen
+ BeatStyle beatCreatorStyle_{BeatStyle::Synthpop80s}; // BC60: editor and VST3 project recall
  BeatCreatorPreview beatPreview_{};
  BeatTriple beatPreviewBefore_{};
  BeatLengths beatPreviewLengths_{};

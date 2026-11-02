@@ -429,19 +429,35 @@ Steinberg::tresult Controller::sendEditMessage(Steinberg::Vst::IMessage* message
 namespace {
 constexpr Steinberg::uint32 kZoomControllerState=0x314D5A44u; // DZM1 100/150
 constexpr Steinberg::uint32 kZoomControllerStateV2=0x324D5A44u; // DZM2 100/120/130/150
+constexpr Steinberg::uint32 kPathControllerState=0x334D5A44u; // DZM3
+constexpr Steinberg::uint32 kStyleControllerState=0x344D5A44u; // DZM4: DZM3 + Beat Creator style
 constexpr Steinberg::uint32 kOldState=0x31524D44u;
 constexpr Steinberg::uint32 kNewState=0x32524D44u;
 constexpr auto kRowsState=kStateMagicV3;
 }
-// DZM3 extends controller-only zoom state with optional sample-folder origins.
-// Embedded PCM remains in the Processor kit and never depends on these paths.
+// BC60: The Beat Creator genre is a controller-owned project preference.
+// Mark it dirty so hosts that save only modified projects persist the selection.
+bool Controller::selectBeatCreatorStyle(BeatStyle style) noexcept {
+ if(style>=BeatStyle::Count)return false;
+ if(beatCreatorStyle_==style)return true;
+ beatCreatorStyle_=style;
+ dirtyPending_=true;
+ if(componentHandler2) {
+   try {
+     if(componentHandler2->setDirty(true)==Steinberg::kResultOk)
+       dirtyPending_=false;
+   }catch(...) { /* retry on the next regular notifyViews() */ }
+ }
+ return true;
+}
+// DZM4 extends DZM3 (zoom + sample origins) by one checked Beat Creator style.
+// Embedded PCM remains exclusively in the Processor kit.
 Steinberg::tresult PLUGIN_API Controller::getState(Steinberg::IBStream* state) {
  if(!state)return Steinberg::kInvalidArgument;
  Steinberg::IBStreamer stream(state,kLittleEndian);
- constexpr Steinberg::uint32 kPathState=0x334D5A44u; // DZM3
  const Steinberg::uint8 zoom=preferredZoom_>1.45?3:
        preferredZoom_>1.25?2:preferredZoom_>1.05?1:0;
- if(!stream.writeInt32u(kPathState)||!stream.writeInt8u(zoom))
+ if(!stream.writeInt32u(kStyleControllerState)||!stream.writeInt8u(zoom))
    return Steinberg::kResultFalse;
  for(const auto& path:samplePaths_) {
    if(path.size()>4096)return Steinberg::kResultFalse;
@@ -451,22 +467,24 @@ Steinberg::tresult PLUGIN_API Controller::getState(Steinberg::IBStream* state) {
                       static_cast<Steinberg::TSize>(path.size()))
      return Steinberg::kResultFalse;
  }
- return Steinberg::kResultOk;
+ return stream.writeInt8u(static_cast<Steinberg::uint8>(beatCreatorStyle_))
+   ?Steinberg::kResultOk:Steinberg::kResultFalse;
 }
 Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* state) {
  if(!state)return Steinberg::kInvalidArgument;
  Steinberg::IBStreamer stream(state,kLittleEndian);
- constexpr Steinberg::uint32 kPathState=0x334D5A44u; // DZM3
  Steinberg::uint32 magic=0;
  Steinberg::uint8 zoom=0;
  if(!stream.readInt32u(magic)||!stream.readInt8u(zoom))
    return Steinberg::kResultFalse;
  if((magic==kZoomControllerState&&zoom>1)||
-    ((magic==kZoomControllerStateV2||magic==kPathState)&&zoom>3)||
-    (magic!=kZoomControllerState&&magic!=kZoomControllerStateV2&&magic!=kPathState))
+    ((magic==kZoomControllerStateV2||magic==kPathControllerState||
+      magic==kStyleControllerState)&&zoom>3)||
+    (magic!=kZoomControllerState&&magic!=kZoomControllerStateV2&&
+     magic!=kPathControllerState&&magic!=kStyleControllerState))
    return Steinberg::kResultFalse;
  std::array<std::string,kRows> candidatePaths{};
- if(magic==kPathState) {
+ if(magic==kPathControllerState||magic==kStyleControllerState) {
    try {
      for(auto& path:candidatePaths) {
        Steinberg::uint16 length=0;
@@ -480,6 +498,15 @@ Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* state) {
      }
    }catch(const std::bad_alloc&){return Steinberg::kOutOfMemory;}
  }
+ // Older controller streams contain no genre; reset rather than accidentally
+ // carry a preference from whichever project occupied this instance before.
+ BeatStyle candidateStyle=BeatStyle::Synthpop80s;
+ if(magic==kStyleControllerState) {
+   Steinberg::uint8 style=0;
+   if(!stream.readInt8u(style)||style>=static_cast<Steinberg::uint8>(BeatStyle::Count))
+     return Steinberg::kResultFalse;
+   candidateStyle=static_cast<BeatStyle>(style);
+ }
  const double requested=magic==kZoomControllerState?(zoom?1.5:1.0):
      (zoom==0?1.0:zoom==1?1.2:zoom==2?1.3:1.5);
  std::size_t needed=0;
@@ -488,6 +515,7 @@ Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* state) {
  if(!zoomRecallIsAtomic(needed))return Steinberg::kResultFalse;
  if(target&&!target->applyZoomFromState(requested))return Steinberg::kResultFalse;
  preferredZoom_=requested;
+ beatCreatorStyle_=candidateStyle;
  // Both VST3 state orderings are legal. Controller-first allows exactly
  // ONE forthcoming Component restore to retain DZM3 paths. Component-first
  // has ALREADY completed that pairing: newly populated paths must never
