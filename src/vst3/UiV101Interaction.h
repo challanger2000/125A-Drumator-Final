@@ -2,6 +2,7 @@
 // Isolated V1.0.1 interactive control surface. NOT active in the shipped editor.
 // Owns only UI-local state. Mutations go through the existing, proven Controller.
 #include "core/UiV101Layout.h"
+#include "core/VelocityStrokeShape.h"
 #include "vst3/UiV101ControllerBridge.h"
 #include "vst3/DrumatorController.h"
 #include "vst3/DrumatorAutomation.h"
@@ -215,7 +216,7 @@ public:
    state_.zoomOpen=false;
    return true;
  }
- Result down(double x,double y,bool erase=false,bool fine=false){
+ Result down(double x,double y,bool erase=false,bool fine=false,bool accent=false){
    deferred_={};
    reconcile();
    if(gesture_!=Gesture::None)endGesture(true);
@@ -309,7 +310,7 @@ public:
      }
      if(velocityAction!=SettingsAction::None)
        return settingsAction(h.row,velocityAction);
-     return beginLane(h.row,x,relativeY,erase);
+     return beginLane(h.row,x,relativeY,erase,fine,accent);
    }
    if(h.action==L::Action::SettingsLane){
      if(state_.expansion!=L::Expansion::Settings||
@@ -340,12 +341,9 @@ public:
      const int step=laneStep(x);
      if(step<0||static_cast<std::size_t>(step)>=controller_.patternLength(p))
        return Result::Ignored;
-     if(controller_.velocity(p,laneRow_,static_cast<std::size_t>(step))==0)
-       return Result::Ignored; // never create a note in Velocity lane
      const double top=L::rowTop(state_.firstRow,laneRow_-state_.firstRow,expandedRows());
      const auto next=erase_?std::uint8_t{1}:laneValue(y-top);
-     return controller_.setStepVelocity(p,laneRow_,static_cast<std::size_t>(step),next,this)?
-            Result::Applied:Result::Failed;
+     return applyVelocityShape(static_cast<std::size_t>(step),next);
    }
    if(gesture_==Gesture::None)return Result::Ignored;
    const double step=(knobIndex_==2&&gesture_==Gesture::RowKnob?6.:4.)*
@@ -378,6 +376,7 @@ public:
    knobIndex_=-1;
    knobRow_=L::instruments;
    laneRow_=L::instruments;
+   velocityShape_.clear();
    deferred_={};
    state_.zoomOpen=false;
  }
@@ -398,6 +397,7 @@ private:
  double knobAnchorY_=0.;
  std::uint64_t laneGeneration_=0;
  bool erase_=false,fineKnob_=false;
+ VelocityStrokeShape velocityShape_{};
  void closeExpansion()noexcept {
    state_.expansion=L::Expansion::None;
    state_.expandedRow=L::instruments;
@@ -408,20 +408,37 @@ private:
      controller_.endAutomationGesture();
    gesture_=Gesture::None;fineKnob_=false;knobIndex_=-1;knobRow_=L::instruments;
    laneRow_=L::instruments;
+   velocityShape_.clear();
  }
- Result beginLane(std::size_t row,double x,double relativeY,bool erase){
+ Result beginLane(std::size_t row,double x,double relativeY,bool erase,
+                  bool shift,bool alt){
    const int step=laneStep(x);
    const auto p=controller_.currentPattern();
    if(step<0||static_cast<std::size_t>(step)>=controller_.patternLength(p))
      return Result::Ignored;
-   if(controller_.velocity(p,row,static_cast<std::size_t>(step))==0)
+   VelocityStrokeShape::Values before{};
+   for(std::size_t i=0;i<before.size();++i)
+     before[i]=controller_.velocity(p,row,i);
+   const auto mode=erase?VelocityStrokeMode::Paint:
+     shift?(alt?VelocityStrokeMode::Curve:VelocityStrokeMode::Line):
+     alt?VelocityStrokeMode::Accent:VelocityStrokeMode::Paint;
+   const auto v=erase?std::uint8_t{1}:laneValue(relativeY);
+   if(!velocityShape_.begin(before,controller_.patternLength(p),
+                            static_cast<std::size_t>(step),v,mode))
      return Result::Ignored;
    laneRow_=row;lanePattern_=p;laneGeneration_=controller_.editGeneration();
    gesture_=Gesture::Velocity;erase_=erase;
    controller_.beginVelocityStroke(p,this);
-   const auto v=erase?std::uint8_t{1}:laneValue(relativeY);
-   if(!controller_.setStepVelocity(p,row,static_cast<std::size_t>(step),v,this)){
-     endGesture(false);return Result::Failed;
+   return applyVelocityShape(static_cast<std::size_t>(step),v);
+ }
+ Result applyVelocityShape(std::size_t step,std::uint8_t value){
+   if(!velocityShape_.active())return Result::Ignored;
+   const auto& values=velocityShape_.advance(step,value);
+   for(std::size_t i=0;i<values.size();++i){
+     if(controller_.velocity(lanePattern_,laneRow_,i)==values[i])continue;
+     if(!controller_.setStepVelocity(lanePattern_,laneRow_,i,values[i],this)){
+       endGesture(false);return Result::Failed;
+     }
    }
    return Result::Applied;
  }
