@@ -103,7 +103,16 @@ int main(){
     CHECK(area.x1-area.x0==36.);
     CHECK(area.y1-area.y0==36.);
     CHECK(area.hit(L::headerKnobCenters[i],L::headerKnobY));
-    if(i)CHECK(area.x0>L::headerKnob(i-1).x1+60.);
+    if(i){
+      // BC42: the 92px dial pitch deliberately frees room for BEAT CREATOR.
+      // Guard real paint and hit geometry, not the obsolete 60px free-gap.
+      const auto prev=L::headerKnob(i-1);
+      CHECK(area.x0>=prev.x1+16.); // 36px hit squares never collide
+      CHECK(L::headerKnobCenters[i-1]+46.<=
+            L::headerKnobCenters[i]-46.); // actual heading boxes
+      CHECK(L::headerKnobCenters[i-1]+54.+16.<=
+            L::headerKnobCenters[i]-22.); // readout to mounted dial
+    }
   }
   CHECK(L::headerKnob(2).x1<1132.);
   // All eight V1.0.1 Wave keys share the exact same paint/hit geometry.
@@ -273,6 +282,9 @@ int main(){
   CHECK(L::beatCreatorTrigger.y0==L::headerGroup(1).y0);
   CHECK(L::headerGroup(1).x1<L::beatCreatorTrigger.x0);
   CHECK(L::beatCreatorTrigger.x1<L::headerKnob(0).x0);
+  // Both occupy y=99..131: the actual 22px painted socket clears the cap.
+  CHECK(L::beatCreatorTrigger.x1+16.<=
+        L::headerKnobCenters[0]-22.);
   for(const double hostHeight:{254.,686.,734.}){
     const auto panel=BC::panel(hostHeight);
     const auto list=BC::styleMenu(hostHeight);
