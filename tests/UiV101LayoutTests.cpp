@@ -2,6 +2,8 @@
 #include "core/UiSongLayout.h"
 #include "vst3/UiV101Popup.h"
 #include "vst3/UiV101WaveLayout.h"
+#include "vst3/UiBeatCreatorDialog.h"
+#include "core/BeatCreator.h"
 #include <iostream>
 using L=drumator::UiV101Layout;
 #define CHECK(x) do{if(!(x)){std::cerr<<__LINE__<<" " #x "\n";return 1;}}while(false)
@@ -265,6 +267,44 @@ int main(){
                    (button.y0+button.y1)/2.)==i);
     }
   }
+  // BC42: no extra window or kit browser; one dropdown has ten isolated hits.
+  using BC=drumator::UiBeatCreatorDialog;
+  CHECK(L::beatCreatorTrigger.x0==728.&&L::beatCreatorTrigger.x1==811.);
+  CHECK(L::beatCreatorTrigger.y0==L::headerGroup(1).y0);
+  CHECK(L::headerGroup(1).x1<L::beatCreatorTrigger.x0);
+  CHECK(L::beatCreatorTrigger.x1<L::headerKnob(0).x0);
+  for(const double hostHeight:{254.,686.,734.}){
+    const auto panel=BC::panel(hostHeight);
+    const auto list=BC::styleMenu(hostHeight);
+    CHECK(panel.y0>=0.&&panel.y1<=hostHeight);
+    CHECK(BC::styleSelect(hostHeight).x0>=panel.x0);
+    CHECK(BC::styleSelect(hostHeight).x1<=panel.x1);
+    CHECK(BC::styleSelect(hostHeight).y1<list.y0);
+    for(std::size_t i=0;i<10;++i){
+      const auto cell=BC::styleOption(hostHeight,i);
+      CHECK(cell.x0>=list.x0&&cell.x1<=list.x1);
+      CHECK(cell.y0>=list.y0&&cell.y1<=list.y1);
+      for(std::size_t j=i+1;j<10;++j){
+        const auto other=BC::styleOption(hostHeight,j);
+        CHECK(cell.x1<=other.x0||other.x1<=cell.x0||
+              cell.y1<=other.y0||other.y1<=cell.y0);
+      }
+    }
+    CHECK(BC::styleMenu(hostHeight).y1<BC::generate(hostHeight).y0);
+    CHECK(BC::legend(hostHeight,1).y1<BC::apply(hostHeight).y0);
+    for(const auto r:{BC::generate(hostHeight),BC::apply(hostHeight),
+                      BC::cancel(hostHeight)})
+      CHECK(r.x1-r.x0==95.&&r.y1-r.y0==25.);
+  }
+  std::uint8_t complexity=0;
+  CHECK(BC::parseComplexity("0",complexity)&&complexity==0);
+  CHECK(BC::parseComplexity(" 45% ",complexity)&&complexity==45);
+  CHECK(BC::parseComplexity("100",complexity)&&complexity==100);
+  CHECK(!BC::parseComplexity("101",complexity));
+  CHECK(!BC::parseComplexity("-1",complexity));
+  CHECK(!BC::parseComplexity("20abc",complexity));
+  CHECK(drumator::BeatCreator::styleNames.size()==10);
+  std::cout<<"BC42 10-style dropdown, minimum viewport, edit and action geometry PASS\n";
   std::cout<<"V1.0.1 independent GUI hit-map PASS\n";
   return 0;
 }
