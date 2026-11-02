@@ -32,7 +32,42 @@ int main(){
      "accent sound/blank/out-of-range");
   shape.clear();
   ck(!shape.active()&&shape.advance(2,45)==v,"inactive modified");
-  std::cout<<"BC30 velocity stroke paint, gap fill, line, curve, retract and accent PASS\n";
+
+  // BC45 Studio One regression: Ctrl+left drag creates a linear 1..127
+  // ramp over all present notes. The visible lower/upper edges must be
+  // reachable without dragging outside the drawn velocity well.
+  const auto ctrl=velocityStrokeGesture(true,false,false);
+  ck(ctrl.mode==VelocityStrokeMode::Line&&!ctrl.minimum,
+     "Ctrl gesture does not select a line");
+  ck(velocityStrokeGesture(false,true,false).mode==VelocityStrokeMode::Line,
+     "legacy Shift line changed");
+  ck(velocityStrokeGesture(false,true,true).mode==VelocityStrokeMode::Curve,
+     "Shift+Alt curve changed");
+  ck(velocityStrokeGesture(false,false,true).mode==VelocityStrokeMode::Accent,
+     "Alt accent changed");
+  const auto minimum=velocityStrokeGesture(true,false,true);
+  ck(minimum.mode==VelocityStrokeMode::Paint&&minimum.minimum,
+     "Ctrl+Alt minimum brush changed");
+  ck(VelocityLaneScale::valueAt(89.)==1&&
+     VelocityLaneScale::valueAt(53.)==127&&
+     VelocityLaneScale::valueAt(71.)==64,
+     "painted lane does not cover the MIDI 1..127 range");
+  ck(VelocityLaneScale::heightFor(1)==1.&&
+     VelocityLaneScale::heightFor(127)==35.&&
+     VelocityLaneScale::heightFor(0)==0.,
+     "rendered bar height mismatches the input range");
+  S::Values populated{};
+  populated.fill(90);
+  ck(shape.begin(populated,16,0,VelocityLaneScale::valueAt(89.),ctrl.mode),
+     "Ctrl ramp cannot start at lowest visible edge");
+  const auto ramp=shape.advance(15,VelocityLaneScale::valueAt(53.));
+  ck(ramp[0]==1&&ramp[15]==127&&ramp[7]<ramp[8]&&
+     ramp[8]>55&&ramp[8]<75,"Ctrl ramp does not span 1..127");
+  for(std::size_t i=1;i<16;++i)
+   ck(ramp[i]>=ramp[i-1],"Ctrl ramp is not monotonic");
+  for(std::size_t i=16;i<32;++i)
+   ck(ramp[i]==populated[i],"Ctrl ramp touched inactive bar");
+  std::cout<<"BC45 Ctrl line 1..127 input/visual geometry, modifiers and BC30 strokes PASS\n";
   return 0;
  }catch(const std::exception& e){std::cerr<<"BC30 FAIL: "<<e.what()<<"\n";return 1;}
 }

@@ -7,6 +7,33 @@
 #include <cstdint>
 namespace drumator {
 enum class VelocityStrokeMode : std::uint8_t { Paint, Line, Curve, Accent };
+// BC45: shared, host-independent modifier contract. Ctrl+drag creates
+// a straight ramp. Ctrl+Alt retains the legacy minimum-velocity brush;
+// Shift+Alt creates a curve and Alt alone emphasizes existing steps.
+struct VelocityStrokeGesture final {
+ VelocityStrokeMode mode;
+ bool minimum;
+};
+constexpr VelocityStrokeGesture velocityStrokeGesture(bool control,bool shift,bool alt) noexcept {
+ if(control&&alt&&!shift)return {VelocityStrokeMode::Paint,true};
+ if(shift&&alt)return {VelocityStrokeMode::Curve,false};
+ if(control||shift)return {VelocityStrokeMode::Line,false};
+ if(alt)return {VelocityStrokeMode::Accent,false};
+ return {VelocityStrokeMode::Paint,false};
+}
+// Native Drumator velocity well is painted from y+53 to y+92 and the
+// active bars finish at y+89. Click values and visual bar heights must
+// use one exact logical scale, not the former unrelated 48px input range.
+struct VelocityLaneScale final {
+ static constexpr double top=53.,bottom=89.;
+ static std::uint8_t valueAt(double relativeY) noexcept {
+  const auto level=std::clamp((bottom-relativeY)/(bottom-top),0.,1.);
+  return static_cast<std::uint8_t>(std::clamp(std::lround(1.+126.*level),1L,127L));
+ }
+ static constexpr double heightFor(std::uint8_t value) noexcept {
+  return value==0?0.:1.+34.*static_cast<double>(value-1)/126.;
+ }
+};
 class VelocityStrokeShape final {
 public:
  using Values=std::array<std::uint8_t,32>;

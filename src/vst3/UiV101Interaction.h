@@ -144,8 +144,7 @@ public:
    return index<L::steps&&L::stepRect(index).hit(x,20.)?static_cast<int>(index):-1;
  }
  static std::uint8_t laneValue(double relativeY)noexcept{
-   const double level=std::clamp((96.-relativeY)/48.,0.,1.);
-   return static_cast<std::uint8_t>(std::clamp(std::lround(1.+126.*level),1L,127L));
+   return VelocityLaneScale::valueAt(relativeY);
  }
  void reset() {
    endGesture(false);
@@ -410,7 +409,7 @@ private:
    laneRow_=L::instruments;
    velocityShape_.clear();
  }
- Result beginLane(std::size_t row,double x,double relativeY,bool erase,
+ Result beginLane(std::size_t row,double x,double relativeY,bool control,
                   bool shift,bool alt){
    const int step=laneStep(x);
    const auto p=controller_.currentPattern();
@@ -419,15 +418,13 @@ private:
    VelocityStrokeShape::Values before{};
    for(std::size_t i=0;i<before.size();++i)
      before[i]=controller_.velocity(p,row,i);
-   const auto mode=erase?VelocityStrokeMode::Paint:
-     shift?(alt?VelocityStrokeMode::Curve:VelocityStrokeMode::Line):
-     alt?VelocityStrokeMode::Accent:VelocityStrokeMode::Paint;
-   const auto v=erase?std::uint8_t{1}:laneValue(relativeY);
+   const auto action=velocityStrokeGesture(control,shift,alt);
+   const auto v=action.minimum?std::uint8_t{1}:laneValue(relativeY);
    if(!velocityShape_.begin(before,controller_.patternLength(p),
-                            static_cast<std::size_t>(step),v,mode))
+                            static_cast<std::size_t>(step),v,action.mode))
      return Result::Ignored;
    laneRow_=row;lanePattern_=p;laneGeneration_=controller_.editGeneration();
-   gesture_=Gesture::Velocity;erase_=erase;
+   gesture_=Gesture::Velocity;erase_=action.minimum;
    controller_.beginVelocityStroke(p,this);
    return applyVelocityShape(static_cast<std::size_t>(step),v);
  }

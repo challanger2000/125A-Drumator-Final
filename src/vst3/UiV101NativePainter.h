@@ -789,12 +789,12 @@ struct UiV101NativePreview final {
            if(velocity==0){
              fill(c,{xx+2.,y+88.,xx+15.,y+90.},{37,56,75,255});
            }else{
-             const double barHeight=3.+32.*static_cast<double>(velocity)/127.;
-             // Velocity communicates strength (cyan), unlike the
-             // amber Pattern step switches, which communicate occupancy.
+             const double barHeight=VelocityLaneScale::heightFor(velocity);
+             // MIDI 1 is a 1px bar, MIDI 127 reaches the visible 35px top.
+             // The input and painted bar have exactly the same vertical range.
              fill(c,{xx+2.,y+89.-barHeight,xx+15.,y+89.},
                   {32,165,195,255});
-             fill(c,{xx+3.,y+87.-barHeight,xx+14.,y+89.-barHeight},
+             fill(c,{xx+3.,y+89.-barHeight,xx+14.,y+90.-barHeight},
                   {141,233,247,255});
            }
          }
