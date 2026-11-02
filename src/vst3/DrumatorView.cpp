@@ -1837,6 +1837,154 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
  v101::UiV101NativePreview::screw(*c,235.,600.);
  v101::UiV101NativePreview::screw(*c,1045.,600.);
 }
+
+void DrumatorView::drawButtonFlash(VSTGUI::CDrawContext* c) {
+ if(!v101Mode_||std::chrono::steady_clock::now()>=buttonFlashUntil_)return;
+ using P=v101::UiV101NativePreview;
+ const auto r=buttonFlashRect_;
+ if(r.getWidth()<8.||r.getHeight()<8.)return;
+ P::rounded(*c,{r.left+1.,r.top+1.,r.right-1.,r.bottom-1.},
+            {234,113,24,130},3.);
+ P::border(*c,r,P::Skin::amber());
+ P::fill(*c,{r.left+3.,r.top+2.,r.right-3.,r.top+4.},P::Skin::amberLens());
+}
+void DrumatorView::recordButtonFlash(double x,double y) {
+ using L=UiV101Layout;
+ const auto set=[&](L::Rect r) {
+  buttonFlashRect_={r.x0,r.y0,r.x1,r.y1};
+  buttonFlashUntil_=std::chrono::steady_clock::now()+
+                    std::chrono::milliseconds(230);
+ };
+ const auto hit=[&](L::Rect r)->bool {
+  if(!r.hit(x,y))return false;
+  set(r);return true;
+ };
+ const auto shifted=[](L::Rect r,double y0)->L::Rect {
+  return {r.x0,r.y0+y0,r.x1,r.y1+y0};
+ };
+ const double h=getViewSize().getHeight();
+ if(beatCreatorOpen_){
+  using D=UiBeatCreatorDialog;
+  if(beatCreatorStyleMenu_){
+   for(std::size_t i=0;i<10u;++i)
+    if(D::styleOption(h,i).hit(x,y)){set(D::styleSelect(h));return;}
+   return;
+  }
+  for(const auto r:{D::styleSelect(h),D::complexityMinus(h),
+                    D::complexityPlus(h),D::barOne(h),D::barTwo(h),
+                    D::generate(h)})
+   if(hit(r))return;
+  return; // APPLY/CANCEL dismiss modal immediately
+ }
+ if(sampleEditorOpen_){
+  const auto rc=[](UiV101WaveLayout::Rect r)->L::Rect {
+   return {r.left,r.top,r.right,r.bottom};
+  };
+  if(hit(rc(UiV101WaveLayout::liveToggle)))return;
+  for(std::size_t i=0;i<6u;++i)
+   if(hit(rc(UiV101WaveLayout::toolbar[i])))return;
+  return; // APPLY/CANCEL close modal immediately
+ }
+ if(v101Menu_!=UiV101Popup::Kind::None){
+  const auto first=v101_.state().firstRow;
+  const bool shown=v101MenuRow_>=first&&
+                   v101MenuRow_<first+v101_.shownRows();
+  const auto rowY=shown?L::rowTop(first,v101MenuRow_-first,
+                            v101_.expandedRows()):L::header;
+  const auto g=UiV101Popup::geometry(v101Menu_,rowY,h,songEditorOpen_);
+  if(UiV101Popup::hit(v101Menu_,g,x,y)<0)return;
+  // Flash still-visible trigger after the selected popup disappears.
+  switch(v101Menu_){
+   case UiV101Popup::Kind::Pattern:set(L::patternMenu);break;
+   case UiV101Popup::Kind::Fill:set(shifted(L::fill,rowY));break;
+   case UiV101Popup::Kind::Sample:set(shifted(L::sampleMenu,rowY));break;
+   case UiV101Popup::Kind::Output:
+    set(shifted(UiV101Interaction::settingsRect(0),rowY));break;
+   case UiV101Popup::Kind::Choke:
+    set(shifted(UiV101Interaction::settingsRect(1),rowY));break;
+   case UiV101Popup::Kind::Export:
+    set(shifted(songEditorOpen_?L::songFooterExport:L::footerExport,
+                h-L::footer));break;
+   case UiV101Popup::Kind::None:break;
+  }
+  return;
+ }
+ if(v101_.state().zoomOpen){
+  for(std::size_t i=0;i<L::zoomPresets.size();++i)
+   if(hit(L::zoomOption(i)))return;
+  (void)hit(L::zoomTrigger);return;
+ }
+ for(const auto r:{L::zoomTrigger,L::limiterTrigger,L::patternMenu,
+      L::barsButton,L::headerGroup(0),L::headerGroup(1),
+      L::beatCreatorTrigger})
+  if(hit(r))return;
+ for(std::size_t i=0;i<8u;++i)
+  if(hit(L::patternButton(i)))return;
+ if(songEditorOpen_){
+  using S=UiSongLayout;
+  const L::Rect controls[]={
+   {S::startMinusLeft,S::startTop,S::startMinusRight,S::startBottom},
+   {S::startPlusLeft,S::startTop,S::startPlusRight,S::startBottom},
+   {S::startResetLeft,S::startTop,S::startResetRight,S::startBottom},
+   {S::previousLeft,S::navTop,S::previousRight,S::navBottom},
+   {S::nextLeft,S::navTop,S::nextRight,S::navBottom},
+   {S::addLeft,S::choiceTop,S::addRight,S::choiceBottom},
+   {S::removeLeft,S::choiceTop,S::removeRight,S::choiceBottom},
+   {S::restLeft,S::choiceTop,S::restRight,S::choiceBottom}};
+  for(const auto r:controls)if(hit(r))return;
+  for(std::size_t i=0;i<8u;++i){
+   const double xx=S::patternLeft+i*S::patternPitch;
+   if(hit({xx,S::choiceTop,xx+S::patternWidth,S::choiceBottom}))return;
+  }
+  for(int i=0;i<3;++i){
+   const double xx=678.+i*106.;
+   if(hit({xx,339.,xx+100.,365.}))return;
+  }
+  const auto slot=S::slotAt(x,y,songPage_);
+  if(slot<controller_.songCount()&&slot<SongChain::kCapacity){
+   const auto i=slot-S::first(songPage_);
+   const double xx=S::cellX(i%S::columns),yy=S::cellY(i/S::columns);
+   if(hit({xx,yy,xx+S::cellWidth,yy+S::cellHeight}))return;
+  }
+ }else{
+  const auto r=v101_.rowHit(x,y);
+  if(r.row<L::instruments){
+   const auto first=v101_.state().firstRow;
+   const double yy=L::rowTop(first,r.row-first,v101_.expandedRows());
+   L::Rect cap{};
+   switch(r.action){
+    case L::Action::Mute:cap=L::mute;break;
+    case L::Action::Solo:cap=L::solo;break;
+    case L::Action::Previous:cap=L::previous;break;
+    case L::Action::Next:cap=L::next;break;
+    case L::Action::SampleMenu:cap=L::sampleMenu;break;
+    case L::Action::Preview:cap=L::preview;break;
+    case L::Action::Fill:cap=L::fill;break;
+    case L::Action::Edit:cap=L::edit;break;
+    case L::Action::Velocity:cap=L::velocity;break;
+    case L::Action::Settings:cap=L::settings;break;
+    case L::Action::SettingsLane:
+     for(std::size_t i=0;i<5u;++i)
+      if(hit(shifted(UiV101Interaction::settingsRect(i),yy)))return;
+     break;
+    case L::Action::VelocityLane:
+     for(const auto button:{UiV101Interaction::velocityRandom,
+          UiV101Interaction::velocityReset,UiV101Interaction::realtimeMinus,
+          UiV101Interaction::realtimePlus})
+      if(hit(shifted(button,yy)))return;
+     break;
+    default:break;
+   }
+   if(cap.x1>cap.x0&&hit(shifted(cap,yy)))return;
+  }
+ }
+ const double foot=h-L::footer;
+ if(hit(shifted(songEditorOpen_?L::songFooterExport:L::footerExport,foot)))return;
+ if(!songEditorOpen_)
+  for(const auto r:{L::footerAdd,L::footerRemove,L::footerPrev,L::footerNext})
+   if(hit(shifted(r,foot)))return;
+}
+
 void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
  drawV101(c);
  // The startup placeholder is not an error and becomes stale after
@@ -1872,11 +2020,13 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
    if(songEditorOpen_)drawV101Song(c);
    else drawV101(c);
    if(beatCreatorOpen_)drawBeatCreator(c);
+   drawButtonFlash(c);
    setDirty(false);
    return;
  }
  if(v101Mode_&&sampleEditorOpen_){
    drawV101Wave(c);
+   drawButtonFlash(c);
    setDirty(false);
    return;
  }
@@ -2873,6 +3023,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
  const double x=pos.x,y=pos.y;
  if(!(buttons&VSTGUI::kLButton))return VSTGUI::kMouseEventNotHandled;
+ if(v101Mode_)recordButtonFlash(x,y);
  if(v101Mode_&&beatCreatorOpen_){
   (void)beatCreatorMouseDown(x,y);
   return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;

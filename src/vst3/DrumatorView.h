@@ -108,6 +108,11 @@ private:
  std::size_t settingsFeedbackRow_{kRows};
  int settingsFeedbackButton_{-1};
  std::chrono::steady_clock::time_point settingsFeedbackUntil_{};
+ // GUI-only, per-editor transient amber button feedback.
+ VSTGUI::CRect buttonFlashRect_{};
+ std::chrono::steady_clock::time_point buttonFlashUntil_{};
+ void recordButtonFlash(double x,double y);
+ void drawButtonFlash(VSTGUI::CDrawContext* c);
 
  VSTGUI::CBitmap* backgroundBitmap_{nullptr};
  VSTGUI::CBitmap* productLogoBitmap_{nullptr};
