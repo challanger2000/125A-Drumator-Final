@@ -10,6 +10,8 @@
 #include "core/SampleEdit.h"
 #include "vst3/UiV101Interaction.h"
 #include "vst3/UiV101Popup.h"
+#include "vst3/UiBeatCreatorDialog.h"
+#include "core/BeatCreator.h"
 #include "vstgui/lib/cvstguitimer.h"
 #include <cstdint>
 #include <chrono>
@@ -81,6 +83,21 @@ private:
  void drawV101Wave(VSTGUI::CDrawContext* c);
  bool v101MouseDown(double x,double y,bool erase,bool fine,bool accent=false);
  void drawV101Menu(VSTGUI::CDrawContext* c);
+ // BC42: separate modal UI state; no instrument, sample, or audio data.
+ bool beatCreatorOpen_{false};
+ bool beatCreatorStyleMenu_{false};
+ bool beatCreatorConfirmOverwrite_{false};
+ BeatStyle beatCreatorStyle_{BeatStyle::Synthpop80s};
+ std::uint8_t beatCreatorComplexity_{35};
+ std::uint32_t beatCreatorSeed_{0x125A1500u};
+ std::string beatCreatorNotice_{"SELECT STYLE - GENERATE"};
+ VSTGUI::CTextEdit* complexityEdit_{nullptr};
+ bool complexityEditActive_{false};
+ void setBeatCreatorComplexity(std::uint8_t value);
+ void editBeatCreatorComplexity();
+ void closeBeatCreator() noexcept;
+ void drawBeatCreator(VSTGUI::CDrawContext* c);
+ bool beatCreatorMouseDown(double x,double y);
  bool exportSelection(int option);
  bool startExportDrag(int option);
  int dragExportOption_{-1};
