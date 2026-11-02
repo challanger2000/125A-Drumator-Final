@@ -1236,10 +1236,9 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
                static_cast<unsigned>(beatCreatorComplexity_));
  P::label(*c,percent,rect(D::complexityValue(h)),13,{245,201,117,255});
  char length[32]{};
- std::snprintf(length,sizeof(length),"%u STEPS / %s",
-  static_cast<unsigned>(controller_.patternLength(controller_.currentPattern())),
-  controller_.patternLength(controller_.currentPattern())==16?"1 BAR":"2 BARS");
- P::label(*c,length,rect(D::stepsLabel(h)),11,{210,225,237,255});
+ std::snprintf(length,sizeof(length),"%u STEPS / %s  v",
+  static_cast<unsigned>(beatCreatorSteps_),beatCreatorSteps_==16?"1 BAR":"2 BARS");
+ P::cap(*c,D::stepsLabel(h),0.,length,false,11,&buttons);
  const auto* draft=controller_.beatCreatorDraft();
  const PatternSteps* patterns[3]={
   draft?&draft->a:nullptr,draft?&draft->b:nullptr,draft?&draft->c:nullptr};
@@ -1317,9 +1316,15 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
    std::min(100,static_cast<int>(beatCreatorComplexity_)+5)));
   return true;
  }
+ if(D::stepsLabel(h).hit(x,y)){
+  beatCreatorSteps_=beatCreatorSteps_==16?32:16;
+  controller_.cancelBeatCreator();
+  beatCreatorConfirmOverwrite_=false;
+  beatCreatorNotice_="BAR LENGTH CHANGED - GENERATE";
+  invalid();return true;
+ }
  if(D::generate(h).hit(x,y)){
-  const auto steps=controller_.patternLength(controller_.currentPattern());
-  const BeatCreatorSettings settings{beatCreatorStyle_,beatCreatorComplexity_,steps};
+  const BeatCreatorSettings settings{beatCreatorStyle_,beatCreatorComplexity_,beatCreatorSteps_};
   const bool ok=controller_.prepareBeatCreator(settings,++beatCreatorSeed_);
   beatCreatorConfirmOverwrite_=false;
   beatCreatorNotice_=ok?"A / B / C READY":"GENERATION REJECTED";
@@ -2840,6 +2845,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
     UiV101Layout::beatCreatorTrigger.hit(x,y)){
   (void)v101_.up();
   beatCreatorOpen_=true;
+  beatCreatorSteps_=controller_.patternLength(controller_.currentPattern());
   beatCreatorStyleMenu_=false;
   beatCreatorConfirmOverwrite_=false;
   beatCreatorNotice_="SELECT STYLE - GENERATE";
