@@ -2840,7 +2840,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
   (void)beatCreatorMouseDown(x,y);
   return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
  }
- if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_&&
+ if(v101Mode_&&!sampleEditorOpen_&&
     !v101_.state().zoomOpen&&v101Menu_==UiV101Popup::Kind::None&&
     UiV101Layout::beatCreatorTrigger.hit(x,y)){
   (void)v101_.up();
