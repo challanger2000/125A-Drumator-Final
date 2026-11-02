@@ -18,6 +18,27 @@ static unsigned count(const PatternSteps& p,std::size_t until){
   for(std::size_t s=0;s<until;++s)n+=p[r*kSteps+s]!=0u;
  return n;
 }
+static unsigned structuralEdits(const PatternSteps& a,const PatternSteps& b,
+                                std::size_t first,std::size_t length){
+ unsigned changes=0;
+ for(std::size_t row=0;row<8;++row)
+  for(std::size_t pos=first;pos<first+length;++pos)
+   changes+=(a[row*kSteps+pos]!=0u)!=(b[row*kSteps+pos]!=0u);
+ return changes;
+}
+static unsigned previewStepChanges(const PatternSteps& a,const PatternSteps& b,
+                                   std::size_t first,std::size_t length){
+ unsigned count=0;
+ for(std::size_t step=first;step<first+length;++step){
+  bool before=false,after=false;
+  for(std::size_t row=0;row<8;++row){
+   before|=a[row*kSteps+step]!=0;
+   after|=b[row*kSteps+step]!=0;
+  }
+  count+=before!=after;
+ }
+ return count;
+}
 static std::array<std::uint16_t,8> structure(const PatternSteps& p,std::size_t start=0u){
  std::array<std::uint16_t,8> masks{};
  for(std::size_t r=0;r<8;++r)
@@ -56,6 +77,20 @@ int main(){
       ck(p.a==repeated.a&&p.b==repeated.b&&p.c==repeated.c,
          "non-deterministic seeded output");
       ck(p.a!=p.b&&p.a!=p.c,"A/B/C not musically distinct");
+      // BC44: equality alone allowed the old almost-identical B (one
+      // changed note at the end) through 31 green tests.
+      for(std::size_t bar=0;bar<length;bar+=16u){
+       const auto changes=structuralEdits(p.a,p.b,bar,16);
+       ck(changes>=(complexity>=85?5u:complexity>=65?4u:
+                    complexity>=30?3u:complexity>=20?2u:1u),
+          "B has too few real instrument-step changes");
+       if(complexity>=30u){
+        ck(structuralEdits(p.a,p.b,bar,12)>=2u,
+           "B only changed the phrase ending");
+        ck(previewStepChanges(p.a,p.b,bar,16)>=1u,
+           "B looks identical to A in the combined step preview");
+       }
+      }
       for(const auto* pattern:{&p.a,&p.b,&p.c}){
        for(const auto vel:*pattern)ck(vel<=127u,"velocity over MIDI range");
        for(std::size_t row=8;row<kRows;++row)

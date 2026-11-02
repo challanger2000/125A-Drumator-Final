@@ -229,42 +229,60 @@ public:
   }
   return result;
  }
+ // BC44: B must be an audible, style-specific groove variation,
+ // not a single final-step toggle. Keep the established quarter-note kicks
+ // and main 2/4 backbeats while distributing embellishments across each bar.
  static PatternSteps variate(const PatternSteps& source,const BeatCreatorSettings& settings,
                              std::uint32_t seed) noexcept {
   PatternSteps b=source;
   if(!valid(settings))return b;
-  Rng r(seed^0x42716aa1u);
-  const auto last=static_cast<std::size_t>(settings.steps)-1u;
-  BeatRole role=BeatRole::BD;
-  switch(settings.style){
-   case BeatStyle::Synthpop80s:role=BeatRole::HighTom;break;
-   case BeatStyle::ItaloDisco:role=BeatRole::CHH;break;
-   case BeatStyle::Synthwave:role=BeatRole::LowTom;break;
-   case BeatStyle::EBM:role=BeatRole::BD;break;
-   case BeatStyle::Eurodance90s:role=BeatRole::Snare;break;
-   case BeatStyle::House:role=BeatRole::CHH;break;
-   case BeatStyle::Techno:role=BeatRole::Snare;break;
-   case BeatStyle::Trance:role=BeatRole::Snare;break;
-   case BeatStyle::HipHop:role=BeatRole::BD;break;
-   case BeatStyle::DrumAndBass:role=BeatRole::Snare;break;
-   case BeatStyle::Count:return b;
-  }
-  std::size_t target=last;
-  if(seed%3u==1u)target=last-2u;
-  if(seed%3u==2u)target=last-4u;
-  // Keep foundational Kick quarter notes and Snare 2/4 untouched.
-  if((role==BeatRole::BD&&target%4u==0u)||
-     (role==BeatRole::Snare&&(target%16u==4u||target%16u==12u)))
-     target=last;
-  if(role==BeatRole::CHH&&roleAt(b,BeatRole::OHH,target))
-     role=BeatRole::Clap;
-  auto& note=b[at(role,target)];
-  note=note?0u:static_cast<std::uint8_t>(role==BeatRole::Snare?72:role==BeatRole::BD?92:78);
-  // Vary emphasis without deleting the original rhythmic identity.
-  if(settings.complexity>=65u){
-   const auto extra=last-1u;
-   if(!roleAt(b,BeatRole::OHH,extra)&&!roleAt(b,BeatRole::CHH,extra))
-     set(b,BeatRole::CHH,extra,56+r.deviation(3));
+  Rng rng(seed^0x42716aa1u);
+  struct Accent {BeatRole role; unsigned step;};
+  // The first three edits occur at the factory 35% Complexity. Offbeat
+  // drums, early hats and a different secondary voice ensure audible
+  // variation well before the end of each bar; higher values add details.
+  static constexpr std::array<std::array<Accent,5>,10> plans{{
+   {{{BeatRole::BD,7},{BeatRole::CHH,3},{BeatRole::HighTom,10},
+     {BeatRole::CHH,13},{BeatRole::Clap,15}}}, // 80s SYNTHPOP
+   {{{BeatRole::CHH,1},{BeatRole::BD,15},{BeatRole::Clap,10},
+     {BeatRole::CHH,13},{BeatRole::LowTom,11}}}, // ITALO DISCO
+   {{{BeatRole::BD,7},{BeatRole::CHH,3},{BeatRole::LowTom,10},
+     {BeatRole::CHH,13},{BeatRole::HighTom,15}}}, // SYNTHWAVE
+   {{{BeatRole::BD,11},{BeatRole::CHH,3},{BeatRole::Snare,10},
+     {BeatRole::CHH,13},{BeatRole::LowTom,15}}}, // EBM
+   {{{BeatRole::BD,15},{BeatRole::CHH,3},{BeatRole::Clap,10},
+     {BeatRole::CHH,13},{BeatRole::Snare,11}}}, // 90s EURODANCE
+   {{{BeatRole::CHH,3},{BeatRole::BD,15},{BeatRole::Snare,10},
+     {BeatRole::CHH,13},{BeatRole::Clap,11}}}, // HOUSE
+   {{{BeatRole::CHH,3},{BeatRole::BD,15},{BeatRole::Snare,10},
+     {BeatRole::CHH,13},{BeatRole::LowTom,11}}}, // TECHNO
+   {{{BeatRole::CHH,3},{BeatRole::BD,15},{BeatRole::Snare,10},
+     {BeatRole::CHH,13},{BeatRole::Clap,11}}}, // TRANCE
+   {{{BeatRole::BD,6},{BeatRole::CHH,3},{BeatRole::Snare,11},
+     {BeatRole::CHH,13},{BeatRole::LowTom,15}}}, // HIP-HOP
+   {{{BeatRole::BD,7},{BeatRole::CHH,3},{BeatRole::Snare,11},
+     {BeatRole::CHH,13},{BeatRole::HighTom,15}}}  // DRUM & BASS
+  }};
+  const auto& accents=plans[static_cast<unsigned>(settings.style)];
+  for(std::size_t bar=0;bar<settings.steps;bar+=16u){
+   for(std::size_t i=0;i<accents.size();++i){
+    if((i==1&&settings.complexity<20u)||
+       (i==2&&settings.complexity<30u)||
+       (i==3&&settings.complexity<65u)||
+       (i==4&&settings.complexity<85u))continue;
+    const auto role=accents[i].role;
+    const auto step=bar+accents[i].step;
+    // Never let the two hi-hat lanes fire together.
+    if(role==BeatRole::CHH&&roleAt(b,BeatRole::OHH,step)){
+     b[at(BeatRole::OHH,step)]=0;
+    }
+    auto& note=b[at(role,step)];
+    const int strength=role==BeatRole::BD?94:
+                       role==BeatRole::Snare?64:
+                       role==BeatRole::CHH?69:
+                       role==BeatRole::Clap?77:82;
+    note=note?0u:static_cast<std::uint8_t>(strength+rng.deviation(4));
+   }
   }
   return b;
  }

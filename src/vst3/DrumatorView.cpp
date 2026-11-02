@@ -1209,8 +1209,23 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
  // Use the same graphite/navy/amber family as the Drumator itself.
  // Never stretch the 83x32 hardware sprite into a dropdown.
  P::fill(*c,{0.,0.,UiV101Layout::width,h},{8,13,21,200});
- P::satin(*c,{shell.x0+3.,shell.y0+3.,shell.x1-3.,shell.y1-3.},
-          {36,48,60,255},{24,36,49,255},{16,26,39,255},24);
+ // Reuse the Drumator's original faceplate texture without resizing or
+ // stretching it. Crop its native pixels, then tint only for readability.
+ const auto inner=VSTGUI::CRect{shell.x0+4.,shell.y0+4.,
+                                shell.x1-4.,shell.y1-4.};
+ const double iw=inner.getWidth(),ih=inner.getHeight();
+ const bool hasPlate=v101FaceplateBitmap_&&v101FaceplateBitmap_->isLoaded()&&
+                     v101FaceplateBitmap_->getWidth()>=iw&&
+                     v101FaceplateBitmap_->getHeight()>=ih;
+ if(hasPlate){
+  const double sx=(v101FaceplateBitmap_->getWidth()-iw)*.5;
+  const double sy=(v101FaceplateBitmap_->getHeight()-ih)*.5;
+  v101FaceplateBitmap_->draw(c,inner,{sx,sy});
+  P::fill(*c,inner,{9,20,33,140});
+ }else{
+  P::satin(*c,inner,{36,48,60,255},{24,36,49,255},
+           {16,26,39,255},24);
+ }
  P::border(*c,rect(shell),{85,108,126,255});
  P::fill(*c,{shell.x0+4.,shell.y0+4.,shell.x1-4.,shell.y0+38.},
          {16,32,48,255});
@@ -1346,7 +1361,8 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
   const BeatCreatorSettings settings{beatCreatorStyle_,beatCreatorComplexity_,beatCreatorSteps_};
   const bool ok=controller_.prepareBeatCreator(settings,++beatCreatorSeed_);
   beatCreatorConfirmOverwrite_=false;
-  beatCreatorNotice_=ok?"A / B / C READY":"GENERATION REJECTED";
+  beatCreatorNotice_=!ok?"GENERATION REJECTED":
+      controller_.visibleRows()<8?"A/B/C READY - SHOW ALL 8 ROWS":"A / B / C READY";
   invalid();return true;
  }
  if(D::apply(h).hit(x,y)){
@@ -1361,7 +1377,9 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
   }
   if(controller_.applyBeatCreator(occupied&&beatCreatorConfirmOverwrite_)){
    closeBeatCreator();
-   status_="A/B/C GENERATED - PATTERN UNDO AVAILABLE";
+   status_=controller_.visibleRows()<8?
+     "A/B/C GENERATED - ADD ROWS TO VIEW 5-8":
+     "A/B/C GENERATED - PATTERN UNDO AVAILABLE";
   }else{
    beatCreatorConfirmOverwrite_=false;
    beatCreatorNotice_="APPLY REJECTED - PROJECT CHANGED";

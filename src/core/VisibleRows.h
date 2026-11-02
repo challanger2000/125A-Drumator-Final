@@ -5,7 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 namespace drumator {
-constexpr std::uint8_t kDefaultVisibleRows=4;
+// Factory start only. Serialized kit/project row counts remain authoritative on recall.
+constexpr std::uint8_t kDefaultVisibleRows=8;
 constexpr std::uint32_t kStateMagicV3=0x33524D44u; // "DMR3"
 class RowVisibility {
 public:

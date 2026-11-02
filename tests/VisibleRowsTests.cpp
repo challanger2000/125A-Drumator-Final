@@ -16,10 +16,14 @@ static void check(bool ok,const char* msg){if(!ok)throw std::runtime_error(msg);
 int main(){
  try {
    AtomicPatternBank grid;
-   check(kDefaultVisibleRows==4,"Initial four rows changed");
+   check(kDefaultVisibleRows==8,"Fresh kits must expose all eight Beat Creator roles");
    check(!RowVisibility::valid(0)&&!RowVisibility::valid(17),"range guard");
    check(RowVisibility::valid(1)&&RowVisibility::valid(4)&&
-         RowVisibility::valid(16),"valid range");
+         RowVisibility::valid(8)&&RowVisibility::valid(16),"valid range");
+   // Retained four-row projects must stay legal and must not be enlarged
+   // automatically when their existing state is recalled.
+   check(RowVisibility::visibleSolo(0xffffu,kDefaultVisibleRows)==0x00ffu,
+         "New factory eight-row solo mask");
    // Factory content on row zero: we may hide row 4 safely, never row one.
    check(RowVisibility::canHideLast(4,grid,false),"empty fourth row");
    check(!RowVisibility::canHideLast(1,grid,false),"cannot hide last visible row");
