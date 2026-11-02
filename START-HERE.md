@@ -24,7 +24,7 @@ Stand: 02.11.2026. **Zuerst dieses Dokument und CURRENT.md lesen, bevor Dateien 
 
 ## 3. Neues Projekt – aktiver Branch
 - Branch `develop/beat-creator-10-styles-20261102`, von `main` (1.0.1) angelegt.
-- Im Branch bislang **nur unabhängiger C++-Rhythmus-Kern**, Tests und Übergabedokumente ergänzt. **Noch keine neue VST3-Beat-Creator-Oberfläche, kein Controller-/Processor-Anschluss und keine Velocity-Mausintegration.**
+- **BC42 inzwischen implementiert:** Beat Creator mit STYLE-Dropdown für 10 Genres, 1/2-BAR-Umschaltung, Complexity mit direkt editierbarer Zahl, sichtbarer A/B/C-Schrittvorschau, GENERATE/APPLY/CONFIRM/CANCEL und unveränderter 8-Instrumente-Legende. Controller- und Processor-Anschluss übernehmen A/B/C gemeinsam per bereits in V1.5 bewährter, atomarer Compare-and-Swap-Transaktion; ein gemeinsames Undo ist vorhanden. **Keine Demo-Samples, keine Sample-Kits, kein Kit-Browser.** Alle Änderungen ausschließlich auf diesem Entwicklungsbranch, 1.0.1-Verkaufspaket unverändert. Vollständiger Windows-VST3-QA-Lauf noch gesondert zu prüfen.
 - 10 elektronische Genres, per **einzelnem STYLE-Dropdown**: 80s Synthpop, Italo Disco, Synthwave, EBM, 90s Eurodance, House, Techno, Trance, Hip-Hop, Drum & Bass.
 - **80 fest definierte Groove-Motive (8 pro Genre)**; A Hauptgroove, B passende Variation, C halbtaktiger genrebezogener Break; Complexity, Velocity, 1/2 Takte.
 - **KEINE mitgelieferten Samples, KEIN Kit-Browser, KEIN Preview-Kit-Button.** Nutzer lädt seine WAV/FLAC separat. Der Creator schreibt nur Steps und Velocity.
@@ -34,9 +34,9 @@ Stand: 02.11.2026. **Zuerst dieses Dokument und CURRENT.md lesen, bevor Dateien 
 - Den Detailvertrag enthält [docs/BEAT-CREATOR-BC40-10-ELECTRONIC-STYLES.md](docs/BEAT-CREATOR-BC40-10-ELECTRONIC-STYLES.md).
 
 ## 4. Nächste Arbeiten – ohne weitere Nutzer-Rückfragen zur Basis
-1. Nur vom geprüften 1.0.1-Code aus entwickeln; Quell-/Binary-Referenz gegen Gumroad-Paket sichern.
-2. Beat Creator mit einem Style-Dropdown und fester 8-Slot-Legende in die GUI integrieren; Transaktion/A/B/C/Undo und Preview testbar machen.
-3. BC41 Velocity-Mausgesten wurden bereits in die V1.0.1-Oberfläche übernommen. **Nicht erneut implementieren**; nur BC41-Windows-CI und Studio-One-Bedienung überprüfen und eventuelle konkrete Regressionen beheben.
+1. **Nicht erneut Velocity, Groove-Kern, Style-Dropdown oder A/B/C-Transaktion entwickeln**: diese Funktionen sind bereits im isolierten Branch umgesetzt.
+2. BC41 Velocity-Mausgesten: Windows-CI [41373979469](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41373979469) SUCCESS, Studio-One-Praxistest der neuen GUI noch ausstehend.
+3. BC42 GUI/Engine: Windows-CI [ab Lauf 41376112322](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41376112322) noch prüfen. Eine frühere parallele Prüfung schlug in einem zeitkritischen 64-Stimmen-Lasttest fehl, nicht aufgrund eines bestätigten Compile-Problems; alte gleichzeitige Testläufe können sich gegenseitig beeinflussen.
 4. **Vor Ausgabe einer Test-VST3**: MIDI-/WAV-Export (DAW-BPM, Patterns/Song, unterschiedliche BPM), Song, Recall, GUI, Velocity, unabhängiger Tester und Studio-One-Praxistest validieren. Keine unbewiesene Tempo-Korrektur behaupten.
 5. Änderungen ausschließlich in diesem isolierten Branch; **keine** Release-Änderung, kein Gumroad-Upload, kein direktes Überschreiben von `main`.
 
