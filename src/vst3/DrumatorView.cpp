@@ -1227,7 +1227,7 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
            {16,26,39,255},24);
  }
  P::border(*c,rect(shell),{85,108,126,255});
- P::fill(*c,{shell.x0+4.,shell.y0+4.,shell.x1-4.,shell.y0+38.},
+ P::fill(*c,{shell.x0+1.,shell.y0+1.,shell.x1-1.,shell.y0+38.},
          {16,32,48,255});
  P::label(*c,"125A BEAT CREATOR",rect(D::title(h)),16,{230,237,243,255});
  const auto styleIndex=static_cast<unsigned>(beatCreatorStyle_);

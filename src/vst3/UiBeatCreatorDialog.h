@@ -21,7 +21,7 @@ struct UiBeatCreatorDialog final {
   const auto p=panel(h);return {p.x0+24.,p.y0+45.,p.x0+96.,p.y0+72.};
  }
  static constexpr Rect styleSelect(double h) noexcept {
-  const auto p=panel(h);return {p.x0+102.,p.y0+44.,p.x0+458.,p.y0+72.};
+  const auto p=panel(h);return {p.x0+162.,p.y0+44.,p.x0+458.,p.y0+72.};
  }
  static constexpr Rect notice(double h) noexcept {
   const auto p=panel(h);return {p.x0+472.,p.y0+44.,p.x1-24.,p.y0+72.};
@@ -66,11 +66,11 @@ struct UiBeatCreatorDialog final {
   return {p.x0+24.,top,p.x1-164.,top+21.};
  }
  static constexpr double previewStepPitch(double h) noexcept {
-  const auto r=previewRow(h,0);return (r.x1-r.x0-145.)/32.;
+  const auto r=previewRow(h,0);return (r.x1-r.x0-151.)/32.;
  }
  static constexpr Rect previewStep(double h,std::size_t pat,std::size_t step) noexcept {
   const auto r=previewRow(h,pat);
-  const double x=r.x0+133.+previewStepPitch(h)*static_cast<double>(step);
+  const double x=r.x0+138.+previewStepPitch(h)*static_cast<double>(step);
   return {x,r.y0+4.,x+11.,r.y1-4.};
  }
  // One vertical, compact eight-instrument legend; no redundant footer legend.

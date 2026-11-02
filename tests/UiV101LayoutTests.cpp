@@ -305,6 +305,11 @@ int main(){
     // BC43: full-size native Drumator length caps, disjoint hit boxes.
     CHECK(BC::styleMenu(hostHeight).y1<BC::generate(hostHeight).y0);
     CHECK(BC::styleLabel(hostHeight).x1<BC::styleSelect(hostHeight).x0);
+     // BC50 left-aligned controls and preview start at the same x.
+     CHECK(BC::styleSelect(hostHeight).x0==
+           BC::complexityMinus(hostHeight).x0);
+     CHECK(BC::previewStep(hostHeight,0,0).x0==
+           BC::complexityMinus(hostHeight).x0);
     CHECK(BC::styleSelect(hostHeight).x1<BC::notice(hostHeight).x0);
     CHECK(BC::barOne(hostHeight).x1<BC::barTwo(hostHeight).x0);
     CHECK(BC::barOne(hostHeight).x1-BC::barOne(hostHeight).x0==83.);
