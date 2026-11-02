@@ -262,7 +262,7 @@ public:
      {BeatRole::CHH,13},{BeatRole::Clap,11}}}, // TRANCE
    {{{BeatRole::BD,6},{BeatRole::CHH,3},{BeatRole::Snare,11},
      {BeatRole::CHH,13},{BeatRole::LowTom,15}}}, // HIP-HOP
-   {{{BeatRole::BD,7},{BeatRole::CHH,3},{BeatRole::Snare,11},
+   {{{BeatRole::BD,7},{BeatRole::CHH,1},{BeatRole::Snare,11},
      {BeatRole::CHH,13},{BeatRole::HighTom,15}}}  // DRUM & BASS
   }};
   const auto& accents=plans[static_cast<unsigned>(settings.style)];

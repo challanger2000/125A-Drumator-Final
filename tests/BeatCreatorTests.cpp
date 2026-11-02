@@ -240,6 +240,20 @@ int main(){
    ck(dnb.floor==0u&&dnb.kickSync==8u&&dnb.hat16>=6u&&
       dnb.snareGhost>=5u&&dnb.open>=3u,
       "Drum & Bass lost its breakbeat ghost snares or rapid hats");
+   // BC58: all D&B authored A grooves leave step 2 (zero-based 1)
+   // for the B variation's 16th hat pickup. The old CHH step 4
+   // (zero-based 3) was already occupied in motif #5, making B look
+   // identical to A at the factory 35% complexity.
+   if(s==BeatStyle::DrumAndBass){
+    for(unsigned seed=0;seed<8u;++seed){
+     const auto variation=BeatCreator::preview({s,35,16},seed);
+     ck(v(variation.a,BeatRole::CHH,1u)==0u&&
+        v(variation.b,BeatRole::CHH,1u)>0u,
+        "D&B B variation missing offbeat sixteenth hat pickup");
+     ck(previewStepChanges(variation.a,variation.b,0,16)>=1u,
+        "D&B A/B combined step preview must visibly differ");
+    }
+   }
    // Every two-bar phrase must develop, not repeat, bar one.
    for(unsigned seed=0;seed<32u;++seed) {
     const auto p=BeatCreator::preview({s,35,32},seed);
