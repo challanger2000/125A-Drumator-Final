@@ -8,62 +8,88 @@
 namespace drumator {
 struct UiBeatCreatorDialog final {
  using Rect=UiV101Layout::Rect;
- static constexpr double width=640.,height=240.;
+ static constexpr double width=820.,height=252.;
  static constexpr Rect panel(double h) noexcept {
   const double top=(h-height)*.5;
   return {(UiV101Layout::width-width)*.5,top,
           (UiV101Layout::width+width)*.5,top+height};
  }
  static constexpr Rect title(double h) noexcept {
-  const auto p=panel(h);return {p.x0+20.,p.y0+9.,p.x0+335.,p.y0+36.};
+  const auto p=panel(h);return {p.x0+20.,p.y0+9.,p.x1-20.,p.y0+36.};
+ }
+ static constexpr Rect styleLabel(double h) noexcept {
+  const auto p=panel(h);return {p.x0+24.,p.y0+45.,p.x0+96.,p.y0+72.};
  }
  static constexpr Rect styleSelect(double h) noexcept {
-  const auto p=panel(h);return {p.x0+24.,p.y0+42.,p.x0+335.,p.y0+69.};
+  const auto p=panel(h);return {p.x0+102.,p.y0+44.,p.x0+458.,p.y0+72.};
  }
  static constexpr Rect notice(double h) noexcept {
-  const auto p=panel(h);return {p.x0+350.,p.y0+42.,p.x1-22.,p.y0+69.};
+  const auto p=panel(h);return {p.x0+472.,p.y0+44.,p.x1-24.,p.y0+72.};
  }
+ // The modal style list is a two-column dark selector, not 286px stretched
+ // hardware buttons. The full 10-item list fits even the 254px host viewport.
  static constexpr Rect styleMenu(double h) noexcept {
-  const auto p=panel(h);return {p.x0+24.,p.y0+70.,p.x1-24.,p.y0+193.};
+  const auto p=panel(h);return {p.x0+24.,p.y0+74.,p.x1-24.,p.y0+211.};
  }
  static constexpr Rect styleOption(double h,std::size_t i) noexcept {
   const auto p=styleMenu(h);
-  const double x=p.x0+4.+(i/5u)*294.;
-  const double y=p.y0+2.+(i%5u)*24.;
-  return {x,y,x+286.,y+23.};
+  const double x=p.x0+5.+(i/5u)*381.;
+  const double y=p.y0+4.+(i%5u)*25.;
+  return {x,y,x+374.,y+23.};
  }
  static constexpr Rect complexityLabel(double h) noexcept {
-  const auto p=panel(h);return {p.x0+25.,p.y0+78.,p.x0+160.,p.y0+103.};
+  const auto p=panel(h);return {p.x0+24.,p.y0+81.,p.x0+156.,p.y0+108.};
  }
  static constexpr Rect complexityMinus(double h) noexcept {
-  const auto p=panel(h);return {p.x0+166.,p.y0+78.,p.x0+202.,p.y0+103.};
+  const auto p=panel(h);return {p.x0+162.,p.y0+82.,p.x0+198.,p.y0+108.};
  }
  static constexpr Rect complexityValue(double h) noexcept {
-  const auto p=panel(h);return {p.x0+212.,p.y0+78.,p.x0+268.,p.y0+103.};
+  const auto p=panel(h);return {p.x0+207.,p.y0+82.,p.x0+263.,p.y0+108.};
  }
  static constexpr Rect complexityPlus(double h) noexcept {
-  const auto p=panel(h);return {p.x0+278.,p.y0+78.,p.x0+314.,p.y0+103.};
+  const auto p=panel(h);return {p.x0+272.,p.y0+82.,p.x0+308.,p.y0+108.};
  }
- static constexpr Rect stepsLabel(double h) noexcept {
-  const auto p=panel(h);return {p.x0+388.,p.y0+78.,p.x1-25.,p.y0+103.};
+ static constexpr Rect lengthLabel(double h) noexcept {
+  const auto p=panel(h);return {p.x0+490.,p.y0+82.,p.x0+579.,p.y0+108.};
  }
+ // Native 83x32 Drumator caps: no horizontally stretched select control.
+ static constexpr Rect barOne(double h) noexcept {
+  const auto p=panel(h);return {p.x0+595.,p.y0+79.,p.x0+678.,p.y0+111.};
+ }
+ static constexpr Rect barTwo(double h) noexcept {
+  const auto p=panel(h);return {p.x0+690.,p.y0+79.,p.x0+773.,p.y0+111.};
+ }
+ // Keep the existing A/B/C summary preview, using all space left of the legend.
  static constexpr Rect previewRow(double h,std::size_t i) noexcept {
   const auto p=panel(h);
-  const double top=p.y0+109.+23.*static_cast<double>(i);
-  return {p.x0+25.,top,p.x1-25.,top+21.};
+  const double top=p.y0+120.+29.*static_cast<double>(i);
+  return {p.x0+24.,top,p.x1-164.,top+21.};
  }
- static constexpr Rect legend(double h,unsigned row) noexcept {
-  const auto p=panel(h);const double top=p.y0+182.+11.*row;
-  return {p.x0+24.,top,p.x1-24.,top+11.};
+ static constexpr double previewStepPitch(double h) noexcept {
+  const auto r=previewRow(h,0);return (r.x1-r.x0-145.)/32.;
+ }
+ static constexpr Rect previewStep(double h,std::size_t pat,std::size_t step) noexcept {
+  const auto r=previewRow(h,pat);
+  const double x=r.x0+133.+previewStepPitch(h)*static_cast<double>(step);
+  return {x,r.y0+4.,x+11.,r.y1-4.};
+ }
+ // One vertical, compact eight-instrument legend; no redundant footer legend.
+ static constexpr Rect legendPanel(double h) noexcept {
+  const auto p=panel(h);return {p.x1-152.,p.y0+105.,p.x1-22.,p.y0+214.};
+ }
+ static constexpr Rect legend(double h,std::size_t row) noexcept {
+  const auto p=legendPanel(h);
+  const double top=p.y0+3.+13.*static_cast<double>(row);
+  return {p.x0+8.,top,p.x1-6.,top+12.};
  }
  static constexpr Rect generate(double h) noexcept {
-  const auto p=panel(h);return {p.x0+157.,p.y0+210.,p.x0+252.,p.y0+235.};
+  const auto p=panel(h);return {p.x0+245.,p.y0+221.,p.x0+340.,p.y0+246.};
  }
  static constexpr Rect apply(double h) noexcept {
-  const auto p=panel(h);return {p.x0+272.,p.y0+210.,p.x0+367.,p.y0+235.};
+  const auto p=panel(h);return {p.x0+362.,p.y0+221.,p.x0+457.,p.y0+246.};
  }
  static constexpr Rect cancel(double h) noexcept {
-  const auto p=panel(h);return {p.x0+387.,p.y0+210.,p.x0+482.,p.y0+235.};
+  const auto p=panel(h);return {p.x0+479.,p.y0+221.,p.x0+574.,p.y0+246.};
  }
  static bool parseComplexity(const char* t,std::uint8_t& out) noexcept {
   if(!t)return false;
@@ -89,6 +115,10 @@ static_assert(UiBeatCreatorDialog::styleOption(254.,9).y1<=
               UiBeatCreatorDialog::styleMenu(254.).y1);
 static_assert(UiBeatCreatorDialog::styleOption(254.,9).x1<=
               UiBeatCreatorDialog::styleMenu(254.).x1);
-static_assert(UiBeatCreatorDialog::legend(254.,1).y1<
+static_assert(UiBeatCreatorDialog::legend(254.,7).y1<
               UiBeatCreatorDialog::generate(254.).y0);
+static_assert(UiBeatCreatorDialog::previewRow(254.,2).x1+12.<=
+              UiBeatCreatorDialog::legendPanel(254.).x0);
+static_assert(UiBeatCreatorDialog::previewStep(254.,0,31).x1<
+              UiBeatCreatorDialog::previewRow(254.,0).x1);
 } // namespace drumator

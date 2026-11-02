@@ -302,8 +302,52 @@ int main(){
               cell.y1<=other.y0||other.y1<=cell.y0);
       }
     }
+    // BC43: full-size native Drumator length caps, disjoint hit boxes.
     CHECK(BC::styleMenu(hostHeight).y1<BC::generate(hostHeight).y0);
-    CHECK(BC::legend(hostHeight,1).y1<BC::apply(hostHeight).y0);
+    CHECK(BC::styleLabel(hostHeight).x1<BC::styleSelect(hostHeight).x0);
+    CHECK(BC::styleSelect(hostHeight).x1<BC::notice(hostHeight).x0);
+    CHECK(BC::barOne(hostHeight).x1<BC::barTwo(hostHeight).x0);
+    CHECK(BC::barOne(hostHeight).x1-BC::barOne(hostHeight).x0==83.);
+    CHECK(BC::barTwo(hostHeight).x1-BC::barTwo(hostHeight).x0==83.);
+    CHECK(BC::barOne(hostHeight).y1-BC::barOne(hostHeight).y0==32.);
+    CHECK(BC::barTwo(hostHeight).y1-BC::barTwo(hostHeight).y0==32.);
+    for(const auto r:{BC::styleSelect(hostHeight),BC::complexityMinus(hostHeight),
+                      BC::complexityValue(hostHeight),BC::complexityPlus(hostHeight),
+                      BC::barOne(hostHeight),BC::barTwo(hostHeight)}){
+      CHECK(r.x0>=panel.x0&&r.x1<=panel.x1);
+      CHECK(r.y0>=panel.y0&&r.y1<=panel.y1);
+    }
+    CHECK(BC::complexityMinus(hostHeight).x1<
+          BC::complexityValue(hostHeight).x0);
+    CHECK(BC::complexityValue(hostHeight).x1<
+          BC::complexityPlus(hostHeight).x0);
+    CHECK(BC::legendPanel(hostHeight).x1<panel.x1);
+    CHECK(BC::legendPanel(hostHeight).y1<BC::generate(hostHeight).y0);
+    for(std::size_t i=0;i<8;++i){
+      const auto row=BC::legend(hostHeight,i);
+      const auto area=BC::legendPanel(hostHeight);
+      CHECK(row.x0>=area.x0&&row.x1<=area.x1);
+      CHECK(row.y0>=area.y0&&row.y1<=area.y1);
+      if(i)CHECK(BC::legend(hostHeight,i-1).y1<=row.y0);
+      for(std::size_t p=0;p<3;++p)
+        CHECK(BC::previewRow(hostHeight,p).x1+12.<=row.x0);
+    }
+    for(std::size_t p=0;p<3;++p){
+      const auto preview=BC::previewRow(hostHeight,p);
+      CHECK(preview.x0>=panel.x0&&preview.x1<=panel.x1);
+      CHECK(preview.y0>=panel.y0&&preview.y1<BC::generate(hostHeight).y0);
+      for(std::size_t step=0;step<32;++step){
+        const auto cell=BC::previewStep(hostHeight,p,step);
+        CHECK(cell.x0>=preview.x0&&cell.x1<=preview.x1);
+        CHECK(cell.y0>=preview.y0&&cell.y1<=preview.y1);
+        if(step)CHECK(BC::previewStep(hostHeight,p,step-1).x1<=cell.x0);
+      }
+    }
+    // All three action caps remain 95x25, equally spaced and centered.
+    CHECK(BC::apply(hostHeight).x0-BC::generate(hostHeight).x1==
+          BC::cancel(hostHeight).x0-BC::apply(hostHeight).x1);
+    CHECK(BC::generate(hostHeight).x0+BC::cancel(hostHeight).x1==
+          panel.x0+panel.x1-1.);
     for(const auto r:{BC::generate(hostHeight),BC::apply(hostHeight),
                       BC::cancel(hostHeight)})
       CHECK(r.x1-r.x0==95.&&r.y1-r.y0==25.);
@@ -316,7 +360,7 @@ int main(){
   CHECK(!BC::parseComplexity("-1",complexity));
   CHECK(!BC::parseComplexity("20abc",complexity));
   CHECK(drumator::BeatCreator::styleNames.size()==10);
-  std::cout<<"BC42 10-style dropdown, minimum viewport, edit and action geometry PASS\n";
+  std::cout<<"BC43 dark selector, 32-step previews, eight-row legend and button geometry PASS\n";
   std::cout<<"V1.0.1 independent GUI hit-map PASS\n";
   return 0;
 }
