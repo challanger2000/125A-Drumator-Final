@@ -75,7 +75,7 @@ struct UiV101Layout final {
     {637.,headerButtonY,720.,headerButtonY+headerButtonHeight}
   }};
   static constexpr double headerKnobY=114.,headerKnobRadius=18.;
-  static constexpr std::array<double,3> headerKnobCenters{{785.,907.,1029.}};
+  static constexpr std::array<double,3> headerKnobCenters{{849.,941.,1033.}};
   static constexpr Rect headerKnob(std::size_t i) noexcept{
     return {headerKnobCenters[i]-headerKnobRadius,
             headerKnobY-headerKnobRadius,
