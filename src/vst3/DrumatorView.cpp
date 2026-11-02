@@ -1034,7 +1034,17 @@ void DrumatorView::pollMeter() noexcept {
  if(observedR>0.f&&observedR>=holdMeterR_){holdMeterR_=observedR;holdTicksR_=18;}
  else if(holdTicksR_>0)--holdTicksR_;
  else holdMeterR_=std::max(mainMeterR_,holdMeterR_*0.86f);
- invalid();
+ // PERF01: avoid full 1280px hardware repaints at every meter update.
+ // Ordinary playback changes only the two upper-right level LEDs.
+ // Preserve animated amber feedback and clear it after expiry.
+ if(v101Mode_&&!sampleEditorOpen_){
+   const auto now=std::chrono::steady_clock::now();
+   const bool feedbackActive=now<buttonFlashUntil_||
+                             now<settingsFeedbackUntil_;
+   if(feedbackActive||meterFeedbackLastTick_)invalid();
+   else invalidRect({1132.,99.,1262.,134.});
+   meterFeedbackLastTick_=feedbackActive;
+ }else invalid(); // Legacy and WAVE editors unchanged.
 }
 bool DrumatorView::attached(VSTGUI::CView* parent) {
  if(v101Mode_)v101_.syncZoomFromHost(editor_.getZoomFactor());
@@ -1043,7 +1053,7 @@ bool DrumatorView::attached(VSTGUI::CView* parent) {
    v101LastRowsNotified_=controller_.visibleRows();
    adjustEditorHeight();
    meterTimer_=VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
-     [this](VSTGUI::CVSTGUITimer*){if(getFrame())pollMeter();},33);
+     [this](VSTGUI::CVSTGUITimer*){if(getFrame())pollMeter();},50);
  }
  return result;
 }

@@ -62,6 +62,7 @@ private:
  float holdMeterL_{0.f},holdMeterR_{0.f};
  unsigned holdTicksL_{0},holdTicksR_{0};
  std::uint64_t meterSequenceSeen_{0};
+ bool meterFeedbackLastTick_{false}; // final clearing frame for amber flash
  void pollMeter() noexcept;
  Controller& controller_;
  UiV101Interaction v101_;

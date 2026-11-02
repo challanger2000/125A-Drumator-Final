@@ -641,7 +641,7 @@ struct UiV101NativePreview final {
               "HUMANIZE",humanText);
    headerDial(c,knobSprite,L::headerKnobCenters[2],L::headerKnobY,scene.master/200.,
               "MASTER",masterText);
-   // Actual 33 ms sampled post-master MAIN L/R levels from the live view,
+   // Actual timer-sampled post-master MAIN L/R levels from the live view,
    // never decorative LEDs. Clipping is the real Controller meter bitfield.
    // Finish the LED meter well at the same x=1260 dark-panel edge as
    // the heading/rack surround beneath it, not short of the border.
