@@ -104,7 +104,7 @@ class BeatCreator final {
    Motif{bits("0 4 8 12"), bits("12"), bits("0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15"), bits(""), bits("")}, // 3
    Motif{bits("0 4 8 12 15"), bits("12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 4
    Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 3 4 6 7 8 10 11 12 14 15"), bits(""), bits("")}, // 5
-   Motif{bits("0 4 8 12"), bits("12"), bits("0 4 6 8 10 12 14"), bits("2"), bits(""), bits("")}, // 6
+   Motif{bits("0 4 8 12"), bits("12"), bits("0 4 6 8 10 12 14"), bits("2"), bits("")}, // 6
    Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("14"), bits("")}, // 7
    Motif{bits("0 4 8 11 12"), bits("12"), bits("0 3 4 7 8 11 12 15"), bits(""), bits("")}, // 8
   }},
