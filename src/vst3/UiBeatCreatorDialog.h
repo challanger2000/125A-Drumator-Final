@@ -36,10 +36,10 @@ struct UiBeatCreatorDialog final {
  static constexpr Rect styleOption(double h,std::size_t i) noexcept {
   const auto p=styleMenu(h);
   constexpr double inset=5.,gutter=8.;
-  const double width=(p.x1-p.x0-2.*inset-gutter)*.5;
-  const double x=p.x0+inset+static_cast<double>(i/5u)*(width+gutter);
+  const double cellWidth=(p.x1-p.x0-2.*inset-gutter)*.5;
+  const double x=p.x0+inset+static_cast<double>(i/5u)*(cellWidth+gutter);
   const double y=p.y0+4.+static_cast<double>(i%5u)*25.;
-  return {x,y,x+width,y+23.};
+  return {x,y,x+cellWidth,y+23.};
  }
  static constexpr Rect complexityLabel(double h) noexcept {
   const auto p=panel(h);return {p.x0+24.,p.y0+81.,p.x0+156.,p.y0+108.};
