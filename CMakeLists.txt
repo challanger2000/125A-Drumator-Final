@@ -217,6 +217,23 @@ if(BUILD_TESTING)
   endif()
   add_test(NAME drumator_kit_tests COMMAND drumator_kit_tests)
 
+  # BC40 standalone electronic Beat Creator: no SDK, samples or host clock.
+  foreach(_name beat_creator velocity_stroke_shape)
+    if(_name STREQUAL "beat_creator")
+      set(_bc_source BeatCreatorTests.cpp)
+    else()
+      set(_bc_source VelocityStrokeShapeTests.cpp)
+    endif()
+    add_executable(drumator_${_name}_tests tests/${_bc_source})
+    target_link_libraries(drumator_${_name}_tests PRIVATE drumator_core)
+    if(MSVC)
+      target_compile_options(drumator_${_name}_tests PRIVATE /W4 /WX)
+    else()
+      target_compile_options(drumator_${_name}_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    endif()
+    add_test(NAME drumator_${_name}_tests COMMAND drumator_${_name}_tests)
+  endforeach()
+
   # Build ALL local CTest executables before invoking ctest. A stale
   # explicit GitHub Actions target list previously omitted the WAV test.
   add_custom_target(drumator_test_suite)
