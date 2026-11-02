@@ -7,6 +7,7 @@
 #include "core/WaveformExtremaIndex.h"
 #include "core/PatternOperations.h"
 #include "core/PatternUndo.h"
+#include "core/BeatCreatorTransaction.h"
 #include "core/KitEditGeneration.h"
 #include "core/VisibleRows.h"
 #include "core/KitState.h"
@@ -114,7 +115,17 @@ public:
  bool duplicateCurrentPattern(bool* selectedCopy=nullptr);
  bool clearCurrentPattern();
  bool undoCurrentPattern();
- bool canUndoCurrentPattern() noexcept {return undo_.available(currentPattern());}
+ bool prepareBeatCreator(const BeatCreatorSettings& settings,std::uint32_t seed) noexcept;
+ const BeatCreatorPreview* beatCreatorDraft() const noexcept {
+  return beatPreview_.valid?&beatPreview_:nullptr;
+ }
+ std::uint8_t beatCreatorOccupiedMask() const noexcept;
+ void cancelBeatCreator() noexcept {beatPreview_.valid=false;}
+ bool applyBeatCreator(bool allowOccupied);
+ bool undoBeatCreator();
+ bool canUndoCurrentPattern() noexcept {
+  return (currentPattern()<3&&beatGroupUndo_.valid)||undo_.available(currentPattern());
+ }
  // One-shot, per-instrument edit for the forthcoming RANDOM VEL button.
  // Modifies only occupied steps in the active pattern/active bar length,
  // persisted through PatternReplace as one undoable operation.
@@ -187,6 +198,11 @@ private:
  PatternSteps clipboard_{};
  std::uint8_t clipboardLength_{32};
  PatternUndo undo_{};
+ BeatCreatorPreview beatPreview_{};
+ BeatTriple beatPreviewBefore_{};
+ BeatLengths beatPreviewLengths_{};
+ KitEditGeneration::Token beatPreviewGeneration_{0};
+ BeatCreatorTransaction beatGroupUndo_{};
  PatternSteps strokeBefore_{};
  KitEditGeneration editGeneration_{};
  KitEditGeneration::Token strokeGeneration_{0};
@@ -195,6 +211,10 @@ private:
  bool clipboardValid_{false};
  std::array<std::uint8_t,kSteps> rowClipboard_{};
  bool rowClipboardValid_{false};
+ BeatTriple snapshotBeatTriple() const noexcept;
+ bool sendBeatTriple(const BeatTriple& before,const BeatTriple& after,
+                     const BeatLengths& beforeLengths,const BeatLengths& afterLengths);
+ void invalidateBeatGroupForEdit(std::size_t pattern) noexcept;
  bool replacePattern(std::size_t p,const PatternSteps& data,bool remember=true,
                      std::uint8_t requestedLength=0);
  void rememberUndoStep(std::size_t p,std::size_t r,std::size_t s,std::uint8_t next);
