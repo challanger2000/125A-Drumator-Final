@@ -2,7 +2,11 @@
 
 ## Branch and baseline
 Isolated branch `develop/beat-creator-10-styles-20261102` was created **from main (project version 1.0.1)**.
-The exact commercial archive `125A_Drumator_v1.0.1_Gumroad_Final.zip` has **not yet been supplied/compared**.
+The existing Library contains the commercially packaged v1.0.1 release:
+- `125A_Drumator_v1.0.1_Gumroad_Update_2026-10-31.zip`
+- `Drumator_1.0.1_Gumroad_NEU.zip`
+These two archives have **identical SHA-256** `cb263d6b3a66a125b967661942f36e3011b2ce8c3995325d0e12cceccf2084eb` and each contains 26 files, including the Windows x64 VST3, two manuals, build/checksum information and START-HERE-DE. ZIP CRC integrity check passed.
+The earlier `125A_Drumator_v1.0.1_Gumroad_Final_GUI_Fixes.zip` is different (SHA-256 `f455403523951bdc829c73eaca41437f1ed351ec374c93dd0c291cf774e136d7`). The **October 31 package** is the verified latest available release baseline, not a missing attachment.
 Therefore **do not ship this branch as a Gumroad update** before binary-baseline reconciliation and Studio One manual QA.
 No changes were made to WAV export, host tempo, processor, controller, sample loader or VST3 GUI in this milestone.
 
@@ -52,7 +56,7 @@ early break conservation and occupied-pattern confirmation.
 BC30 paint/line/curve/accent calculations from the previous prototype.
 
 ## Pending VST3 integration (intentionally NOT done in BC40)
-1. User's exact `125A_Drumator_v1.0.1_Gumroad_Final.zip` is still required to verify baseline.
+1. Compare the already recovered, verified 2026-10-31 Gumroad release archive to the new VST3 build; do not ask for the ZIP again.
 2. Port the already reviewed Beat Creator controller/processor transaction with minimal changes.
 3. Port the BC30 velocity **mouse gesture UI** (not just its isolated algorithm), preserving existing v1.0.1 features.
 4. Implement compact genre dropdown, permanently visible slot legend, no Preview Kit button or bundled kit code.
