@@ -1,4 +1,5 @@
 // 125A Drumator Beat Creator V2 – electronic-only rhythm engine.
+// BC56: audited ten genre vocabularies; rhythmic signatures enforced by QA.
 // Deliberately independent of sample loading, kits, VST3 clocks and audio export.
 // Notes represent eight conventional slot roles, never particular WAV files.
 #pragma once
@@ -40,12 +41,12 @@ class BeatCreator final {
  static inline const std::array<std::array<Motif,8>,10> motifs_{{
   {{ // 80s SYNTHPOP: eight authored rhythmic archetypes
    Motif{bits("0 8"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 1
-   Motif{bits("0 6 8"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 2
-   Motif{bits("0 8 11"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 3
+   Motif{bits("0 6 8"), bits("4 12"), bits("0 2 4 6 8 10 12 14 15"), bits(""), bits("")}, // 2
+   Motif{bits("0 8 11"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("14"), bits("")}, // 3
    Motif{bits("0 7 8 14"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 4
    Motif{bits("0 8 10"), bits("4 12"), bits("0 2 4 6 8 10 12"), bits("14"), bits("")}, // 5
    Motif{bits("0 8"), bits("4 12"), bits("0 4 8 12"), bits("6 14"), bits("")}, // 6
-   Motif{bits("0 3 8 11"), bits("4 12"), bits("0 2 6 8 10 14"), bits(""), bits("12")}, // 7
+   Motif{bits("0 3 8 11"), bits("4 12"), bits("0 2 3 6 8 10 14"), bits(""), bits("12")}, // 7
    Motif{bits("0 8 15"), bits("4 12"), bits("0 2 4 8 10 12 14"), bits("6"), bits("")}, // 8
   }},
   {{ // ITALO DISCO: eight authored rhythmic archetypes
@@ -62,7 +63,7 @@ class BeatCreator final {
    Motif{bits("0 8"), bits("4 12"), bits("0 4 8 12"), bits("14"), bits("")}, // 1
    Motif{bits("0 8 10"), bits("4 12"), bits("0 2 4 8 10 12 14"), bits(""), bits("")}, // 2
    Motif{bits("0 7 8"), bits("4 12"), bits("0 4 8 12"), bits("6 14"), bits("")}, // 3
-   Motif{bits("0 8 11"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 4
+   Motif{bits("0 8 11"), bits("4 12"), bits("0 4 8 10 12 14"), bits(""), bits("")}, // 4
    Motif{bits("0 4 8 12"), bits("4 12"), bits("0 4 8 12"), bits("14"), bits("")}, // 5
    Motif{bits("0 8 14"), bits("4 12"), bits("0 2 4 6 8 10 12"), bits("14"), bits("")}, // 6
    Motif{bits("0 8"), bits("4 12"), bits("0 4 6 8 12 14"), bits(""), bits("12")}, // 7
@@ -70,13 +71,13 @@ class BeatCreator final {
   }},
   {{ // EBM: eight authored rhythmic archetypes
    Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 1
-   Motif{bits("0 4 7 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 2
-   Motif{bits("0 3 4 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 3
-   Motif{bits("0 4 8 11 12"), bits("4 12"), bits("0 3 4 7 8 11 12 15"), bits(""), bits("")}, // 4
-   Motif{bits("0 4 8 10 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 5
-   Motif{bits("0 4 8 12 15"), bits("4 12"), bits("0 4 6 8 10 12 14"), bits(""), bits("")}, // 6
+   Motif{bits("0 4 7 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("14"), bits("")}, // 2
+   Motif{bits("0 3 4 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("12")}, // 3
+   Motif{bits("0 4 8 11 12"), bits("4 12"), bits("0 3 4 7 8 11 12 15"), bits("6 14"), bits("")}, // 4
+   Motif{bits("0 4 8 10 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("4 12")}, // 5
+   Motif{bits("0 4 8 12 15"), bits("4 12"), bits("0 4 6 8 10 12 14"), bits("14"), bits("")}, // 6
    Motif{bits("0 4 6 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 7
-   Motif{bits("0 4 8 12 14"), bits("4 12"), bits("0 2 4 7 8 10 12 15"), bits(""), bits("")}, // 8
+   Motif{bits("0 4 8 12 14"), bits("4 12"), bits("0 2 4 7 8 10 12 15"), bits("14"), bits("")}, // 8
   }},
   {{ // 90s EURODANCE: driving offbeat OHH with distinct CHH pickups
    // Open hats replace closed hats at the same step, never double them.
@@ -100,14 +101,14 @@ class BeatCreator final {
    Motif{bits("0 4 8 12"), bits("4 12"), bits("0 4 8 12 15"), bits("2 6 10 14"), bits("4 12 15")}, // 8
   }},
   {{ // TECHNO: eight authored rhythmic archetypes
-   Motif{bits("0 4 8 12"), bits("12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 1
-   Motif{bits("0 4 8 12"), bits("4 12"), bits("0 3 4 7 8 11 12 15"), bits(""), bits("")}, // 2
+   Motif{bits("0 4 8 12"), bits("12"), bits("0 2 4 6 8 10 12 14"), bits("6 14"), bits("")}, // 1
+   Motif{bits("0 4 8 12"), bits("4 12"), bits("0 3 4 7 8 11 12 15"), bits("2 10 14"), bits("")}, // 2
    Motif{bits("0 4 8 12"), bits("12"), bits("0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15"), bits(""), bits("")}, // 3
-   Motif{bits("0 4 8 12 15"), bits("12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 4
-   Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 3 4 6 7 8 10 11 12 14 15"), bits(""), bits("")}, // 5
+   Motif{bits("0 4 8 12 15"), bits("12"), bits("0 2 4 6 8 10 12 14"), bits("14"), bits("")}, // 4
+   Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 3 4 6 7 8 10 11 12 14 15"), bits("6 14"), bits("")}, // 5
    Motif{bits("0 4 8 12"), bits("12"), bits("0 4 6 8 10 12 14"), bits("2"), bits("")}, // 6
    Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("14"), bits("")}, // 7
-   Motif{bits("0 4 8 11 12"), bits("12"), bits("0 3 4 7 8 11 12 15"), bits(""), bits("")}, // 8
+   Motif{bits("0 4 8 11 12"), bits("12"), bits("0 3 4 7 8 11 12 15"), bits("2 6 10 14"), bits("")}, // 8
   }},
   {{ // TRANCE: eight authored rhythmic archetypes
    Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("6 14"), bits("")}, // 1
@@ -121,23 +122,23 @@ class BeatCreator final {
   }},
   {{ // HIP-HOP: eight authored rhythmic archetypes
    Motif{bits("0 7 10"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 1
-   Motif{bits("0 6 10"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 2
-   Motif{bits("0 3 8 10"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 3
-   Motif{bits("0 8 11 15"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 4
-   Motif{bits("0 7 10 14"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 5
-   Motif{bits("0 6 8 11"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 6
-   Motif{bits("0 3 10 15"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 7
-   Motif{bits("0 8 10 14"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 8
+   Motif{bits("0 6 10"), bits("4 12"), bits("0 2 4 6 8 10 12 14 15"), bits(""), bits("")}, // 2
+   Motif{bits("0 3 8 10"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("14"), bits("")}, // 3
+   Motif{bits("0 8 11 15"), bits("4 12"), bits("0 2 4 6 7 8 10 12 14"), bits(""), bits("")}, // 4
+   Motif{bits("0 7 10 14"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("12")}, // 5
+   Motif{bits("0 6 8 11"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("6"), bits("")}, // 6
+   Motif{bits("0 3 10 15"), bits("4 12 15"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 7
+   Motif{bits("0 8 10 14"), bits("4 12"), bits("0 2 3 4 6 8 10 11 12 14 15"), bits(""), bits("")}, // 8
   }},
   {{ // DRUM & BASS: eight authored rhythmic archetypes
-   Motif{bits("0 10"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 1
-   Motif{bits("0 7 10"), bits("4 12"), bits("0 2 4 6 8 10 12 14 15"), bits(""), bits("")}, // 2
-   Motif{bits("0 6 10 15"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 3
-   Motif{bits("0 8 10"), bits("4 12"), bits("0 2 3 4 6 8 10 11 12 14"), bits(""), bits("")}, // 4
-   Motif{bits("0 3 10"), bits("4 12"), bits("0 2 4 6 8 10 12 14 15"), bits(""), bits("")}, // 5
-   Motif{bits("0 6 10 14"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 6
-   Motif{bits("0 10 15"), bits("4 12"), bits("0 2 4 6 8 10 12 13 14"), bits(""), bits("")}, // 7
-   Motif{bits("0 7 11"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 8
+   Motif{bits("0 10"), bits("4 12"), bits("0 2 4 6 7 8 10 11 12 14 15"), bits("14"), bits("")}, // 1
+   Motif{bits("0 7 10"), bits("4 12 15"), bits("0 2 3 4 6 8 10 11 12 14 15"), bits(""), bits("")}, // 2
+   Motif{bits("0 6 10 15"), bits("4 11 12"), bits("0 2 4 6 8 10 12 14 15"), bits("6 14"), bits("")}, // 3
+   Motif{bits("0 8 10"), bits("4 12 15"), bits("0 2 3 4 6 8 10 11 12 14"), bits(""), bits("")}, // 4
+   Motif{bits("0 3 10"), bits("4 11 12"), bits("0 2 3 4 6 7 8 10 11 12 14 15"), bits("6"), bits("")}, // 5
+   Motif{bits("0 6 10 14"), bits("4 12 15"), bits("0 2 4 6 7 8 10 11 12 14"), bits(""), bits("")}, // 6
+   Motif{bits("0 10 15"), bits("4 11 12"), bits("0 2 4 6 8 10 12 13 14"), bits(""), bits("")}, // 7
+   Motif{bits("0 7 11"), bits("4 12 15"), bits("0 2 3 4 6 7 8 10 11 12 14 15"), bits("6 14"), bits("")}, // 8
   }}
  }};
  struct Rng {

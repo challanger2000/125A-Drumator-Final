@@ -167,6 +167,79 @@ int main(){
      }
     }
    }
+   // BC56 musical authenticity gate: structural correctness alone did
+   // not catch Eurodance with 7/8 missing open hats, or Hip-Hop and D&B
+   // with indistinguishable uniform eighth-note hats.
+   // Audit all eight authored motifs at the default user-facing 35%.
+   struct Signature{
+    unsigned open=0,hat16=0,clap=0,kickSync=0,snareGhost=0;
+    unsigned floor=0,sparseKick=0,sparseHat=0;
+   };
+   const auto signature=[&](BeatStyle target)->Signature{
+    Signature out{};
+    for(unsigned motif=0;motif<8u;++motif){
+     const auto p=BeatCreator::generate({target,35,16},motif);
+     unsigned kickCount=0,hatCount=0;
+     bool hasOpen=false,has16=false,hasClap=false;
+     bool hasSyncKick=false,hasGhost=false,hasFloor=true;
+     for(unsigned step=0;step<16u;++step){
+      const bool kick=v(p,BeatRole::BD,step)>0u;
+      const bool chh=v(p,BeatRole::CHH,step)>0u;
+      const bool open=v(p,BeatRole::OHH,step)>0u;
+      kickCount+=kick;
+      hatCount+=chh||open;
+      hasSyncKick|=kick&&(step%4u)!=0u;
+      has16|=chh&&(step%2u)!=0u;
+      hasClap|=v(p,BeatRole::Clap,step)>0u;
+      hasGhost|=v(p,BeatRole::Snare,step)>0u&&step!=4u&&step!=12u;
+      if(step%4u==0u)hasFloor&=kick;
+      ck(!open||(step%4u)==2u,
+         "authored open hi-hat outside offbeat");
+      hasOpen|=open;
+     }
+     out.open+=hasOpen;
+     out.hat16+=has16;
+     out.clap+=hasClap;
+     out.kickSync+=hasSyncKick;
+     out.snareGhost+=hasGhost;
+     out.floor+=hasFloor;
+     out.sparseKick+=kickCount<=3u;
+     out.sparseHat+=hatCount<=6u;
+    }
+    return out;
+   };
+   const auto synthpop=signature(BeatStyle::Synthpop80s);
+   ck(synthpop.sparseKick>=6u&&synthpop.open>=3u,
+      "Synthpop lost its restrained 80s kick / occasional open hat");
+   const auto italo=signature(BeatStyle::ItaloDisco);
+   ck(italo.floor==8u&&italo.open>=6u&&italo.clap>=6u,
+      "Italo Disco lost four-to-floor, offbeat OHH or disco claps");
+   const auto synthwave=signature(BeatStyle::Synthwave);
+   ck(synthwave.sparseKick>=6u&&synthwave.sparseHat>=4u&&synthwave.open>=4u,
+      "Synthwave lost its spacious halftime / retro hats");
+   const auto ebm=signature(BeatStyle::EBM);
+   ck(ebm.floor==8u&&ebm.kickSync>=5u&&ebm.open>=3u&&ebm.clap>=2u,
+      "EBM lost mechanical kick syncopation or industrial accents");
+   const auto eurodance=signature(BeatStyle::Eurodance90s);
+   ck(eurodance.floor==8u&&eurodance.open==8u&&eurodance.clap==8u,
+      "Eurodance lost its signature driving offbeat hats and claps");
+   const auto house=signature(BeatStyle::House);
+   ck(house.floor==8u&&house.open==8u&&house.clap==8u,
+      "House lost four-to-floor, offbeat OHH or house backbeat");
+   const auto techno=signature(BeatStyle::Techno);
+   ck(techno.floor==8u&&techno.open>=6u&&techno.hat16>=3u&&techno.clap<=2u,
+      "Techno lost offbeat hats or its tight 16th percussion");
+   const auto trance=signature(BeatStyle::Trance);
+   ck(trance.floor==8u&&trance.open==8u&&trance.clap<=2u,
+      "Trance lost driving 4/4 and bright open hi-hat pulse");
+   const auto hiphop=signature(BeatStyle::HipHop);
+   ck(hiphop.floor==0u&&hiphop.kickSync==8u&&hiphop.hat16>=3u&&
+      hiphop.open>=1u&&hiphop.open<=3u,
+      "Hip-Hop lost its laidback syncopation or hat vocabulary");
+   const auto dnb=signature(BeatStyle::DrumAndBass);
+   ck(dnb.floor==0u&&dnb.kickSync==8u&&dnb.hat16>=6u&&
+      dnb.snareGhost>=5u&&dnb.open>=3u,
+      "Drum & Bass lost its breakbeat ghost snares or rapid hats");
    // Every two-bar phrase must develop, not repeat, bar one.
    for(unsigned seed=0;seed<32u;++seed) {
     const auto p=BeatCreator::preview({s,35,32},seed);
