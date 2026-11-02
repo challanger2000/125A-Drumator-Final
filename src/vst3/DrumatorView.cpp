@@ -1201,7 +1201,7 @@ bool DrumatorView::applyV101Menu(int option) {
  }
  return false;
 }
-bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
+bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine,bool accentGesture) {
  if(v101Menu_!=UiV101Popup::Kind::None) {
    const auto first=v101_.state().firstRow;
    const bool valid=v101MenuRow_>=first&&
@@ -1252,7 +1252,7 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine) {
  // Hold local resize transaction during synchronous Controller fan-out.
  v101LocalRowTransaction_=true;
  UiV101Interaction::Result result;
- try {result=v101_.down(x,y,erase,fine);}
+ try {result=v101_.down(x,y,erase,fine,accentGesture);}
  catch(...) {v101LocalRowTransaction_=false;throw;}
  v101LocalRowTransaction_=false;
  using R=UiV101Interaction::Result;
@@ -2613,7 +2613,8 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
  if(v101Mode_&&songEditorOpen_&&
     (v101Menu_!=UiV101Popup::Kind::None||v101_.state().zoomOpen)){
    (void)v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
-                       (buttons&VSTGUI::kShift)!=0);
+                       (buttons&VSTGUI::kShift)!=0,
+                       (buttons&VSTGUI::kAlt)!=0);
    return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
  }
  // SONG footer EXPORT must have identical hit behavior to MAIN.
@@ -2621,7 +2622,8 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
     UiV101Layout::songFooterExport.hit(
       x,y-(getViewSize().getHeight()-UiV101Layout::footer))){
    (void)v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
-                       (buttons&VSTGUI::kShift)!=0);
+                       (buttons&VSTGUI::kShift)!=0,
+                       (buttons&VSTGUI::kAlt)!=0);
    return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
  }
  if(v101Mode_&&songEditorOpen_&&y<UiV101Layout::header){
@@ -2648,7 +2650,8 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
      return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
    }
    if(v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
-                    (buttons&VSTGUI::kShift)!=0))
+                    (buttons&VSTGUI::kShift)!=0,
+                     (buttons&VSTGUI::kAlt)!=0))
      return VSTGUI::kMouseEventHandled;
    return VSTGUI::kMouseEventNotHandled;
  }
@@ -2675,7 +2678,8 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
      }
    }
    if(!v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
-                     (buttons&VSTGUI::kShift)!=0))
+                     (buttons&VSTGUI::kShift)!=0,
+                     (buttons&VSTGUI::kAlt)!=0))
      return VSTGUI::kMouseEventNotHandled;
    return VSTGUI::kMouseEventHandled;
  }
