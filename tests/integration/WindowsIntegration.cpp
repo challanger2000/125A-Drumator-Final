@@ -1286,6 +1286,26 @@ void testV101LiveEditor(){
  check(IntegrationAccess::viewCount(*f.c)==1,
        "V101 native host did not register exactly one Controller view");
  auto* view=IntegrationAccess::view(*f.c,0);
+ // PERF03: native attached VSTGUI pointer-hover regression.
+ // Passive movement should not dirty the huge hardware bitmap.
+ {
+   view->setDirty(false);
+   const auto before=IntegrationAccess::snapshot(*f.c);
+   for(int i=0;i<2000;++i){
+     VSTGUI::CPoint move(
+         400.+static_cast<double>(i%32)*25.,
+         L::header+15.+static_cast<double>(i%10)*L::rowHeight);
+     (void)view->onMouseMoved(move,VSTGUI::CButtonState{});
+   }
+   check(!view->isDirty()&&IntegrationAccess::snapshot(*f.c)==before,
+         "PERF03 idle hover over Step bank invalidated full GUI or changed kit");
+   for(int i=0;i<128;++i){
+     VSTGUI::CPoint move(420.+static_cast<double>(i%30)*24.,L::header+22.);
+     (void)view->onMouseMoved(move,VSTGUI::CButtonState(VSTGUI::kLButton));
+   }
+   check(!view->isDirty(),
+         "PERF03 inactive held-left pointer invalidated full chassis");
+ }
  check(view->zoomMatches(1.3)&&
        std::abs(hostEditor.getZoomFactor()-1.3)<.0001,
        "F09 new VST3 factory View must attach at real 130 percent zoom");

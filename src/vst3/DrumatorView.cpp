@@ -3674,15 +3674,14 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseMoved(
    }
    return VSTGUI::kMouseEventHandled;
  }
- if(v101Mode_&&songEditorOpen_){
-   if(buttons&VSTGUI::kLButton)(void)v101_.move(pos.x,pos.y);
-   else (void)v101_.up();
-   invalid();return VSTGUI::kMouseEventHandled;
- }
- if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_){
-   if(buttons&VSTGUI::kLButton)(void)v101_.move(pos.x,pos.y);
-   else (void)v101_.up();
-   invalid();return VSTGUI::kMouseEventHandled;
+ if(v101Mode_&&(songEditorOpen_||!sampleEditorOpen_)){
+   // PERF03: idle cursor movement across the step bank must not trigger
+   // full chassis repaints. There is no mouse-hover-dependent painting.
+   // Real controller edits and completed gestures still repaint.
+   const auto result=(buttons&VSTGUI::kLButton)?
+       v101_.move(pos.x,pos.y):v101_.up();
+   if(result!=UiV101Interaction::Result::Ignored)invalid();
+   return VSTGUI::kMouseEventHandled;
  }
  if(draggingScroll_){
    if(buttons&VSTGUI::kLButton)(void)moveScroll(pos.y,scrollGrab_);
