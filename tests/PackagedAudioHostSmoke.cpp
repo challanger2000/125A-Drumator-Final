@@ -490,7 +490,11 @@ int main(int argc,char** argv) {
  require(savedKit.masterVolume==73&&savedKit.randomVelocity[2]==45&&
          savedKit.randomVelocity[0]==0,
          "DM13 master/random host messages not persisted");
- require(savedKit.visible==4,"Default four visible rows lost");
+ // BC48: fresh instances expose all eight Beat Creator instrument roles.
+ // Saved legacy four-row kits are still independently validated by the F07
+ // hidden-solo restore fixture below; only the factory default changed.
+ require(savedKit.visible==drumator::kDefaultVisibleRows&&savedKit.visible==8,
+         "BC48 factory eight visible rows not persisted");
  require(savedKit.songEnabled==1&&savedKit.chain.count()==3&&
          savedKit.chain.entry(0).pattern==0&&
          savedKit.chain.entry(1).pattern==1&&
