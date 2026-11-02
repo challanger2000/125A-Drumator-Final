@@ -261,6 +261,8 @@ void Controller::notifyViews(bool relayout) {
  }
 }
 void Controller::invalidateTransientEditsForRecall() noexcept {
+ beatPreview_.valid=false;
+ beatGroupUndo_.valid=false;
  invalidateWaveQuery();patternRequestPending_=false;
  strokePattern_=kPatterns;
  strokeGeneration_=0;
@@ -876,6 +878,7 @@ bool Controller::replacePattern(std::size_t p,const PatternSteps& data,bool reme
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
  
  if(ok){
+   invalidateBeatGroupForEdit(p);
    if(remember)undo_.capture(p,old,data,oldLength,nextLength);
    std::copy(data.begin(),data.end(),grid_.begin()+p*kRows*kSteps);
    patternLengths_[p]=nextLength;
@@ -884,6 +887,100 @@ bool Controller::replacePattern(std::size_t p,const PatternSteps& data,bool reme
  return ok;
 
  }catch(...) {return false;}
+}
+BeatTriple Controller::snapshotBeatTriple() const noexcept {
+ BeatTriple snapshot{};
+ for(std::size_t i=0;i<3;++i)
+  std::copy_n(grid_.begin()+i*kRows*kSteps,kRows*kSteps,snapshot[i].begin());
+ return snapshot;
+}
+void Controller::invalidateBeatGroupForEdit(std::size_t pattern) noexcept {
+ if(pattern>=3||!beatGroupUndo_.valid)return;
+ beatGroupUndo_.valid=false;
+ // Clear stale A/B/C histories; D-H retain their independent undo.
+ for(std::size_t i=0;i<3;++i)undo_.consume(i);
+}
+std::uint8_t Controller::beatCreatorOccupiedMask() const noexcept {
+ return BeatCreator::occupiedMask(snapshotBeatTriple());
+}
+bool Controller::prepareBeatCreator(const BeatCreatorSettings& settings,
+                                    std::uint32_t seed) noexcept {
+ beatPreview_.valid=false;
+ const auto next=BeatCreator::preview(settings,seed);
+ if(!next.valid)return false;
+ beatPreviewBefore_=snapshotBeatTriple();
+ for(std::size_t i=0;i<3;++i)beatPreviewLengths_[i]=patternLengths_[i];
+ beatPreviewGeneration_=editGeneration_.current();
+ beatPreview_=next;
+ return true;
+}
+void Controller::cancelBeatCreator() noexcept {
+ beatPreview_.valid=false;
+}
+bool Controller::sendBeatTriple(const BeatTriple& expected,
+                                const BeatTriple& next,
+                                const BeatLengths& expectedLengths,
+                                const BeatLengths& nextLengths) {
+ try{
+  ScopedActionMessage msg{allocateMessage()};
+  if(!msg.p)return false;
+  msg.p->setMessageID("Drumator.BeatCreatorTriple");
+  auto* attr=msg.p->getAttributes();
+  if(!attr||attr->setBinary("Before",expected.data(),
+          static_cast<Steinberg::uint32>(sizeof(expected)))!=Steinberg::kResultOk||
+     attr->setBinary("After",next.data(),
+          static_cast<Steinberg::uint32>(sizeof(next)))!=Steinberg::kResultOk||
+     attr->setBinary("BeforeLengths",expectedLengths.data(),3)!=Steinberg::kResultOk||
+     attr->setBinary("AfterLengths",nextLengths.data(),3)!=Steinberg::kResultOk)
+     return false;
+  if(sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
+  for(std::size_t i=0;i<3;++i){
+   std::copy(next[i].begin(),next[i].end(),grid_.begin()+i*kRows*kSteps);
+   patternLengths_[i]=nextLengths[i];
+  }
+  try{notifyViews(false);}catch(...){}
+  return true;
+ }catch(...){return false;}
+}
+bool Controller::applyBeatCreator(bool allowOccupied) {
+ if(!beatPreview_.valid||
+    !editGeneration_.matches(beatPreviewGeneration_))
+  return false;
+ if(strokePattern_<kPatterns)endVelocityStroke(true,strokeOwner_);
+ const auto existing=snapshotBeatTriple();
+ BeatLengths lengths{};
+ for(std::size_t i=0;i<3;++i)lengths[i]=patternLengths_[i];
+ // A preview based on an old kit or edited pattern must not be accepted.
+ if(existing!=beatPreviewBefore_||lengths!=beatPreviewLengths_)
+  return false;
+ const auto txn=BeatCreatorTransaction::prepare(
+     beatPreview_,existing,lengths,allowOccupied);
+ if(!txn.valid)return false;
+ // Beat Creator owns rhythms, never instruments. No sample, row label,
+ // volume, routing, visible-row count or kit resource changes on APPLY.
+ if(!sendBeatTriple(txn.before,txn.after,txn.oldLengths,txn.newLengths))
+  return false;
+ for(std::size_t i=0;i<3;++i)undo_.consume(i);
+ beatGroupUndo_=txn;
+ beatPreview_.valid=false;
+ return true;
+}
+bool Controller::undoBeatCreator() {
+ if(!beatGroupUndo_.valid)return false;
+ if(strokePattern_<kPatterns)endVelocityStroke(true,strokeOwner_);
+ const auto txn=beatGroupUndo_;
+ const auto current=snapshotBeatTriple();
+ BeatLengths lengths{};
+ for(std::size_t i=0;i<3;++i)lengths[i]=patternLengths_[i];
+ if(current!=txn.after||lengths!=txn.newLengths){
+  beatGroupUndo_.valid=false;
+  return false;
+ }
+ if(!sendBeatTriple(txn.after,txn.before,txn.newLengths,txn.oldLengths))
+  return false;
+ for(std::size_t i=0;i<3;++i)undo_.consume(i);
+ beatGroupUndo_.valid=false;
+ return true;
 }
 bool Controller::copyCurrentPattern() {
  const auto p=currentPattern();
@@ -952,6 +1049,7 @@ bool Controller::duplicateCurrentPattern(bool* selectedCopy){
 bool Controller::clearCurrentPattern(){return replacePattern(currentPattern(),{});}
 bool Controller::undoCurrentPattern(){
  const auto p=currentPattern();
+ if(p<3&&beatGroupUndo_.valid)return undoBeatCreator();
  if(strokePattern_<kPatterns)endVelocityStroke(true,strokeOwner_);
  const auto* old=undo_.snapshot(p);
  if(!old)return false;
@@ -1163,6 +1261,7 @@ bool Controller::setStepVelocity(std::size_t p,std::size_t r,std::size_t s,std::
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
  
  if(ok) {
+   invalidateBeatGroupForEdit(p);
    if(strokePattern_!=p)rememberUndoStep(p,r,s,next);
    grid_[(p*kRows+r)*kSteps+s]=next;
    try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }
