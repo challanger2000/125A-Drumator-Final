@@ -75,12 +75,12 @@ struct UiBeatCreatorDialog final {
  }
  // One vertical, compact eight-instrument legend; no redundant footer legend.
  static constexpr Rect legendPanel(double h) noexcept {
-  const auto p=panel(h);return {p.x1-152.,p.y0+105.,p.x1-22.,p.y0+214.};
+  const auto p=panel(h);return {p.x1-152.,p.y0+116.,p.x1-22.,p.y0+216.};
  }
  static constexpr Rect legend(double h,std::size_t row) noexcept {
   const auto p=legendPanel(h);
-  const double top=p.y0+3.+13.*static_cast<double>(row);
-  return {p.x0+8.,top,p.x1-6.,top+12.};
+  const double top=p.y0+3.+12.*static_cast<double>(row);
+  return {p.x0+8.,top,p.x1-6.,top+11.};
  }
  static constexpr Rect generate(double h) noexcept {
   const auto p=panel(h);return {p.x0+245.,p.y0+221.,p.x0+340.,p.y0+246.};

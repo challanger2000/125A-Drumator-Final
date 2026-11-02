@@ -321,6 +321,9 @@ int main(){
           BC::complexityValue(hostHeight).x0);
     CHECK(BC::complexityValue(hostHeight).x1<
           BC::complexityPlus(hostHeight).x0);
+    // The right legend must not overpaint the two length buttons above it.
+    CHECK(BC::barOne(hostHeight).y1+4.<=BC::legendPanel(hostHeight).y0);
+    CHECK(BC::barTwo(hostHeight).y1+4.<=BC::legendPanel(hostHeight).y0);
     CHECK(BC::legendPanel(hostHeight).x1<panel.x1);
     CHECK(BC::legendPanel(hostHeight).y1<BC::generate(hostHeight).y0);
     for(std::size_t i=0;i<8;++i){
