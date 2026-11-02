@@ -118,6 +118,7 @@ namespace drumator {
 // Added as a friend in generated TEST headers only. Observes real state,
 // including Undo/clipboard/paths, rather than mirroring the commit algorithm.
 struct IntegrationAccess {
+ static void expireExportTempo(Controller& controller){controller.exportTempoSeenAt_-=std::chrono::seconds(4);}
  static void exportMenu(DrumatorView& view){view.v101Menu_=UiV101Popup::Kind::Export;}
  static bool sampleEditorOpen(const DrumatorView& view){return view.sampleEditorOpen_;}
  static bool sampleEditorLive(const DrumatorView& view){return view.sampleEditorLive_;}
@@ -1976,13 +1977,22 @@ void testV101LiveEditor(){
 // E2E host fixture: Controller is connected to the real Processor. Unlike
 // encoder-only unit tests, this exercises the UI-side kit mirror, processor
 // IPC, native file path handling, staged output and actual disk bytes.
+// A host, not the export fallback, supplies this fixture's 120-BPM context.
+void confirmExportHostTempo(Fixture& fixture,double bpm=120.){
+ ProcessContext context{};context.state=ProcessContext::kTempoValid;context.tempo=bpm;
+ ProcessData data{};data.symbolicSampleSize=kSample32;data.processContext=&context;
+ check(fixture.p->process(data)==kResultOk,"publish real zero-frame host export tempo");
+ fixture.c->requestMeterSnapshot();
+ check(fixture.c->hasExportTempo()&&fixture.c->exportTempoBpm()==bpm,
+       "real host export tempo not confirmed");
+}
 void testV101ConnectedPatternSongExportsAndLimiter(){
  Fixture f;
  auto kit=v101PreviewKit(); // contains ten genuine, playable PCM samples
  kit.chain.setCount(2);
  check(kit.chain.configure(0,2,32)&&kit.chain.configure(1,2,32),
        "connected EXPORT SONG fixture setup");
- f.kit(kit);
+ f.kit(kit);confirmExportHostTempo(f);
  const auto base=std::filesystem::temp_directory_path();
  const auto pm=base/"125a-v101-connected-pattern.mid";
  const auto sm=base/"125a-v101-connected-song.mid";
@@ -2055,7 +2065,7 @@ void testV101ConnectedPatternSongExportsAndLimiter(){
    hot.names[0]="hot-left.wav";hot.names[1]="hot-right.wav";
    hot.wav[0]=constantStereo(.9f,-.72f);
    hot.wav[1]=constantStereo(.9f,-.72f);
-   hotFixture.kit(hot);
+   hotFixture.kit(hot);confirmExportHostTempo(hotFixture);
    const auto without=base/"125a-v101-hot-limiter-off.wav";
    const auto with=base/"125a-v101-hot-limiter-on.wav";
    const auto pcm24=[](const std::vector<std::uint8_t>& b,std::size_t p){
@@ -2183,6 +2193,7 @@ void testCodexLegacyControllerExportReset(){
    f.kit(kit);
    check(f.c->limiterEnabled(),"Codex01 pre-legacy Controller LIMIT not ON");
    const auto path=std::filesystem::temp_directory_path()/"125a-codex-legacy-export.wav";
+   confirmExportHostTempo(f);
    check(f.c->exportWav(false,path.string()),"Codex01 populated pre-legacy WAV export failed");
    std::vector<std::uint8_t> b;
    for(auto n:{magic,std::uint32_t{0}})
@@ -2194,6 +2205,7 @@ void testCodexLegacyControllerExportReset(){
          "Codex01 genuine paired DMR1/2/3 restore failed");
    check(!f.c->limiterEnabled()&&!f.c->hasSample(0),
          "Codex01 legacy must reset visible limiter and sample state");
+   confirmExportHostTempo(f);
    check(f.c->exportWav(false,path.string()),
          "Codex01 post-legacy WAV export failed");
    std::ifstream reader(path,std::ios::binary);
@@ -5671,6 +5683,8 @@ int main(int argc,char** argv){
  run("V101 real VST3 editor attach, mouse dispatch, dialogs and zoom",testV101LiveEditor);
  run("EXPTEMPO connected host BPM and every live/export PCM frame",testExportTempoHostRoundTrip);
  run("EXPTEMPO failed transfer must preserve destination",testExportTempoFailedTransfer);
+ run("EXPTEMPO old stale-tempo cause must be killed",testExportTempoMutation);
+ run("EXPTEMPO actual zero-frame, recall, delayed IPC and GUI lifecycle",testExportTempoLifecycle);
  run("V101 connected Controller/Processor exports and limiter",testV101ConnectedPatternSongExportsAndLimiter);
  run("Codex01 paired legacy recall clears Export and LIMIT",testCodexLegacyControllerExportReset);
  run("Codex02 Controller IPC actions OOM-safe",testCodexControllerActionOOM);

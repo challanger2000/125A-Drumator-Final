@@ -153,7 +153,15 @@ private:
  // One-shot previews from GUI; one pending request per row, not persisted.
  std::atomic<std::uint32_t> previewPending_{0};
  std::atomic<double> outputRate_{0.0};
- std::atomic<double> lastExportTempo_{120.0};
+ std::atomic<double> lastExportTempo_{0.0};
+ std::atomic<std::uint64_t> exportTempoObservation_{0};
+ // Single writer: audio while allowed by restoreGate_, otherwise the
+ // quiescent setup/restore actor. Coherent bounded read on the UI actor.
+ void publishExportTempo(double bpm) noexcept {
+   exportTempoObservation_.fetch_add(1,std::memory_order_seq_cst);
+   lastExportTempo_.store(bpm,std::memory_order_seq_cst);
+   exportTempoObservation_.fetch_add(1,std::memory_order_seq_cst);
+ }
  std::atomic<std::uint8_t> limiterEnabled_{0};
  std::array<StereoPeakLimiter,kRows> limiterBuses_{};
  bool wasPlaying_{false};

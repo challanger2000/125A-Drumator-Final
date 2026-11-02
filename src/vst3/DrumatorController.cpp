@@ -39,18 +39,33 @@ struct ScopedActionMessage final {
  ScopedActionMessage(const ScopedActionMessage&)=delete;
  ScopedActionMessage& operator=(const ScopedActionMessage&)=delete;
 };
+bool Controller::hasExportTempo() const noexcept {
+ // A reply can be fresh while the host has stopped supplying context.
+ // Only a new Processor observation renews this control-thread lease.
+ return exportTempoBpm_>=20.&&exportTempoBpm_<=300.&&
+   std::chrono::steady_clock::now()-exportTempoSeenAt_<std::chrono::seconds(3);
+}
+void Controller::invalidateExportTempo() noexcept {
+ exportTempoBpm_=0.;
+ exportTempoFloor_=meterRequestId_+1; // late, already-issued replies cannot revive it
+}
 void Controller::requestMeterSnapshot(){
  // Called by DrumatorView::pollMeter() noexcept. No allocation/host
  // exception may escape the VSTGUI timer or Windows host callback.
  Steinberg::Vst::IMessage* request=nullptr;
+ bool accepted=false;
  try {
+   const auto id=++meterRequestId_;
    request=allocateMessage();
    if(request){
      request->setMessageID("Drumator.MeterRequest");
-     (void)sendMessage(request); // control actor; no host dirty flag
+     auto* attrs=request->getAttributes();
+     if(attrs&&attrs->setInt("RequestId",static_cast<Steinberg::int64>(id))==Steinberg::kResultOk)
+       accepted=sendMessage(request)==Steinberg::kResultOk;
    }
  }catch(...) { /* retain the prior meter snapshot; UI fades naturally */ }
  if(request)request->release();
+ if(!accepted)invalidateExportTempo();
 }
 bool Controller::clearMeterClips(){
  Steinberg::Vst::IMessage* clear=nullptr;
@@ -77,6 +92,23 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
    // and attribute decoding as a non-throwing VST3 callback boundary.
    try {
    auto* attrs=message->getAttributes();
+   Steinberg::int64 requestId=-1,observation=-1;
+   if(attrs&&attrs->getInt("RequestId",requestId)==Steinberg::kResultOk&&
+      requestId>0&&static_cast<std::uint64_t>(requestId)>=exportTempoFloor_&&
+      static_cast<std::uint64_t>(requestId)<=meterRequestId_&&
+      static_cast<std::uint64_t>(requestId)>exportTempoReplyId_){
+     exportTempoReplyId_=static_cast<std::uint64_t>(requestId);
+     double bpm=0.;
+     const bool valid=attrs->getFloat("ExportTempo",bpm)==Steinberg::kResultOk&&
+        std::isfinite(bpm)&&bpm>=20.&&bpm<=300.&&
+        attrs->getInt("ExportObservation",observation)==Steinberg::kResultOk&&
+        observation>0&&(observation&1)==0;
+     exportTempoBpm_=valid?bpm:0.;
+     if(valid&&static_cast<std::uint64_t>(observation)!=exportTempoObservation_){
+       exportTempoObservation_=static_cast<std::uint64_t>(observation);
+       exportTempoSeenAt_=std::chrono::steady_clock::now();
+     }
+   }
    Steinberg::int64 seq=-1,l=-1,r=-1,clip=-1,full=-1,reset=-1;
    if(!attrs||attrs->getInt("Sequence",seq)!=Steinberg::kResultOk||
       attrs->getInt("Left",l)!=Steinberg::kResultOk||
@@ -88,10 +120,6 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
       clip<0||full<0||clip>65535||full>65535||
       reset<0||static_cast<std::uint64_t>(reset)<lastClearEpoch_)
      return Steinberg::kResultFalse;
-   double exportTempo=0.;
-   if(attrs->getFloat("ExportTempo",exportTempo)==Steinberg::kResultOk&&
-      std::isfinite(exportTempo)&&exportTempo>=20.&&exportTempo<=300.)
-      exportTempoBpm_=exportTempo;
    Steinberg::int64 dropped=0,inspected=0,valid=0,uninspected=0;
    if(attrs->getInt("TriggerDrops",dropped)==Steinberg::kResultOk&&dropped<0)
       return Steinberg::kResultFalse;
@@ -114,7 +142,7 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
      lastClearEpoch_=std::max(lastClearEpoch_,meterState_.reset);
    }
    return Steinberg::kResultOk;
-   }catch(...) {return Steinberg::kOutOfMemory;}
+   }catch(...) {invalidateExportTempo();return Steinberg::kOutOfMemory;}
  }
 
  if(message&&message->getMessageID()&&
@@ -261,6 +289,9 @@ void Controller::notifyViews(bool relayout) {
  }
 }
 void Controller::invalidateTransientEditsForRecall() noexcept {
+ invalidateExportTempo();
+ exportTempoObservation_=0;
+ exportTempoSeenAt_={};
  beatPreview_.valid=false;
  beatGroupUndo_.valid=false;
  invalidateWaveQuery();patternRequestPending_=false;
@@ -1887,6 +1918,8 @@ bool Controller::setLimiterEnabled(bool enabled){
 }
 bool Controller::exportMidi(bool song,const std::string& path){
  try {
+   requestMeterSnapshot();
+   if(!hasExportTempo())return false;
    MidiExportConfig config;
    config.grid=grid_;
    config.patternLengths=patternLengths_;
@@ -1905,6 +1938,8 @@ bool Controller::exportMidi(bool song,const std::string& path){
 }
 bool Controller::exportWav(bool song,const std::string& path){
  try {
+   requestMeterSnapshot();
+   if(!hasExportTempo())return false;
    KitState state;
    state.selected=static_cast<std::uint8_t>(currentPattern());
    state.visible=visibleRows_;

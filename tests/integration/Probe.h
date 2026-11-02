@@ -8,7 +8,7 @@ namespace drumator::qa {
 // Only generated QA sources use this hook; no DAW acceptance is simulated.
 extern std::function<bool(VSTGUI::IDataPackage*)> exportDragObserver;
 extern thread_local bool legacyTriggerOrdering; // regression negative, test EXE only
-enum class AuditMutation { none, suppressZeroStop, staleDuration, skipPeerCommit,
+enum class AuditMutation { none, keepStaleExportTempo, suppressZeroStop, staleDuration, skipPeerCommit,
  basenameOnly, delayMidiOne, dropMidi, doubleMidi, zeroPrefix,
  skipImport, muteImportedProcessor, delayImportedProcessor,
  rejectPreviewStop, rejectPreviewStopOnce, patternQueryOOM, patternReplyOOM,

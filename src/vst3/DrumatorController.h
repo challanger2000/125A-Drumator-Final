@@ -16,6 +16,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <chrono>
 #include <string>
 #include <vector>
 
@@ -145,6 +146,7 @@ public:
  bool exportMidi(bool song,const std::string& path);
  bool exportWav(bool song,const std::string& path);
  double exportTempoBpm() const noexcept {return exportTempoBpm_;}
+ bool hasExportTempo() const noexcept;
  unsigned masterVolume() const noexcept {return masterVolume_;}
  bool adjustRandomVelocity(std::size_t row,int delta);
  unsigned rowRandomVelocity(std::size_t row) const noexcept {
@@ -278,7 +280,12 @@ private:
  std::uint8_t humanizePercent_{0};
  std::uint8_t masterVolume_{100};
  bool limiterEnabled_{false};
- double exportTempoBpm_{120.0};
+ // Tempo is runtime host context, never preset data or a guessed 120 BPM.
+ void invalidateExportTempo() noexcept;
+ double exportTempoBpm_{0.0};
+ std::uint64_t meterRequestId_{0},exportTempoReplyId_{0},exportTempoFloor_{1};
+ std::uint64_t exportTempoObservation_{0};
+ std::chrono::steady_clock::time_point exportTempoSeenAt_{};
  std::array<std::uint8_t,kRows> randomVelocity_{};
  SongChain songChain_{};
  bool songEnabled_{false};

@@ -69,6 +69,13 @@ jobs:
             build/gui-shots/v101-song-board-hardware-150.bmp
             build/gui-shots/v101-wave-editor-hardware-150.bmp
           if-no-files-found: error
+      - name: Archive actual pre-import export timing evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: 125A-Drumator-Export-Timing-Evidence
+          path: build/export-timing/
+          if-no-files-found: error
       - name: Assemble standard Windows VST3 bundle and validate
         shell: pwsh
         run: |

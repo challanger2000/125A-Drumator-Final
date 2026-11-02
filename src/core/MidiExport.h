@@ -80,8 +80,8 @@ class MidiExport final {
 public:
   // A MIDI file represents the programmed sequence, including muted rows.
   // Row mutes/solos affect audio playback, not destructive musical export.
-  // 960 PPQ, type 1, tempo 120 BPM as self-contained fallback. Import into
-  // the Studio One tempo grid to follow its project tempo.
+  // 960 PPQ, type 1; encode the supplied host tempo in the conductor track.
+  // The internal 120-BPM clock below is only a seconds-to-ticks conversion.
   static bool encode(const MidiExportConfig& c,std::vector<std::uint8_t>& dest){
     if(c.selectedPattern>=kPatterns||c.swingPercent>50||c.humanizePercent>100||
        !std::isfinite(c.tempoBpm)||c.tempoBpm<20.||c.tempoBpm>300.)
@@ -127,7 +127,7 @@ public:
     out.insert(out.end(),{'M','T','h','d'});
     be32(out,6);be16(out,1);be16(out,kRows+1);be16(out,kPPQ);
     std::vector<std::uint8_t> conductor;
-    // 4/4 time signature, 120 BPM, end of track at the pattern/song boundary.
+    // 4/4 time signature, supplied BPM, EOT at the pattern/song boundary.
     conductor.insert(conductor.end(),{0,0xff,0x58,4,4,2,24,8,
                                       0,0xff,0x51,3});
     const auto microseconds=static_cast<std::uint32_t>(

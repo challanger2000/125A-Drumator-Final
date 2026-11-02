@@ -2788,6 +2788,13 @@ void DrumatorView::load(std::size_t row) {
 
 bool DrumatorView::startExportDrag(int option) {
  if(option<0||option>=4||!getFrame())return false;
+ if(!controller_.hasExportTempo()){
+   controller_.requestMeterSnapshot();
+   if(!controller_.hasExportTempo()){
+     status_="EXPORT: HOST TEMPO UNAVAILABLE - PLAY HOST AND RETRY";
+     return false;
+   }
+ }
  // Prepare only after a real mouse drag; ordinary clicks keep Save As.
  try {
   const auto output=DragExportFile::create(option);
@@ -2801,7 +2808,8 @@ bool DrumatorView::startExportDrag(int option) {
   if(!exported||!std::filesystem::is_regular_file(output,ec)||ec||
      std::filesystem::file_size(output,ec)==0||ec){
     DragExportFile::discardFailed(output);
-    status_="DRAG: EXPORT FAILED";
+    status_=controller_.hasExportTempo()?"DRAG: EXPORT FAILED":
+       "EXPORT: HOST TEMPO UNAVAILABLE - PLAY HOST AND RETRY";
     return false;
   }
   // CFilePath is a UTF-8 NUL-terminated path. VSTGUI translates it to
@@ -2855,7 +2863,8 @@ bool DrumatorView::exportSelection(int option){
  const bool ok=wav?controller_.exportWav(song,path):
                    controller_.exportMidi(song,path);
  status_=ok?(song?"SONG EXPORT COMPLETED":"PATTERN EXPORT COMPLETED"):
-            "EXPORT FAILED - PREVIOUS FILE PRESERVED";
+            controller_.hasExportTempo()?"EXPORT FAILED - PREVIOUS FILE PRESERVED":
+            "EXPORT: HOST TEMPO UNAVAILABLE - PLAY HOST AND RETRY";
  return ok;
 }
 

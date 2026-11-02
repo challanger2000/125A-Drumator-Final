@@ -174,6 +174,18 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    const auto peakL=meter_->mainL.load(std::memory_order_acquire);
    const auto peakR=meter_->mainR.load(std::memory_order_acquire);
    const auto seq=meter_->blockSequence.load(std::memory_order_acquire);
+   Steinberg::int64 requestId=0;
+   try {
+     if(auto* query=msg->getAttributes())(void)query->getInt("RequestId",requestId);
+   }catch(...){reply->release();return Steinberg::kOutOfMemory;}
+   double exportTempo=0.;std::uint64_t observation=0;
+   for(unsigned attempt=0;attempt<3;++attempt){
+     const auto before=exportTempoObservation_.load(std::memory_order_seq_cst);
+     if(before&1u)continue;
+     const auto bpm=lastExportTempo_.load(std::memory_order_seq_cst);
+     const auto after=exportTempoObservation_.load(std::memory_order_seq_cst);
+     if(before==after){exportTempo=bpm;observation=after;break;}
+   }
    Steinberg::tresult status=Steinberg::kResultFalse;
    try{
      if(attrs->setInt("Sequence",static_cast<Steinberg::int64>(seq))==Steinberg::kResultOk&&
@@ -194,7 +206,9 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
         attrs->setInt("HostUninspected",static_cast<Steinberg::int64>(
           std::min<std::uint64_t>(uninspectedHostEvents_.load(std::memory_order_acquire),
              static_cast<std::uint64_t>(INT64_MAX))))==Steinberg::kResultOk&&
-        attrs->setFloat("ExportTempo",lastExportTempo_.load(std::memory_order_acquire))==Steinberg::kResultOk)
+        attrs->setInt("RequestId",requestId)==Steinberg::kResultOk&&
+        attrs->setInt("ExportObservation",static_cast<Steinberg::int64>(observation))==Steinberg::kResultOk&&
+        attrs->setFloat("ExportTempo",exportTempo)==Steinberg::kResultOk)
        status=sendMessage(reply);
    }catch(...){status=Steinberg::kOutOfMemory;}
    if(status==Steinberg::kResultOk) {
@@ -876,6 +890,7 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(Steinberg::Vst::Process
  const auto parent=AudioEffect::setupProcessing(setup);
  if(parent!=Steinberg::kResultTrue)return parent;
  prepared_=false;
+ publishExportTempo(0.);
  outputRate_.store(0.0,std::memory_order_release);
  voices_.reset(); // old voice buffers are not retained across sample-rate changes
  wasPlaying_=false;
@@ -1060,6 +1075,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
  // Catch a host flush that raced with the end of restore. Do this before
  // reading row controls or applying the new block's parameter queues.
  drainDeferredAutomation();
+ // Tempo remains valid on Stop and zero-frame/outputless callbacks. Capture
+ // the actual host field before those fast paths, never an inferred clock.
+ if(data.processContext&&
+    (data.processContext->state&Steinberg::Vst::ProcessContext::kTempoValid)){
+   const auto bpm=data.processContext->tempo;
+   publishExportTempo(std::isfinite(bpm)&&bpm>=20.&&bpm<=300.?bpm:0.);
+ }
  // A valid zero-frame callback can itself be the host's only Stop edge.
  // Observe the explicit transport transition before the parameter-only
  // fast path; otherwise old voices survive a continuous-PPQ restart.
@@ -1300,9 +1322,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
    }
    context=&inferred;
  }
- if(context&&(context->state&Steinberg::Vst::ProcessContext::kTempoValid)&&
-    std::isfinite(context->tempo)&&context->tempo>=20.&&context->tempo<=300.)
-    lastExportTempo_.store(context->tempo,std::memory_order_release);
  const bool playing=explicitStop?false:context?
      ((context->state&Steinberg::Vst::ProcessContext::kPlaying)!=0):
      wasPlaying_;
@@ -2042,6 +2061,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     drainDeferredAutomation();
     // Kit selection CAS above cannot overwrite newer host automation.
     kitRevision_.fetch_add(1,std::memory_order_release);
+    publishExportTempo(0.); // tempo belongs to the host, not the recalled kit
  }
  return Steinberg::kResultOk;
 }

@@ -52,8 +52,15 @@ int main(){
       return actual.tick==n.tick&&actual.row==n.row&&actual.velocity==n.velocity;});
      require(match==1,"wrong MIDI ticks/row/velocity");
     }
-    // A plausible half-tempo file must be rejected by this independent oracle.
-    require(frames(total,bpm*.5)!=wav.frames,"half-tempo negative control is ineffective");
+    // Feed an actually rendered half-tempo PCM file to the independent duration oracle.
+    if(style==0&&steps==16&&bpm==120.&&!song){
+     const auto wrongPath=std::filesystem::temp_directory_path()/"125a-export-half-tempo-control.wav";
+     require(OfflineWavExport::render(kit,false,60.,wrongPath),"half-tempo negative render failed");
+     const Wav wrong(wrongPath);
+     require(wrong.frames==192000&&wrong.frames!=frames(total,bpm),
+       "independent duration oracle accepted an actual half-tempo WAV");
+     std::error_code ec;std::filesystem::remove(wrongPath,ec);
+    }
     ++cases;
    }
   }
