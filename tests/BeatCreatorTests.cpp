@@ -139,6 +139,34 @@ int main(){
       ck(base[row*kSteps+step]==fill[row*kSteps+step],
          "fill modified early part of 1-bar groove");
    }
+   // BC55 regression: all Eurodance motifs must have audible OHH at
+   // 35% factory complexity. Check all A/B/C patterns, bar lengths and seeds.
+   if(s==BeatStyle::Eurodance90s){
+    for(const std::uint8_t length:{std::uint8_t{16},std::uint8_t{32}}){
+     for(const auto complexity:{std::uint8_t{35},std::uint8_t{75},
+                                 std::uint8_t{100}}){
+      for(unsigned seed=0;seed<64u;++seed){
+       const auto groove=BeatCreator::preview({s,complexity,length},seed);
+       for(const auto* pat:{&groove.a,&groove.b,&groove.c}){
+        for(std::size_t bar=0;bar<length;bar+=16u){
+         unsigned open=0,early=0;
+         for(unsigned step=0;step<16u;++step){
+          const bool present=v(*pat,BeatRole::OHH,bar+step)!=0u;
+          ck(!present||(step%4u)==2u,
+             "Eurodance OHH must land on offbeats");
+          open+=present;
+          if(step<8u)early+=present;
+          ck(!(present&&v(*pat,BeatRole::CHH,bar+step)),
+             "Eurodance OHH/CHH collision");
+         }
+         ck(open>=1u&&early>=1u,
+            "Eurodance groove lost its characteristic offbeat OHH");
+        }
+       }
+      }
+     }
+    }
+   }
    // Every two-bar phrase must develop, not repeat, bar one.
    for(unsigned seed=0;seed<32u;++seed) {
     const auto p=BeatCreator::preview({s,35,32},seed);

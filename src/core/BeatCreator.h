@@ -78,15 +78,16 @@ class BeatCreator final {
    Motif{bits("0 4 6 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("")}, // 7
    Motif{bits("0 4 8 12 14"), bits("4 12"), bits("0 2 4 7 8 10 12 15"), bits(""), bits("")}, // 8
   }},
-  {{ // 90s EURODANCE: eight authored rhythmic archetypes
-   Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("4 12")}, // 1
-   Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 3 4 6 8 10 11 12 14 15"), bits(""), bits("4 12")}, // 2
-   Motif{bits("0 4 8 12 15"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("4 12")}, // 3
-   Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 4 6 7 8 10 12 14 15"), bits(""), bits("4 12")}, // 4
-   Motif{bits("0 4 8 12"), bits("4 12 15"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("4 12")}, // 5
-   Motif{bits("0 4 8 12 14"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("4 12")}, // 6
-   Motif{bits("0 4 8 11 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits(""), bits("4 12")}, // 7
-   Motif{bits("0 4 7 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("14"), bits("4 12")}, // 8
+  {{ // 90s EURODANCE: driving offbeat OHH with distinct CHH pickups
+   // Open hats replace closed hats at the same step, never double them.
+   Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 4 6 7 8 10 12 14 15"), bits("2 6 10 14"), bits("4 12")}, // 1
+   Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 3 4 6 8 10 11 12 14 15"), bits("6 14"), bits("4 12")}, // 2
+   Motif{bits("0 4 8 12 15"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("2 6 10 14"), bits("4 12")}, // 3
+   Motif{bits("0 4 8 12"), bits("4 12"), bits("0 2 4 6 7 8 10 12 14 15"), bits("6 14"), bits("4 12")}, // 4
+   Motif{bits("0 4 8 12"), bits("4 12 15"), bits("0 2 4 6 8 10 12 14"), bits("2 6 14"), bits("4 12")}, // 5
+   Motif{bits("0 4 8 12 14"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("2 10 14"), bits("4 12")}, // 6
+   Motif{bits("0 4 8 11 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("6 10 14"), bits("4 12")}, // 7
+   Motif{bits("0 4 7 8 12"), bits("4 12"), bits("0 2 4 6 8 10 12 14"), bits("2 6 10 14"), bits("4 12")}, // 8
   }},
   {{ // HOUSE: eight authored rhythmic archetypes
    Motif{bits("0 4 8 12"), bits("4 12"), bits("0 4 8 12"), bits("2 6 10 14"), bits("4 12")}, // 1
