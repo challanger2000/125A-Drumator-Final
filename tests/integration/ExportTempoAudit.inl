@@ -280,8 +280,11 @@ void testExportTempoLifecycle(){
  drumator::qa::ByteStream bad(const_cast<std::uint8_t*>(corrupt.data()),corrupt.size());
  check(f.c->setComponentState(&bad)!=kResultOk&&f.c->hasExportTempo(),
        "EXPTEMPO rejected component recall invalidated valid old host tempo");
+ // Materialize the test argument BEFORE injecting OOM. Otherwise the
+ // temporary path.string() allocation throws outside the product boundary.
+ const auto destination=path.string();
  allocationFail=0;
- const bool accepted=f.c->exportWav(false,path.string());
+ const bool accepted=f.c->exportWav(false,destination);
  const bool injected=allocationFail==-1;allocationFail=-1;
  check(injected&&!accepted&&!f.c->hasExportTempo(),"EXPTEMPO allocation failure reused cached export tempo");
  confirmExportHostTempo(f,120.);
