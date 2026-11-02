@@ -120,7 +120,7 @@ public:
   return beatPreview_.valid?&beatPreview_:nullptr;
  }
  std::uint8_t beatCreatorOccupiedMask() const noexcept;
- void cancelBeatCreator() noexcept {beatPreview_.valid=false;}
+ void cancelBeatCreator() noexcept;
  bool applyBeatCreator(bool allowOccupied);
  bool undoBeatCreator();
  bool canUndoCurrentPattern() noexcept {
