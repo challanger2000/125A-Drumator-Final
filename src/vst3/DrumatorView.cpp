@@ -750,6 +750,7 @@ DrumatorView::~DrumatorView() {
  controller_.unregisterView(this);
 }
 bool DrumatorView::removed(VSTGUI::CView* parent) {
+ if(beatCreatorOpen_)closeBeatCreator();
  if(v101Mode_){v101_.cancel();v101Menu_=UiV101Popup::Kind::None;}
  controller_.cancelSampleEditorRequestsForView(this);
  pendingEditorRow_=kRows;pendingViewport_=false;pendingMarkerKind_=0;
@@ -797,6 +798,17 @@ void DrumatorView::editName(std::size_t row) {
  nameEdit_->takeFocus();
 }
 void DrumatorView::valueChanged(VSTGUI::CControl* control) {
+ if(control==complexityEdit_){
+  if(!beatCreatorOpen_||!complexityEditActive_)return;
+  const std::string typed(complexityEdit_->getText().getString());
+  complexityEditActive_=false;
+  complexityEdit_->setVisible(false);
+  std::uint8_t parsed=beatCreatorComplexity_;
+  if(UiBeatCreatorDialog::parseComplexity(typed.c_str(),parsed))
+   setBeatCreatorComplexity(parsed);
+  else {beatCreatorNotice_="INVALID VALUE - ENTER 0 TO 100";invalid();}
+  return;
+ }
  if(control!=nameEdit_||editingNameRow_>=kRows||
     nameEditGeneration_!=controller_.editGeneration())return;
  const auto text=std::string(nameEdit_->getText().getString());
@@ -833,6 +845,12 @@ bool DrumatorView::changeDetailValue(std::size_t row,int slot,int requested) {
  }
 }
 void DrumatorView::onTextEditPlatformControlLostFocus(VSTGUI::CTextEdit* edit) {
+ if(edit==complexityEdit_){
+  complexityEditActive_=false;
+  complexityEdit_->setVisible(false);
+  invalid();
+  return;
+ }
  if(edit!=nameEdit_)return;
  nameEdit_->setVisible(false);
  editingNameRow_=kRows;
@@ -840,6 +858,10 @@ void DrumatorView::onTextEditPlatformControlLostFocus(VSTGUI::CTextEdit* edit) {
  invalid();
 }
 void DrumatorView::discardTransientEditsForRecall() noexcept {
+ beatCreatorOpen_=false;
+ beatCreatorStyleMenu_=false;
+ beatCreatorConfirmOverwrite_=false;
+ complexityEditActive_=false;
  if(v101Mode_){v101_.discardForRecall();v101Menu_=UiV101Popup::Kind::None;v101MenuRow_=kRows;}
  if(sampleEditorOpen_)controller_.stopSampleEditPreview();
  if(sampleEditorLive_)(void)stopSampleEditorLive();
@@ -858,6 +880,12 @@ void DrumatorView::discardTransientEditsForRecall() noexcept {
  fillMenuRow_=-1;
 }
 void DrumatorView::finishTransientEditsAfterRecall() {
+ if(complexityEdit_){
+  if(auto* frame=getFrame();frame&&frame->getFocusView()==complexityEdit_)
+   frame->setFocusView(nullptr);
+  if(complexityEdit_->getPlatformTextEdit())complexityEdit_->looseFocus();
+  complexityEdit_->setVisible(false);
+ }
  if(nameEdit_) {
    // An invisible CTextEdit can still own a visible native EDIT HWND.
    // Losing the frame focus closes the platform control via VSTGUI.
@@ -1107,6 +1135,8 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  Painter::cap(*c,UiV101Layout::footerExport,
               v101_.height()-UiV101Layout::footer,"EXPORT",
               v101Menu_==UiV101Popup::Kind::Export,11,&vintageButtons);
+ Painter::cap(*c,UiV101Layout::beatCreatorTrigger,0.,
+              "BEAT CREATOR",beatCreatorOpen_,9,&vintageButtons);
  Painter::cap(*c,UiV101Layout::limiterTrigger,0.,
               controller_.limiterEnabled()?"LIMIT ON":"LIMIT OFF",
               controller_.limiterEnabled(),10,&vintageButtons);
@@ -1232,7 +1262,7 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
  P::cap(*c,D::generate(h),0.,"GENERATE",false,11,&buttons);
  P::cap(*c,D::apply(h),0.,
         beatCreatorConfirmOverwrite_?"CONFIRM":"APPLY",
-        beatCreatorConfirmOverwrite_,11,&buttons,draft!=nullptr);
+        beatCreatorConfirmOverwrite_,11,&buttons,draft==nullptr);
  P::cap(*c,D::cancel(h),0.,"CANCEL",false,11,&buttons);
  if(beatCreatorStyleMenu_){
   const auto area=D::styleMenu(h);
@@ -1790,6 +1820,7 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
  if(v101Mode_&&!sampleEditorOpen_){
    if(songEditorOpen_)drawV101Song(c);
    else drawV101(c);
+   if(beatCreatorOpen_)drawBeatCreator(c);
    setDirty(false);
    return;
  }
@@ -2791,6 +2822,21 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
  const double x=pos.x,y=pos.y;
  if(!(buttons&VSTGUI::kLButton))return VSTGUI::kMouseEventNotHandled;
+ if(v101Mode_&&beatCreatorOpen_){
+  (void)beatCreatorMouseDown(x,y);
+  return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+ }
+ if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_&&
+    !v101_.state().zoomOpen&&v101Menu_==UiV101Popup::Kind::None&&
+    UiV101Layout::beatCreatorTrigger.hit(x,y)){
+  (void)v101_.up();
+  beatCreatorOpen_=true;
+  beatCreatorStyleMenu_=false;
+  beatCreatorConfirmOverwrite_=false;
+  beatCreatorNotice_="SELECT STYLE - GENERATE";
+  invalid();
+  return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+ }
  // Export menu uses a real press/drag/release lifecycle. All other menus
  // preserve their current immediate action; a normal export click still
  // opens the existing Save dialog on release.
