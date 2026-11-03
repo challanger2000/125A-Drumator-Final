@@ -138,6 +138,7 @@ public:
         if(count>static_cast<double>(std::numeric_limits<std::uint32_t>::max()))
             return false;
         fadeFrames_=std::max(std::uint32_t{1},static_cast<std::uint32_t>(count));
+        soloFadeFrames_=std::max(std::uint32_t{1},static_cast<std::uint32_t>(std::ceil(rate*.004)));
         return true;
     }
     bool setRow(std::size_t row, const RowSound& sound) noexcept {
@@ -189,6 +190,15 @@ public:
         rows_[row].mute=mute;
         for(auto& voice:voices_)
             if(voice.active&&voice.row==row)refreshVoiceMix(voice);
+        return true;
+    }
+    // SOLO isolates currently ringing one-shots through a 4-ms mix ramp.
+    bool setSoloMask(std::uint32_t mask) noexcept {
+        mask &= (std::uint32_t{1}<<kRows)-1u;
+        if(mask==soloMask_)return true;
+        soloMask_=mask;
+        for(auto& voice:voices_)
+            if(voice.active)refreshVoiceMix(voice,soloFadeFrames_);
         return true;
     }
     // Discrete pitch automation uses only control-thread-prepared sinc
@@ -485,22 +495,28 @@ private:
         const void* ownerToken{nullptr};
         bool active{false};
     };
-    void refreshVoiceMix(Voice& voice) noexcept {
+    void refreshVoiceMix(Voice& voice,std::uint32_t fade=0) noexcept {
         const auto& row=rows_[voice.row];
         constexpr double pi=3.141592653589793238462643383279502884;
         const double pan=static_cast<double>(row.pan);
-        const double base=row.mute?0.0:static_cast<double>(row.gain)*voice.velocity;
+        const bool isolated=soloMask_!=0&&
+             (soloMask_&(std::uint32_t{1}<<voice.row))==0;
+        const double base=(row.mute||isolated)?0.0:
+             static_cast<double>(row.gain)*voice.velocity;
         const double left=base*(pan<=0.0?1.0:std::cos(pan*pi/2.0));
         const double right=base*(pan>=0.0?1.0:std::cos(-pan*pi/2.0));
         if(left==voice.targetL&&right==voice.targetR)return;
         voice.targetL=left;voice.targetR=right;
-        voice.mixRampRemaining=fadeFrames_; // time-based, prepared by setOutputRate
-        voice.mixStepL=(left-voice.gainL)/static_cast<double>(fadeFrames_);
-        voice.mixStepR=(right-voice.gainR)/static_cast<double>(fadeFrames_);
+        const auto ramp=fade?fade:fadeFrames_;
+        voice.mixRampRemaining=ramp;
+        voice.mixStepL=(left-voice.gainL)/static_cast<double>(ramp);
+        voice.mixStepR=(right-voice.gainR)/static_cast<double>(ramp);
     }
     void fire(const Trigger& event,RenderResult& result) noexcept {
         const auto& row=rows_[event.row];
-        if(row.mute||!row.sample.left||!row.sample.frames||
+        if(row.mute||(soloMask_!=0&&
+           (soloMask_&(std::uint32_t{1}<<event.row))==0)||
+           !row.sample.left||!row.sample.frames||
            !row.kernel||!row.kernel->ready())return;
         // Select capacity before applying choke: a rejected hit must not
         // alter any voice already sounding.
@@ -555,5 +571,7 @@ private:
     std::array<SampleEdit,kRows> committedEdits_{};
     std::array<Voice,kVoiceLimit> voices_{};
     std::uint32_t fadeFrames_{88}; // default only before setOutputRate()
+    std::uint32_t soloFadeFrames_{176};
+    std::uint32_t soloMask_{0};
 };
 } // namespace drumator

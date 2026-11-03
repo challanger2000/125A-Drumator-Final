@@ -280,7 +280,11 @@ public:
        state_.expandedRow=h.row;state_.expansion=requested;
        // Expanding reduces the visible count to nine. Keep the selected row
        // physically visible rather than silently hiding the last instrument.
-       if(h.row>=state_.firstRow+shownRows())state_.firstRow=h.row-(L::visibleRows-2);
+       if(h.row>=state_.firstRow+shownRows()) {
+         const auto capacity=shownRows();
+         const auto preceding=capacity>0?capacity-1u:0u;
+         state_.firstRow=h.row>preceding?h.row-preceding:0u;
+        }
      }
      state_.selectedRow=h.row;return Result::Handled;
    }

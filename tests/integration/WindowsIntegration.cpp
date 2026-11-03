@@ -135,6 +135,9 @@ struct IntegrationAccess {
  }
  static UiV101Popup::Kind v101Popup(const DrumatorView& view){return view.v101Menu_;}
   static int pressedPopupOption(const DrumatorView& view){return view.v101PressedMenuOption_;}
+  static bool canDropSample(const DrumatorView& view,double x,double y){return view.sampleDropTargetAt(x,y);}
+  static void setViewportRows(DrumatorView& view,std::size_t rows){view.v101_.setViewportRows(rows);}
+  static bool flashVisible(const DrumatorView& v){return v.buttonFlashContext_==(v.beatCreatorOpen_?1u:v.sampleEditorOpen_?2u:0u)&&std::chrono::steady_clock::now()<v.buttonFlashUntil_;}
   static void setPopup(DrumatorView& view,UiV101Popup::Kind kind,std::size_t row){view.v101Menu_=kind;view.v101MenuRow_=row;}
   static void testFeedbackClick(DrumatorView& view,double x,double y){view.recordButtonFlash(x,y);}
   static VSTGUI::CRect feedbackRect(const DrumatorView& view){return view.buttonFlashRect_;}
@@ -4506,6 +4509,96 @@ void testCompleteButtonFeedback(){
  evidence("BC63 ALL 43 popup options, 7 Pattern actions and header A-H/controls press feedback PASS");
 }
 
+void testReleaseAuditModalDropOwnershipAndFeedback(){
+ using L=UiV101Layout;
+ Fixture f;KitState kit{};kit.visible=4;f.kit(kit);
+ (void)f.openV101();(void)f.openV101();
+ auto* a=IntegrationAccess::view(*f.c,0);
+ auto* b=IntegrationAccess::view(*f.c,1);
+ const double sampleX=(L::sample.x0+L::sample.x1)*.5;
+ const double sampleY=L::rowTop(0,2,L::Expansions{})+24.;
+ check(IntegrationAccess::canDropSample(*a,sampleX,sampleY),
+       "REL01 visible sample row rejects drop outside modal");
+ const auto creator=L::beatCreatorTrigger;
+ click(*a,(creator.x0+creator.x1)*.5,(creator.y0+creator.y1)*.5);
+ check(IntegrationAccess::beatCreatorOpen(*a),"REL01 Beat Creator not opened");
+ check(!IntegrationAccess::canDropSample(*a,sampleX,sampleY),
+       "REL01 Beat Creator allowed sample drop beneath modal");
+ auto center=[](UiBeatCreatorDialog::Rect r){
+   return VSTGUI::CPoint{(r.x0+r.x1)*.5,(r.y0+r.y1)*.5};
+ };
+ const auto gen=center(UiBeatCreatorDialog::generate(a->getViewSize().getHeight()));
+ click(*a,gen.x,gen.y);
+ check(f.c->beatCreatorDraft(a)!=nullptr,"REL02 A draft not owned by A");
+ check(f.c->beatCreatorDraft(b)==nullptr&&
+       !f.c->applyBeatCreator(false,b),"REL02 B applied A draft");
+ const BeatCreatorSettings alternate{BeatStyle::Trance,75,16};
+ check(f.c->prepareBeatCreator(alternate,72,b)&&
+       f.c->beatCreatorDraft(b)!=nullptr,"REL02 peer draft absent");
+ check(f.c->beatCreatorDraft(a)==nullptr&&
+       !f.c->applyBeatCreator(false,a),"REL02 stale A applied B draft");
+ f.c->cancelBeatCreator(a);
+ check(f.c->beatCreatorDraft(b)!=nullptr,"REL02 A cancel erased B draft");
+ f.c->cancelBeatCreator(b);
+ const auto cancel=center(UiBeatCreatorDialog::cancel(a->getViewSize().getHeight()));
+ click(*a,cancel.x,cancel.y);
+ check(!IntegrationAccess::beatCreatorOpen(*a)&&
+       IntegrationAccess::canDropSample(*a,sampleX,sampleY),
+       "REL01 drop guard did not lift after closing Beat Creator");
+ check(!IntegrationAccess::flashVisible(*a),
+       "REL05 modal flash leaked onto underlying main view");
+ IntegrationAccess::setPopup(*a,UiV101Popup::Kind::Export,kRows);
+ const auto g=UiV101Popup::geometry(UiV101Popup::Kind::Export,L::header,
+                                     a->getViewSize().getHeight(),false);
+ const auto item=UiV101Popup::cell(g,0);
+ VSTGUI::CPoint down{(item.x0+item.x1)*.5,(item.y0+item.y1)*.5};
+ a->onMouseDown(down,VSTGUI::CButtonState(VSTGUI::kLButton));
+ check(IntegrationAccess::pressedPopupOption(*a)==0,"REL04 export not pressed");
+ VSTGUI::CPoint outside{1.,1.}; // safely cancel the action without Save As
+ a->onMouseUp(outside,VSTGUI::CButtonState(VSTGUI::kLButton));
+ check(IntegrationAccess::pressedPopupOption(*a)==-1&&
+       IntegrationAccess::v101Popup(*a)==UiV101Popup::Kind::None,
+       "REL04 stale pressed state after normal export mouse-up");
+ const auto menu=L::patternMenu;
+ click(*a,(menu.x0+menu.x1)*.5,(menu.y0+menu.y1)*.5);
+ check(IntegrationAccess::v101Popup(*a)==UiV101Popup::Kind::Pattern,
+       "REL04 subsequent Pattern menu blocked after Export");
+ a->onMouseCancel();
+ evidence("REL01/02/04/05 modal drop, peer draft owner, Export release, transient flash PASS");
+}
+void testReleaseAuditNarrowViewportAndLiveVelocity(){
+ using L=UiV101Layout;
+ Fixture f;KitState kit{};kit.visible=5;f.kit(kit);
+ (void)f.openV101();auto* v=IntegrationAccess::view(*f.c,0);
+ IntegrationAccess::setViewportRows(*v,4);
+ const double fourth=L::rowTop(0,3,L::Expansions{});
+ click(*v,1235.,fourth+12.);
+ check(IntegrationAccess::v101Expansion(*v)==L::Expansion::Velocity&&
+       IntegrationAccess::v101FirstRow(*v)==1&&
+       IntegrationAccess::v101ShownRows(*v)==3,
+       "REL03 VEL expansion underflowed firstRow on four-row viewport");
+ evidence("REL03 narrow viewport expands final VEL row without unsigned underflow PASS");
+}
+void testReleaseAuditVoiceCapacityDiagnostics(){
+ Fixture f;KitState kit{};kit.visible=1;kit.grid.fill(0);
+ kit.wav[0]=constantStereo(.125f,-.125f);
+ kit.names[0]="capacity.wav";f.kit(kit);prepareAudio(*f.p);
+ AuditAudioBlock block;
+ EventList events(128);Event event{};
+ event.type=Event::kNoteOnEvent;event.noteOn.pitch=36;event.noteOn.velocity=1.f;
+ event.sampleOffset=0;
+ for(int i=0;i<100;++i)check(events.addEvent(event)==kResultOk,
+                              "REL08 MIDI capacity fixture");
+ block.data.inputEvents=&events;
+ check(f.p->process(block.data)==kResultOk,"REL08 capacity render");
+ check(IntegrationAccess::overflowEvents(*f.p)==36,
+       "REL08 64-voice saturation not counted as 36 rejects");
+ f.c->requestMeterSnapshot();
+ check(f.c->meterState().triggerDrops==36,
+       "REL08 voice drops absent from host meter IPC");
+ evidence("REL08 actual 64-voice saturation and 36 reported rejects PASS");
+}
+
 void testAbsoluteSongStartRest(){
  constexpr auto flags=ProcessContext::kPlaying|
        ProcessContext::kTempoValid|ProcessContext::kProjectTimeMusicValid;
@@ -5935,6 +6028,9 @@ int main(int argc,char** argv){
  run("SONGSTART absolute timeline REST, tail, state and GUI",testAbsoluteSongStartRest);
   run("BC62 live SONG header A/C/REST host IPC",testSongLivePatternHeader);
   run("BC63 comprehensive popup and main-header pressed feedback",testCompleteButtonFeedback);
+  run("REL01/02/04/05 Beat Creator modal drop, peer ownership and Export",testReleaseAuditModalDropOwnershipAndFeedback);
+  run("REL03 viewport expansion",testReleaseAuditNarrowViewportAndLiveVelocity);
+  run("REL08 voice capacity reporting",testReleaseAuditVoiceCapacityDiagnostics);
  run("RE01 original deterministic VFA02",testReauditPatternLength);
  run("RE02 original fresh DZM3 matrix",testFinalAuditDzm3);
  run("RE03 paired duration fallback in Pattern and Song",testReauditDurationFallback);

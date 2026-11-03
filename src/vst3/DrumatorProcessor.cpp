@@ -1528,15 +1528,26 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
    // from observing different partially published pattern generations.
    std::array<std::array<std::uint8_t,kRows*kSteps>,kPatterns> songPrograms{};
    if(audioSongEnabled_) {
-     for(std::size_t program=0;program<kPatterns;++program){
-       std::array<std::uint8_t,kRows*kSteps> coherent{};
-       std::uint8_t coherentSongLength=32;
-       if(patterns_.coherentPattern(program,coherent,coherentSongLength)){
-         audioPatternCache_[program]=coherent;
-         audioPatternLengthCache_[program]=coherentSongLength;
-         audioPatternValid_[program]=true;
+     std::array<std::array<std::uint8_t,kRows*kSteps>,3> triple{};
+     std::array<std::uint8_t,3> tripleLengths{};
+     if(patterns_.coherentFirstThree(triple,tripleLengths)){
+       for(std::size_t p=0;p<3;++p){
+         audioPatternCache_[p]=triple[p];
+         audioPatternLengthCache_[p]=tripleLengths[p];
+         audioPatternValid_[p]=true;
        }
-       if(audioPatternValid_[program]) {
+     }
+     for(std::size_t program=0;program<kPatterns;++program){
+       if(program>=3){
+         std::array<std::uint8_t,kRows*kSteps> coherent{};
+         std::uint8_t duration=32;
+         if(patterns_.coherentPattern(program,coherent,duration)){
+           audioPatternCache_[program]=coherent;
+           audioPatternLengthCache_[program]=duration;
+           audioPatternValid_[program]=true;
+         }
+       }
+       if(audioPatternValid_[program]){
          songPrograms[program]=audioPatternCache_[program];
          lengths[program]=audioPatternLengthCache_[program];
        }
@@ -1708,7 +1719,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
  }
  // An automated Mute OFF must allow later hits within the same buffer.
  // SOLO remains a batch gate; Mute belongs to the per-frame voice engine.
- triggers_.applyMuteSolo(0,soloMask_.load(std::memory_order_relaxed));
+ const auto currentSolo=soloMask_.load(std::memory_order_relaxed);
+ (void)voices_.setSoloMask(currentSolo); // 4-ms fade of already-ringing voices
+ triggers_.applyMuteSolo(0,currentSolo);
  // Apply realtime-safe per-row random velocity without touching saved steps.
  std::array<std::uint8_t,kRows> variation{};
  for(std::size_t i=0;i<kRows;++i)
@@ -1829,6 +1842,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     onAutomationFrame,stemsL.data(),stemsR.data());
  exchange_.audioCollect(voices_);
  if(rendered.status!=RenderStatus::Ok)return Steinberg::kResultFalse;
+ // Count saturated voice launches together with dropped trigger-batch entries.
+ if(rendered.rejectedCapacity)
+   droppedTriggers_.fetch_add(rendered.rejectedCapacity,std::memory_order_relaxed);
  (void)auditionGeneration;
  (void)fireAudition;
  (void)auditionStop_.exchange(false,std::memory_order_acq_rel);

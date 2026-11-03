@@ -121,13 +121,14 @@ public:
  // Recreating the native editor must not reset it to the default style.
  BeatStyle beatCreatorStyle() const noexcept {return beatCreatorStyle_;}
  bool selectBeatCreatorStyle(BeatStyle style) noexcept;
- bool prepareBeatCreator(const BeatCreatorSettings& settings,std::uint32_t seed) noexcept;
- const BeatCreatorPreview* beatCreatorDraft() const noexcept {
-  return beatPreview_.valid?&beatPreview_:nullptr;
+ bool prepareBeatCreator(const BeatCreatorSettings& settings,std::uint32_t seed,
+                         const void* owner=nullptr) noexcept;
+ const BeatCreatorPreview* beatCreatorDraft(const void* owner=nullptr) const noexcept {
+  return beatPreview_.valid&&beatPreviewOwner_==owner?&beatPreview_:nullptr;
  }
  std::uint8_t beatCreatorOccupiedMask() const noexcept;
- void cancelBeatCreator() noexcept;
- bool applyBeatCreator(bool allowOccupied);
+ void cancelBeatCreator(const void* owner=nullptr) noexcept;
+ bool applyBeatCreator(bool allowOccupied,const void* owner=nullptr);
  bool undoBeatCreator();
  bool canUndoCurrentPattern() noexcept {
   return (currentPattern()<3&&beatGroupUndo_.valid)||undo_.available(currentPattern());
@@ -209,6 +210,7 @@ private:
  PatternUndo undo_{};
  BeatStyle beatCreatorStyle_{BeatStyle::Synthpop80s}; // BC60: editor and VST3 project recall
  BeatCreatorPreview beatPreview_{};
+ const void* beatPreviewOwner_{nullptr}; // UI editing-session ownership
  BeatTriple beatPreviewBefore_{};
  BeatLengths beatPreviewLengths_{};
  KitEditGeneration::Token beatPreviewGeneration_{0};

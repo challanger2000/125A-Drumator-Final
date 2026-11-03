@@ -720,6 +720,8 @@ bool DrumatorView::changeKnobValue(int slot,std::size_t row,int value) {
  return false;
 }
 bool DrumatorView::sampleDropTargetAt(double x,double y) const noexcept {
+ // Modal Beat Creator intercepts mouse and operating-system sample drops.
+ if(beatCreatorOpen_)return false;
  if(v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_) {
    if(v101Menu_!=UiV101Popup::Kind::None||v101_.state().zoomOpen)return false;
    const auto hit=v101_.rowHit(x,y);
@@ -1171,7 +1173,7 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
 }
 void DrumatorView::setBeatCreatorComplexity(std::uint8_t requested) {
  if(requested>100u||requested==beatCreatorComplexity_)return;
- controller_.cancelBeatCreator();
+ controller_.cancelBeatCreator(this);
  beatCreatorComplexity_=requested;
  beatCreatorConfirmOverwrite_=false;
  beatCreatorNotice_="COMPLEXITY CHANGED - GENERATE AGAIN";
@@ -1197,9 +1199,10 @@ void DrumatorView::editBeatCreatorComplexity() {
 void DrumatorView::closeBeatCreator() noexcept {
  if(!beatCreatorOpen_)return;
  beatCreatorOpen_=false;
+ buttonFlashUntil_={};
  beatCreatorStyleMenu_=false;
  beatCreatorConfirmOverwrite_=false;
- controller_.cancelBeatCreator();
+ controller_.cancelBeatCreator(this);
  complexityEditActive_=false;
  try{
   if(complexityEdit_){
@@ -1272,7 +1275,7 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
           11,{211,227,239,255},false);
  P::cap(*c,D::barOne(h),0.,"1 BAR",beatCreatorSteps_==16,11,&buttons);
  P::cap(*c,D::barTwo(h),0.,"2 BARS",beatCreatorSteps_==32,11,&buttons);
- const auto* draft=controller_.beatCreatorDraft();
+ const auto* draft=controller_.beatCreatorDraft(this);
  const PatternSteps* patterns[3]={
   draft?&draft->a:nullptr,draft?&draft->b:nullptr,draft?&draft->c:nullptr};
  constexpr const char* captions[3]={"A  GROOVE","B  VARIATION","C  BREAK"};
@@ -1339,7 +1342,7 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
     if(static_cast<std::size_t>(beatCreatorStyle_)!=i){
      if(!controller_.selectBeatCreatorStyle(static_cast<BeatStyle>(i)))return true;
      beatCreatorStyle_=controller_.beatCreatorStyle();
-     controller_.cancelBeatCreator();
+     controller_.cancelBeatCreator(this);
      beatCreatorConfirmOverwrite_=false;
      beatCreatorNotice_="STYLE CHANGED - GENERATE";
     }
@@ -1368,21 +1371,21 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
   const auto selected=D::barOne(h).hit(x,y)?16u:32u;
   if(beatCreatorSteps_==selected)return true;
   beatCreatorSteps_=static_cast<std::uint8_t>(selected);
-  controller_.cancelBeatCreator();
+  controller_.cancelBeatCreator(this);
   beatCreatorConfirmOverwrite_=false;
   beatCreatorNotice_="BAR LENGTH CHANGED - GENERATE";
   invalid();return true;
  }
  if(D::generate(h).hit(x,y)){
   const BeatCreatorSettings settings{beatCreatorStyle_,beatCreatorComplexity_,beatCreatorSteps_};
-  const bool ok=controller_.prepareBeatCreator(settings,++beatCreatorSeed_);
+  const bool ok=controller_.prepareBeatCreator(settings,++beatCreatorSeed_,this);
   beatCreatorConfirmOverwrite_=false;
   beatCreatorNotice_=!ok?"GENERATION REJECTED":
       controller_.visibleRows()<8?"A/B/C READY - SHOW ALL 8 ROWS":"A / B / C READY";
   invalid();return true;
  }
  if(D::apply(h).hit(x,y)){
-  if(!controller_.beatCreatorDraft()){
+  if(!controller_.beatCreatorDraft(this)){
    beatCreatorNotice_="GENERATE FIRST";invalid();return true;
   }
   const bool occupied=controller_.beatCreatorOccupiedMask()!=0;
@@ -1391,7 +1394,7 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
    beatCreatorNotice_="A/B/C OCCUPIED - CLICK CONFIRM";
    invalid();return true;
   }
-  if(controller_.applyBeatCreator(occupied&&beatCreatorConfirmOverwrite_)){
+  if(controller_.applyBeatCreator(occupied&&beatCreatorConfirmOverwrite_,this)){
    closeBeatCreator();
    status_=controller_.visibleRows()<8?
      "A/B/C GENERATED - ADD ROWS TO VIEW 5-8":
@@ -1856,7 +1859,8 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
 }
 
 void DrumatorView::drawButtonFlash(VSTGUI::CDrawContext* c) {
- if(!v101Mode_||std::chrono::steady_clock::now()>=buttonFlashUntil_)return;
+ if(!v101Mode_||std::chrono::steady_clock::now()>=buttonFlashUntil_||
+    buttonFlashContext_!=(beatCreatorOpen_?1u:sampleEditorOpen_?2u:0u))return;
  using P=v101::UiV101NativePreview;
  const auto r=buttonFlashRect_;
  if(r.getWidth()<8.||r.getHeight()<8.)return;
@@ -1867,6 +1871,8 @@ void DrumatorView::drawButtonFlash(VSTGUI::CDrawContext* c) {
 }
 void DrumatorView::recordButtonFlash(double x,double y) {
  using L=UiV101Layout;
+ buttonFlashUntil_={}; // no residual marker on unrelated clicks
+ buttonFlashContext_=beatCreatorOpen_?1u:sampleEditorOpen_?2u:0u;
  const auto set=[&](L::Rect r) {
   buttonFlashRect_={r.x0,r.y0,r.x1,r.y1};
   buttonFlashUntil_=std::chrono::steady_clock::now()+
@@ -1926,7 +1932,11 @@ void DrumatorView::recordButtonFlash(double x,double y) {
    {S::addLeft,S::choiceTop,S::addRight,S::choiceBottom},
    {S::removeLeft,S::choiceTop,S::removeRight,S::choiceBottom},
    {S::restLeft,S::choiceTop,S::restRight,S::choiceBottom}};
-  for(const auto r:controls)if(hit(r))return;
+  for(std::size_t i=0;i<sizeof(controls)/sizeof(controls[0]);++i){
+    if(i==3u&&songPage_==0)continue;
+    if(i==4u&&!S::canNext(songPage_,controller_.songCount()))continue;
+    if(hit(controls[i]))return;
+   }
   for(std::size_t i=0;i<8u;++i){
    const double xx=S::patternLeft+i*S::patternPitch;
    if(hit({xx,S::choiceTop,xx+S::patternWidth,S::choiceBottom}))return;
@@ -3161,6 +3171,20 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
          status_="ROW KNOB RESET NOT APPLIED";
        invalid();return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
      }
+     if(hit.action==UiV101Layout::Action::VelocityLane&&
+        hit.row==v101_.state().expandedRow&&
+        v101_.state().expansion==UiV101Layout::Expansion::Velocity){
+       const double relativeY=y-UiV101Layout::rowTop(
+           v101_.state().firstRow,hit.row-v101_.state().firstRow,
+           v101_.expandedRows());
+       if(UiV101Interaction::velocityAt(x,relativeY)==
+          UiV101Interaction::SettingsAction::RandomRealtimeDrag){
+         const auto current=controller_.rowRandomVelocity(hit.row);
+         if(current&&!controller_.adjustRandomVelocity(hit.row,-static_cast<int>(current)))
+           status_="LIVE VEL RESET NOT APPLIED";
+         invalid();return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+       }
+     }
    }
    if(!v101MouseDown(x,y,(buttons&VSTGUI::kControl)!=0,
                      (buttons&VSTGUI::kShift)!=0,
@@ -3766,8 +3790,9 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
    invalid();return VSTGUI::kMouseEventHandled;
  }
  if(dragExportOption_>=0){
-   const int option=dragExportOption_;
-   dragExportOption_=-1;
+    const int option=dragExportOption_;
+    dragExportOption_=-1;
+    v101PressedMenuOption_=-1;
    const auto g=UiV101Popup::geometry(UiV101Popup::Kind::Export,
                                        UiV101Layout::header,getViewSize().getHeight(),songEditorOpen_);
    const bool same=UiV101Popup::hit(UiV101Popup::Kind::Export,g,pos.x,pos.y)==option;

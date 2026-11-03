@@ -1,4 +1,5 @@
 #include "core/SampleVoiceEngine.h"
+#include "core/AtomicPatternBank.h"
 #include "core/RowMuteSolo.h"
 #include <array>
 #include <cmath>
@@ -8,6 +9,8 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include <atomic>
+#include <thread>
 
 using namespace drumator;
 static void require(bool ok,const char* text){if(!ok)throw std::runtime_error(text);}
@@ -689,6 +692,79 @@ static void testNondestructiveSampleEdits() {
          "legacy trigger");
  near(l[0],1,0.00001,"legacy full sample changed");
 }
+
+static void testSoloImmediateIsolationFourMs(){
+ std::array<float,4096> source{};source.fill(1.f);
+ SincKernel kernel;require(kernel.prepare(1),"SOLO sinc");
+ SampleVoiceEngine voices;require(voices.setOutputRate(48000),"SOLO rate");
+ RowSound row;row.sample={source.data(),nullptr,source.size()};
+ row.kernel=&kernel;row.pan=-1.f;
+ require(voices.setRow(0,row)&&voices.setRow(1,row),"SOLO rows");
+ const Trigger hits[2]{{0,0,0,127,0},{0,0,1,127,0}};
+ std::array<float,256> l{},r{};
+ require(voices.render(hits,2,l.data(),r.data(),64).accepted==2,
+         "SOLO two running samples");
+ near(l[24],2.,1e-4,"SOLO initial mix");
+ require(voices.setSoloMask(1u),"SOLO engage");
+ require(voices.render(nullptr,0,l.data(),r.data(),256).status==RenderStatus::Ok,
+         "SOLO tail transition");
+ require(l[0]>1.9f&&l[190]<1.02f&&l[220]>0.99f&&l[220]<1.01f,
+         "SOLO did not fade old cymbal in four milliseconds");
+ const Trigger excluded{0,0,1,127,0};
+ require(voices.render(&excluded,1,l.data(),r.data(),64).accepted==0,
+         "SOLO allowed a new unsoloed hit");
+ require(voices.setSoloMask(3u),"SOLO multiple rows");
+ require(voices.render(nullptr,0,l.data(),r.data(),256).status==RenderStatus::Ok,
+         "SOLO undo fade");
+ near(l[220],2.,1e-3,"SOLO restore ongoing sounds after deselection");
+ require(voices.setRowMute(1,true)&&voices.setSoloMask(0u),
+         "SOLO Mute precedence");
+ require(voices.render(nullptr,0,l.data(),r.data(),256).status==RenderStatus::Ok,
+         "SOLO release");
+ near(l[220],1.,1e-3,"Mute must override released SOLO");
+}
+static void testCoherentBeatTripleUnderConcurrentPublish(){
+ AtomicPatternBank bank;
+ constexpr auto cells=3*kRows*kSteps;
+ std::array<std::uint8_t,cells> start{},a{},b{};
+ for(std::size_t p=0;p<3;++p)
+   for(std::size_t row=0;row<kRows;++row)
+     for(std::size_t step=0;step<kSteps;++step)
+       start[p*kRows*kSteps+row*kSteps+step]=bank.get(p,row,step);
+ for(std::size_t p=0;p<3;++p){
+   a[p*kRows*kSteps]=31;
+   b[p*kRows*kSteps]=69;
+ }
+ const std::uint8_t lengths[3]{32,32,32};
+ require(bank.replaceFirstThreeIfMatches(start.data(),a.data(),lengths,lengths,cells),
+         "BEAT coherent initial A/B/C");
+ std::atomic<bool> writerOk{true};
+ std::thread writer([&]{
+   for(int i=0;i<450;++i){
+     const auto& from=i%2?b:a;
+     const auto& to=i%2?a:b;
+     if(!bank.replaceFirstThreeIfMatches(from.data(),to.data(),
+                                         lengths,lengths,cells)){
+       writerOk.store(false,std::memory_order_relaxed);break;
+     }
+   }
+ });
+ bool coherent=true;unsigned samples=0;
+ for(int i=0;i<8000;++i){
+   std::array<std::array<std::uint8_t,kRows*kSteps>,3> triple{};
+   std::array<std::uint8_t,3> durations{};
+   if(!bank.coherentFirstThree(triple,durations))continue;
+   ++samples;
+   const auto v=triple[0][0];
+   if((v!=31&&v!=69)||triple[1][0]!=v||triple[2][0]!=v||
+      durations[0]!=32||durations[1]!=32||durations[2]!=32)
+       coherent=false;
+ }
+ writer.join();
+ require(writerOk.load(std::memory_order_relaxed)&&coherent&&samples!=0,
+         "BEAT A/B/C mixed pattern generations across a transaction");
+}
+
 int main() {
  try {
   {
@@ -705,7 +781,8 @@ int main() {
     for(std::size_t i=0;i<left.size();++i)
       require(left[i]==0.f&&right[i]==0.f,"empty sampler produced sound");
   }
-  testNondestructiveSampleEdits();testMuteSoloPolicy();testHighRatioSincRejection();testKernel();testRowMix();testRetriggerAndMute();testSampleSwapLifetime();
+  testNondestructiveSampleEdits();testSoloImmediateIsolationFourMs();
+   testCoherentBeatTripleUnderConcurrentPublish();testMuteSoloPolicy();testHighRatioSincRejection();testKernel();testRowMix();testRetriggerAndMute();testSampleSwapLifetime();
   testChokeAndStereo();testChokeSplitBlockEquivalence();testRejectedChokeDoesNotFadeVoices();testCapacityValidationAndAutomation();testBandlimiting();
   testUnityRateExactPCM();testMonoSincBitIdentityWithDualMonoStereo();testStressAndRecovery();testHighRatio64VoiceStress();testSincMemo64VoicesAgainstIndependentScalarPcm(false);testSincMemo64VoicesAgainstIndependentScalarPcm(true);testRatioPerformanceComparison();testStemWithoutMain();testSimultaneousStereoStems();testAssignableOutput();testTwoRowsOneBus();
   std::cout<<"::notice title=125A Drumator voice QA::Sample-voice test sequence completed PASS\n";

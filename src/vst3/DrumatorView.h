@@ -115,6 +115,7 @@ private:
  // GUI-only, per-editor transient amber button feedback.
  VSTGUI::CRect buttonFlashRect_{};
  std::chrono::steady_clock::time_point buttonFlashUntil_{};
+ std::uint8_t buttonFlashContext_{0}; // main/SONG=0, Beat Creator=1, Wave=2
  std::uint8_t lastSongIndicator_{SongChain::kRest+1u};
   void recordButtonFlash(double x,double y);
  void drawButtonFlash(VSTGUI::CDrawContext* c);

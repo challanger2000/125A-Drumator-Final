@@ -74,7 +74,7 @@ class OfflineWavExport final {
       std::llround(static_cast<double>(totalSteps)*samplesPerStep));
    if(nominal==0||nominal>kMaxData/(kChannels*kBytesPerSample))return false;
    SampleVoiceEngine voices;
-   if(!voices.setOutputRate(kRate))return false;
+   if(!voices.setOutputRate(kRate)||!voices.setSoloMask(kit.solo))return false;
    std::array<std::unique_ptr<PreparedSample>,kRows> prepared{};
    for(std::size_t row=0;row<kRows;++row){
      if(kit.wav[row].empty())continue;

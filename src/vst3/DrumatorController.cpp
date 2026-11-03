@@ -306,6 +306,7 @@ void Controller::invalidateTransientEditsForRecall() noexcept {
  exportTempoObservation_=0;
  exportTempoSeenAt_={};
  beatPreview_.valid=false;
+ beatPreviewOwner_=nullptr;
  beatGroupUndo_.valid=false;
  invalidateWaveQuery();patternRequestPending_=false;
  strokePattern_=kPatterns;
@@ -979,18 +980,22 @@ std::uint8_t Controller::beatCreatorOccupiedMask() const noexcept {
  return BeatCreator::occupiedMask(snapshotBeatTriple());
 }
 bool Controller::prepareBeatCreator(const BeatCreatorSettings& settings,
-                                    std::uint32_t seed) noexcept {
+                                    std::uint32_t seed,const void* owner) noexcept {
  beatPreview_.valid=false;
+ beatPreviewOwner_=nullptr;
  const auto next=BeatCreator::preview(settings,seed);
  if(!next.valid)return false;
  beatPreviewBefore_=snapshotBeatTriple();
  for(std::size_t i=0;i<3;++i)beatPreviewLengths_[i]=patternLengths_[i];
  beatPreviewGeneration_=editGeneration_.current();
  beatPreview_=next;
+ beatPreviewOwner_=owner;
  return true;
 }
-void Controller::cancelBeatCreator() noexcept {
+void Controller::cancelBeatCreator(const void* owner) noexcept {
+ if(owner&&beatPreviewOwner_!=owner)return;
  beatPreview_.valid=false;
+ beatPreviewOwner_=nullptr;
 }
 bool Controller::sendBeatTriple(const BeatTriple& expected,
                                 const BeatTriple& next,
@@ -1013,12 +1018,11 @@ bool Controller::sendBeatTriple(const BeatTriple& expected,
    std::copy(next[i].begin(),next[i].end(),grid_.begin()+i*kRows*kSteps);
    patternLengths_[i]=nextLengths[i];
   }
-  try{notifyViews(false);}catch(...){}
   return true;
  }catch(...){return false;}
 }
-bool Controller::applyBeatCreator(bool allowOccupied) {
- if(!beatPreview_.valid||
+bool Controller::applyBeatCreator(bool allowOccupied,const void* owner) {
+ if(beatPreviewOwner_!=owner||!beatPreview_.valid||
     !editGeneration_.matches(beatPreviewGeneration_))
   return false;
  if(strokePattern_<kPatterns)endVelocityStroke(true,strokeOwner_);
@@ -1038,6 +1042,8 @@ bool Controller::applyBeatCreator(bool allowOccupied) {
  for(std::size_t i=0;i<3;++i)undo_.consume(i);
  beatGroupUndo_=txn;
  beatPreview_.valid=false;
+ beatPreviewOwner_=nullptr;
+ try{notifyViews(false);}catch(...){}
  return true;
 }
 bool Controller::undoBeatCreator() {
@@ -1055,6 +1061,7 @@ bool Controller::undoBeatCreator() {
   return false;
  for(std::size_t i=0;i<3;++i)undo_.consume(i);
  beatGroupUndo_.valid=false;
+ try{notifyViews(false);}catch(...){}
  return true;
 }
 bool Controller::copyCurrentPattern() {

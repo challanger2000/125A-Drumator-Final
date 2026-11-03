@@ -101,6 +101,7 @@ public:
         for(std::size_t i=0;i<count;++i)
             if(grid_[i].load(std::memory_order_relaxed)!=expected[i])
                 return false;
+        tripleVersion_.fetch_add(1,std::memory_order_acq_rel);
         for(std::size_t p=0;p<3;++p)
             version_[p].fetch_add(1,std::memory_order_acq_rel);
         for(std::size_t i=0;i<count;++i)
@@ -109,6 +110,22 @@ public:
             lengths_[p].store(newLengths[p],std::memory_order_relaxed);
         for(std::size_t p=0;p<3;++p)
             version_[p].fetch_add(1,std::memory_order_release);
+        tripleVersion_.fetch_add(1,std::memory_order_release);
+        return true;
+    }
+    // A/B/C is either one complete generation or not published to audio.
+    bool coherentFirstThree(
+        std::array<std::array<std::uint8_t,kRows*kSteps>,3>& out,
+        std::array<std::uint8_t,3>& durations) const noexcept {
+        const auto before=tripleVersion_.load(std::memory_order_acquire);
+        if(before&1u)return false;
+        std::array<std::array<std::uint8_t,kRows*kSteps>,3> candidate{};
+        std::array<std::uint8_t,3> lengths{};
+        for(std::size_t p=0;p<3;++p)
+            if(!coherentPattern(p,candidate[p],lengths[p]))return false;
+        const auto after=tripleVersion_.load(std::memory_order_acquire);
+        if(before!=after||(after&1u))return false;
+        out=candidate;durations=lengths;
         return true;
     }
     // Host/control-thread project export: lock the same writer mutex as
@@ -162,6 +179,7 @@ private:
     mutable std::mutex writeMutex_{};
     std::array<std::atomic<std::uint8_t>,kPatterns> lengths_{};
     std::array<std::atomic<std::uint64_t>,kPatterns> version_{};
+    std::atomic<std::uint64_t> tripleVersion_{0};
     std::atomic<std::uint8_t> selected_{0};
 };
 }
