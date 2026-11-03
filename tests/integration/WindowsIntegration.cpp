@@ -6323,7 +6323,7 @@ int main(int argc,char** argv){
  run("A06 committed WAV remains accepted after repaint OOM",testA06CommittedImportSurvivesRepaintFailure);
  run("A07 failed peer view refresh preserves accepted edit and dirty request",testA07NotificationFaultIsolation);
  run("A08 native WAV editor revision cache and invalidation",testA08WaveEditorRevisionCache);
- run("RM16 waveform cache disabled is detected",[]{expectMutationKilled(qa::AuditMutation::disableWaveCache,"full WAV on every viewport query",testA08WaveEditorRevisionCache);});
+ run("RM16 waveform cache disabled is detected",[]{expectMutationKilled(qa::AuditMutation::disableWaveCache,"full WAV on every viewport query","A08 unchanged View zoom/scroll redundantly decodes or transmits full WAV",testA08WaveEditorRevisionCache);});
  run("A09 native variable stereo waveform exact reference",testA09WaveformExtremaAgainstNativeReference);
  run("A10 context gap audio and step continuity",testA10MissingContextAudioContinuity);
  run("A11 verified Cycle tail vs Locate",testA11CycleWrapPreservesSampleTails);
@@ -6341,19 +6341,19 @@ int main(int argc,char** argv){
  run("A23 valid host PPQ during missing tempo and locate",testA23AuthoritativePpqSurvivesMissingTempo);
  run("A24 component-first DZM3 origin permissions are one-shot",testA24ComponentFirstDzm3OriginConsumed);
  run("A25 old unpaired Component then new DZM3 keeps provenance",testA25UnpairedComponentNewDzm3Origin);
- run("RM28 dropping valid partial PPQ is detected",[]{expectMutationKilled(qa::AuditMutation::ignoreValidPartialPpq,"host PPQ lost with invalid tempo",testA23AuthoritativePpqSurvivesMissingTempo);});
- run("RM29 stale component-first DZM3 permission detected",[]{expectMutationKilled(qa::AuditMutation::keepComponentFirstOriginArmed,"component-first DZM3 origin leak",testA24ComponentFirstDzm3OriginConsumed);});
- run("RM27 repeated per-Cycle Song snapshot detected",[]{expectMutationKilled(qa::AuditMutation::repeatSongSnapshots,"Song re-snapshot on every Cycle",testA22SongSnapshotBoundedByHostCallbacks);});
- run("RM25 stale Cycle after explicit partial disable killed",[]{expectMutationKilled(qa::AuditMutation::keepCycleOnPartialDisable,"partial ProcessContext Cycle-off ignored",testA20PartialClockExplicitCycleDisable);});
- run("RM26 valid partial tempo ignored killed",[]{expectMutationKilled(qa::AuditMutation::ignorePartialTempo,"partially valid host BPM ignored",testA21PartialTempoWithMissingPpq);});
- run("RM23 variable block no Cycle split is detected",[]{expectMutationKilled(qa::AuditMutation::skipCycleSplit,"variable callback Cycle split",testA18CycleBlockPartitionAcrossSampleRates);});
- run("RM24 stale Cycle tempo mutation is detected",[]{expectMutationKilled(qa::AuditMutation::freezeCycleTempo,"wrong tempo at Cycle seam",testA19TempoChangeWithinHostCycle);});
- run("RM22 missing Cycle clock cache is killed",[]{expectMutationKilled(qa::AuditMutation::suppressCycleClockCache,"missing Cycle clock caused skipped sample triggers",testA17MissingCycleClockKeepsExactPcm);});
- run("RM19 old unsplit Cycle scheduler is killed",[]{expectMutationKilled(qa::AuditMutation::skipCycleSplit,"unsplit host Cycle lost Step",testA13PureSequencerCyclePcm);});
- run("RM20 old linear Velocity PPQ is killed",[]{expectMutationKilled(qa::AuditMutation::skipCycleVelocityMap,"randomized loop velocity changed with block partition",testA15CycleRandomVelocityReproducible);});
- run("RM21 old single-wrap voice reset is killed",[]{expectMutationKilled(qa::AuditMutation::skipCycleModulo,"multiple Cycle wraps retire valid tails",testA16MultiCyclePerCallback);});
- run("RM18 missing-context old-cutoff regression is killed",[]{expectMutationKilled(qa::AuditMutation::suppressMissingContextCarry,"missing clock truncates hits",testA10MissingContextAudioContinuity);});
- run("RM17 direct-scan mutation is detected",[]{expectMutationKilled(qa::AuditMutation::bypassWaveRangeIndex,"linear scan instead of indexed bins",testA09WaveformExtremaAgainstNativeReference);});
+ run("RM28 dropping valid partial PPQ is detected",[]{expectMutationKilled(qa::AuditMutation::ignoreValidPartialPpq,"host PPQ lost with invalid tempo","A23 ignored authoritative PPQ during missing-tempo callback",testA23AuthoritativePpqSurvivesMissingTempo);});
+ run("RM29 stale component-first DZM3 permission detected",[]{expectMutationKilled(qa::AuditMutation::keepComponentFirstOriginArmed,"component-first DZM3 origin leak","A24 old folder was incorrectly carried to different PCM after paired DZM3",testA24ComponentFirstDzm3OriginConsumed);});
+ run("RM27 repeated per-Cycle Song snapshot detected",[]{expectMutationKilled(qa::AuditMutation::repeatSongSnapshots,"Song re-snapshot on every Cycle","A22 realtime Song re-snapshotted eight patterns more than once per callback",testA22SongSnapshotBoundedByHostCallbacks);});
+ run("RM25 stale Cycle after explicit partial disable killed",[]{expectMutationKilled(qa::AuditMutation::keepCycleOnPartialDisable,"partial ProcessContext Cycle-off ignored","A20 partial ProcessContext kept generating disabled Cycle hits",testA20PartialClockExplicitCycleDisable);});
+ run("RM26 valid partial tempo ignored killed",[]{expectMutationKilled(qa::AuditMutation::ignorePartialTempo,"partially valid host BPM ignored","A21 ignored valid partial tempo or cut sample tails at host resync",testA21PartialTempoWithMissingPpq);});
+ run("RM23 variable block no Cycle split is detected",[]{expectMutationKilled(qa::AuditMutation::skipCycleSplit,"variable callback Cycle split","A18 full stereo PCM differs with host callback partition/rate",testA18CycleBlockPartitionAcrossSampleRates);});
+ run("RM24 stale Cycle tempo mutation is detected",[]{expectMutationKilled(qa::AuditMutation::freezeCycleTempo,"wrong tempo at Cycle seam","A19 VST3 tempo change caused wrong Cycle onset or chopped tail",testA19TempoChangeWithinHostCycle);});
+ run("RM22 missing Cycle clock cache is killed",[]{expectMutationKilled(qa::AuditMutation::suppressCycleClockCache,"missing Cycle clock caused skipped sample triggers","A17 optional ProcessContext omission cut/doubled/shifted a Cycle step or tail",testA17MissingCycleClockKeepsExactPcm);});
+ run("RM19 old unsplit Cycle scheduler is killed",[]{expectMutationKilled(qa::AuditMutation::skipCycleSplit,"unsplit host Cycle lost Step","A13 host cycle seam skipped, anticipated or doubled programmed hit",testA13PureSequencerCyclePcm);});
+ run("RM20 old linear Velocity PPQ is killed",[]{expectMutationKilled(qa::AuditMutation::skipCycleVelocityMap,"randomized loop velocity changed with block partition","A15 Cycle step velocity depended on callback partition instead of PPQ",testA15CycleRandomVelocityReproducible);});
+ run("RM21 old single-wrap voice reset is killed",[]{expectMutationKilled(qa::AuditMutation::skipCycleModulo,"multiple Cycle wraps retire valid tails","A16 short multi-wrap voice reset, missed/doubled Step or false Cycle",testA16MultiCyclePerCallback);});
+ run("RM18 missing-context old-cutoff regression is killed",[]{expectMutationKilled(qa::AuditMutation::suppressMissingContextCarry,"missing clock truncates hits","A10 optional context omission cut, shifted or duplicated PCM",testA10MissingContextAudioContinuity);});
+ run("RM17 direct-scan mutation is detected",[]{expectMutationKilled(qa::AuditMutation::bypassWaveRangeIndex,"linear scan instead of indexed bins","A09 real UI queries used old linear fallback instead of the index",testA09WaveformExtremaAgainstNativeReference);});
  run("RV02 allocation-free STOP and rejected-delivery retry",testRv02AllocationFreeStopAndRetry);
  run("RV02 transient STOP rejection during native editor close",testRv02NativeEditorCloseTransientReject);
  run("RV02 rejected STOP leaves Apply uncommitted",testRv02ApplyRejectKeepsEdit);
@@ -6369,11 +6369,11 @@ int main(int argc,char** argv){
  run("FR10 global knob right-edge mouse input",testFr10GlobalKnobEdgeHit);
  run("RV05 all global knob rendered centers",testRv05GlobalKnobPaintCenters);
  run("RM14 historical Fade renderer regression killed",[]{
-   expectMutationKilled(qa::AuditMutation::oldFadeRenderer,"RV04 historical Fade/Gain formula",
+   expectMutationKilled(qa::AuditMutation::oldFadeRenderer,"RV04 historical Fade/Gain formula","RV04 waveform renderer ignores edit gain; old fade-oracle blind spot",
                         testFr05ShortFadePixelsMatchAudioContract);
  });
  run("RM15 historical knob draw offsets killed",[]{
-   expectMutationKilled(qa::AuditMutation::oldKnobDrawCenters,"RV05 original 80/178/1178 draw centers",
+   expectMutationKilled(qa::AuditMutation::oldKnobDrawCenters,"RV05 original 80/178/1178 draw centers","RV05 rendered knob center differs from its input hit center",
                         testRv05GlobalKnobPaintCenters);
  });
  evidence("Integration total failures: "+std::to_string(failures)+"; Studio One NOT RUN");
