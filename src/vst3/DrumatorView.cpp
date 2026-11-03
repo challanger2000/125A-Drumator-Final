@@ -2659,7 +2659,7 @@ void DrumatorView::draw(VSTGUI::CDrawContext* c) {
    drawControl(c,editorRect(UiWaveEditorLayout::cancel),"CANCEL");
    drawControl(c,editorRect(UiWaveEditorLayout::apply),"APPLY");
    drawControl(c,editorRect(UiV101WaveLayout::liveToggle),
-               sampleEditorLive_?"LIVE ON":"LIVE OFF");
+               sampleEditorLive_?"LIVE ON":"LIVE OFF",sampleEditorLive_);
    if(sampleEditorPressed_>=0&&
       sampleEditorPressed_<static_cast<int>(UiWaveEditorLayout::toolbar.size())){
      c->setFrameColor(on);c->setLineWidth(2.);
@@ -3245,7 +3245,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
          sampleEditorOpen_=false;sampleEditorDrag_=0;sampleEditorRow_=kRows;
          pendingViewport_=false;pendingMarkerKind_=0;
          controller_.cancelSampleEditorRequestsForView(this);
-         (void)adjustEditorHeight();break;
+         (void)adjustEditorHeight();sampleEditorPressed_=-1;break;
        case 7:
          // APPLY is a STOP-then-commit transaction. A failed STOP must not
          // leave a committed edit behind an apparently unfinished modal.
@@ -3260,6 +3260,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
          pendingViewport_=false;pendingMarkerKind_=0;
          controller_.cancelSampleEditorRequestsForView(this);
            (void)adjustEditorHeight();
+           sampleEditorPressed_=-1;
          }else status_="APPLY FAILED: SAMPLE CHANGED OR PROCESSOR REJECTED";
          break;
        default:break;
