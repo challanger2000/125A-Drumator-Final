@@ -149,6 +149,7 @@ struct IntegrationAccess {
  }
  static void showSongForFeedback(DrumatorView& v){v.songEditorOpen_=true;}
  static BeatTriple beatTriple(const Controller& c){return c.snapshotBeatTriple();}
+ static const void* modernStrokeOwner(const DrumatorView& v){return &v.v101_;}
  static void openComplexityFaultFixture(DrumatorView& v){v.beatCreatorOpen_=true;}
  static void activateComplexity(DrumatorView& v){v.editBeatCreatorComplexity();}
  static bool complexityActive(const DrumatorView& v){return v.complexityEditActive_;}
@@ -5805,11 +5806,11 @@ void testRv01RevokedModernVelocityGestures(){
          "RV01 modern velocity row did not open");
    VSTGUI::CPoint begin{sx(0),top+72.};
    first->onMouseDown(begin,VSTGUI::CButtonState(VSTGUI::kLButton|modifier));
-   check(f.c->ownsVelocityStroke(0,first),"RV01 modern stroke not owned");
+   check(f.c->ownsVelocityStroke(0,IntegrationAccess::modernStrokeOwner(*first)),"RV01 modern stroke not owned");
    VSTGUI::CPoint peerStep{sx(1),top+20.};
    peer->onMouseDown(peerStep,VSTGUI::CButtonState(VSTGUI::kLButton));
    check(f.c->velocity(0,0,1)==100,"RV01 peer step edit not committed");
-   check(!f.c->ownsVelocityStroke(0,first),"RV01 peer did not revoke stroke");
+   check(!f.c->ownsVelocityStroke(0,IntegrationAccess::modernStrokeOwner(*first)),"RV01 peer did not revoke stroke");
    VSTGUI::CPoint staleMove{sx(1),top+69.};
    first->onMouseMoved(staleMove,VSTGUI::CButtonState(VSTGUI::kLButton));
    first->onMouseUp(staleMove,VSTGUI::CButtonState(0));
@@ -5834,12 +5835,12 @@ void testRv01RevokedModernVelocityGestures(){
  first->onMouseDown(openLane,VSTGUI::CButtonState(VSTGUI::kLButton));
  VSTGUI::CPoint begin{sx(0),top+69.};
  first->onMouseDown(begin,VSTGUI::CButtonState(VSTGUI::kLButton));
- check(f.c->ownsVelocityStroke(0,first),"RV01 pre-Apply stroke not active");
+ check(f.c->ownsVelocityStroke(0,IntegrationAccess::modernStrokeOwner(*first)),"RV01 pre-Apply stroke not active");
  const auto original=IntegrationAccess::beatTriple(*f.c); // compare old patterns?
  check(f.c->prepareBeatCreator({BeatStyle::Synthpop80s,35,16},0x125A1234u,peer),
        "RV01 Beat Creator preview");
  check(f.c->applyBeatCreator(true,peer),"RV01 Beat Creator apply");
- check(!f.c->ownsVelocityStroke(0,first),"RV01 Beat Creator did not revoke stroke");
+ check(!f.c->ownsVelocityStroke(0,IntegrationAccess::modernStrokeOwner(*first)),"RV01 Beat Creator did not revoke stroke");
  const auto applied=IntegrationAccess::beatTriple(*f.c);
  VSTGUI::CPoint late{sx(1),top+85.};
  first->onMouseMoved(late,VSTGUI::CButtonState(VSTGUI::kLButton));
