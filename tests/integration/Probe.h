@@ -9,7 +9,7 @@ namespace drumator::qa {
 extern std::function<bool(VSTGUI::IDataPackage*)> exportDragObserver;
 extern thread_local bool legacyTriggerOrdering; // regression negative, test EXE only
 enum class AuditMutation { none, keepStaleExportTempo, suppressZeroStop, staleDuration, skipPeerCommit,
- basenameOnly, delayMidiOne, dropMidi, doubleMidi, zeroPrefix,
+ basenameOnly, delayMidiOne, dropMidi, doubleMidi, zeroPrefix, zeroLaterPrefix,
  ignoreSongLengths,
  skipImport, muteImportedProcessor, delayImportedProcessor,
  rejectPreviewStop, rejectPreviewStopOnce, patternQueryOOM, patternReplyOOM,
@@ -28,6 +28,8 @@ extern std::atomic<unsigned> auditWaveDecodeMisses,auditWaveFullReplies;
 extern std::atomic<unsigned> auditWaveIndexedCalls;
 extern std::atomic<const void*> auditImportTarget;
 extern std::atomic<unsigned> auditImportCalls,auditDelayCalls;
+extern std::atomic<unsigned> auditLatePrefixCalls;
+extern std::atomic<bool> auditRe09LegacyPrefix;
 enum Point { none, patternMidWrite, patternReadStarted, songTripleMidWrite,
              songAfterFirstPatternRead, restoreSnapshot,
              restoreMidCommit, restoreBeforeSelection, songMidPublish,

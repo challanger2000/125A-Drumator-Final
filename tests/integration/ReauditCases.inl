@@ -118,9 +118,15 @@ void testReauditPatternLength(){
 struct ReauditMutationScope {
  explicit ReauditMutationScope(qa::AuditMutation mode){
    qa::auditImportTarget=nullptr;qa::auditImportCalls=0;qa::auditDelayCalls=0;
+   qa::auditLatePrefixCalls=0;
+   qa::auditRe09LegacyPrefix=false;
    qa::auditMutation=mode;
  }
- ~ReauditMutationScope(){qa::auditMutation=qa::AuditMutation::none;qa::auditImportTarget=nullptr;}
+ ~ReauditMutationScope(){
+   qa::auditMutation=qa::AuditMutation::none;
+   qa::auditImportTarget=nullptr;
+   qa::auditRe09LegacyPrefix=false;
+ }
 };
 template<class Test>
 void expectMutationKilled(qa::AuditMutation mode,const char* label,
@@ -450,7 +456,11 @@ void testReauditLoadedSwapChecked(bool requireDeadline){
        if(!std::isfinite(audio.left[sample])||!std::isfinite(audio.right[sample]))++badPcm;
        // Only the genuine trigger blocks need a sinc attack transient.
        const bool onsetBlock=block==0||block==200||block==351;
-       if((!onsetBlock||sample>=20)&&
+       // RM30 tests both predicates against the SAME 8-frame corruption:
+       // the historical oracle must miss it, the repaired one must catch it.
+       const bool mustCheck=qa::auditRe09LegacyPrefix.load()?
+          (sample>=20||block==350):(!onsetBlock||sample>=20);
+       if(mustCheck&&
           (std::abs(audio.left[sample]-expectedLeft)>2e-4f||
            std::abs(audio.right[sample]-expectedRight)>2e-4f))++badPcm;
      }

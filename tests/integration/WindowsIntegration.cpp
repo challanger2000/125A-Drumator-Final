@@ -106,6 +106,8 @@ std::atomic<unsigned> auditWaveDecodeMisses{0},auditWaveFullReplies{0};
 std::atomic<unsigned> auditWaveIndexedCalls{0};
 std::atomic<const void*> auditImportTarget{nullptr};
 std::atomic<unsigned> auditImportCalls{0},auditDelayCalls{0};
+std::atomic<unsigned> auditLatePrefixCalls{0};
+std::atomic<bool> auditRe09LegacyPrefix{false};
 void probe(Point p) noexcept {
  if(stopPoint.load(std::memory_order_acquire)!=p)return;
  SetEvent(entered);
@@ -6394,14 +6396,25 @@ int main(int argc,char** argv){
     }
     check(killedByPcm,"RM13 skipped import was not detected by replacement PCM");
   });
- run("RM30 RE09 high-ratio PCM prefix must be checked",[]{
-   // The unmodified control must pass; a mutation removing the first 32
-   // PCM samples of later blocks must fail on the RE09 audio-domain oracle.
-   // Only RM30 disables the shared-runner deadline gate, not RE09 itself.
-   expectMutationKilled(qa::AuditMutation::zeroPrefix,
-     "ratio4 later-block PCM prefix",
-     "RE09 audible sample-replacement PCM mismatch",
-     []{testReauditLoadedSwapChecked(false);});
+ run("RM30 exact 0-7 PCM samples of later blocks",[]{
+   // A false PASS from a 32-sample mutation would not detect the old blind
+   // spot; the corrupt span is now strictly INSIDE the old 20-sample skip.
+   testReauditLoadedSwapChecked(false); // positive control
+   ReauditMutationScope scope(qa::AuditMutation::zeroLaterPrefix);
+   qa::auditRe09LegacyPrefix=true;
+   try{testReauditLoadedSwapChecked(false);}
+   catch(...){qa::auditRe09LegacyPrefix=false;throw;}
+   qa::auditRe09LegacyPrefix=false;
+   qa::auditLatePrefixCalls=0;
+   bool caughtPcm=false;
+   try{testReauditLoadedSwapChecked(false);}
+   catch(const std::runtime_error& ex){
+     caughtPcm=std::string(ex.what()).find(
+       "RE09 audible sample-replacement PCM mismatch")!=std::string::npos;
+   }
+   check(caughtPcm,
+     "RM30 corrected RE09 oracle did not catch 8 missing later-block frames");
+   evidence("RM30 legacy prefix oracle SURVIVES targeted defect; repaired oracle KILLS it PASS");
  });
  run("WE01 actual WAV preview and project recall",testWavEditorPreviewAndRecall);
  run("T03 controlled actual bank",testPatternOverlap);
