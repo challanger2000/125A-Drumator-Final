@@ -146,6 +146,12 @@ struct IntegrationAccess {
    return p.audioSongTripleLengthCache_;
  }
  static void showSongForFeedback(DrumatorView& v){v.songEditorOpen_=true;}
+ static BeatTriple beatTriple(const Controller& c){return c.snapshotBeatTriple();}
+ static void openComplexityFaultFixture(DrumatorView& v){v.beatCreatorOpen_=true;}
+ static void activateComplexity(DrumatorView& v){v.editBeatCreatorComplexity();}
+ static bool complexityActive(const DrumatorView& v){return v.complexityEditActive_;}
+ static VSTGUI::CTextEdit* complexityControl(const DrumatorView& v){return v.complexityEdit_;}
+ static unsigned complexityValue(const DrumatorView& v){return v.beatCreatorComplexity_;}
  static float primeAndMeasureLimiter(Processor& processor,float level){
    float l=level,r=-level*.75f;
    processor.limiterBuses_[0].process(l,r,true);
@@ -5776,6 +5782,131 @@ void testSongTripleFallbackDoesNotMixPatternCaches(){
  evidence("BT01 actual SONG processor rejects mixed A/B/C fallback under odd writer PASS");
 }
 
+void testRv01RevokedModernVelocityGestures(){
+ using L=UiV101Layout;
+ constexpr int modifiers[4]{0,VSTGUI::kShift,
+                             VSTGUI::kShift|VSTGUI::kAlt,VSTGUI::kAlt};
+ const auto sx=[](std::size_t step){
+   const auto r=L::stepRect(step);
+   return (r.x0+r.x1)*.5;
+ };
+ for(const int modifier:modifiers){
+   Fixture f;KitState kit;kit.visible=2;kit.grid.fill(0);
+   kit.grid[0]=85;kit.patternLengths[0]=16;
+   f.kit(kit);(void)f.openV101();(void)f.openV101();
+   auto* first=IntegrationAccess::view(*f.c,0);
+   auto* peer=IntegrationAccess::view(*f.c,1);
+   const double top=L::rowTop(0,0,L::Expansions{});
+   VSTGUI::CPoint openLane{1235.,top+12.};
+   first->onMouseDown(openLane,VSTGUI::CButtonState(VSTGUI::kLButton));
+   check(IntegrationAccess::v101Expansion(*first)==L::Expansion::Velocity,
+         "RV01 modern velocity row did not open");
+   VSTGUI::CPoint begin{sx(0),top+72.};
+   first->onMouseDown(begin,VSTGUI::CButtonState(VSTGUI::kLButton|modifier));
+   check(f.c->ownsVelocityStroke(0,first),"RV01 modern stroke not owned");
+   VSTGUI::CPoint peerStep{sx(1),top+20.};
+   peer->onMouseDown(peerStep,VSTGUI::CButtonState(VSTGUI::kLButton));
+   check(f.c->velocity(0,0,1)==100,"RV01 peer step edit not committed");
+   check(!f.c->ownsVelocityStroke(0,first),"RV01 peer did not revoke stroke");
+   VSTGUI::CPoint staleMove{sx(1),top+69.};
+   first->onMouseMoved(staleMove,VSTGUI::CButtonState(VSTGUI::kLButton));
+   first->onMouseUp(staleMove,VSTGUI::CButtonState(0));
+   first->onMouseCancel();
+   check(f.c->velocity(0,0,1)==100,
+         "RV01 stale modern gesture overwrote a peer step");
+   ResizableMemoryIBStream save;KitState stored;
+   check(f.p->getState(&save)==kResultOk&&KitCodec::decode(
+       static_cast<const std::uint8_t*>(save.getData()),
+       static_cast<std::size_t>(save.getCursor()),stored)&&stored.grid[1]==100,
+       "RV01 processor lost peer step through stale modern Move");
+ }
+ // A successful A/B/C Apply must retain both its new data and grouped Undo
+ // despite queued Move/Up/Cancel events from the superseded modern editor.
+ Fixture f;KitState kit;kit.visible=2;kit.grid.fill(0);kit.grid[0]=85;
+ kit.patternLengths.fill(16);
+ f.kit(kit);(void)f.openV101();(void)f.openV101();
+ auto* first=IntegrationAccess::view(*f.c,0);
+ auto* peer=IntegrationAccess::view(*f.c,1);
+ const double top=L::rowTop(0,0,L::Expansions{});
+ VSTGUI::CPoint openLane{1235.,top+12.};
+ first->onMouseDown(openLane,VSTGUI::CButtonState(VSTGUI::kLButton));
+ VSTGUI::CPoint begin{sx(0),top+69.};
+ first->onMouseDown(begin,VSTGUI::CButtonState(VSTGUI::kLButton));
+ check(f.c->ownsVelocityStroke(0,first),"RV01 pre-Apply stroke not active");
+ const auto original=IntegrationAccess::beatTriple(*f.c); // compare old patterns?
+ check(f.c->prepareBeatCreator({BeatStyle::Synthpop80s,35,16},0x125A1234u,peer),
+       "RV01 Beat Creator preview");
+ check(f.c->applyBeatCreator(true,peer),"RV01 Beat Creator apply");
+ check(!f.c->ownsVelocityStroke(0,first),"RV01 Beat Creator did not revoke stroke");
+ const auto applied=IntegrationAccess::beatTriple(*f.c);
+ VSTGUI::CPoint late{sx(1),top+85.};
+ first->onMouseMoved(late,VSTGUI::CButtonState(VSTGUI::kLButton));
+ first->onMouseUp(late,VSTGUI::CButtonState(0));
+ first->onMouseCancel();
+ check(IntegrationAccess::beatTriple(*f.c)==applied,
+       "RV01 stale modern gesture corrupted Beat Creator A/B/C commit");
+ check(f.c->undoBeatCreator(),"RV01 stale modern gesture consumed grouped Undo");
+ check(IntegrationAccess::beatTriple(*f.c)==original,
+       "RV01 Beat Creator grouped Undo failed to restore previous triple");
+ evidence("RV01 real pair of modern Views, Paint/Line/Curve/Accent, stale Move/Up/Cancel and group Undo PASS");
+}
+
+void testRv02CoherentTripleRejectsSingleEditInterleave(){
+ AtomicPatternBank bank;
+ check(bank.set(0,0,0,31)&&bank.set(1,0,0,41),
+       "RV02 seed individual A/B patterns");
+ std::array<std::array<std::uint8_t,kRows*kSteps>,3> observed{};
+ std::array<std::uint8_t,3> lengths{};
+ bool accepted=false;
+ arm(qa::songAfterFirstPatternRead);
+ std::jthread reader([&]{accepted=bank.coherentFirstThree(observed,lengths);});
+ try{
+   waitEntered();
+   // Both mutations occur strictly after the reader accepted old A, before B.
+   check(bank.set(0,0,0,32)&&bank.set(1,0,0,42),
+         "RV02 publish individual A then B");
+ }catch(...){releaseProbe();reader.join();throw;}
+ releaseProbe();reader.join();
+ check(!accepted&&!probeTimeout,
+       "RV02 SONG reader accepted A-old/B-new combination that never existed");
+ check(bank.coherentFirstThree(observed,lengths)&&
+       observed[0][0]==32&&observed[1][0]==42,
+       "RV02 steady-state combined A/B not coherent");
+ evidence("RV02 forced single-edit interleave rejects an impossible A/B/C triple PASS");
+}
+
+void testRv05ComplexityAllocationFailure(){
+ Fixture f;KitState kit;kit.visible=2;f.kit(kit);
+ (void)f.openV101();auto* v=IntegrationAccess::view(*f.c,0);
+ IntegrationAccess::openComplexityFaultFixture(*v);
+ // Hit the actual native CTextEdit creation with an injected allocation fault.
+ bool escaped=false;
+ allocationFail=0;
+ try{IntegrationAccess::activateComplexity(*v);}catch(...){escaped=true;}
+ allocationFail=-1;
+ check(!escaped&&!IntegrationAccess::complexityActive(*v),
+       "RV05 allocation escaped the modern Complexity mouse-edit path");
+ // The same view must remain usable after the failure.
+ IntegrationAccess::activateComplexity(*v);
+ auto* field=IntegrationAccess::complexityControl(*v);
+ check(field&&IntegrationAccess::complexityActive(*v),
+       "RV05 failed edit creation left the dialog unusable");
+ field->setText("73");
+ escaped=false;allocationFail=0;
+ try{v->valueChanged(field);}catch(...){escaped=true;}
+ allocationFail=-1;
+ check(!escaped&&!IntegrationAccess::complexityActive(*v),
+       "RV05 text entry allocation fault escaped VSTGUI valueChanged");
+ IntegrationAccess::activateComplexity(*v);
+ field=IntegrationAccess::complexityControl(*v);
+ check(field&&IntegrationAccess::complexityActive(*v),
+       "RV05 valueChanged fault prevented reopening");
+ field->setText("42");v->valueChanged(field);
+ check(IntegrationAccess::complexityValue(*v)==42,
+       "RV05 recovering Complexity edit did not accept a valid value");
+ evidence("RV05 native Complexity creation/valueChanged OOM guard and recovery PASS");
+}
+
 struct A01SerializedConnection final:Steinberg::Vst::IConnectionPoint {
  IConnectionPoint* target;
  bool holdReplies=false;
@@ -6170,6 +6301,12 @@ int main(int argc,char** argv){
   run("REL08 voice capacity reporting",testReleaseAuditVoiceCapacityDiagnostics);
  run("BT01 SONG A/B/C coherent fallback under concurrent publish",
      testSongTripleFallbackDoesNotMixPatternCaches);
+ run("RV01 modern peer Velocity stale events and Beat Creator undo",
+     testRv01RevokedModernVelocityGestures);
+ run("RV02 A/B/C single-writer interleaving rejection",
+     testRv02CoherentTripleRejectsSingleEditInterleave);
+ run("RV05 native Complexity OOM event boundaries",
+     testRv05ComplexityAllocationFailure);
  run("RE01 original deterministic VFA02",testReauditPatternLength);
  run("RE02 original fresh DZM3 matrix",testFinalAuditDzm3);
  run("RE03 paired duration fallback in Pattern and Song",testReauditDurationFallback);
