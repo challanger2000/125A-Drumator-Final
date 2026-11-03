@@ -338,7 +338,8 @@ public:
  Result move(double x,double y){
    if(gesture_==Gesture::Velocity){
      const auto p=controller_.currentPattern();
-     if(p!=lanePattern_||controller_.editGeneration()!=laneGeneration_){
+     if(p!=lanePattern_||controller_.editGeneration()!=laneGeneration_||
+        !controller_.ownsVelocityStroke(lanePattern_,this)){
        endGesture(false);return Result::Ignored;
      }
      const int step=laneStep(x);
@@ -434,6 +435,11 @@ private:
  }
  Result applyVelocityShape(std::size_t step,std::uint8_t value){
    if(!velocityShape_.active())return Result::Ignored;
+   if(!controller_.ownsVelocityStroke(lanePattern_,this)){
+     // Never apply an obsolete line/curve to a peer's newer grid.
+     endGesture(false);
+     return Result::Ignored;
+   }
    const auto& values=velocityShape_.advance(step,value);
    for(std::size_t i=0;i<values.size();++i){
      if(controller_.velocity(lanePattern_,laneRow_,i)==values[i])continue;

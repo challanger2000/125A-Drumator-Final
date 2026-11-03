@@ -93,6 +93,8 @@ public:
  bool setStepVelocity(std::size_t pattern,std::size_t row,std::size_t step,std::uint8_t velocity,const void* owner=nullptr);
  void beginVelocityStroke(std::size_t p,const void* owner=nullptr);
  void endVelocityStroke(bool commit,const void* owner=nullptr);
+ // The editor must still own the current stroke before it can write.
+ bool ownsVelocityStroke(std::size_t p,const void* owner) const noexcept;
  bool changePattern(std::size_t pattern);
  bool togglePatternLength(std::size_t pattern);
  std::uint8_t patternLength(std::size_t p) const noexcept {return p<kPatterns?patternLengths_[p]:32;}

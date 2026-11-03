@@ -1295,6 +1295,10 @@ bool Controller::hideLastEmptyRow() {
    return true;
  }catch(...){return false;}
 }
+bool Controller::ownsVelocityStroke(std::size_t p,const void* owner) const noexcept {
+ return owner!=nullptr&&p<kPatterns&&strokePattern_==p&&
+        strokeOwner_==owner&&editGeneration_.matches(strokeGeneration_);
+}
 void Controller::beginVelocityStroke(std::size_t p,const void* owner) {
  if(p>=kPatterns)return;
  if(strokePattern_<kPatterns)endVelocityStroke(true,strokeOwner_);
@@ -1325,6 +1329,9 @@ void Controller::rememberUndoStep(std::size_t p,std::size_t r,std::size_t s,std:
 bool Controller::setStepVelocity(std::size_t p,std::size_t r,std::size_t s,std::uint8_t next,const void* owner){
  try {
  if(p>=kPatterns||r>=kRows||s>=kSteps||next>127)return false;
+ // A peer edit or Beat Creator Apply revokes the original View stroke.
+ // Do not let a late MouseMove resurrect it or corrupt grouped Undo.
+ if(owner&&!ownsVelocityStroke(p,owner))return false;
  // Peer edits must commit the previous owner's gesture before mutation.
  // Late Cancel from that owner is then inert; no stale whole-grid restore.
  if(strokePattern_<kPatterns&&strokeOwner_!=owner)
