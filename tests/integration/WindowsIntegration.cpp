@@ -4527,6 +4527,10 @@ void testReleaseAuditModalDropOwnershipAndFeedback(){
  auto center=[](UiBeatCreatorDialog::Rect r){
    return VSTGUI::CPoint{(r.x0+r.x1)*.5,(r.y0+r.y1)*.5};
  };
+ const auto disabledApply=center(UiBeatCreatorDialog::apply(a->getViewSize().getHeight()));
+ IntegrationAccess::testFeedbackClick(*a,disabledApply.x,disabledApply.y);
+ check(!IntegrationAccess::flashVisible(*a),
+       "REL05 disabled Beat Creator APPLY unexpectedly flashed");
  const auto gen=center(UiBeatCreatorDialog::generate(a->getViewSize().getHeight()));
  click(*a,gen.x,gen.y);
  check(f.c->beatCreatorDraft(a)!=nullptr,"REL02 A draft not owned by A");
@@ -4579,6 +4583,33 @@ void testReleaseAuditNarrowViewportAndLiveVelocity(){
        "REL03 VEL expansion underflowed firstRow on four-row viewport");
  evidence("REL03 narrow viewport expands final VEL row without unsigned underflow PASS");
 }
+void testReleaseAuditLiveVelDefaultAndDisabledNavigation(){
+ using L=UiV101Layout;
+ Fixture f;KitState kit{};kit.visible=2;f.kit(kit);
+ (void)f.openV101();auto* v=IntegrationAccess::view(*f.c,0);
+ const double foot=v->getViewSize().getHeight()-L::footer;
+ const auto prev=L::footerPrev;
+ IntegrationAccess::testFeedbackClick(*v,(prev.x0+prev.x1)*.5,
+                                        foot+(prev.y0+prev.y1)*.5);
+ check(!IntegrationAccess::flashVisible(*v),
+       "REL05 disabled PREV PAGE acknowledged a nonaction");
+ check(f.c->adjustRandomVelocity(0,60),"REL06 setup LIVE VEL");
+ click(*v,1235.,L::header+12.);
+ check(IntegrationAccess::v101Expansion(*v)==L::Expansion::Velocity,
+       "REL06 VEL expansion did not open");
+ const auto field=UiV101Interaction::realtimeValue;
+ const double y=L::rowTop(0,0,L::Expansions{})+(field.y0+field.y1)*.5;
+ VSTGUI::CPoint at{(field.x0+field.x1)*.5,y};
+ v->onMouseDown(at,VSTGUI::CButtonState(VSTGUI::kLButton|VSTGUI::kControl));
+ check(f.c->rowRandomVelocity(0)==0,
+       "REL06 CTRL LIVE VEL failed to restore default zero");
+ check(f.c->adjustRandomVelocity(0,45),"REL06 double click setup");
+ v->onMouseDown(at,VSTGUI::CButtonState(VSTGUI::kLButton|VSTGUI::kDoubleClick));
+ check(f.c->rowRandomVelocity(0)==0,
+       "REL06 double-click LIVE VEL failed to restore default zero");
+ evidence("REL05 disabled navigation, REL06 CTRL/double-click LIVE VEL reset PASS");
+}
+
 void testReleaseAuditVoiceCapacityDiagnostics(){
  Fixture f;KitState kit{};kit.visible=1;kit.grid.fill(0);
  kit.wav[0]=constantStereo(.125f,-.125f);
@@ -6030,6 +6061,7 @@ int main(int argc,char** argv){
   run("BC63 comprehensive popup and main-header pressed feedback",testCompleteButtonFeedback);
   run("REL01/02/04/05 Beat Creator modal drop, peer ownership and Export",testReleaseAuditModalDropOwnershipAndFeedback);
   run("REL03 viewport expansion",testReleaseAuditNarrowViewportAndLiveVelocity);
+  run("REL05/06 disabled navigation and LIVE VEL reset",testReleaseAuditLiveVelDefaultAndDisabledNavigation);
   run("REL08 voice capacity reporting",testReleaseAuditVoiceCapacityDiagnostics);
  run("RE01 original deterministic VFA02",testReauditPatternLength);
  run("RE02 original fresh DZM3 matrix",testFinalAuditDzm3);

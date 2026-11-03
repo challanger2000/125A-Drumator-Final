@@ -1888,6 +1888,8 @@ void DrumatorView::recordButtonFlash(double x,double y) {
  const double h=getViewSize().getHeight();
  if(beatCreatorOpen_){
   using D=UiBeatCreatorDialog;
+  // The painter disables APPLY if no preview belongs to this editor.
+  if(D::apply(h).hit(x,y)&&!controller_.beatCreatorDraft(this))return;
   if(beatCreatorStyleMenu_){
    for(std::size_t i=0;i<10u;++i)
     if(D::styleOption(h,i).hit(x,y)){set(D::styleOption(h,i));return;}
@@ -1987,9 +1989,14 @@ void DrumatorView::recordButtonFlash(double x,double y) {
  }
  const double foot=h-L::footer;
  if(hit(shifted(songEditorOpen_?L::songFooterExport:L::footerExport,foot)))return;
- if(!songEditorOpen_)
-  for(const auto r:{L::footerAdd,L::footerRemove,L::footerPrev,L::footerNext})
+ if(!songEditorOpen_){
+  for(const auto r:{L::footerAdd,L::footerRemove})
    if(hit(shifted(r,foot)))return;
+  // Never flash disabled page arrows.
+  if(v101_.state().firstRow>0&&hit(shifted(L::footerPrev,foot)))return;
+  if(v101_.state().firstRow+v101_.shownRows()<controller_.visibleRows()&&
+     hit(shifted(L::footerNext,foot)))return;
+ }
 }
 
 void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
