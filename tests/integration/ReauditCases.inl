@@ -136,7 +136,11 @@ void expectMutationKilled(qa::AuditMutation mode,const char* label,
    // cache failure oracles; fixture/IO failures must never count.
    if(mode==qa::AuditMutation::disableWaveCache)
      killed=(reason=="A08 opening waveform did not exercise one real full WAV query"||
+             reason=="A08 native View zoom rejected"||
              reason=="A08 unchanged View zoom/scroll redundantly decodes or transmits full WAV")&&
+             // Zoom is legitimately rejected when the injected cache bypass
+             // forces redundant waveform fetch/decode. Require concrete
+             // evidence of repeated cache misses, not an arbitrary UI failure.
              (qa::auditWaveDecodeMisses.load()>1u||qa::auditWaveFullReplies.load()>1u);
  }
  qa::workflowNotice(std::string("MUTATION ")+label+": "+
