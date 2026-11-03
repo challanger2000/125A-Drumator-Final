@@ -1948,10 +1948,12 @@ void DrumatorView::recordButtonFlash(double x,double y) {
    const double yy=L::rowTop(first,r.row-first,v101_.expandedRows());
    L::Rect cap{};
    switch(r.action){
+    case L::Action::Select:cap=L::select;break;
     case L::Action::Mute:cap=L::mute;break;
     case L::Action::Solo:cap=L::solo;break;
     case L::Action::Previous:cap=L::previous;break;
     case L::Action::Next:cap=L::next;break;
+    case L::Action::Load:cap=L::load;break;
     case L::Action::SampleMenu:cap=L::sampleMenu;break;
     case L::Action::Preview:cap=L::preview;break;
     case L::Action::Fill:cap=L::fill;break;
@@ -3085,6 +3087,8 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    const int option=UiV101Popup::hit(v101Menu_,g,x,y);
    if(option>=0){
      dragExportOption_=option;dragExportStart_=pos;
+     v101PressedMenuOption_=option;
+     invalid();
      return VSTGUI::kMouseEventHandled;
    }
  }
@@ -3672,11 +3676,12 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseMoved(
     VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
  if(dragExportOption_>=0){
    if(!(buttons&VSTGUI::kLButton)){
-     dragExportOption_=-1;invalid();return VSTGUI::kMouseEventHandled;
+     dragExportOption_=-1;v101PressedMenuOption_=-1;invalid();return VSTGUI::kMouseEventHandled;
    }
    if(VSTGUI::shouldStartDrag(dragExportStart_,pos)){
      const int option=dragExportOption_;
      dragExportOption_=-1;
+    v101PressedMenuOption_=-1;
      v101Menu_=UiV101Popup::Kind::None;v101MenuRow_=kRows;
      (void)startExportDrag(option);
      invalid();return VSTGUI::kMouseEventHandled;
@@ -3747,7 +3752,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseMoved(
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
     VSTGUI::CPoint& pos,const VSTGUI::CButtonState&) {
- if(v101PressedMenuOption_>=0){
+ if(v101PressedMenuOption_>=0&&v101Menu_!=UiV101Popup::Kind::Export){
    const int option=v101PressedMenuOption_;
    v101PressedMenuOption_=-1;
    const auto first=v101_.state().firstRow;

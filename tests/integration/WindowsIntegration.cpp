@@ -4441,7 +4441,8 @@ void testCompleteButtonFeedback(){
  auto center=[](L::Rect r){return VSTGUI::CPoint{(r.x0+r.x1)*.5,(r.y0+r.y1)*.5};};
  // The native header-family and actual clicked flash rectangles must correspond.
  for(std::size_t i=0;i<8;++i){
-   const auto r=L::patternButton(i),p=center(r);
+   const auto r=L::patternButton(i);
+   const auto p=center(r);
    IntegrationAccess::testFeedbackClick(*view,p.x,p.y);
    const auto seen=IntegrationAccess::feedbackRect(*view);
    check(seen.left==r.x0&&seen.right==r.x1&&
@@ -4469,8 +4470,7 @@ void testCompleteButtonFeedback(){
      const auto p=center(UiV101Popup::cell(g,option));
      VSTGUI::CPoint at=p;
      view->onMouseDown(at,VSTGUI::CButtonState(VSTGUI::kLButton));
-     if(kind!=K::Export)
-       check(IntegrationAccess::v101Popup(*view)==kind&&
+     check(IntegrationAccess::v101Popup(*view)==kind&&
              IntegrationAccess::pressedPopupOption(*view)==option,
              "BC63 popup option did not show pressed cap before release");
      view->onMouseCancel(); // don't open native file selector during audit
