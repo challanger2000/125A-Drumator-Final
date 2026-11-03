@@ -104,6 +104,7 @@ public:
  bool setSongEntry(std::size_t slot,std::uint8_t pattern,std::uint8_t steps);
  bool adjustSongCount(int delta);
  bool songEnabled() const noexcept {return songEnabled_;}
+ std::uint8_t songPlaybackPattern() const noexcept {return songPlaybackPattern_;}
  std::size_t songCount() const noexcept {return songChain_.count();}
  SongChain::Entry songEntry(std::size_t slot) const noexcept {return songChain_.entry(slot);}
  bool copyCurrentPattern();
@@ -184,6 +185,8 @@ public:
 private:
  std::shared_ptr<OutputMeter> meter_{}; // QA compatibility; not used by shipping GUI
  MeterState meterState_{};
+ std::uint8_t songPlaybackPattern_{SongChain::kRest+1u};
+ std::uint64_t lastSongPlaybackReplyId_{0};
  std::uint32_t lastClearEpoch_{0};
  void notifyViews(bool relayout);
  void publishAutomationEdit(Steinberg::Vst::ParamID id,double normalized) noexcept;

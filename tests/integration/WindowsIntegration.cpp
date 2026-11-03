@@ -134,6 +134,10 @@ struct IntegrationAccess {
    return l;
  }
  static UiV101Popup::Kind v101Popup(const DrumatorView& view){return view.v101Menu_;}
+  static int pressedPopupOption(const DrumatorView& view){return view.v101PressedMenuOption_;}
+  static void setPopup(DrumatorView& view,UiV101Popup::Kind kind,std::size_t row){view.v101Menu_=kind;view.v101MenuRow_=row;}
+  static void testFeedbackClick(DrumatorView& view,double x,double y){view.recordButtonFlash(x,y);}
+  static VSTGUI::CRect feedbackRect(const DrumatorView& view){return view.buttonFlashRect_;}
  static std::string sampleEditorStatus(const DrumatorView& v){return v.status_;}
  static bool openSampleEditorForCapture(DrumatorView& view,std::size_t row){return view.openSampleEditor(row);}
  static bool importPathViaView(DrumatorView& view,std::size_t row,const std::string& path){return view.loadPath(row,path);}
@@ -4384,6 +4388,119 @@ void testPatternDuplicateMenu(){
  evidence("P18 native DUPLIZIEREN menu, whole-grid copy, Undo, full bank and empty source PASS");
 }
 
+void testSongLivePatternHeader(){
+ constexpr auto flags=ProcessContext::kPlaying|
+     ProcessContext::kTempoValid|ProcessContext::kProjectTimeMusicValid;
+ Fixture f;KitState kit;kit.visible=2;kit.grid.fill(0);
+ kit.songEnabled=1;kit.songStartBar=2;kit.selected=0;
+ check(kit.chain.setCount(3)&&kit.chain.configure(0,0,16)&&
+       kit.chain.configure(1,2,16)&&
+       kit.chain.configure(2,SongChain::kRest,16),"BC62 song A/C/REST fixture");
+ f.kit(kit);prepareAudio(*f.p);
+ std::array<float,256> left{},right{};
+ float* channels[2]{left.data(),right.data()};
+ AudioBusBuffers out{};out.numChannels=2;out.channelBuffers32=channels;
+ ProcessContext clock{};clock.state=flags;clock.tempo=6000.;
+ ProcessData data{};data.numSamples=256;data.symbolicSampleSize=kSample32;
+ data.numOutputs=1;data.outputs=&out;data.processContext=&clock;
+ auto read=[&](double ppq,std::size_t expected){
+   clock.projectTimeMusic=ppq;
+   check(f.p->process(data)==kResultOk,"BC62 SONG render");
+   f.c->requestMeterSnapshot();
+   const auto scene=v101::captureControllerScene(*f.c);
+   check(scene.pattern==0&&f.c->currentPattern()==0,
+         "BC62 playback must not change editing Pattern A");
+   check(scene.songPlaybackPattern==expected,
+         "BC62 audio SONG position not published to controller");
+   check(v101::UiV101NativePreview::headerPattern(scene)==expected,
+         "BC62 wrong A-H or REST header highlight");
+ };
+ read(3.0,SongChain::kRest);
+ read(4.0,0);
+ read(8.0,2);
+ read(12.0,SongChain::kRest);
+ read(16.0,0);
+ check(f.p->setProcessing(false)==kResultOk,"BC62 stop");
+ f.c->requestMeterSnapshot();
+ const auto stopped=v101::captureControllerScene(*f.c);
+ check(stopped.songPlaybackPattern==SongChain::kRest+1u&&
+       v101::UiV101NativePreview::headerPattern(stopped)==0,
+       "BC62 stop left stale header");
+ check(f.c->configureSong(false,f.c->songCount(),kit.chain,2),
+       "BC62 disable SONG");
+ check(v101::UiV101NativePreview::headerPattern(
+       v101::captureControllerScene(*f.c))==0,
+       "BC62 manual Pattern A not restored");
+ evidence("BC62 SONG A/C/REST, audio host IPC, Stop and editing state PASS");
+}
+void testCompleteButtonFeedback(){
+ Fixture f;(void)f.openV101();
+ auto* view=IntegrationAccess::view(*f.c,0);
+ using K=UiV101Popup::Kind;
+ using L=UiV101Layout;
+ auto center=[](L::Rect r){return VSTGUI::CPoint{(r.x0+r.x1)*.5,(r.y0+r.y1)*.5};};
+ // The native header-family and actual clicked flash rectangles must correspond.
+ for(std::size_t i=0;i<8;++i){
+   const auto r=L::patternButton(i),p=center(r);
+   IntegrationAccess::testFeedbackClick(*view,p.x,p.y);
+   const auto seen=IntegrationAccess::feedbackRect(*view);
+   check(seen.left==r.x0&&seen.right==r.x1&&
+         seen.top==r.y0&&seen.bottom==r.y1,
+         "BC63 A-H click feedback hit wrong button");
+ }
+ for(const auto r:{L::patternMenu,L::barsButton,L::headerGroup(0),
+                   L::headerGroup(1),L::zoomTrigger,L::limiterTrigger,
+                   L::beatCreatorTrigger}){
+   const auto p=center(r);
+   IntegrationAccess::testFeedbackClick(*view,p.x,p.y);
+   const auto seen=IntegrationAccess::feedbackRect(*view);
+   check(seen.left==r.x0&&seen.right==r.x1,
+         "BC63 header button feedback wrong cap");
+ }
+ // Every real popup option must remain visually pressed until mouse-up.
+ // Sample/Export options are pressed then cancelled to avoid OS file dialogs.
+ unsigned covered=0;
+ for(const auto kind:{K::Pattern,K::Fill,K::Output,K::Choke,K::Sample,K::Export}){
+   const auto g=UiV101Popup::geometry(kind,
+        kind==K::Pattern?L::header:L::rowTop(0,0,L::Expansions{}),
+        view->getViewSize().getHeight(),false);
+   for(int option=0;option<UiV101Popup::count(kind);++option){
+     IntegrationAccess::setPopup(*view,kind,kind==K::Pattern||kind==K::Export?kRows:0);
+     const auto p=center(UiV101Popup::cell(g,option));
+     VSTGUI::CPoint at=p;
+     view->onMouseDown(at,VSTGUI::CButtonState(VSTGUI::kLButton));
+     if(kind!=K::Export)
+       check(IntegrationAccess::v101Popup(*view)==kind&&
+             IntegrationAccess::pressedPopupOption(*view)==option,
+             "BC63 popup option did not show pressed cap before release");
+     view->onMouseCancel(); // don't open native file selector during audit
+     check(IntegrationAccess::pressedPopupOption(*view)==-1,
+           "BC63 popup pressed state survived cancellation");
+     ++covered;
+   }
+ }
+ check(covered==43,"BC63 popup audit did not cover every option");
+ // Verify actual click/release on every Pattern EDIT option with no file dialogs.
+ const auto menuCenter=center(L::patternMenu);
+ for(int option=0;option<UiV101Popup::count(K::Pattern);++option){
+   click(*view,menuCenter.x,menuCenter.y);
+   check(IntegrationAccess::v101Popup(*view)==K::Pattern,
+         "BC63 Pattern Edit popup did not open");
+   const auto g=UiV101Popup::geometry(K::Pattern,L::header,
+                                      view->getViewSize().getHeight(),false);
+   auto at=center(UiV101Popup::cell(g,option));
+   view->onMouseDown(at,VSTGUI::CButtonState(VSTGUI::kLButton));
+   check(IntegrationAccess::v101Popup(*view)==K::Pattern&&
+         IntegrationAccess::pressedPopupOption(*view)==option,
+         "BC63 Pattern Edit key vanished on press");
+   view->onMouseUp(at,VSTGUI::CButtonState(VSTGUI::kLButton));
+   check(IntegrationAccess::v101Popup(*view)==K::None&&
+         IntegrationAccess::pressedPopupOption(*view)==-1,
+         "BC63 Pattern Edit key failed to release/dismiss");
+ }
+ evidence("BC63 ALL 43 popup options, 7 Pattern actions and header A-H/controls press feedback PASS");
+}
+
 void testAbsoluteSongStartRest(){
  constexpr auto flags=ProcessContext::kPlaying|
        ProcessContext::kTempoValid|ProcessContext::kProjectTimeMusicValid;
@@ -5811,6 +5928,8 @@ int main(int argc,char** argv){
  run("V1FIX factory, row COPY/PASTE, DUPLICATE/UNDO, routing",testV1FourFinalCorrections);
  run("GUI50 dedicated ROW menu/clear/undo and FILL-only",testV1RowMenuClearScope);
  run("SONGSTART absolute timeline REST, tail, state and GUI",testAbsoluteSongStartRest);
+  run("BC62 live SONG header A/C/REST host IPC",testSongLivePatternHeader);
+  run("BC63 comprehensive popup and main-header pressed feedback",testCompleteButtonFeedback);
  run("RE01 original deterministic VFA02",testReauditPatternLength);
  run("RE02 original fresh DZM3 matrix",testFinalAuditDzm3);
  run("RE03 paired duration fallback in Pattern and Song",testReauditDurationFallback);

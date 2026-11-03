@@ -8,6 +8,7 @@ namespace drumator::v101 {
 inline UiV101NativePreview::Scene captureControllerScene(Controller& controller) {
  UiV101NativePreview::Scene scene{};
  scene.pattern=controller.currentPattern();
+ scene.songPlaybackPattern=controller.songPlaybackPattern();
  scene.visibleRows=controller.visibleRows();
  scene.patternLength=controller.patternLength(scene.pattern);
  scene.songEnabled=controller.songEnabled();

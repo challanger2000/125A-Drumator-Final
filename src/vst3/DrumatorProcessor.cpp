@@ -112,6 +112,7 @@ Steinberg::tresult PLUGIN_API Processor::canProcessSampleSize(Steinberg::int32 s
 }
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
  if(!state) {voices_.reset();wasPlaying_=false;haveExpectedPpq_=false;
+             songPlaybackPattern_.store(SongChain::kRest+1u,std::memory_order_release);
              haveCycleBounds_=false;
              previewPending_.store(0,std::memory_order_release);
              auditionStart_.store(false,std::memory_order_release);
@@ -127,6 +128,7 @@ Steinberg::tresult PLUGIN_API Processor::setProcessing(Steinberg::TBool state) {
  // Steinberg's AudioEffect default returns kNotImplemented. A real host
  // may invoke this independently of setActive; honor the lifecycle.
  if(!state) {voices_.reset();wasPlaying_=false;haveExpectedPpq_=false;
+             songPlaybackPattern_.store(SongChain::kRest+1u,std::memory_order_release);
              haveCycleBounds_=false;
              previewPending_.store(0,std::memory_order_release);
              auditionStart_.store(false,std::memory_order_release);
@@ -206,7 +208,9 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
         attrs->setInt("HostUninspected",static_cast<Steinberg::int64>(
           std::min<std::uint64_t>(uninspectedHostEvents_.load(std::memory_order_acquire),
              static_cast<std::uint64_t>(INT64_MAX))))==Steinberg::kResultOk&&
-        attrs->setInt("RequestId",requestId)==Steinberg::kResultOk&&
+        attrs->setInt("SongPlaybackPattern",static_cast<Steinberg::int64>(
+           songPlaybackPattern_.load(std::memory_order_acquire)))==Steinberg::kResultOk&&
+         attrs->setInt("RequestId",requestId)==Steinberg::kResultOk&&
         attrs->setInt("ExportObservation",static_cast<Steinberg::int64>(observation))==Steinberg::kResultOk&&
         attrs->setFloat("ExportTempo",exportTempo)==Steinberg::kResultOk)
        status=sendMessage(reply);
@@ -1092,7 +1096,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
    wasPlaying_=false;
    haveExpectedPpq_=false;
    haveCycleBounds_=false;
-   previewPending_.store(0,std::memory_order_release);
+   songPlaybackPattern_.store(SongChain::kRest+1u,std::memory_order_release);
+    previewPending_.store(0,std::memory_order_release);
  }
  // Hosts may flush discrete automation without providing any audio buffers.
  if(data.numSamples==0||data.numOutputs==0) {
@@ -1156,6 +1161,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
      haveCycleBounds_=false;
      // An audition requested while there is no audio sink must not fire
      // unexpectedly when the host restores its outputs.
+     songPlaybackPattern_.store(SongChain::kRest+1u,std::memory_order_release);
      previewPending_.store(0,std::memory_order_release);
      auditionStart_.store(false,std::memory_order_release);
      auditionStop_.store(true,std::memory_order_release);
@@ -1330,6 +1336,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
  if(!playing||!validHostClock)haveExpectedPpq_=false;
  if(!playing)haveCycleBounds_=false;
  wasPlaying_=playing;
+ if(!validHostClock)
+   songPlaybackPattern_.store(SongChain::kRest+1u,std::memory_order_release);
  // The first full block after a kit commit starts with no old-kit voices.
  const auto revision=kitRevision_.load(std::memory_order_acquire);
  if(revision!=lastAudioKitRevision_) {
@@ -1361,6 +1369,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
  // Collect MIDI A-H and host automation before scheduling. Fixed storage
  // avoids allocations in the audio callback; equal-offset host wins.
  (void)songMailbox_.snapshot(audioSongChain_,audioSongEnabled_,&audioSongStartBar_);
+ if(!audioSongEnabled_)
+   songPlaybackPattern_.store(SongChain::kRest+1u,std::memory_order_release);
  if(!patternTimeline_.reset(static_cast<std::size_t>(data.numSamples)))
    return Steinberg::kInvalidArgument;
  auto addPattern=[&](Steinberg::int32 offset,unsigned pattern,bool host) {
@@ -1616,6 +1626,18 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
            StepScheduler::run(songRead,clock,emitTrigger):
            StepScheduler::run(read,clock,emitTrigger);
      if(scheduled.status!=ScheduleStatus::Ok)triggers_.clear();
+     if(audioSongEnabled_) {
+       // End of the actual SONG/Cycle segment; never mutate host selection.
+       const double lastPpq=segmentPpq+
+           static_cast<double>(segmentEnd-cursor-1)*ppqPerFrame;
+       const double lastStep=std::floor(lastPpq*4.0+1e-8);
+       std::uint8_t shown=SongChain::kRest+1u;
+       if(scheduled.status==ScheduleStatus::Ok&&std::isfinite(lastStep)&&
+          lastStep>=static_cast<double>(std::numeric_limits<std::int64_t>::min()/2)&&
+          lastStep<=static_cast<double>(std::numeric_limits<std::int64_t>::max()/2))
+         shown=songRead.mapStep(static_cast<std::int64_t>(lastStep),0).pattern;
+       songPlaybackPattern_.store(shown,std::memory_order_release);
+     }
      cursor=segmentEnd;
      }
    };
@@ -2022,6 +2044,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     for(std::size_t i=0;i<kPatterns;++i)
       patternLengths_[i].store(kit_.patternLengths[i],std::memory_order_relaxed);
     songMailbox_.publish(kit_.chain,kit_.songEnabled!=0,kit_.songStartBar);
+    songPlaybackPattern_.store(SongChain::kRest+1u,std::memory_order_release);
     // Seed the fallback with THIS kit before audio can re-enter. If a later
     // SongConfig publication overlaps the first block, its rejected snapshot
     // must not fall back to the previous kit's chain/mode. Gate-denied audio

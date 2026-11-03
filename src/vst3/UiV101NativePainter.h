@@ -57,6 +57,7 @@ struct UiV101NativePreview final {
  };
  struct Scene final {
    std::size_t pattern=0,visibleRows=L::visibleRows;
+  std::size_t songPlaybackPattern=kPatterns+1u;
    std::uint8_t patternLength=32;
    bool songEnabled=false,canRemoveRow=false;
    bool clipped=false;
@@ -67,6 +68,11 @@ struct UiV101NativePreview final {
    unsigned swing=0,humanize=0,master=100;
    std::array<RowData,L::instruments> rows{};
  };
+ // Live SONG playhead is visual only; REST (index 8) lights no A-H key.
+ static std::size_t headerPattern(const Scene& scene) noexcept {
+   return scene.songEnabled&&scene.songPlaybackPattern<=kPatterns?
+          scene.songPlaybackPattern:scene.pattern;
+ }
  // Live controller-backed CHOKE group caption, including explicit OFF state.
  // One canonical name for the 16 host output buses, consistent in
  // the SET readout and its popup. Bus index 0 is always MAIN, not BUS 1.
@@ -643,7 +649,7 @@ struct UiV101NativePreview final {
          11,{218,226,235,255},true);
    for(std::size_t i=0;i<8;++i){
      const char key[2]={static_cast<char>('A'+i),'\0'};
-     cap(c,L::patternButton(i),0.,key,i==scene.pattern,12,vintageButtons);
+     cap(c,L::patternButton(i),0.,key,i==headerPattern(scene),12,vintageButtons);
    }
    // Spell out the action context; the obsolete "PTNR" abbreviation
    // was ambiguous beside the A-H PATTERN selector.
@@ -843,10 +849,20 @@ struct UiV101NativePreview final {
    const double footerTop=total-L::footer;
    footerPlate(c,footerTop);
    char summary[100]{};
-   std::snprintf(summary,sizeof(summary),
-                 "ROWS %zu-%zu / %zu  |  PATTERN %c",
-                 ui.firstRow+1,ui.firstRow+shown,scene.visibleRows,
-                 static_cast<char>('A'+scene.pattern));
+   if(scene.songEnabled&&scene.songPlaybackPattern<=kPatterns) {
+     char live[8]{};
+     if(scene.songPlaybackPattern==kPatterns)
+       std::snprintf(live,sizeof(live),"REST");
+     else
+       std::snprintf(live,sizeof(live),"%c",
+                     static_cast<char>('A'+scene.songPlaybackPattern));
+     std::snprintf(summary,sizeof(summary),"ROWS %zu-%zu / %zu  |  SONG %s",
+                   ui.firstRow+1,ui.firstRow+shown,scene.visibleRows,live);
+   }else
+     std::snprintf(summary,sizeof(summary),
+                   "ROWS %zu-%zu / %zu  |  PATTERN %c",
+                   ui.firstRow+1,ui.firstRow+shown,scene.visibleRows,
+                   static_cast<char>('A'+scene.pattern));
    cap(c,L::footerAdd,footerTop,"ADD ROW",false,10,vintageButtons);
    cap(c,L::footerRemove,footerTop,"REMOVE ROW",false,10,vintageButtons);
    label(c,summary,{260.,footerTop+9.,510.,footerTop+33.},11,

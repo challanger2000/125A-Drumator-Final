@@ -48,6 +48,7 @@
 
 namespace drumator {
 namespace {
+constexpr auto kClickFeedbackDuration=std::chrono::milliseconds(120);
 constexpr double kGridX=UiCompactLayout::stepX,kGridY=UiCompactLayout::header;
 constexpr double kCellWidth=UiCompactLayout::stepWidth,kGridRight=kGridX+32*kCellWidth;
 constexpr double kPatternX=UiCompactLayout::patternStart,
@@ -1021,6 +1022,10 @@ void DrumatorView::pollMeter() noexcept {
    status_="WAVEFORM: REPLY TIMEOUT";invalid();
  }
  controller_.requestMeterSnapshot();
+ const auto liveSong=controller_.songEnabled()?
+    controller_.songPlaybackPattern():SongChain::kRest+1u;
+ const bool songIndicatorChanged=liveSong!=lastSongIndicator_;
+ lastSongIndicator_=liveSong;
  const auto state=controller_.meterState();
  const bool fresh=state.sequence!=meterSequenceSeen_;
  meterSequenceSeen_=state.sequence;
@@ -1041,7 +1046,7 @@ void DrumatorView::pollMeter() noexcept {
    const auto now=std::chrono::steady_clock::now();
    const bool feedbackActive=now<buttonFlashUntil_||
                              now<settingsFeedbackUntil_;
-   if(feedbackActive||meterFeedbackLastTick_)invalid();
+   if(songIndicatorChanged||feedbackActive||meterFeedbackLastTick_)invalid();
    else invalidRect({1133.,100.,1260.,132.});
    meterFeedbackLastTick_=feedbackActive;
  }else invalid(); // Legacy and WAVE editors unchanged.
@@ -1435,7 +1440,8 @@ void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
        controller_.rowChoke(v101MenuRow_)==static_cast<unsigned>(i);
    // Every real pop-up shares the black MAIN/SONG 4x hardware button set.
    const auto cell=UiV101Popup::cell(g,i);
-   Painter::cap(*c,cell,0.,caption,selectedOutput||selectedChoke,10,&popupButtons);
+   Painter::cap(*c,cell,0.,caption,selectedOutput||selectedChoke,10,
+                &popupButtons,false,v101PressedMenuOption_==i);
    if(v101Menu_==UiV101Popup::Kind::Export){
      c->setFont(VSTGUI::kNormalFont,9.);
      c->setFontColor(VSTGUI::CColor{160,205,220,255});
@@ -1594,7 +1600,7 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine,bool acc
      settingsFeedbackRow_=setRow;
      settingsFeedbackButton_=setButton;
      settingsFeedbackUntil_=std::chrono::steady_clock::now()+
-                           std::chrono::milliseconds(250);
+                           kClickFeedbackDuration;
      if(setButton==2)status_="COPY ROW COMPLETED";
      else if(setButton==3)status_="PASTE ROW COMPLETED";
      else if(setButton==4)status_="CLEAR ROW COMPLETED";
@@ -1864,7 +1870,7 @@ void DrumatorView::recordButtonFlash(double x,double y) {
  const auto set=[&](L::Rect r) {
   buttonFlashRect_={r.x0,r.y0,r.x1,r.y1};
   buttonFlashUntil_=std::chrono::steady_clock::now()+
-                    std::chrono::milliseconds(230);
+                    kClickFeedbackDuration;
  };
  const auto hit=[&](L::Rect r)->bool {
   if(!r.hit(x,y))return false;
@@ -1878,12 +1884,12 @@ void DrumatorView::recordButtonFlash(double x,double y) {
   using D=UiBeatCreatorDialog;
   if(beatCreatorStyleMenu_){
    for(std::size_t i=0;i<10u;++i)
-    if(D::styleOption(h,i).hit(x,y)){set(D::styleSelect(h));return;}
+    if(D::styleOption(h,i).hit(x,y)){set(D::styleOption(h,i));return;}
    return;
   }
   for(const auto r:{D::styleSelect(h),D::complexityMinus(h),
                     D::complexityPlus(h),D::barOne(h),D::barTwo(h),
-                    D::generate(h)})
+                    D::generate(h),D::apply(h),D::cancel(h)})
    if(hit(r))return;
   return; // APPLY/CANCEL dismiss modal immediately
  }
@@ -1892,34 +1898,12 @@ void DrumatorView::recordButtonFlash(double x,double y) {
    return {r.left,r.top,r.right,r.bottom};
   };
   if(hit(rc(UiV101WaveLayout::liveToggle)))return;
-  for(std::size_t i=0;i<6u;++i)
+  for(std::size_t i=0;i<UiV101WaveLayout::toolbar.size();++i)
    if(hit(rc(UiV101WaveLayout::toolbar[i])))return;
   return; // APPLY/CANCEL close modal immediately
  }
- if(v101Menu_!=UiV101Popup::Kind::None){
-  const auto first=v101_.state().firstRow;
-  const bool shown=v101MenuRow_>=first&&
-                   v101MenuRow_<first+v101_.shownRows();
-  const auto rowY=shown?L::rowTop(first,v101MenuRow_-first,
-                            v101_.expandedRows()):L::header;
-  const auto g=UiV101Popup::geometry(v101Menu_,rowY,h,songEditorOpen_);
-  if(UiV101Popup::hit(v101Menu_,g,x,y)<0)return;
-  // Flash still-visible trigger after the selected popup disappears.
-  switch(v101Menu_){
-   case UiV101Popup::Kind::Pattern:set(L::patternMenu);break;
-   case UiV101Popup::Kind::Fill:set(shifted(L::fill,rowY));break;
-   case UiV101Popup::Kind::Sample:set(shifted(L::sampleMenu,rowY));break;
-   case UiV101Popup::Kind::Output:
-    set(shifted(UiV101Interaction::settingsRect(0),rowY));break;
-   case UiV101Popup::Kind::Choke:
-    set(shifted(UiV101Interaction::settingsRect(1),rowY));break;
-   case UiV101Popup::Kind::Export:
-    set(shifted(songEditorOpen_?L::songFooterExport:L::footerExport,
-                h-L::footer));break;
-   case UiV101Popup::Kind::None:break;
-  }
-  return;
- }
+ if(v101Menu_!=UiV101Popup::Kind::None)
+  return; // press feedback is rendered on the popup option itself
  if(v101_.state().zoomOpen){
   for(std::size_t i=0;i<L::zoomPresets.size();++i)
    if(hit(L::zoomOption(i)))return;
@@ -3080,9 +3064,21 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
   invalid();
   return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
  }
- // Export menu uses a real press/drag/release lifecycle. All other menus
- // preserve their current immediate action; a normal export click still
- // opens the existing Save dialog on release.
+ // Popup options show the real pressed keycap until release, not the opener.
+ // Actions are executed immediately on release; export drag is unaffected.
+ if(v101Mode_&&v101Menu_!=UiV101Popup::Kind::None&&
+    v101Menu_!=UiV101Popup::Kind::Export){
+   const auto first=v101_.state().firstRow;
+   const bool shown=v101MenuRow_>=first&&v101MenuRow_<first+v101_.shownRows();
+   const double rowY=shown?UiV101Layout::rowTop(first,
+      v101MenuRow_-first,v101_.expandedRows()):UiV101Layout::header;
+   const auto g=UiV101Popup::geometry(v101Menu_,rowY,getViewSize().getHeight(),songEditorOpen_);
+   const int option=UiV101Popup::hit(v101Menu_,g,x,y);
+   if(option>=0){
+     v101PressedMenuOption_=option;
+     invalid();return VSTGUI::kMouseEventHandled;
+   }
+ }
  if(v101Mode_&&v101Menu_==UiV101Popup::Kind::Export){
    const auto g=UiV101Popup::geometry(v101Menu_,UiV101Layout::header,
                                         getViewSize().getHeight(),songEditorOpen_);
@@ -3751,6 +3747,19 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseMoved(
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
     VSTGUI::CPoint& pos,const VSTGUI::CButtonState&) {
+ if(v101PressedMenuOption_>=0){
+   const int option=v101PressedMenuOption_;
+   v101PressedMenuOption_=-1;
+   const auto first=v101_.state().firstRow;
+   const bool shown=v101MenuRow_>=first&&v101MenuRow_<first+v101_.shownRows();
+   const double rowY=shown?UiV101Layout::rowTop(first,
+      v101MenuRow_-first,v101_.expandedRows()):UiV101Layout::header;
+   const auto g=UiV101Popup::geometry(v101Menu_,rowY,getViewSize().getHeight(),songEditorOpen_);
+   if(UiV101Popup::hit(v101Menu_,g,pos.x,pos.y)==option&&
+      !applyV101Menu(option))status_="MENU ACTION NOT APPLIED";
+   v101Menu_=UiV101Popup::Kind::None;v101MenuRow_=kRows;
+   invalid();return VSTGUI::kMouseEventHandled;
+ }
  if(dragExportOption_>=0){
    const int option=dragExportOption_;
    dragExportOption_=-1;
@@ -3786,6 +3795,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseUp(
 }
 VSTGUI::CMouseEventResult DrumatorView::onMouseCancel(){
  dragExportOption_=-1;
+ v101PressedMenuOption_=-1;
  if(v101Mode_){v101_.cancel();v101Menu_=UiV101Popup::Kind::None;}
  sampleEditorDrag_=0;sampleEditorPressed_=-1;
  draggingScroll_=false;

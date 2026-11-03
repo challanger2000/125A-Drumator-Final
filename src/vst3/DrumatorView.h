@@ -81,6 +81,7 @@ private:
  std::array<double,4> v101TitleBounds_{};
  UiV101Popup::Kind v101Menu_{UiV101Popup::Kind::None};
  std::size_t v101MenuRow_{kRows};
+  int v101PressedMenuOption_{-1};
  void drawV101(VSTGUI::CDrawContext* c);
  void drawV101Song(VSTGUI::CDrawContext* c);
  void drawV101Wave(VSTGUI::CDrawContext* c);
@@ -114,7 +115,8 @@ private:
  // GUI-only, per-editor transient amber button feedback.
  VSTGUI::CRect buttonFlashRect_{};
  std::chrono::steady_clock::time_point buttonFlashUntil_{};
- void recordButtonFlash(double x,double y);
+ std::uint8_t lastSongIndicator_{SongChain::kRest+1u};
+  void recordButtonFlash(double x,double y);
  void drawButtonFlash(VSTGUI::CDrawContext* c);
 
  VSTGUI::CBitmap* backgroundBitmap_{nullptr};

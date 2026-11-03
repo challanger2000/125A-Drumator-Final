@@ -174,6 +174,8 @@ private:
  double lastCycleStartMusic_{0.0};
  double lastCycleEndMusic_{0.0};
  bool haveCycleBounds_{false};
+ // GUI-only SONG playhead: A-H=0..7, REST=8, inactive=9.
+ std::atomic<std::uint8_t> songPlaybackPattern_{SongChain::kRest+1u};
  AtomicPatternSelection selected_{};
  std::atomic<std::uint8_t> visibleRows_{kDefaultVisibleRows};
  std::atomic<std::uint32_t> muteMask_{0};

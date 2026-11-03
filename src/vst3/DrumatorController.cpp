@@ -129,8 +129,19 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
       return Steinberg::kResultFalse;
    if(attrs->getInt("HostUninspected",uninspected)==Steinberg::kResultOk&&uninspected<0)
       return Steinberg::kResultFalse;
-   const auto index=static_cast<std::uint64_t>(seq);
-   // Later UI polls for the same audio generation must not erase peaks.
+   // A Stop can change the readout without incrementing the meter sequence.
+    Steinberg::int64 shown=-1,shownRequest=-1;
+    const bool hasShown=attrs->getInt("SongPlaybackPattern",shown)==Steinberg::kResultOk;
+    if(hasShown&&(shown<0||shown>static_cast<Steinberg::int64>(SongChain::kRest+1u)||
+       attrs->getInt("RequestId",shownRequest)!=Steinberg::kResultOk||
+       shownRequest<=0||static_cast<std::uint64_t>(shownRequest)>meterRequestId_))
+      return Steinberg::kInvalidArgument;
+    if(hasShown&&static_cast<std::uint64_t>(shownRequest)>lastSongPlaybackReplyId_){
+      lastSongPlaybackReplyId_=static_cast<std::uint64_t>(shownRequest);
+      songPlaybackPattern_=static_cast<std::uint8_t>(shown);
+    }
+    const auto index=static_cast<std::uint64_t>(seq);
+    // Later UI polls for the same audio generation must not erase peaks.
    if(index>meterState_.sequence){
      meterState_={index,static_cast<std::uint32_t>(l),static_cast<std::uint32_t>(r),
                   static_cast<std::uint32_t>(clip),static_cast<std::uint32_t>(full),
@@ -666,6 +677,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
     masterVolume_=candidate.masterVolume;
     randomVelocity_=candidate.randomVelocity;
     songEnabled_=candidate.songEnabled!=0;
+    songPlaybackPattern_=SongChain::kRest+1u;
     songChain_=candidate.chain;
     songStartBar_=candidate.songStartBar;
     for(std::size_t row=0;row<kRows;++row) {
@@ -744,6 +756,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
  muted_.fill(false);solo_.fill(false);swingPercent_=0;humanizePercent_=0;
  randomVelocity_.fill(0);masterVolume_=100;
  songEnabled_=false;songChain_=SongChain{};songStartBar_=1;
+ songPlaybackPattern_=SongChain::kRest+1u;
  gain_.fill(100);pan_.fill(100);pitch_.fill(24);choke_.fill(0);
  for(std::size_t row=0;row<kRows;++row)output_[row]=static_cast<std::uint8_t>(row);
  syncAutomationParameters();
@@ -842,6 +855,7 @@ bool Controller::configureSong(bool enabled,std::size_t count,const SongChain& c
           static_cast<Steinberg::uint32>(count*2))!=Steinberg::kResultOk||
       sendEditMessage(msg.p)!=Steinberg::kResultOk)return false;
    songEnabled_=enabled;songChain_=chain;songStartBar_=startBar;
+   songPlaybackPattern_=SongChain::kRest+1u;
    try {notifyViews(false);}catch(...){}
    return true;
  }catch(...){return false;}
