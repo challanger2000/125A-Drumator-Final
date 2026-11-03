@@ -356,6 +356,11 @@ tresult zoom(Controller& c,bool large){
 }
 void click(DrumatorView& v,double x,double y,int buttons=VSTGUI::kLButton){
  VSTGUI::CPoint at(x,y);v.onMouseDown(at,VSTGUI::CButtonState(buttons));
+ // This helper must preserve legacy knob/drag MouseDown behavior. Native
+ // popup options alone now complete their real click on MouseUp.
+ if(IntegrationAccess::pressedPopupOption(v)>=0&&
+    IntegrationAccess::v101Popup(v)!=UiV101Popup::Kind::Export)
+   v.onMouseUp(at,VSTGUI::CButtonState(VSTGUI::kLButton));
 }
 HWND nameEditor(Fixture& f,std::size_t view=0,std::size_t row=0){
  SetActiveWindow(f.frames[view].hwnd);SetForegroundWindow(f.frames[view].hwnd);

@@ -132,11 +132,13 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
    // A Stop can change the readout without incrementing the meter sequence.
     Steinberg::int64 shown=-1,shownRequest=-1;
     const bool hasShown=attrs->getInt("SongPlaybackPattern",shown)==Steinberg::kResultOk;
-    if(hasShown&&(shown<0||shown>static_cast<Steinberg::int64>(SongChain::kRest+1u)||
-       attrs->getInt("RequestId",shownRequest)!=Steinberg::kResultOk||
-       shownRequest<=0||static_cast<std::uint64_t>(shownRequest)>meterRequestId_))
+    if(hasShown&&(shown<0||shown>static_cast<Steinberg::int64>(SongChain::kRest+1u)))
       return Steinberg::kInvalidArgument;
-    if(hasShown&&static_cast<std::uint64_t>(shownRequest)>lastSongPlaybackReplyId_){
+    // Direct MeterRequest probes may legitimately omit a correlated request
+    // ID. Deliver meter peaks regardless; only matched UI polls move SONG.
+    if(hasShown&&attrs->getInt("RequestId",shownRequest)==Steinberg::kResultOk&&
+       shownRequest>0&&static_cast<std::uint64_t>(shownRequest)<=meterRequestId_&&
+       static_cast<std::uint64_t>(shownRequest)>lastSongPlaybackReplyId_){
       lastSongPlaybackReplyId_=static_cast<std::uint64_t>(shownRequest);
       songPlaybackPattern_=static_cast<std::uint8_t>(shown);
     }
