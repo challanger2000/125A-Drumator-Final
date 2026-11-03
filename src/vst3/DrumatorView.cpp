@@ -1920,7 +1920,7 @@ void DrumatorView::recordButtonFlash(double x,double y) {
    // The other Beat Creator keys modify persistent controls, open a menu
    // or close the modal. GENERATE is the one acknowledged one-shot.
    if(UiBeatCreatorDialog::generate(height).hit(x,y))
-     set(UiBeatCreatorDialog::generate(height));
+     {const auto r=UiBeatCreatorDialog::generate(height);set({r.x0,r.y0,r.x1,r.y1});}
    return;
  }
  if(sampleEditorOpen_){
