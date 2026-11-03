@@ -166,7 +166,13 @@ struct IntegrationAccess {
   static void setViewportRows(DrumatorView& view,std::size_t rows){view.v101_.setViewportRows(rows);}
   static bool flashVisible(const DrumatorView& v){return v.buttonFlashContext_==(v.beatCreatorOpen_?1u:v.sampleEditorOpen_?2u:0u)&&std::chrono::steady_clock::now()<v.buttonFlashUntil_;}
   static void setPopup(DrumatorView& view,UiV101Popup::Kind kind,std::size_t row){view.v101Menu_=kind;view.v101MenuRow_=row;}
+  // Direct policy probe; production records feedback ONLY after successful actions.
   static void testFeedbackClick(DrumatorView& view,double x,double y){view.recordButtonFlash(x,y);}
+  static int settingsPressed(const DrumatorView& view){
+    return std::chrono::steady_clock::now()<view.settingsFeedbackUntil_?
+           view.settingsFeedbackButton_:-1;
+  }
+  static int wavePressed(const DrumatorView& view){return view.sampleEditorPressed_;}
   static VSTGUI::CRect feedbackRect(const DrumatorView& view){return view.buttonFlashRect_;}
  static std::string sampleEditorStatus(const DrumatorView& v){return v.status_;}
  static bool openSampleEditorForCapture(DrumatorView& view,std::size_t row){return view.openSampleEditor(row);}
@@ -4468,6 +4474,165 @@ void testSongLivePatternHeader(){
        "BC62 manual Pattern A not restored");
  evidence("BC62 SONG A/C/REST, audio host IPC, Stop and editing state PASS");
 }
+void testEveryButtonFeedbackCategory(){
+ using L=UiV101Layout;
+ using D=UiBeatCreatorDialog;
+ auto point=[](L::Rect r){return VSTGUI::CPoint{(r.x0+r.x1)*.5,(r.y0+r.y1)*.5};};
+ auto noFlash=[](DrumatorView& v,double x,double y,const char* reason){
+   click(v,x,y);
+   check(!IntegrationAccess::flashVisible(v),reason);
+ };
+ {
+   Fixture f;KitState kit;kit.visible=4;kit.grid.fill(0);
+   kit.patternLengths.fill(16);kit.grid[0]=100;kit.grid[4]=67;
+   f.kit(kit);(void)f.openV101();
+   auto* v=IntegrationAccess::view(*f.c,0);
+   const double rowTop=L::rowTop(0,0,L::Expansions{});
+   const auto rowPoint=[&](L::Rect r){
+     auto t=point(r);t.y+=rowTop;return t;
+   };
+   // Main: all latches, selections, pattern cells, row mode selectors.
+   const auto mute=rowPoint(L::mute),solo=rowPoint(L::solo);
+   noFlash(*v,mute.x,mute.y,"BF01 MUTE ON had duplicate amber flash");
+   check(f.c->isRowMuted(0),"BF01 MUTE did not activate");
+   noFlash(*v,mute.x,mute.y,"BF01 MUTE OFF had duplicate amber flash");
+   noFlash(*v,solo.x,solo.y,"BF01 SOLO ON had duplicate amber flash");
+   check(f.c->isRowSolo(0),"BF01 SOLO did not activate");
+   noFlash(*v,solo.x,solo.y,"BF01 SOLO OFF had duplicate amber flash");
+   noFlash(*v,rowPoint(L::select).x,rowPoint(L::select).y,
+           "BF01 channel SELECT wrongly flashed");
+   const auto step=rowPoint(L::stepRect(0));
+   noFlash(*v,step.x,step.y,"BF01 active Step OFF wrongly flashed");
+   check(f.c->velocity(0,0,0)==0,"BF01 Step OFF not applied");
+   noFlash(*v,step.x,step.y,"BF01 Step ON wrongly flashed");
+   check(f.c->velocity(0,0,0)!=0,"BF01 Step ON not applied");
+   // Expand VEL: this button stays latched, no extra overlay.
+   const auto vel=rowPoint(L::velocity);
+   noFlash(*v,vel.x,vel.y,"BF01 VEL open mode wrongly flashed");
+   check(IntegrationAccess::v101Expansion(*v)==L::Expansion::Velocity,
+         "BF01 VEL expansion failed");
+   const double vely=rowTop;
+   const auto rnd=point(UiV101Interaction::velocityRandom);
+   const auto reset=point(UiV101Interaction::velocityReset);
+   click(*v,rnd.x,rnd.y+vely);
+   check(IntegrationAccess::flashVisible(*v),
+         "BF01 accepted RANDOM VEL action not acknowledged");
+   click(*v,reset.x,reset.y+vely);
+   check(IntegrationAccess::flashVisible(*v),
+         "BF01 accepted RESET VEL action not acknowledged");
+   noFlash(*v,vel.x,vel.y,"BF01 VEL close mode wrongly flashed");
+   // SET mode: popup openers are NOT successful actions; COPY/PASTE/CLEAR
+   // have one pressed sprite, never the second amber border.
+   const auto settings=rowPoint(L::settings);
+   noFlash(*v,settings.x,settings.y,"BF01 SET open mode wrongly flashed");
+   check(IntegrationAccess::v101Expansion(*v)==L::Expansion::Settings,
+         "BF01 SET expansion failed");
+   auto setCenter=[&](std::size_t k){
+     const auto t=point(UiV101Interaction::settingsRect(k));
+     return VSTGUI::CPoint{t.x,t.y+rowTop};
+   };
+   for(std::size_t k=2;k<5;++k){
+     auto p=setCenter(k);
+     noFlash(*v,p.x,p.y,"BF01 SET action got duplicate amber flash");
+     check(IntegrationAccess::settingsPressed(*v)==static_cast<int>(k),
+           "BF01 successful SET action has no pressed sprite");
+   }
+   noFlash(*v,settings.x,settings.y,"BF01 SET close mode wrongly flashed");
+   // Row-count mutation, paging and menu opening change their own visual
+   // state; never acknowledge an action before accepting a host resize.
+   const double footer=v->getViewSize().getHeight()-L::footer;
+   const auto add=point(L::footerAdd),rem=point(L::footerRemove);
+   const auto count=f.c->visibleRows();
+   noFlash(*v,add.x,footer+add.y,"BF01 ADD ROW has duplicate flash");
+   check(f.c->visibleRows()==count+1,"BF01 ADD ROW failed");
+   const double footerNow=v->getViewSize().getHeight()-L::footer;
+   noFlash(*v,rem.x,footerNow+rem.y,"BF01 REMOVE ROW has duplicate flash");
+   check(f.c->visibleRows()==count,"BF01 REMOVE ROW failed");
+   const auto prev=point(L::footerPrev);
+   noFlash(*v,prev.x,v->getViewSize().getHeight()-L::footer+prev.y,
+           "BF01 disabled PREV PAGE had flash");
+   const auto song=point(L::headerGroup(0));
+   noFlash(*v,song.x,song.y,"BF01 SONG ON had duplicate flash");
+   check(f.c->songEnabled(),"BF01 SONG did not enable");
+   noFlash(*v,song.x,song.y,"BF01 SONG OFF had duplicate flash");
+   check(!f.c->songEnabled(),"BF01 SONG did not disable");
+   const auto limiter=point(L::limiterTrigger);
+   const bool limitBefore=f.c->limiterEnabled();
+   noFlash(*v,limiter.x,limiter.y,"BF01 LIMIT toggle had duplicate flash");
+   check(f.c->limiterEnabled()!=limitBefore,"BF01 limiter did not switch");
+   const auto bars=point(L::barsButton);
+   const auto oldLength=f.c->patternLength(f.c->currentPattern());
+   noFlash(*v,bars.x,bars.y,"BF01 1/2 BARS had duplicate flash");
+   check(f.c->patternLength(f.c->currentPattern())!=oldLength,
+         "BF01 bar-length selection did not change");
+   for(std::size_t i=0;i<8;++i){
+     auto p=point(L::patternButton(i));
+     noFlash(*v,p.x,p.y,"BF01 Pattern A-H had duplicate flash");
+     check(f.c->currentPattern()==i,"BF01 pattern did not select");
+   }
+ }
+ {
+   Fixture f;KitState kit;kit.visible=2;kit.grid.fill(0);kit.grid[0]=100;
+   f.kit(kit);(void)f.openV101();
+   auto* v=IntegrationAccess::view(*f.c,0);
+   const auto creator=point(L::beatCreatorTrigger);
+   noFlash(*v,creator.x,creator.y,
+           "BF02 Beat Creator modal opener got duplicate flash");
+   check(IntegrationAccess::beatCreatorOpen(*v),"BF02 dialog not opened");
+   const double h=v->getViewSize().getHeight();
+   auto choose=[&](D::Rect r,const char* why){
+     noFlash(*v,(r.x0+r.x1)*.5,(r.y0+r.y1)*.5,why);
+   };
+   choose(D::styleSelect(h),"BF02 dropdown opener flashed");
+   choose(D::styleOption(h,1),"BF02 selected style flashed");
+   choose(D::barTwo(h),"BF02 selected BAR length flashed");
+   choose(D::barOne(h),"BF02 selected BAR length flashed");
+   choose(D::complexityMinus(h),"BF02 numeric minus flashed");
+   choose(D::complexityPlus(h),"BF02 numeric plus flashed");
+   choose(D::apply(h),"BF02 rejected APPLY flashed");
+   const auto gen=D::generate(h);
+   click(*v,(gen.x0+gen.x1)*.5,(gen.y0+gen.y1)*.5);
+   check(IntegrationAccess::flashVisible(*v)&&f.c->beatCreatorDraft(v)!=nullptr,
+         "BF02 successful GENERATE lacks action feedback");
+   choose(D::cancel(h),"BF02 CANCEL leaked a modal flash");
+   check(!IntegrationAccess::beatCreatorOpen(*v),
+         "BF02 dialog CANCEL did not close");
+ }
+ {
+   Fixture f;KitState kit;kit.visible=2;kit.grid.fill(0);
+   kit.names[0]="feedback.wav";kit.wav[0]=constantStereo(.5f,-.25f);
+   f.kit(kit);prepareAudio(*f.p);(void)f.openV101();
+   auto* v=IntegrationAccess::view(*f.c,0);
+   check(IntegrationAccess::openSampleEditorForCapture(*v,0),
+         "BF03 real sample editor not opened");
+   const auto toggle=UiV101WaveLayout::liveToggle;
+   noFlash(*v,(toggle.left+toggle.right)*.5,(toggle.top+toggle.bottom)*.5,
+           "BF03 WAVE LIVE ON/OFF duplicated button feedback");
+   for(int index=0;index<6;++index){
+     const auto r=UiV101WaveLayout::toolbar[static_cast<std::size_t>(index)];
+     VSTGUI::CPoint at{(r.left+r.right)*.5,(r.top+r.bottom)*.5};
+     v->onMouseDown(at,VSTGUI::CButtonState(VSTGUI::kLButton));
+     check(IntegrationAccess::wavePressed(*v)==index&&
+           !IntegrationAccess::flashVisible(*v),
+           "BF03 WAVE key must use only its physical pressed sprite");
+     v->onMouseUp(at,VSTGUI::CButtonState{});
+     check(IntegrationAccess::wavePressed(*v)==-1,
+           "BF03 WAVE pressed state stuck after mouse-up");
+   }
+   const auto cancel=UiV101WaveLayout::toolbar[6];
+   const VSTGUI::CPoint p{(cancel.left+cancel.right)*.5,
+                          (cancel.top+cancel.bottom)*.5};
+   VSTGUI::CPoint at=p;
+   v->onMouseDown(at,VSTGUI::CButtonState(VSTGUI::kLButton));
+   check(!IntegrationAccess::flashVisible(*v),
+         "BF03 WAVE CANCEL had duplicate amber flash");
+   v->onMouseUp(at,VSTGUI::CButtonState{});
+   check(!IntegrationAccess::sampleEditorOpen(*v),
+         "BF03 WAVE CANCEL failed to close");
+ }
+ evidence("BF01/02/03 main, row, VEL, SET, 8 Patterns, SONG/LIMIT, Beat Creator and all WAVE action families PASS");
+}
+
 void testCompleteButtonFeedback(){
  Fixture f;(void)f.openV101();
  auto* view=IntegrationAccess::view(*f.c,0);
@@ -6422,7 +6587,8 @@ int main(int argc,char** argv){
  run("GUI50 dedicated ROW menu/clear/undo and FILL-only",testV1RowMenuClearScope);
  run("SONGSTART absolute timeline REST, tail, state and GUI",testAbsoluteSongStartRest);
   run("BC62 live SONG header A/C/REST host IPC",testSongLivePatternHeader);
-  run("BC63 comprehensive popup and main-header pressed feedback",testCompleteButtonFeedback);
+  run("BC63 popup native press vs stateful header feedback",testCompleteButtonFeedback);
+ run("BF01/02/03 ALL native button families feedback semantics",testEveryButtonFeedbackCategory);
   run("REL01/02/04/05 Beat Creator modal drop, peer ownership and Export",testReleaseAuditModalDropOwnershipAndFeedback);
   run("REL09 disabled SONG add/remove button feedback",testReleaseAuditDisabledSongButtonFeedback);
   run("REL03 viewport expansion",testReleaseAuditNarrowViewportAndLiveVelocity);
