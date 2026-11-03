@@ -815,7 +815,7 @@ void DrumatorView::valueChanged(VSTGUI::CControl* control) {
   try{
    const auto typed=complexityEdit_->getText();
    std::uint8_t parsed=beatCreatorComplexity_;
-   const bool valid=UiBeatCreatorDialog::parseComplexity(typed.getString(),parsed);
+   const bool valid=UiBeatCreatorDialog::parseComplexity(typed.getString().c_str(),parsed);
    complexityEditActive_=false;
    complexityEdit_->setVisible(false);
    if(valid)setBeatCreatorComplexity(parsed);
