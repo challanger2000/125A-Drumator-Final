@@ -812,13 +812,23 @@ void DrumatorView::editName(std::size_t row) {
 void DrumatorView::valueChanged(VSTGUI::CControl* control) {
  if(control==complexityEdit_){
   if(!beatCreatorOpen_||!complexityEditActive_)return;
-  const std::string typed(complexityEdit_->getText().getString());
-  complexityEditActive_=false;
-  complexityEdit_->setVisible(false);
-  std::uint8_t parsed=beatCreatorComplexity_;
-  if(UiBeatCreatorDialog::parseComplexity(typed.c_str(),parsed))
-   setBeatCreatorComplexity(parsed);
-  else {beatCreatorNotice_="INVALID VALUE - ENTER 0 TO 100";invalid();}
+  try{
+   const auto typed=complexityEdit_->getText();
+   std::uint8_t parsed=beatCreatorComplexity_;
+   const bool valid=UiBeatCreatorDialog::parseComplexity(typed.getString(),parsed);
+   complexityEditActive_=false;
+   complexityEdit_->setVisible(false);
+   if(valid)setBeatCreatorComplexity(parsed);
+   else {beatCreatorNotice_="INVALID VALUE - ENTER 0 TO 100";invalid();}
+  }catch(...){
+   // Never propagate an allocation/GUI exception through a VSTGUI callback.
+   complexityEditActive_=false;
+   try{
+    if(complexityEdit_)complexityEdit_->setVisible(false);
+    beatCreatorNotice_="COMPLEXITY EDIT UNAVAILABLE";
+    invalid();
+   }catch(...){}
+  }
   return;
  }
  if(control!=nameEdit_||editingNameRow_>=kRows||
@@ -1181,20 +1191,46 @@ void DrumatorView::setBeatCreatorComplexity(std::uint8_t requested) {
 }
 void DrumatorView::editBeatCreatorComplexity() {
  if(!beatCreatorOpen_||!getFrame())return;
- const auto r=UiBeatCreatorDialog::complexityValue(getViewSize().getHeight());
- char digits[8]{};
- std::snprintf(digits,sizeof(digits),"%u",static_cast<unsigned>(beatCreatorComplexity_));
- if(!complexityEdit_){
-  complexityEdit_=new VSTGUI::CTextEdit(
-      {r.x0+1.,r.y0,r.x1-1.,r.y1},this,1002,digits);
-  complexityEdit_->registerTextEditListener(this);
-  getFrame()->addView(complexityEdit_);
+ VSTGUI::CTextEdit* unattached=nullptr;
+ bool listenerRegistered=false;
+ try{
+  const auto r=UiBeatCreatorDialog::complexityValue(getViewSize().getHeight());
+  char digits[8]{};
+  std::snprintf(digits,sizeof(digits),"%u",static_cast<unsigned>(beatCreatorComplexity_));
+  if(!complexityEdit_){
+   unattached=new VSTGUI::CTextEdit(
+       {r.x0+1.,r.y0,r.x1-1.,r.y1},this,1002,digits);
+   unattached->registerTextEditListener(this);
+   listenerRegistered=true;
+   if(!getFrame()->addView(unattached)){
+     unattached->unregisterTextEditListener(this);
+     unattached->forget();
+     unattached=nullptr;
+     beatCreatorNotice_="COMPLEXITY EDIT UNAVAILABLE";
+     invalid();
+     return;
+   }
+   complexityEdit_=unattached;
+   unattached=nullptr; // Ownership transferred to VSTGUI frame.
+  }
+  complexityEdit_->setViewSize({r.x0+1.,r.y0,r.x1-1.,r.y1});
+  complexityEdit_->setText(digits);
+  complexityEdit_->setVisible(true);
+  complexityEdit_->takeFocus();
+  complexityEditActive_=true; // Only after complete initialization.
+ }catch(...){
+  if(unattached){
+   if(listenerRegistered)
+     try{unattached->unregisterTextEditListener(this);}catch(...){}
+   unattached->forget();
+  }
+  complexityEditActive_=false;
+  try{
+   if(complexityEdit_)complexityEdit_->setVisible(false);
+   beatCreatorNotice_="COMPLEXITY EDIT UNAVAILABLE";
+   invalid();
+  }catch(...){}
  }
- complexityEdit_->setViewSize({r.x0+1.,r.y0,r.x1-1.,r.y1});
- complexityEdit_->setText(digits);
- complexityEditActive_=true;
- complexityEdit_->setVisible(true);
- complexityEdit_->takeFocus();
 }
 void DrumatorView::closeBeatCreator() noexcept {
  if(!beatCreatorOpen_)return;
