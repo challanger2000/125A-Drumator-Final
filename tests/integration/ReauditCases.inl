@@ -366,7 +366,9 @@ void reauditTiming(const std::string& label,std::vector<double> times,double dea
    " deadline-ms="+std::to_string(deadline)+" misses="+std::to_string(misses)+
    "; diagnostic on shared runner, no ASIO guarantee");
 }
-void testReauditLoadedSwap(){
+// Separate RE09's strict 1.333-ms realtime gate from the RM13 negative
+// control. The latter must fail on audible PCM, never on shared-runner jitter.
+void testReauditLoadedSwapChecked(bool requireDeadline){
  using Clock=std::chrono::steady_clock;
  FinalAuditFiles files;Fixture f;KitState kit;kit.visible=2;kit.grid.fill(0);
  kit.names[0]="old.wav";kit.names[1]="fixed.wav";
@@ -472,11 +474,16 @@ void testReauditLoadedSwap(){
      std::to_string(actualDeadlineMisses)+"/"+std::to_string(times.size())+
      " at 1.333ms; shared runner is NOT ASIO release evidence");
  f.p->setProcessing(false);f.p->setActive(false);
- check(blocks==500u&&duringImport>0u&&badPcm==0u&&errors==0u&&allocations==0u,
-       "RE09 old asset lifetime, audible replacement, Stop/locate or realtime allocation failure");
- check(actualDeadlineMisses==0,
-       "RE09 paced 64-voice live imports exceeded 48k/64 audio deadline");
+ check(blocks==500u&&duringImport>0u&&errors==0u&&allocations==0u,
+       "RE09 asset lifetime, Stop/locate, load error or realtime allocation failure");
+ check(badPcm==0u,"RE09 audible sample-replacement PCM mismatch");
+ // RE09 remains the strict realtime deadline gate. RM13 verifies import
+ // correctness only, so a single host scheduling outlier cannot mask it.
+ if(requireDeadline)
+   check(actualDeadlineMisses==0,
+         "RE09 paced 64-voice live imports exceeded 48k/64 audio deadline");
 }
+void testReauditLoadedSwap(){testReauditLoadedSwapChecked(true);}
 
 void testA24ComponentFirstDzm3OriginConsumed(){
  FinalAuditFiles files;

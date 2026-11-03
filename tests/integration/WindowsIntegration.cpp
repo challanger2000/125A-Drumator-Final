@@ -6093,7 +6093,21 @@ int main(int argc,char** argv){
  run("RM10 PACING active dropout mutation",[]{expectMutationKilled(qa::AuditMutation::muteImportedProcessor,"PACING active-only dropout",testPacedSampleSwapContinuity);});
  run("RM11 independent PCM detects offset and gaps",testReauditPcmNegatives);
  run("RM12 PACING deadline diagnostic injection",testReauditDeadlineDiagnostic);
- run("RM13 loaded swap detects ignored replacement",[]{expectMutationKilled(qa::AuditMutation::skipImport,"64 voice audible replacement",testReauditLoadedSwap);});
+ run("RM13 loaded swap detects ignored replacement",[]{
+    // RE09 already proves the real-time deadline in the positive test.
+    // Verify both control and mutation using PCM semantics only.
+    testReauditLoadedSwapChecked(false);
+    bool killedByPcm=false;
+    {
+      ReauditMutationScope scope(qa::AuditMutation::skipImport);
+      try{testReauditLoadedSwapChecked(false);}
+      catch(const std::runtime_error& error){
+        killedByPcm=std::string(error.what()).find(
+            "RE09 audible sample-replacement PCM mismatch")!=std::string::npos;
+      }
+    }
+    check(killedByPcm,"RM13 skipped import was not detected by replacement PCM");
+  });
  run("WE01 actual WAV preview and project recall",testWavEditorPreviewAndRecall);
  run("T03 controlled actual bank",testPatternOverlap);
  run("T04 controlled real restore gate",testKitGate);
