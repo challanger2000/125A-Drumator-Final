@@ -42,12 +42,14 @@ foreach(_name DrumatorController DrumatorView DrumatorProcessor)
 endforeach()
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/core/AtomicPatternBank.h" _bank)
 # Pause a real A/B/C writer with an odd combined version.
-qa_replace(_bank "tripleVersion_.fetch_add(1,std::memory_order_acq_rel);"
-  "tripleVersion_.fetch_add(1,std::memory_order_acq_rel);\n        drumator::qa::probe(drumator::qa::songTripleMidWrite);")
+qa_replace(_bank "        tripleVersion_.fetch_add(1,std::memory_order_acq_rel);\n        for(std::size_t p=0;p<3;++p)"
+  "        tripleVersion_.fetch_add(1,std::memory_order_acq_rel);\n        drumator::qa::probe(drumator::qa::songTripleMidWrite);\n        for(std::size_t p=0;p<3;++p)")
 qa_replace(_bank "std::array<std::uint8_t,kRows*kSteps> candidate{};"
   "drumator::qa::probe(drumator::qa::patternReadStarted);\n        std::array<std::uint8_t,kRows*kSteps> candidate{};")
 qa_replace(_bank "for(std::size_t i=0;i<count;++i)\n            grid_[p*kRows*kSteps+i].store(values[i],std::memory_order_relaxed);"
   "for(std::size_t i=0;i<count;++i) {\n            grid_[p*kRows*kSteps+i].store(values[i],std::memory_order_relaxed);\n            if(i==count/2)drumator::qa::probe(drumator::qa::patternMidWrite);\n        }")
+qa_replace(_bank "if(!coherentPattern(p,candidate[p],lengths[p]))return false;"
+  "if(!coherentPattern(p,candidate[p],lengths[p]))return false;\n            if(p==0)drumator::qa::probe(drumator::qa::songAfterFirstPatternRead);")
 file(WRITE "${_qa}/core/AtomicPatternBank.h" "#include \"Probe.h\"\n${_bank}")
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/core/TriggerBatch.h" _triggers)
 qa_replace(_triggers "void sort() noexcept {"

@@ -25,10 +25,12 @@ public:
         if(p>=kPatterns||row>=kRows||step>=kSteps||velocity>127)
             return false;
         std::lock_guard<std::mutex> guard(writeMutex_);
+        if(p<3)tripleVersion_.fetch_add(1,std::memory_order_acq_rel);
         version_[p].fetch_add(1,std::memory_order_acq_rel);
         grid_[index(p,row,step)].store(static_cast<std::uint8_t>(velocity),
                                        std::memory_order_relaxed);
         version_[p].fetch_add(1,std::memory_order_release);
+        if(p<3)tripleVersion_.fetch_add(1,std::memory_order_release);
         return true;
     }
     std::uint8_t get(std::size_t p,std::size_t row,std::size_t step) const noexcept {
@@ -60,9 +62,11 @@ public:
     bool setLength(std::size_t p,std::uint8_t duration) noexcept {
         if(p>=kPatterns||(duration!=16&&duration!=32))return false;
         std::lock_guard<std::mutex> guard(writeMutex_);
+        if(p<3)tripleVersion_.fetch_add(1,std::memory_order_acq_rel);
         version_[p].fetch_add(1,std::memory_order_acq_rel);
         lengths_[p].store(duration,std::memory_order_relaxed);
         version_[p].fetch_add(1,std::memory_order_release);
+        if(p<3)tripleVersion_.fetch_add(1,std::memory_order_release);
         return true;
     }
     bool replacePattern(std::size_t p,const std::uint8_t* values,std::size_t count,
@@ -71,11 +75,13 @@ public:
            (duration!=0&&duration!=16&&duration!=32))return false;
         for(std::size_t i=0;i<count;++i)if(values[i]>127)return false;
         std::lock_guard<std::mutex> guard(writeMutex_);
+        if(p<3)tripleVersion_.fetch_add(1,std::memory_order_acq_rel);
         version_[p].fetch_add(1,std::memory_order_acq_rel);
         for(std::size_t i=0;i<count;++i)
             grid_[p*kRows*kSteps+i].store(values[i],std::memory_order_relaxed);
         if(duration!=0)lengths_[p].store(duration,std::memory_order_relaxed);
         version_[p].fetch_add(1,std::memory_order_release);
+        if(p<3)tripleVersion_.fetch_add(1,std::memory_order_release);
         return true;
     }
     // F1.5: CAS all three related patterns under ONE write mutex.
@@ -121,8 +127,9 @@ public:
         if(before&1u)return false;
         std::array<std::array<std::uint8_t,kRows*kSteps>,3> candidate{};
         std::array<std::uint8_t,3> lengths{};
-        for(std::size_t p=0;p<3;++p)
+        for(std::size_t p=0;p<3;++p) {
             if(!coherentPattern(p,candidate[p],lengths[p]))return false;
+        }
         const auto after=tripleVersion_.load(std::memory_order_acquire);
         if(before!=after||(after&1u))return false;
         out=candidate;durations=lengths;
