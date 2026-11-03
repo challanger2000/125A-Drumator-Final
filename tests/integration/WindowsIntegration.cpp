@@ -5875,6 +5875,45 @@ void testRv02CoherentTripleRejectsSingleEditInterleave(){
  evidence("RV02 forced single-edit interleave rejects an impossible A/B/C triple PASS");
 }
 
+void testRv04SongUsesAudiblePatternLengths(){
+ Fixture f;KitState kit;kit.visible=1;kit.grid.fill(0);
+ kit.patternLengths.fill(16);
+ kit.names[0]="song-length.wav";kit.wav[0]=constantStereo(.5f,-.25f);
+ check(kit.chain.setCount(3),"RV04 three SONG entries");
+ BeatTriple pattern{};
+ for(std::size_t p=0;p<3;++p){
+   const auto base=p*kRows*kSteps;
+   pattern[p][0]=static_cast<std::uint8_t>(40+15*p);
+   pattern[p][16]=static_cast<std::uint8_t>(100+10*p);
+   kit.grid[base]=pattern[p][0];kit.grid[base+16]=pattern[p][16];
+   check(kit.chain.configure(p,static_cast<std::uint8_t>(p),32),
+         "RV04 32-step SONG entry");
+ }
+ kit.songEnabled=1;f.kit(kit);prepareAudio(*f.p);
+ AuditAudioBlock audio;
+ audio.clock.state=ProcessContext::kPlaying|ProcessContext::kTempoValid|
+                   ProcessContext::kProjectTimeMusicValid;
+ const auto hear=[&](double ppq,unsigned vel,const char* error){
+   audio.clock.projectTimeMusic=ppq;
+   check(f.p->process(audio.data)==kResultOk,"RV04 SONG render failed");
+   check(std::abs(audio.left[80]-.5f*vel/127.f)<2e-4f&&
+         std::abs(audio.right[80]+.25f*vel/127.f)<2e-4f,error);
+ };
+ // At step 16 of each 32-step SONG entry, a 16-step source must wrap
+ // to its Step 0, while a 32-step source must play its distinct Step 16.
+ for(std::size_t p=0;p<3;++p)
+   hear(static_cast<double>(p*8+4),static_cast<unsigned>(pattern[p][0]),
+        "RV04 live SONG length did not wrap Step16");
+ BeatLengths len16{16,16,16},len32{32,32,32};
+ check(IntegrationAccess::publishBeatTriple(*f.p,pattern,pattern,len16,len32),
+       "RV04 combined 16 to 32 length change");
+ for(std::size_t p=0;p<3;++p)
+   hear(static_cast<double>(p*8+4),static_cast<unsigned>(pattern[p][16]),
+        "RV04 live SONG length ignored new Step16");
+ f.p->setProcessing(false);f.p->setActive(false);
+ evidence("RV04 actual Processor SONG lengths A/B/C: 16 wraps Step16, 32 plays Step16 PASS");
+}
+
 void testRv05ComplexityAllocationFailure(){
  Fixture f;KitState kit;kit.visible=2;f.kit(kit);
  (void)f.openV101();auto* v=IntegrationAccess::view(*f.c,0);
@@ -6307,6 +6346,14 @@ int main(int argc,char** argv){
      testRv02CoherentTripleRejectsSingleEditInterleave);
  run("RV05 native Complexity OOM event boundaries",
      testRv05ComplexityAllocationFailure);
+ run("RV04 audible SONG A/B/C Pattern length wrapping",
+     testRv04SongUsesAudiblePatternLengths);
+ run("RM31 wrong SONG Scheduler lengths must be detected",[]{
+   expectMutationKilled(qa::AuditMutation::ignoreSongLengths,
+     "SONG coherent length overridden after snapshot",
+     "RV04 live SONG length did not wrap Step16",
+     testRv04SongUsesAudiblePatternLengths);
+ });
  run("RE01 original deterministic VFA02",testReauditPatternLength);
  run("RE02 original fresh DZM3 matrix",testFinalAuditDzm3);
  run("RE03 paired duration fallback in Pattern and Song",testReauditDurationFallback);

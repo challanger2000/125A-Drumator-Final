@@ -10,6 +10,7 @@ extern std::function<bool(VSTGUI::IDataPackage*)> exportDragObserver;
 extern thread_local bool legacyTriggerOrdering; // regression negative, test EXE only
 enum class AuditMutation { none, keepStaleExportTempo, suppressZeroStop, staleDuration, skipPeerCommit,
  basenameOnly, delayMidiOne, dropMidi, doubleMidi, zeroPrefix,
+ ignoreSongLengths,
  skipImport, muteImportedProcessor, delayImportedProcessor,
  rejectPreviewStop, rejectPreviewStopOnce, patternQueryOOM, patternReplyOOM,
  oldFadeRenderer, oldKnobDrawCenters, loadRepaintOOM, refreshViewsOOM, disableWaveCache, bypassWaveRangeIndex, suppressMissingContextCarry,
