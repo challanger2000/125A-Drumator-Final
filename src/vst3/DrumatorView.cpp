@@ -1415,6 +1415,7 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
  if(D::generate(h).hit(x,y)){
   const BeatCreatorSettings settings{beatCreatorStyle_,beatCreatorComplexity_,beatCreatorSteps_};
   const bool ok=controller_.prepareBeatCreator(settings,++beatCreatorSeed_,this);
+  if(ok)recordButtonFlash(x,y);
   beatCreatorConfirmOverwrite_=false;
   beatCreatorNotice_=!ok?"GENERATION REJECTED":
       controller_.visibleRows()<8?"A/B/C READY - SHOW ALL 8 ROWS":"A / B / C READY";
@@ -1634,8 +1635,10 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine,bool acc
    invalid();
  }
  if(result==R::Failed)status_="CONTROL ACTION NOT APPLIED";
+ // A menu opener is not a completed action. Only COPY/PASTE/CLEAR
+ // receive a pressed sprite, and only when Controller accepted the edit.
  if(setButton>=0){
-   if(result==R::Applied||result==R::DeferredToView){
+   if(setButton>=2&&result==R::Applied){
      settingsFeedbackRow_=setRow;
      settingsFeedbackButton_=setButton;
      settingsFeedbackUntil_=std::chrono::steady_clock::now()+
@@ -1646,6 +1649,8 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine,bool acc
    }else if(setButton==3&&result==R::Ignored)
      status_="PASTE ROW: COPY A ROW FIRST";
  }
+ if(result==R::Applied&&controller_.visibleRows()==previousRows)
+   recordButtonFlash(x,y);
  if(result!=R::Ignored||setButton>=0)invalid();
  return result!=R::Ignored;
 }
@@ -1862,14 +1867,8 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
             false,10,&waveButtons,false,
             sampleEditorPressed_==static_cast<int>(i));
    }
-   if(sampleEditorPressed_>=0&&
-      sampleEditorPressed_<static_cast<int>(UiV101WaveLayout::toolbar.size())){
-     const auto& r=UiV101WaveLayout::toolbar[
-         static_cast<std::size_t>(sampleEditorPressed_)];
-     c->setFrameColor(on);c->setLineWidth(2.);
-     c->drawRect({r.left,r.top,r.right,r.bottom},VSTGUI::kDrawStroked);
-     c->setLineWidth(1.);
-   }
+   // The physical pressed-button sprite above is sufficient.
+   // A second amber outline looked like an unrelated ON/OFF latch.
    // Machined buttons change their paint font to dark ink; restore the
    // light editor ink for GAIN and its numeric value against graphite.
    c->setFont(VSTGUI::kNormalFont,12);c->setFontColor(letters);
@@ -1906,135 +1905,61 @@ void DrumatorView::drawButtonFlash(VSTGUI::CDrawContext* c) {
  P::fill(*c,{r.left+3.,r.top+2.,r.right-3.,r.top+4.},P::Skin::amberLens());
 }
 void DrumatorView::recordButtonFlash(double x,double y) {
+ // Called ONLY after the underlying action has been acknowledged.
+ // This is not a generic mouse-down effect. Hardware latches, selections,
+ // numeric controls, menu openers and modal switches paint their own state.
  using L=UiV101Layout;
- buttonFlashUntil_={}; // no residual marker on unrelated clicks
+ buttonFlashUntil_={};
  buttonFlashContext_=beatCreatorOpen_?1u:sampleEditorOpen_?2u:0u;
- const auto set=[&](L::Rect r) {
-  buttonFlashRect_={r.x0,r.y0,r.x1,r.y1};
-  buttonFlashUntil_=std::chrono::steady_clock::now()+
-                    kClickFeedbackDuration;
+ const auto set=[&](L::Rect r,double offset=0.) {
+   buttonFlashRect_={r.x0,r.y0+offset,r.x1,r.y1+offset};
+   buttonFlashUntil_=std::chrono::steady_clock::now()+kClickFeedbackDuration;
  };
- const auto hit=[&](L::Rect r)->bool {
-  if(!r.hit(x,y))return false;
-  set(r);return true;
- };
- const auto shifted=[](L::Rect r,double y0)->L::Rect {
-  return {r.x0,r.y0+y0,r.x1,r.y1+y0};
- };
- const double h=getViewSize().getHeight();
+ const double height=getViewSize().getHeight();
  if(beatCreatorOpen_){
-  using D=UiBeatCreatorDialog;
-  // The painter disables APPLY if no preview belongs to this editor.
-  if(D::apply(h).hit(x,y)&&!controller_.beatCreatorDraft(this))return;
-  if(beatCreatorStyleMenu_){
-   for(std::size_t i=0;i<10u;++i)
-    if(D::styleOption(h,i).hit(x,y)){set(D::styleOption(h,i));return;}
+   // The other Beat Creator keys modify persistent controls, open a menu
+   // or close the modal. GENERATE is the one acknowledged one-shot.
+   if(UiBeatCreatorDialog::generate(height).hit(x,y))
+     set(UiBeatCreatorDialog::generate(height));
    return;
-  }
-  for(const auto r:{D::styleSelect(h),D::complexityMinus(h),
-                    D::complexityPlus(h),D::barOne(h),D::barTwo(h),
-                    D::generate(h),D::apply(h),D::cancel(h)})
-   if(hit(r))return;
-  return; // APPLY/CANCEL dismiss modal immediately
  }
  if(sampleEditorOpen_){
-  const auto rc=[](UiV101WaveLayout::Rect r)->L::Rect {
-   return {r.left,r.top,r.right,r.bottom};
-  };
-  if(hit(rc(UiV101WaveLayout::liveToggle)))return;
-  for(std::size_t i=0;i<UiV101WaveLayout::toolbar.size();++i)
-   if(hit(rc(UiV101WaveLayout::toolbar[i])))return;
-  return; // APPLY/CANCEL close modal immediately
+   // Eight WAVE actions already use their actual pressed-key sprite.
+   // LIVE is a persistent latch. Never paint a second amber overlay.
+   return;
  }
- if(v101Menu_!=UiV101Popup::Kind::None)
-  return; // press feedback is rendered on the popup option itself
- if(v101_.state().zoomOpen){
-  for(std::size_t i=0;i<L::zoomPresets.size();++i)
-   if(hit(L::zoomOption(i)))return;
-  (void)hit(L::zoomTrigger);return;
- }
- for(const auto r:{L::zoomTrigger,L::limiterTrigger,L::patternMenu,
-      L::barsButton,L::headerGroup(0),L::headerGroup(1),
-      L::beatCreatorTrigger})
-  if(hit(r))return;
- for(std::size_t i=0;i<8u;++i)
-  if(hit(L::patternButton(i)))return;
+ if(v101Menu_!=UiV101Popup::Kind::None||v101_.state().zoomOpen)
+   return; // Popup cells have pressed sprites and selected values.
  if(songEditorOpen_){
-  using S=UiSongLayout;
-  const L::Rect controls[]={
-   {S::startMinusLeft,S::startTop,S::startMinusRight,S::startBottom},
-   {S::startPlusLeft,S::startTop,S::startPlusRight,S::startBottom},
-   {S::startResetLeft,S::startTop,S::startResetRight,S::startBottom},
-   {S::previousLeft,S::navTop,S::previousRight,S::navBottom},
-   {S::nextLeft,S::navTop,S::nextRight,S::navBottom},
-   {S::addLeft,S::choiceTop,S::addRight,S::choiceBottom},
-   {S::removeLeft,S::choiceTop,S::removeRight,S::choiceBottom},
-   {S::restLeft,S::choiceTop,S::restRight,S::choiceBottom}};
-  for(std::size_t i=0;i<sizeof(controls)/sizeof(controls[0]);++i){
-    if(i==3u&&songPage_==0)continue;
-    if(i==4u&&!S::canNext(songPage_,controller_.songCount()))continue;
-    if(i==5u&&controller_.songCount()>=SongChain::kCapacity)continue;
-    if(i==6u&&controller_.songCount()<=1u)continue;
-    if(hit(controls[i]))return;
-   }
-  for(std::size_t i=0;i<8u;++i){
-   const double xx=S::patternLeft+i*S::patternPitch;
-   if(hit({xx,S::choiceTop,xx+S::patternWidth,S::choiceBottom}))return;
-  }
-  for(int i=0;i<3;++i){
-   const double xx=678.+i*106.;
-   if(hit({xx,339.,xx+100.,365.}))return;
-  }
-  const auto slot=S::slotAt(x,y,songPage_);
-  if(slot<controller_.songCount()&&slot<SongChain::kCapacity){
-   const auto i=slot-S::first(songPage_);
-   const double xx=S::cellX(i%S::columns),yy=S::cellY(i/S::columns);
-   if(hit({xx,yy,xx+S::cellWidth,yy+S::cellHeight}))return;
-  }
- }else{
-  const auto r=v101_.rowHit(x,y);
-  if(r.row<L::instruments){
-   const auto first=v101_.state().firstRow;
-   const double yy=L::rowTop(first,r.row-first,v101_.expandedRows());
-   L::Rect cap{};
-   switch(r.action){
-    case L::Action::Select:cap=L::select;break;
-    case L::Action::Mute:cap=L::mute;break;
-    case L::Action::Solo:cap=L::solo;break;
-    case L::Action::Previous:cap=L::previous;break;
-    case L::Action::Next:cap=L::next;break;
-    case L::Action::Load:cap=L::load;break;
-    case L::Action::SampleMenu:cap=L::sampleMenu;break;
-    case L::Action::Preview:cap=L::preview;break;
-    case L::Action::Fill:cap=L::fill;break;
-    case L::Action::Edit:cap=L::edit;break;
-    case L::Action::Velocity:cap=L::velocity;break;
-    case L::Action::Settings:cap=L::settings;break;
-    case L::Action::SettingsLane:
-     for(std::size_t i=0;i<5u;++i)
-      if(hit(shifted(UiV101Interaction::settingsRect(i),yy)))return;
-     break;
-    case L::Action::VelocityLane:
-     for(const auto button:{UiV101Interaction::velocityRandom,
-          UiV101Interaction::velocityReset,UiV101Interaction::realtimeMinus,
-          UiV101Interaction::realtimePlus})
-      if(hit(shifted(button,yy)))return;
-     break;
-    default:break;
-   }
-   if(cap.x1>cap.x0&&hit(shifted(cap,yy)))return;
-  }
+   // Only genuine one-shot mutations. SONG selection, Pattern A-H,
+   // 1/2 BAR, current entry and START value all convey their own state.
+   if(UiSongLayout::addHit(x,y))
+     set({UiSongLayout::addLeft,UiSongLayout::choiceTop,
+          UiSongLayout::addRight,UiSongLayout::choiceBottom});
+   else if(UiSongLayout::removeLastHit(x,y))
+     set({UiSongLayout::removeLeft,UiSongLayout::choiceTop,
+          UiSongLayout::removeRight,UiSongLayout::choiceBottom});
+   return;
  }
- const double foot=h-L::footer;
- if(hit(shifted(songEditorOpen_?L::songFooterExport:L::footerExport,foot)))return;
- if(!songEditorOpen_){
-  for(const auto r:{L::footerAdd,L::footerRemove})
-   if(hit(shifted(r,foot)))return;
-  // Never flash disabled page arrows.
-  if(v101_.state().firstRow>0&&hit(shifted(L::footerPrev,foot)))return;
-  if(v101_.state().firstRow+v101_.shownRows()<controller_.visibleRows()&&
-     hit(shifted(L::footerNext,foot)))return;
+ if(L::meterReset.hit(x,y)){set(L::meterReset);return;}
+ const auto hit=v101_.rowHit(x,y);
+ if(hit.row>=controller_.visibleRows())return;
+ const auto first=v101_.state().firstRow;
+ if(hit.row<first)return;
+ const double rowY=L::rowTop(first,hit.row-first,v101_.expandedRows());
+ if(hit.action==L::Action::Preview) {
+   set(L::preview,rowY);return;
  }
+ if(hit.action==L::Action::VelocityLane){
+   const double localY=y-rowY;
+   const auto action=UiV101Interaction::velocityAt(x,localY);
+   if(action==UiV101Interaction::SettingsAction::RandomVelocity)
+     set(UiV101Interaction::velocityRandom,rowY);
+   else if(action==UiV101Interaction::SettingsAction::ResetVelocity)
+     set(UiV101Interaction::velocityReset,rowY);
+ }
+ // COPY/PASTE/CLEAR already use a single success-only pressed sprite
+ // (settingsFeedbackUntil_), not this second overlay.
 }
 
 void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
@@ -3101,7 +3026,7 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
  const double x=pos.x,y=pos.y;
  if(!(buttons&VSTGUI::kLButton))return VSTGUI::kMouseEventNotHandled;
- if(v101Mode_)recordButtonFlash(x,y);
+ if(v101Mode_)buttonFlashUntil_={}; // A new click clears any prior momentary acknowledgement.
  if(v101Mode_&&beatCreatorOpen_){
   (void)beatCreatorMouseDown(x,y);
   return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
@@ -3545,6 +3470,9 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
      }
    }
    if(!ok)status_="SONG ENTRY NOT APPLIED";
+   // The count must really have changed; disabled ADD/REMOVE may not
+   // display a success indicator. Other SONG controls are stateful.
+   if(ok&&controller_.songCount()!=count)recordButtonFlash(x,y);
    invalid();return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
  }
 
