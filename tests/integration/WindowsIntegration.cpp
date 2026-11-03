@@ -4614,14 +4614,20 @@ void testReleaseAuditVoiceCapacityDiagnostics(){
  Fixture f;KitState kit{};kit.visible=1;kit.grid.fill(0);
  kit.wav[0]=constantStereo(.125f,-.125f);
  kit.names[0]="capacity.wav";f.kit(kit);prepareAudio(*f.p);
- AuditAudioBlock block;
+ // Local host audio buffer: AuditAudioBlock is declared in a later
+ // audit source section and must not be referenced here.
+ std::array<float,256> left{},right{};
+ float* channels[2]{left.data(),right.data()};
+ AudioBusBuffers out{};out.numChannels=2;out.channelBuffers32=channels;
+ ProcessData audio{};audio.numSamples=256;audio.symbolicSampleSize=kSample32;
+ audio.numOutputs=1;audio.outputs=&out;
  EventList events(128);Event event{};
  event.type=Event::kNoteOnEvent;event.noteOn.pitch=36;event.noteOn.velocity=1.f;
  event.sampleOffset=0;
  for(int i=0;i<100;++i)check(events.addEvent(event)==kResultOk,
                               "REL08 MIDI capacity fixture");
- block.data.inputEvents=&events;
- check(f.p->process(block.data)==kResultOk,"REL08 capacity render");
+ audio.inputEvents=&events;
+ check(f.p->process(audio)==kResultOk,"REL08 capacity render");
  check(IntegrationAccess::overflowEvents(*f.p)==36,
        "REL08 64-voice saturation not counted as 36 rejects");
  f.c->requestMeterSnapshot();
