@@ -1343,6 +1343,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
  if(revision!=lastAudioKitRevision_) {
    voices_.reset();
    audioPatternValid_.fill(false); // Never replay an old kit's cached rhythm.
+   audioSongTripleValid_=false; // A recalled kit cannot reuse the prior SONG fallback.
    lastAudioKitRevision_=revision;
  }
  // Adopt only complete prepared assets, without deleting on audio.
@@ -1531,6 +1532,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
      std::array<std::array<std::uint8_t,kRows*kSteps>,3> triple{};
      std::array<std::uint8_t,3> tripleLengths{};
      if(patterns_.coherentFirstThree(triple,tripleLengths)){
+       // Only a successful A/B/C-wide read refreshes the SONG fallback.
+       audioSongTripleCache_=triple;
+       audioSongTripleLengthCache_=tripleLengths;
+       audioSongTripleValid_=true;
        for(std::size_t p=0;p<3;++p){
          audioPatternCache_[p]=triple[p];
          audioPatternLengthCache_[p]=tripleLengths[p];
@@ -1538,14 +1543,23 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
        }
      }
      for(std::size_t program=0;program<kPatterns;++program){
-       if(program>=3){
-         std::array<std::uint8_t,kRows*kSteps> coherent{};
-         std::uint8_t duration=32;
-         if(patterns_.coherentPattern(program,coherent,duration)){
-           audioPatternCache_[program]=coherent;
-           audioPatternLengthCache_[program]=duration;
-           audioPatternValid_[program]=true;
+       if(program<3){
+         if(audioSongTripleValid_){
+           songPrograms[program]=audioSongTripleCache_[program];
+           lengths[program]=audioSongTripleLengthCache_[program];
+         }else{
+           // First combined snapshot is busy: bounded silent transition.
+           // Never construct a mixed generation from PATTERN caches.
+           lengths[program]=32;
          }
+         continue;
+       }
+       std::array<std::uint8_t,kRows*kSteps> coherent{};
+       std::uint8_t duration=32;
+       if(patterns_.coherentPattern(program,coherent,duration)){
+         audioPatternCache_[program]=coherent;
+         audioPatternLengthCache_[program]=duration;
+         audioPatternValid_[program]=true;
        }
        if(audioPatternValid_[program]){
          songPrograms[program]=audioPatternCache_[program];

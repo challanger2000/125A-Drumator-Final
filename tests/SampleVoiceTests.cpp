@@ -723,6 +723,14 @@ static void testSoloImmediateIsolationFourMs(){
          "SOLO release");
  near(l[220],1.,1e-3,"Mute must override released SOLO");
 }
+static void testSoloRateBounds(){
+ SampleVoiceEngine engine;
+ require(engine.setOutputRate(48000),"SOLO bounds ordinary sample rate");
+ // At 2e12 Hz the choke fade fits uint32, but the 4-ms SOLO fade does not.
+ require(!engine.setOutputRate(2e12),"SOLO uint32 fade overflow accepted");
+ require(!engine.setOutputRate(1e300),"SOLO huge finite rate accepted");
+ require(engine.setOutputRate(44100),"SOLO recovery after rejected rate");
+}
 static void testCoherentBeatTripleUnderConcurrentPublish(){
  AtomicPatternBank bank;
  constexpr auto cells=3*kRows*kSteps;
@@ -781,7 +789,7 @@ int main() {
     for(std::size_t i=0;i<left.size();++i)
       require(left[i]==0.f&&right[i]==0.f,"empty sampler produced sound");
   }
-  testNondestructiveSampleEdits();testSoloImmediateIsolationFourMs();
+  testNondestructiveSampleEdits();testSoloImmediateIsolationFourMs();testSoloRateBounds();
    testCoherentBeatTripleUnderConcurrentPublish();testMuteSoloPolicy();testHighRatioSincRejection();testKernel();testRowMix();testRetriggerAndMute();testSampleSwapLifetime();
   testChokeAndStereo();testChokeSplitBlockEquivalence();testRejectedChokeDoesNotFadeVoices();testCapacityValidationAndAutomation();testBandlimiting();
   testUnityRateExactPCM();testMonoSincBitIdentityWithDualMonoStereo();testStressAndRecovery();testHighRatio64VoiceStress();testSincMemo64VoicesAgainstIndependentScalarPcm(false);testSincMemo64VoicesAgainstIndependentScalarPcm(true);testRatioPerformanceComparison();testStemWithoutMain();testSimultaneousStereoStems();testAssignableOutput();testTwoRowsOneBus();

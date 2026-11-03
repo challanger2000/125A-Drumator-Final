@@ -128,6 +128,24 @@ struct IntegrationAccess {
  static UiV101Layout::Expansion v101Expansion(const DrumatorView& view){return view.v101_.state().expansion;}
  static bool v101ZoomPopupOpen(const DrumatorView& view){return view.v101_.state().zoomOpen;}
  static std::size_t v101ShownRows(const DrumatorView& view){return view.v101_.shownRows();}
+ static bool publishBeatTriple(Processor& p,const BeatTriple& before,
+                               const BeatTriple& after,const BeatLengths& oldLengths,
+                               const BeatLengths& newLengths){
+   return p.patterns_.replaceFirstThreeIfMatches(before[0].data(),after[0].data(),
+       oldLengths.data(),newLengths.data(),3*kRows*kSteps);
+ }
+ static void poisonIndependentPatternCaches(Processor& p,
+                                    const BeatTriple& old,const BeatTriple& recent){
+   p.audioPatternCache_[0]=old[0];p.audioPatternLengthCache_[0]=32;
+   p.audioPatternCache_[1]=recent[1];p.audioPatternLengthCache_[1]=16;
+   p.audioPatternCache_[2]=old[2];p.audioPatternLengthCache_[2]=32;
+   p.audioPatternValid_[0]=p.audioPatternValid_[1]=p.audioPatternValid_[2]=true;
+ }
+ static bool songTripleValid(const Processor& p){return p.audioSongTripleValid_;}
+ static std::array<std::uint8_t,3> songTripleLengths(const Processor& p){
+   return p.audioSongTripleLengthCache_;
+ }
+ static void showSongForFeedback(DrumatorView& v){v.songEditorOpen_=true;}
  static float primeAndMeasureLimiter(Processor& processor,float level){
    float l=level,r=-level*.75f;
    processor.limiterBuses_[0].process(l,r,true);
@@ -4583,6 +4601,30 @@ void testReleaseAuditNarrowViewportAndLiveVelocity(){
        "REL03 VEL expansion underflowed firstRow on four-row viewport");
  evidence("REL03 narrow viewport expands final VEL row without unsigned underflow PASS");
 }
+void testReleaseAuditDisabledSongButtonFeedback(){
+ Fixture f;KitState kit;kit.visible=2;f.kit(kit);
+ (void)f.openV101();auto* view=IntegrationAccess::view(*f.c,0);
+ IntegrationAccess::showSongForFeedback(*view);
+ using S=UiSongLayout;
+ const double addX=(S::addLeft+S::addRight)*.5;
+ const double removeX=(S::removeLeft+S::removeRight)*.5;
+ const double y=(S::choiceTop+S::choiceBottom)*.5;
+ check(f.c->songCount()==1,"REL09 initial song count");
+ IntegrationAccess::testFeedbackClick(*view,removeX,y);
+ check(!IntegrationAccess::flashVisible(*view),
+       "REL09 disabled REMOVE LAST acknowledged a nonaction");
+ IntegrationAccess::testFeedbackClick(*view,addX,y);
+ check(IntegrationAccess::flashVisible(*view),
+       "REL09 enabled ADD ENTRY lacks acknowledgement");
+ check(f.c->adjustSongCount(63)&&f.c->songCount()==SongChain::kCapacity,
+       "REL09 max song count");
+ IntegrationAccess::testFeedbackClick(*view,addX,y);
+ check(!IntegrationAccess::flashVisible(*view),
+       "REL09 disabled ADD ENTRY acknowledged a nonaction");
+ IntegrationAccess::testFeedbackClick(*view,removeX,y);
+ check(IntegrationAccess::flashVisible(*view),
+       "REL09 enabled REMOVE LAST lacks acknowledgement");
+}
 void testReleaseAuditLiveVelDefaultAndDisabledNavigation(){
  using L=UiV101Layout;
  Fixture f;KitState kit{};kit.visible=2;f.kit(kit);
@@ -5678,6 +5720,60 @@ void testTransportJumpRetiresOldVoices(){
 #include "V101AutomationAudit.inl"
 #include "ExportTempoAudit.inl"
 
+void testSongTripleFallbackDoesNotMixPatternCaches(){
+ Fixture f;KitState kit;kit.grid.fill(0);kit.visible=1;
+ kit.patternLengths.fill(16);
+ kit.names[0]="triple.wav";kit.wav[0]=constantStereo(.5f,-.25f);
+ check(kit.chain.setCount(2)&&kit.chain.configure(0,0,8)&&
+       kit.chain.configure(1,1,8),"BT01 song A/B entries");
+ kit.songEnabled=1;
+ kit.grid[0]=40;kit.grid[kRows*kSteps]=65;kit.grid[2*kRows*kSteps]=50;
+ f.kit(kit);prepareAudio(*f.p);
+ BeatTriple before{},middle{},after{};
+ for(std::size_t p=0;p<3;++p)
+   std::copy_n(kit.grid.begin()+p*kRows*kSteps,kRows*kSteps,before[p].begin());
+ middle=before;middle[0][0]=91;middle[1][0]=117;middle[2][0]=103;
+ after=middle;after[0][0]=105;after[1][0]=75;after[2][0]=88;
+ BeatLengths shortLengths{16,16,16},longLengths{32,32,32};
+ check(IntegrationAccess::publishBeatTriple(*f.p,before,middle,shortLengths,shortLengths),
+       "BT01 publish combined middle generation");
+ AuditAudioBlock audio;
+ audio.clock.state=ProcessContext::kPlaying|ProcessContext::kTempoValid|
+                   ProcessContext::kProjectTimeMusicValid;
+ const auto hear=[&](double ppq,int velocity,const char* description){
+   audio.clock.projectTimeMusic=ppq;
+   check(f.p->process(audio.data)==kResultOk,"BT01 real SONG callback");
+   check(std::abs(audio.left[80]-.5f*velocity/127.f)<2e-4f&&
+         std::abs(audio.right[80]+.25f*velocity/127.f)<2e-4f,
+         description);
+ };
+ hear(0.,91,"BT01 middle generation not audible");
+ check(IntegrationAccess::songTripleValid(*f.p)&&
+       IntegrationAccess::songTripleLengths(*f.p)==shortLengths,
+       "BT01 combined SONG fallback not initialized");
+ IntegrationAccess::poisonIndependentPatternCaches(*f.p,before,middle);
+ arm(qa::songTripleMidWrite);
+ bool published=false;
+ std::jthread writer([&]{
+   published=IntegrationAccess::publishBeatTriple(*f.p,middle,after,shortLengths,longLengths);
+ });
+ try{
+   waitEntered();
+   hear(0.,91,"BT01 SONG fallback mixed stale Pattern A");
+   hear(2.,117,"BT01 SONG fallback mixed stale Pattern B");
+   check(IntegrationAccess::songTripleLengths(*f.p)==shortLengths,
+         "BT01 SONG fallback mixed unrelated pattern lengths");
+ }catch(...){releaseProbe();writer.join();throw;}
+ releaseProbe();writer.join();
+ check(published&&!probeTimeout,"BT01 controlled combined write failed");
+ hear(0.,105,"BT01 committed Pattern A not audible");
+ hear(2.,75,"BT01 committed Pattern B not audible");
+ check(IntegrationAccess::songTripleLengths(*f.p)==longLengths,
+       "BT01 committed lengths not coherent");
+ f.p->setProcessing(false);f.p->setActive(false);
+ evidence("BT01 actual SONG processor rejects mixed A/B/C fallback under odd writer PASS");
+}
+
 struct A01SerializedConnection final:Steinberg::Vst::IConnectionPoint {
  IConnectionPoint* target;
  bool holdReplies=false;
@@ -6066,9 +6162,12 @@ int main(int argc,char** argv){
   run("BC62 live SONG header A/C/REST host IPC",testSongLivePatternHeader);
   run("BC63 comprehensive popup and main-header pressed feedback",testCompleteButtonFeedback);
   run("REL01/02/04/05 Beat Creator modal drop, peer ownership and Export",testReleaseAuditModalDropOwnershipAndFeedback);
+  run("REL09 disabled SONG add/remove button feedback",testReleaseAuditDisabledSongButtonFeedback);
   run("REL03 viewport expansion",testReleaseAuditNarrowViewportAndLiveVelocity);
   run("REL05/06 disabled navigation and LIVE VEL reset",testReleaseAuditLiveVelDefaultAndDisabledNavigation);
   run("REL08 voice capacity reporting",testReleaseAuditVoiceCapacityDiagnostics);
+ run("BT01 SONG A/B/C coherent fallback under concurrent publish",
+     testSongTripleFallbackDoesNotMixPatternCaches);
  run("RE01 original deterministic VFA02",testReauditPatternLength);
  run("RE02 original fresh DZM3 matrix",testFinalAuditDzm3);
  run("RE03 paired duration fallback in Pattern and Song",testReauditDurationFallback);
@@ -6081,16 +6180,17 @@ int main(int argc,char** argv){
  run("RE10 actual Processor deadline matrix",testReauditDeadlineMatrix);
  run("A26 combined 16 active buses, 64 voices, 12 imports, Cycle Stop and PCM",testA26CombinedLiveMultibusCycleImport);
  run("RE11 cold Song overlap cannot divide by zero",[&]{testReauditSongColdChild(argv[1]);});
- run("RM01 zero Stop repair mutation",[]{expectMutationKilled(qa::AuditMutation::suppressZeroStop,"zero Stop",testZeroFrameStopRetiresVoice);});
- run("RM02 paired duration repair mutation",[]{expectMutationKilled(qa::AuditMutation::staleDuration,"paired duration",testReauditPatternLength);});
- run("RM03 peer owner repair mutation",[]{expectMutationKilled(qa::AuditMutation::skipPeerCommit,"peer commit",testPeerVelocityCancelPreservesCommittedStep);});
- run("RM04 asset identity repair mutation",[]{expectMutationKilled(qa::AuditMutation::basenameOnly,"asset identity",testComponentOnlySameBasenameRejectsStaleOrigin);});
- run("RM05 TORTURE missing MIDI mutation",[]{expectMutationKilled(qa::AuditMutation::dropMidi,"TORTURE missing MIDI",testTransportSequenceTorture);});
- run("RM06 TORTURE duplicate MIDI mutation",[]{expectMutationKilled(qa::AuditMutation::doubleMidi,"TORTURE doubled MIDI",testTransportSequenceTorture);});
- run("RM07 TORTURE one-sample delay mutation",[]{expectMutationKilled(qa::AuditMutation::delayMidiOne,"TORTURE one-sample delay",testTransportSequenceTorture);});
- run("RM08 TORTURE missing prefix mutation",[]{expectMutationKilled(qa::AuditMutation::zeroPrefix,"TORTURE zero first32",testTransportSequenceTorture);});
- run("RM09 PACING accepted import no-op mutation",[]{expectMutationKilled(qa::AuditMutation::skipImport,"PACING import no-op",testPacedSampleSwapContinuity);});
- run("RM10 PACING active dropout mutation",[]{expectMutationKilled(qa::AuditMutation::muteImportedProcessor,"PACING active-only dropout",testPacedSampleSwapContinuity);});
+ run("RM00 rejects unrelated fixture exceptions",testMutationOracleRejectsUnrelatedExceptions);
+ run("RM01 zero Stop repair mutation",[]{expectMutationKilled(qa::AuditMutation::suppressZeroStop,"zero Stop","SOR03Z zero-frame stopped callback failed to retire voice",testZeroFrameStopRetiresVoice);});
+ run("RM02 paired duration repair mutation",[]{expectMutationKilled(qa::AuditMutation::staleDuration,"paired duration","VFA02 FAIL: actual audio combines new pasted grid",testReauditPatternLength);});
+ run("RM03 peer owner repair mutation",[]{expectMutationKilled(qa::AuditMutation::skipPeerCommit,"peer commit","V1A03 late Cancel erased second view step",testPeerVelocityCancelPreservesCommittedStep);});
+ run("RM04 asset identity repair mutation",[]{expectMutationKilled(qa::AuditMutation::basenameOnly,"asset identity","V1A04 component-only recall retained stale same-basename origin",testComponentOnlySameBasenameRejectsStaleOrigin);});
+ run("RM05 TORTURE missing MIDI mutation",[]{expectMutationKilled(qa::AuditMutation::dropMidi,"TORTURE missing MIDI","TORTURE missed/doubled trigger, stale voice or unexpected output",testTransportSequenceTorture);});
+ run("RM06 TORTURE duplicate MIDI mutation",[]{expectMutationKilled(qa::AuditMutation::doubleMidi,"TORTURE doubled MIDI","TORTURE missed/doubled trigger, stale voice or unexpected output",testTransportSequenceTorture);});
+ run("RM07 TORTURE one-sample delay mutation",[]{expectMutationKilled(qa::AuditMutation::delayMidiOne,"TORTURE one-sample delay","TORTURE missed/doubled trigger, stale voice or unexpected output",testTransportSequenceTorture);});
+ run("RM08 TORTURE missing prefix mutation",[]{expectMutationKilled(qa::AuditMutation::zeroPrefix,"TORTURE zero first32","TORTURE missed/doubled trigger, stale voice or unexpected output",testTransportSequenceTorture);});
+ run("RM09 PACING accepted import no-op mutation",[]{expectMutationKilled(qa::AuditMutation::skipImport,"PACING import no-op","PACING accepted sample import did not update processor asset",testPacedSampleSwapContinuity);});
+ run("RM10 PACING active dropout mutation",[]{expectMutationKilled(qa::AuditMutation::muteImportedProcessor,"PACING active-only dropout","PACING actual-controller sample swaps disrupted unchanged audio",testPacedSampleSwapContinuity);});
  run("RM11 independent PCM detects offset and gaps",testReauditPcmNegatives);
  run("RM12 PACING deadline diagnostic injection",testReauditDeadlineDiagnostic);
  run("RM13 loaded swap detects ignored replacement",[]{

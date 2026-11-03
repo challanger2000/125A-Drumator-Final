@@ -123,12 +123,32 @@ struct ReauditMutationScope {
  ~ReauditMutationScope(){qa::auditMutation=qa::AuditMutation::none;qa::auditImportTarget=nullptr;}
 };
 template<class Test>
-void expectMutationKilled(qa::AuditMutation mode,const char* label,Test test){
- test(); // A red control must never count as detection of the mutation.
+void expectMutationKilled(qa::AuditMutation mode,const char* label,
+                          const char* expectedError,Test test){
+ test(); // Red control cannot count as successful mutation detection.
  ReauditMutationScope scope(mode);bool killed=false;std::string reason;
- try{test();}catch(const std::exception& ex){killed=true;reason=ex.what();}
- qa::workflowNotice(std::string("MUTATION ")+label+": "+(killed?"KILLED: ":"SURVIVED")+reason);
- check(killed,"Relevant injected mutation survived the existing test");
+ try{test();}catch(const std::exception& ex){
+   reason=ex.what();
+   // Fixture/IO/timeout exceptions are not the intended domain oracle.
+   killed=reason.find(expectedError)!=std::string::npos;
+ }
+ qa::workflowNotice(std::string("MUTATION ")+label+": "+
+                    (killed?"KILLED: ":"NOT PROVEN: ")+reason);
+ check(killed,"Relevant injected mutation was not rejected by its expected domain oracle");
+}
+void testMutationOracleRejectsUnrelatedExceptions(){
+ bool rejected=false;
+ try{
+   expectMutationKilled(qa::AuditMutation::zeroPrefix,"unrelated fixture control",
+     "RE08 full independent PCM oracle detects",[]{
+       if(qa::auditMutation.load()!=qa::AuditMutation::none)
+         throw std::runtime_error("unrelated fixture unavailable");
+     });
+ }catch(const std::runtime_error& ex){
+   rejected=std::string(ex.what()).find(
+       "Relevant injected mutation was not rejected by its expected domain oracle")!=std::string::npos;
+ }
+ check(rejected,"RM00 unrelated fixture exception was accepted as killed mutation");
 }
 void testReauditDurationFallback(){
  for(bool song:{false,true}){
@@ -313,7 +333,8 @@ void testReauditPcmTimeline(){
 void testReauditPcmNegatives(){
  for(auto mode:{qa::AuditMutation::delayMidiOne,qa::AuditMutation::zeroPrefix,
                 qa::AuditMutation::dropMidi,qa::AuditMutation::doubleMidi})
-   expectMutationKilled(mode,"independent complete PCM",testReauditPcmTimeline);
+   expectMutationKilled(mode,"independent complete PCM",
+                        "RE08 full independent PCM oracle detects",testReauditPcmTimeline);
 }
 void testReauditDeadlineDiagnostic(){
  // Positive control: the real paced import path must pass before any
@@ -377,10 +398,12 @@ void testReauditLoadedSwapChecked(bool requireDeadline){
  const auto oldPath=files.write("old.wav",kit.wav[0]);
  const auto newPath=files.write("new.wav",reauditLongStereo(-.375f,.125f,48000));
  f.kit(kit);prepareAudio(*f.p);
- std::atomic<unsigned> blocks{0},errors{0},badPcm{0},allocations{0},duringImport{0};
- std::atomic<bool> loading{false},ready{false};
+ std::atomic<unsigned> blocks{0},errors{0},badPcm{0},allocations{0};
+ std::atomic<bool> ready{false};
  std::vector<double> times;times.reserve(500);
- std::vector<bool> importedDuringCallback;importedDuringCallback.reserve(500);
+ // Monotonic intervals are read only after the worker and callback join.
+ std::array<Clock::time_point,500> callbackStart{},callbackEnd{};
+ std::array<Clock::time_point,12> importStart{},importEnd{};
  std::exception_ptr audioException;
  std::jthread actor([&](std::stop_token stop){
   try {
@@ -405,18 +428,18 @@ void testReauditLoadedSwapChecked(bool requireDeadline){
      const auto allocationsBefore=allocationCount;
      const auto begin=Clock::now();const auto result=f.p->process(audio.data);const auto end=Clock::now();
      times.push_back(std::chrono::duration<double,std::milli>(end-begin).count());
-     const bool overlappingImport=loading.load();
-     importedDuringCallback.push_back(overlappingImport);
+     callbackStart[block]=begin;callbackEnd[block]=end;
      if(allocationCount!=allocationsBefore)++allocations;
-     if(overlappingImport)++duringImport;
      if(result!=kResultOk)++errors;
      const float expectedLeft=block==350?0.f:block<200?12.f:-8.f;
      const float expectedRight=block==350?0.f:block<200?-24.f:-4.f;
      for(std::size_t sample=0;sample<64;++sample){
        if(!std::isfinite(audio.left[sample])||!std::isfinite(audio.right[sample]))++badPcm;
-       // Sinc boundary transient excluded explicitly; RE08 independently checks every unity-rate sample.
-       if((sample>=20||block==350)&&
-          (std::abs(audio.left[sample]-expectedLeft)>2e-4f||std::abs(audio.right[sample]-expectedRight)>2e-4f))++badPcm;
+       // Only the genuine trigger blocks need a sinc attack transient.
+       const bool onsetBlock=block==0||block==200||block==351;
+       if((!onsetBlock||sample>=20)&&
+          (std::abs(audio.left[sample]-expectedLeft)>2e-4f||
+           std::abs(audio.right[sample]-expectedRight)>2e-4f))++badPcm;
      }
      if(block!=350&&IntegrationAccess::activeAudioVoices(*f.p)!=64)++errors;
      if(block==350&&IntegrationAccess::activeAudioVoices(*f.p)!=0)++errors;
@@ -432,9 +455,9 @@ void testReauditLoadedSwapChecked(bool requireDeadline){
  });
  while(blocks.load()<4&&errors.load()==0)std::this_thread::yield();
  for(unsigned swap=0;swap<12;++swap){
-   loading=true;
+   importStart[swap]=Clock::now();
    if(f.c->loadWav(0,(swap&1)?newPath:oldPath)!=Controller::LoadStatus::Accepted)++errors;
-   loading=false;
+   importEnd[swap]=Clock::now();
  }
  ready=true;actor.join();
  if(audioException) {
@@ -442,9 +465,18 @@ void testReauditLoadedSwapChecked(bool requireDeadline){
    catch(const std::exception& ex) {throw std::runtime_error(std::string("RE09 audio-thread exception: ")+ex.what());}
    catch(...) {throw std::runtime_error("RE09 audio-thread nonstandard exception");}
  }
+ // Infer genuine interval overlap from timestamp intersections, never
+ // from a flag observed only after the callback returned.
+ std::vector<bool> importedDuringCallback(times.size(),false);
+ unsigned duringImport=0;
+ for(std::size_t n=0;n<times.size();++n)
+   for(std::size_t i=0;i<importStart.size();++i)
+     if(importStart[i]<callbackEnd[n]&&importEnd[i]>callbackStart[n]){
+       importedDuringCallback[n]=true;++duringImport;break;
+     }
  reauditTiming("RE09 48k/64, 64 voices ratio4, 12 actual 2.4MB imports",times,64./48000.*1000.);
  qa::workflowNotice("RE09 blocks="+std::to_string(blocks.load())+" callbacks-during-import="+
-    std::to_string(duringImport.load())+" PCM-errors="+std::to_string(badPcm.load())+
+    std::to_string(duringImport)+" PCM-errors="+std::to_string(badPcm.load())+
     " audio-new-calls="+std::to_string(allocations.load())+" errors="+std::to_string(errors.load()));
  const double blockDeadlineMs=64.0/48000.0*1000.0;
  const auto actualDeadlineMisses=std::count_if(times.begin(),times.end(),
@@ -468,7 +500,7 @@ void testReauditLoadedSwapChecked(bool requireDeadline){
    " deadline-misses="+std::to_string(actualDeadlineMisses)+
    " misses-overlapping-import="+std::to_string(missedDuringImport)+
    " misses-outside-import="+std::to_string(missedOutsideImport)+
-   " callbacks-overlapping-import="+std::to_string(duringImport.load());
+   " callbacks-overlapping-import="+std::to_string(duringImport);
  evidence(diagnostics);
  qa::workflowNotice("RE09 paced 64-voice/12-import deadline-misses="+
      std::to_string(actualDeadlineMisses)+"/"+std::to_string(times.size())+

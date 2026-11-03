@@ -135,10 +135,13 @@ public:
            !std::isfinite(chokeFadeMs)||chokeFadeMs<=0||
            chokeFadeMs>1000.0)return false;
         const double count=std::ceil(rate*chokeFadeMs/1000.0);
-        if(count>static_cast<double>(std::numeric_limits<std::uint32_t>::max()))
-            return false;
+        const double soloCount=std::ceil(rate*.004);
+        const double limit=static_cast<double>(std::numeric_limits<std::uint32_t>::max());
+        if(!std::isfinite(count)||!std::isfinite(soloCount)||
+           count>limit||soloCount>limit)return false;
+        // Do not partially update the engine when either fade overflows.
         fadeFrames_=std::max(std::uint32_t{1},static_cast<std::uint32_t>(count));
-        soloFadeFrames_=std::max(std::uint32_t{1},static_cast<std::uint32_t>(std::ceil(rate*.004)));
+        soloFadeFrames_=std::max(std::uint32_t{1},static_cast<std::uint32_t>(soloCount));
         return true;
     }
     bool setRow(std::size_t row, const RowSound& sound) noexcept {

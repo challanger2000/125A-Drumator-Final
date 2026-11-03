@@ -124,6 +124,10 @@ private:
  std::array<std::array<std::uint8_t,kRows*kSteps>,kPatterns> audioPatternCache_{};
  std::array<std::uint8_t,kPatterns> audioPatternLengthCache_{};
  std::array<bool,kPatterns> audioPatternValid_{};
+ // One SONG-only fallback snapshot. Independent PATTERN reads never touch it.
+ std::array<std::array<std::uint8_t,kRows*kSteps>,3> audioSongTripleCache_{};
+ std::array<std::uint8_t,3> audioSongTripleLengthCache_{};
+ bool audioSongTripleValid_{false};
  SampleVoiceEngine voices_;
 
  SampleExchange exchange_{};

@@ -1937,6 +1937,8 @@ void DrumatorView::recordButtonFlash(double x,double y) {
   for(std::size_t i=0;i<sizeof(controls)/sizeof(controls[0]);++i){
     if(i==3u&&songPage_==0)continue;
     if(i==4u&&!S::canNext(songPage_,controller_.songCount()))continue;
+    if(i==5u&&controller_.songCount()>=SongChain::kCapacity)continue;
+    if(i==6u&&controller_.songCount()<=1u)continue;
     if(hit(controls[i]))return;
    }
   for(std::size_t i=0;i<8u;++i){

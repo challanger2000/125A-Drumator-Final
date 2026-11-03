@@ -27,7 +27,7 @@ extern std::atomic<unsigned> auditWaveDecodeMisses,auditWaveFullReplies;
 extern std::atomic<unsigned> auditWaveIndexedCalls;
 extern std::atomic<const void*> auditImportTarget;
 extern std::atomic<unsigned> auditImportCalls,auditDelayCalls;
-enum Point { none, patternMidWrite, patternReadStarted, restoreSnapshot,
+enum Point { none, patternMidWrite, patternReadStarted, songTripleMidWrite, restoreSnapshot,
              restoreMidCommit, restoreBeforeSelection, songMidPublish,
              auditAfterLengthRead, auditAfterAuditionAdopt, auditAfterAuditionStartTaken,
              auditAfterAuditionAssetPublished };
