@@ -4474,24 +4474,62 @@ void testCompleteButtonFeedback(){
  using K=UiV101Popup::Kind;
  using L=UiV101Layout;
  auto center=[](L::Rect r){return VSTGUI::CPoint{(r.x0+r.x1)*.5,(r.y0+r.y1)*.5};};
- // The native header-family and actual clicked flash rectangles must correspond.
+ // Every stateful header key and selector already paints its own value:
+ // NEVER add a separate amber flash, even if a caller requests one.
  for(std::size_t i=0;i<8;++i){
-   const auto r=L::patternButton(i);
-   const auto p=center(r);
+   const auto p=center(L::patternButton(i));
    IntegrationAccess::testFeedbackClick(*view,p.x,p.y);
-   const auto seen=IntegrationAccess::feedbackRect(*view);
-   check(seen.left==r.x0&&seen.right==r.x1&&
-         seen.top==r.y0&&seen.bottom==r.y1,
-         "BC63 A-H click feedback hit wrong button");
+   check(!IntegrationAccess::flashVisible(*view),
+         "BC63 A-H selection wrongly received an orange flash");
+   click(*view,p.x,p.y);
+   check(f.c->currentPattern()==i&&!IntegrationAccess::flashVisible(*view),
+         "BC63 live A-H selection has duplicate button feedback");
  }
  for(const auto r:{L::patternMenu,L::barsButton,L::headerGroup(0),
                    L::headerGroup(1),L::zoomTrigger,L::limiterTrigger,
                    L::beatCreatorTrigger}){
    const auto p=center(r);
    IntegrationAccess::testFeedbackClick(*view,p.x,p.y);
-   const auto seen=IntegrationAccess::feedbackRect(*view);
-   check(seen.left==r.x0&&seen.right==r.x1,
-         "BC63 header button feedback wrong cap");
+   check(!IntegrationAccess::flashVisible(*view),
+         "BC63 header mode/menu/button has duplicate orange flash");
+ }
+ click(*view,center(L::patternButton(0)).x,center(L::patternButton(0)).y);
+ for(const auto r:{L::barsButton,L::headerGroup(0),L::limiterTrigger}){
+   const auto p=center(r);
+   click(*view,p.x,p.y);
+   check(!IntegrationAccess::flashVisible(*view),
+         "BC63 real ON/OFF or bar-length click received flash overlay");
+ }
+ // A popup opener and the SON G EDIT mode button aren't momentary actions.
+ {
+   const auto p=center(L::patternMenu);click(*view,p.x,p.y);
+   check(IntegrationAccess::v101Popup(*view)==K::Pattern&&
+         !IntegrationAccess::flashVisible(*view),
+         "BC63 Pattern menu opening incorrectly acknowledged as action");
+   view->onMouseCancel();
+ }
+ {
+   const auto p=center(L::zoomTrigger);click(*view,p.x,p.y);
+   check(IntegrationAccess::v101ZoomPopupOpen(*view)&&
+         !IntegrationAccess::flashVisible(*view),
+         "BC63 Zoom menu opening incorrectly flashed");
+   view->onMouseCancel();
+ }
+ {
+   const auto p=center(L::headerGroup(1));click(*view,p.x,p.y);
+   check(!IntegrationAccess::flashVisible(*view),
+         "BC63 SONG EDIT persistent mode flashed");
+   click(*view,p.x,p.y);
+ }
+ {
+   const auto p=center(L::beatCreatorTrigger);click(*view,p.x,p.y);
+   check(IntegrationAccess::beatCreatorOpen(*view)&&
+         !IntegrationAccess::flashVisible(*view),
+         "BC63 Beat Creator modal opener incorrectly flashed");
+   const auto r=UiBeatCreatorDialog::cancel(view->getViewSize().getHeight());
+   click(*view,(r.x0+r.x1)*.5,(r.y0+r.y1)*.5);
+   check(!IntegrationAccess::flashVisible(*view),
+         "BC63 closing Beat Creator left phantom flash");
  }
  // Every real popup option must remain visually pressed until mouse-up.
  // Sample/Export options are pressed then cancelled to avoid OS file dialogs.
@@ -4533,7 +4571,7 @@ void testCompleteButtonFeedback(){
          IntegrationAccess::pressedPopupOption(*view)==-1,
          "BC63 Pattern Edit key failed to release/dismiss");
  }
- evidence("BC63 ALL 43 popup options, 7 Pattern actions and header A-H/controls press feedback PASS");
+ evidence("BC63 ALL 43 popup options and 7 Pattern actions have native pressed sprites; ALL A-H and header latches have NO duplicate flash PASS");
 }
 
 void testReleaseAuditModalDropOwnershipAndFeedback(){
@@ -4621,20 +4659,22 @@ void testReleaseAuditDisabledSongButtonFeedback(){
  const double removeX=(S::removeLeft+S::removeRight)*.5;
  const double y=(S::choiceTop+S::choiceBottom)*.5;
  check(f.c->songCount()==1,"REL09 initial song count");
- IntegrationAccess::testFeedbackClick(*view,removeX,y);
- check(!IntegrationAccess::flashVisible(*view),
+ click(*view,removeX,y);
+ check(!IntegrationAccess::flashVisible(*view)&&f.c->songCount()==1,
        "REL09 disabled REMOVE LAST acknowledged a nonaction");
- IntegrationAccess::testFeedbackClick(*view,addX,y);
- check(IntegrationAccess::flashVisible(*view),
-       "REL09 enabled ADD ENTRY lacks acknowledgement");
- check(f.c->adjustSongCount(63)&&f.c->songCount()==SongChain::kCapacity,
+ click(*view,addX,y);
+ check(IntegrationAccess::flashVisible(*view)&&f.c->songCount()==2,
+       "REL09 successful ADD ENTRY lacks acknowledgement");
+ check(f.c->adjustSongCount(62)&&f.c->songCount()==SongChain::kCapacity,
        "REL09 max song count");
- IntegrationAccess::testFeedbackClick(*view,addX,y);
- check(!IntegrationAccess::flashVisible(*view),
+ click(*view,addX,y);
+ check(!IntegrationAccess::flashVisible(*view)&&
+       f.c->songCount()==SongChain::kCapacity,
        "REL09 disabled ADD ENTRY acknowledged a nonaction");
- IntegrationAccess::testFeedbackClick(*view,removeX,y);
- check(IntegrationAccess::flashVisible(*view),
-       "REL09 enabled REMOVE LAST lacks acknowledgement");
+ click(*view,removeX,y);
+ check(IntegrationAccess::flashVisible(*view)&&
+       f.c->songCount()==SongChain::kCapacity-1,
+       "REL09 successful REMOVE LAST lacks acknowledgement");
 }
 void testReleaseAuditLiveVelDefaultAndDisabledNavigation(){
  using L=UiV101Layout;
