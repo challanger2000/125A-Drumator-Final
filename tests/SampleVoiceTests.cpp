@@ -700,7 +700,7 @@ static void testSoloImmediateIsolationFourMs(){
  RowSound row;row.sample={source.data(),nullptr,source.size()};
  row.kernel=&kernel;row.pan=-1.f;
  require(voices.setRow(0,row)&&voices.setRow(1,row),"SOLO rows");
- const Trigger hits[2]{{0,0,0,127,0},{0,0,1,127,0}};
+ const Trigger hits[2]{{0,0,0,127,0},{0,1,0,127,0}};
  std::array<float,256> l{},r{};
  require(voices.render(hits,2,l.data(),r.data(),64).accepted==2,
          "SOLO two running samples");
@@ -710,7 +710,7 @@ static void testSoloImmediateIsolationFourMs(){
          "SOLO tail transition");
  require(l[0]>1.9f&&l[190]<1.02f&&l[220]>0.99f&&l[220]<1.01f,
          "SOLO did not fade old cymbal in four milliseconds");
- const Trigger excluded{0,0,1,127,0};
+ const Trigger excluded{0,1,0,127,0};
  require(voices.render(&excluded,1,l.data(),r.data(),64).accepted==0,
          "SOLO allowed a new unsoloed hit");
  require(voices.setSoloMask(3u),"SOLO multiple rows");
