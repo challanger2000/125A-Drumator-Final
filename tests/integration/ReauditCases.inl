@@ -131,10 +131,19 @@ void expectMutationKilled(qa::AuditMutation mode,const char* label,
    reason=ex.what();
    // Fixture/IO/timeout exceptions are not the intended domain oracle.
    killed=reason.find(expectedError)!=std::string::npos;
+   // The disabled WAV revision cache can be detected at OPEN (before
+   // zoom/scroll) or at the subsequent viewport requery. Both are specific
+   // cache failure oracles; fixture/IO failures must never count.
+   if(mode==qa::AuditMutation::disableWaveCache)
+     killed=(reason=="A08 opening waveform did not exercise one real full WAV query"||
+             reason=="A08 unchanged View zoom/scroll redundantly decodes or transmits full WAV")&&
+             (qa::auditWaveDecodeMisses.load()>1u||qa::auditWaveFullReplies.load()>1u);
  }
  qa::workflowNotice(std::string("MUTATION ")+label+": "+
                     (killed?"KILLED: ":"NOT PROVEN: ")+reason);
- check(killed,"Relevant injected mutation was not rejected by its expected domain oracle");
+ if(!killed)throw std::runtime_error(
+   std::string("Relevant injected mutation was not rejected by its expected domain oracle; observed: ")+
+   (reason.empty()?"no exception":reason));
 }
 void testMutationOracleRejectsUnrelatedExceptions(){
  bool rejected=false;

@@ -4602,7 +4602,9 @@ void testReleaseAuditNarrowViewportAndLiveVelocity(){
  evidence("REL03 narrow viewport expands final VEL row without unsigned underflow PASS");
 }
 void testReleaseAuditDisabledSongButtonFeedback(){
- Fixture f;KitState kit;kit.visible=2;f.kit(kit);
+ Fixture f;KitState kit;kit.visible=2;
+ check(kit.chain.setCount(1),"REL09 one-entry SONG fixture");
+ f.kit(kit);
  (void)f.openV101();auto* view=IntegrationAccess::view(*f.c,0);
  IntegrationAccess::showSongForFeedback(*view);
  using S=UiSongLayout;
@@ -6208,6 +6210,15 @@ int main(int argc,char** argv){
     }
     check(killedByPcm,"RM13 skipped import was not detected by replacement PCM");
   });
+ run("RM30 RE09 high-ratio PCM prefix must be checked",[]{
+   // The unmodified control must pass; a mutation removing the first 32
+   // PCM samples of later blocks must fail on the RE09 audio-domain oracle.
+   // Only RM30 disables the shared-runner deadline gate, not RE09 itself.
+   expectMutationKilled(qa::AuditMutation::zeroPrefix,
+     "ratio4 later-block PCM prefix",
+     "RE09 audible sample-replacement PCM mismatch",
+     []{testReauditLoadedSwapChecked(false);});
+ });
  run("WE01 actual WAV preview and project recall",testWavEditorPreviewAndRecall);
  run("T03 controlled actual bank",testPatternOverlap);
  run("T04 controlled real restore gate",testKitGate);
