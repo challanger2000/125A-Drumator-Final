@@ -5877,6 +5877,53 @@ void testRv02CoherentTripleRejectsSingleEditInterleave(){
  evidence("RV02 forced single-edit interleave rejects an impossible A/B/C triple PASS");
 }
 
+void testBt02ColdSongAndRecallInvalidation(){
+ Fixture f;KitState kit;kit.visible=1;kit.grid.fill(0);
+ kit.patternLengths.fill(16);
+ kit.grid[0]=61;kit.names[0]="cold.wav";kit.wav[0]=constantStereo(.5f,-.25f);
+ check(kit.chain.setCount(1)&&kit.chain.configure(0,0,16),
+       "BT02 cold-song fixture");
+ kit.songEnabled=1;
+ f.kit(kit);prepareAudio(*f.p);
+ AuditAudioBlock audio;
+ audio.clock.state=ProcessContext::kPlaying|ProcessContext::kTempoValid|
+                   ProcessContext::kProjectTimeMusicValid;
+ const auto hear=[&](unsigned vel,const char* message){
+   audio.clock.projectTimeMusic=0.;
+   check(f.p->process(audio.data)==kResultOk,"BT02 actual processor render");
+   check(std::abs(audio.left[80]-.5f*vel/127.f)<2e-4f&&
+         std::abs(audio.right[80]+.25f*vel/127.f)<2e-4f,message);
+ };
+ const auto concurrent=[&](const KitState& basis,unsigned target,bool expectCold){
+   BeatTriple from{},to{};
+   for(std::size_t p=0;p<3;++p)
+     std::copy_n(basis.grid.begin()+p*kRows*kSteps,kRows*kSteps,from[p].begin());
+   to=from;to[0][0]=static_cast<std::uint8_t>(target);
+   const BeatLengths len{16,16,16};
+   arm(qa::songTripleMidWrite);
+   bool committed=false;
+   std::jthread writer([&]{
+     committed=IntegrationAccess::publishBeatTriple(*f.p,from,to,len,len);
+   });
+   try{
+     waitEntered();
+     if(expectCold)hear(0,"BT02 first SONG snapshot used partial or stale A/B/C");
+   }catch(...){releaseProbe();writer.join();throw;}
+   releaseProbe();writer.join();
+   check(committed&&!probeTimeout,"BT02 combined pattern writer not committed");
+   hear(target,"BT02 complete SONG snapshot missing after publication");
+ };
+ concurrent(kit,113,true);
+ // A freshly recalled kit must invalidate the previous SONG triple even
+ // if the very first callback races with its new A/B/C publication.
+ KitState replacement=kit;
+ replacement.grid[0]=37;
+ f.kit(replacement);
+ concurrent(replacement,91,true);
+ f.p->setProcessing(false);f.p->setActive(false);
+ evidence("BT02 cold SONG first callback and post-Recall triple invalidation PASS");
+}
+
 void testRv04SongUsesAudiblePatternLengths(){
  Fixture f;KitState kit;kit.visible=1;kit.grid.fill(0);
  kit.patternLengths.fill(16);
@@ -6348,6 +6395,8 @@ int main(int argc,char** argv){
      testRv02CoherentTripleRejectsSingleEditInterleave);
  run("RV05 native Complexity OOM event boundaries",
      testRv05ComplexityAllocationFailure);
+ run("BT02 cold SONG and Recall cache invalidation",
+     testBt02ColdSongAndRecallInvalidation);
  run("RV04 audible SONG A/B/C Pattern length wrapping",
      testRv04SongUsesAudiblePatternLengths);
  run("RM31 wrong SONG Scheduler lengths must be detected",[]{
