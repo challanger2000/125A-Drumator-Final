@@ -15,13 +15,11 @@
 #include "core/MidiExport.h"
 #include "core/OfflineWavExport.h"
 #include "core/ExportFile.h"
-#include "core/DragExportFile.h"
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "pluginterfaces/vst/ivstattributes.h"
 #include "vstgui/lib/cstring.h"
 #include <algorithm>
-#include <atomic>
 #include <cmath>
 #include <cctype>
 #include <cstring>
@@ -2042,77 +2040,6 @@ bool Controller::exportMidi(bool song,const std::string& path){
    if(!MidiExport::encode(config,bytes))return false;
    ExportFile writer(pathFromUtf8(path));
    return writer.open()&&writer.write(bytes.data(),bytes.size())&&writer.finish();
- }catch(...){return false;}
-}
-// A Save As choice named "Groove.mid" creates "Groove - MIDI" containing
-// individual self-contained 2-track SMFs (tempo + one row). The file export
-// still used by existing VSTGUI OLE drag is deliberately kept compatible.
-bool Controller::exportMidiRows(bool song,const std::string& path){
- try {
-   requestMeterSnapshot();
-   if(!hasExportTempo()||path.empty())return false;
-   MidiExportConfig config;
-   config.grid=grid_;
-   config.patternLengths=patternLengths_;
-   config.randomVelocity=randomVelocity_;
-   config.song=songChain_;
-   config.selectedPattern=static_cast<std::uint8_t>(currentPattern());
-   config.swingPercent=swingPercent_;
-   config.humanizePercent=humanizePercent_;
-   config.tempoBpm=exportTempoBpm_;
-   config.exportSong=song;
-   std::array<std::vector<std::uint8_t>,kRows> files{};
-   if(!MidiExport::encodeSeparate(config,files))return false;
-   const auto chosen=pathFromUtf8(path);
-   if(chosen.filename().empty()||chosen.stem().empty())return false;
-   const auto target=DragExportFile::midiRowsFolder(chosen);
-   std::error_code ec;
-   if(std::filesystem::exists(target,ec)||ec)return false;
-   // Publish the entire folder in one rename. Any failed write leaves
-   // the user's previous exports untouched and erases only our owned stage.
-   struct OwnedStage {
-     std::filesystem::path path{};
-     bool owned{false};
-     ~OwnedStage(){
-       if(owned){std::error_code ignored;std::filesystem::remove_all(path,ignored);}
-     }
-   } stage;
-   static std::atomic<std::uint64_t> serial{0};
-   const auto stamp=static_cast<std::uint64_t>(
-        std::chrono::steady_clock::now().time_since_epoch().count());
-   for(unsigned attempt=0;attempt<32;++attempt){
-     stage.path=target;
-     stage.path+=".125a-part-"+std::to_string(stamp)+"-"+
-        std::to_string(serial.fetch_add(1,std::memory_order_relaxed));
-     ec.clear();
-     if(std::filesystem::create_directory(stage.path,ec)){
-       stage.owned=true;break;
-     }
-     if(ec&&ec!=std::errc::file_exists)return false;
-   }
-   if(!stage.owned)return false;
-   static_assert(kRows==DragExportFile::kMidiRowNames.size());
-   unsigned written=0;
-   for(std::size_t row=0;row<kRows;++row){
-     if(files[row].empty())continue;
-     const auto destination=stage.path/DragExportFile::midiRowName(row);
-     std::ofstream stream(destination,std::ios::binary|std::ios::trunc);
-     if(!stream)return false;
-     stream.write(reinterpret_cast<const char*>(files[row].data()),
-                  static_cast<std::streamsize>(files[row].size()));
-     stream.flush();
-     if(!stream)return false;
-     stream.close();
-     if(stream.fail())return false;
-     ++written;
-   }
-   if(!written)return false;
-   ec.clear();
-   if(std::filesystem::exists(target,ec)||ec)return false;
-   std::filesystem::rename(stage.path,target,ec);
-   if(ec)return false;
-   stage.owned=false;
-   return true;
  }catch(...){return false;}
 }
 bool Controller::exportWav(bool song,const std::string& path){

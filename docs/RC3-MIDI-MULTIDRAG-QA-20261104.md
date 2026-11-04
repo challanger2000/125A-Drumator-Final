@@ -1,3 +1,7 @@
+**ARCHIV – NICHT AKTUELL / ZURÜCKGENOMMEN:** Der F03/F06-Multi-Dateien-Umbau wurde nach Nutzerkorrektur vollständig zurückgenommen. Dieses Dokument beschreibt nur den historischen, nicht mehr aktuellen RC3-Experimentstand. Die RC3-Multi-Drag-ZIP darf nicht als gültiger Teststand verwendet werden. Siehe CURRENT.md und START-HERE.md.
+
+---
+
 # 125A Drumator 1.5 RC3 – Windows-Multi-MIDI-Drag, Paket und QA
 
 **Datum:** 04.11.2026 · **Quellcode:** `e22e65517e3e61d5e55e29b0ee7e34ea9b856a3c` · **Branch:** `develop/beat-creator-10-styles-20261102`.

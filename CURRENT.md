@@ -1,5 +1,14 @@
 # 125A Drumator — authoritative current status
 
+## Verbindlicher Stand nach Rücknahme des unbeauftragten MIDI-Umbaus – 04.11.2026
+
+**Release Candidate – keine Freigabe:** MIDI-Export und MIDI-Drag sind *wortgleich auf den letzten geprüften Stand* `c6556014c1ff1d7e9322e8ba386a8f4b9ac614cf` zurückgestellt. Der Drag verwendet wieder die bislang in Studio One funktionierende **eine Format-1-MIDI-Datei mit getrennten Instrumentenspuren**. Die nachfolgenden RC3-Aussagen über Mehrdateien-Drag und neue per-row-Save-As-Ausgabe sind **historisch und ungültig für den jetzigen Code**.
+
+**Unverändert bewahrt:** SW05 echter 2:1-Achtel-Swing bei 50 %, BC64 Complexity +/- 10, Standard-GUI-Wortmarke bereits auf `kTitleReduction=0.64` (20 % kleiner als der vorige Faktor 0.80), und die kleine untere Beschriftung `VERSION 1.5` in der gemeinsamen MAIN/SONG-Fußleiste. Die GUI-Anforderungen waren also bereits umgesetzt; ein zweites Schrumpfen wäre falsch.
+
+**Prüfpflicht:** Die Rücknahme wird erst bei erfolgreich abgeschlossenem Windows-Build, 33/33 CTests, Steinberg Validator 47/47 und 125A Plugin Tester 58/0/0 als technisch regressionsgeprüft betrachtet. Studio One/ASIO muss vor FINAL tatsächlich separat geprüft werden. `main` und die veröffentlichte 1.0.1 sind unangetastet. **RC3-Multi-Drag-Test-ZIP nicht verwenden.**
+
+---
 ## RC3 MIDI-Multi-Drag – neuer privater V1.5-Prüfstand (04.11.2026)
 
 **Aktueller geprüfter Windows-VST3-Code:** `e22e65517e3e61d5e55e29b0ee7e34ea9b856a3c` auf `develop/beat-creator-10-styles-20261102`. **GitHub Actions [#41916990564](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41916990564): SUCCESS – 33/33 CTests, 47/47 Steinberg Validator, unabhängiger 125A Plugin Tester v0.3.2: 58 PASS / 0 WARNING / 0 FAIL.** Windows-Nativtest F06 überprüft drei physisch getrennte MIDI-Dateien bis zur echten VSTGUI-/OLE-`CF_HDROP`-Darstellung mit `Win32DataObject`, deren Reihenfolge, Aufbewahrung und Schutz vor fremden Dateien. Das ist mehr als ein MIDI-Encoder-Test, aber **keine Ausführung von Studio One**.

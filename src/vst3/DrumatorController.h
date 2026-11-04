@@ -158,7 +158,6 @@ public:
  bool setLimiterEnabled(bool enabled);
  bool limiterEnabled() const noexcept {return limiterEnabled_;}
  bool exportMidi(bool song,const std::string& path);
- bool exportMidiRows(bool song,const std::string& path);
  bool exportWav(bool song,const std::string& path);
  double exportTempoBpm() const noexcept {return exportTempoBpm_;}
  bool hasExportTempo() const noexcept;

@@ -3,8 +3,6 @@
 // A conservative, scoped scavenger removes only our own intact, old folders;
 // never remove anything the host may still reference, nor foreign temp data.
 #include <atomic>
-#include <array>
-#include <vector>
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
@@ -22,62 +20,6 @@ struct DragExportFile final {
    case 3:return "125A Drumator Song.wav";
    default:return nullptr;
   }
- }
- // F06: same row names for Save As and native Windows CF_HDROP drag.
- static constexpr std::array<const char*,16> kMidiRowNames{{
-  "01 Kick.mid","02 Snare.mid","03 Closed HH.mid","04 Open HH.mid",
-  "05 Low Tom.mid","06 High Tom.mid","07 Crash.mid","08 Clap.mid",
-  "09 Row.mid","10 Row.mid","11 Row.mid","12 Row.mid",
-  "13 Row.mid","14 Row.mid","15 Row.mid","16 Row.mid"
- }};
- static constexpr const char* midiRowName(std::size_t row) noexcept {
-  return row<kMidiRowNames.size()?kMidiRowNames[row]:nullptr;
- }
- static bool midiRowNameMatches(const std::filesystem::path& path) {
-  for(const auto* name:kMidiRowNames)if(path.filename()==name)return true;
-  return false;
- }
- static std::filesystem::path midiRowsFolder(std::filesystem::path selected) {
-  selected.replace_extension();
-  selected+=" - MIDI";
-  return selected;
- }
- // Reject foreign entries and symlinks. Offer ordered real files only.
- static std::vector<std::filesystem::path> existingMidiRows(
-    const std::filesystem::path& choice) {
-  namespace fs=std::filesystem;
-  if(!filenameMatches(choice)||!ownDirectoryName(choice.parent_path()))return {};
-  const auto folder=midiRowsFolder(choice);
-  std::error_code ec;
-  if(fs::symlink_status(folder,ec).type()!=fs::file_type::directory||ec)return {};
-  std::size_t onDisk=0;
-  for(fs::directory_iterator it(folder,ec),end;it!=end&&!ec;it.increment(ec)){
-   if(++onDisk>kMidiRowNames.size()||!midiRowNameMatches(it->path())||
-      fs::symlink_status(it->path(),ec).type()!=fs::file_type::regular||ec)
-    return {};
-  }
-  if(ec||!onDisk)return {};
-  std::vector<fs::path> files;
-  files.reserve(onDisk);
-  for(const auto* name:kMidiRowNames){
-   const auto file=folder/name;
-   ec.clear();
-   if(fs::symlink_status(file,ec).type()==fs::file_type::regular&&!ec){
-    if(fs::file_size(file,ec)<26||ec)return {};
-    files.push_back(file);
-   }else if(ec!=std::errc::no_such_file_or_directory)return {};
-  }
-  return files.size()==onDisk?files:std::vector<fs::path>{};
- }
- static void discardFailedMidiRows(const std::filesystem::path& choice) noexcept {
-  try {
-   const auto files=existingMidiRows(choice);
-   if(files.empty())return; // never remove unexpected files
-   std::error_code ec;
-   for(const auto& file:files)if(!std::filesystem::remove(file,ec)||ec)return;
-   if(!std::filesystem::remove(midiRowsFolder(choice),ec)||ec)return;
-   (void)std::filesystem::remove(choice.parent_path(),ec);
-  }catch(...){}
  }
  static bool ownDirectoryName(const std::filesystem::path& path) {
   const auto n=path.filename().string(),p=std::string{kPrefix};
@@ -124,32 +66,7 @@ struct DragExportFile final {
     continue;
    }
    const auto file=child->path();
-   if(!filenameMatches(file)){
-    // F06 MIDI drag: retain files for 14 days. Delete only recognized,
-    // intact, stale row folders and never remove foreign contents.
-    for(const int option:{0,2}){
-     const auto choice=dir/filename(option);
-     if(file!=midiRowsFolder(choice))continue;
-     auto rows=existingMidiRows(choice);
-     if(rows.empty())break;
-     const auto folderTime=fs::last_write_time(file,local);
-     if(local||folderTime>=cutoff)break;
-     bool old=true;
-     for(const auto& row:rows){
-      const auto when=fs::last_write_time(row,local);
-      if(local||when>=cutoff){old=false;break;}
-     }
-     if(!old)break;
-     for(const auto& row:rows)
-      if(!fs::remove(row,local)||local){old=false;break;}
-     if(old&&fs::remove(file,local)&&!local){
-      local.clear();
-      if(fs::remove(dir,local)&&!local)++removed;
-     }
-     break;
-    }
-    continue;
-   }
+   if(!filenameMatches(file))continue;
    const auto type=fs::symlink_status(file,local);
    if(local||type.type()!=fs::file_type::regular)continue;
    const auto age=fs::last_write_time(file,local);

@@ -123,28 +123,9 @@ int main(){
         swungNotes[1].tick==640&&swungNotes[2].tick==960,
         "SW02 eighth offbeat not swung or quarters moved");
  }
- // F03: individual MIDI assets retain conductor BPM and one instrument.
- c.selectedPattern=0;c.exportSong=false;c.swingPercent=0;c.humanizePercent=0;
- std::array<std::vector<std::uint8_t>,kRows> separated{};
- check(MidiExport::encodeSeparate(c,separated),"F03 independent MIDI-row encode");
- check(!separated[0].empty()&&separated[1].empty()&&separated[2].empty(),
-       "F03 exactly one populated instrument file");
- const auto firstRow=parse(separated[0],2);
- check(firstRow.size()==2&&firstRow[0].pitch==36&&firstRow[1].pitch==36,
-       "F03 row0 has only its own notes");
- c.selectedPattern=1;
- check(MidiExport::encodeSeparate(c,separated),"F03 pattern B separate");
- check(separated[0].empty()&&!separated[2].empty(),"F03 row isolation");
- const auto thirdRow=parse(separated[2],2);
- check(thirdRow.size()==1&&thirdRow[0].pitch==38,
-       "F03 independent row3 MIDI pitch");
- c.selectedPattern=0;
  c.patternLengths[1]=17;
  baseline=b;
  check(!MidiExport::encode(c,b)&&b==baseline,"invalid input atomic rollback");
- const auto oldSeparated=separated;
- check(!MidiExport::encodeSeparate(c,separated)&&separated==oldSeparated,
-       "F03 invalid input retains all separate MIDI files");
  std::printf("MIDI export tests: %s\n",errors==0?"PASS":"FAIL");
  return errors?1:0;
 }
