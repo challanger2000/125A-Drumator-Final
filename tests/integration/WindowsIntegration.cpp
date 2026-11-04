@@ -277,6 +277,7 @@ struct IntegrationAccess {
  static BeatStyle beatCreatorStyle(const DrumatorView& v) noexcept {return v.beatCreatorStyle_;}
  static bool beatCreatorOpen(const DrumatorView& v) noexcept {return v.beatCreatorOpen_;}
  static std::size_t viewCount(const Controller& c){return c.views_.size();}
+ static void notifyControllerViews(Controller& c){c.notifyViews(false);}
  static DrumatorView* view(Controller& c,std::size_t n){check(n<c.views_.size(),"real custom view absent");return c.views_[n];}
  static VSTGUI::CTextEdit* edit(DrumatorView& v){return v.nameEdit_;}
   static std::size_t firstRow(DrumatorView& v){return v.firstRow_;}
@@ -6749,7 +6750,7 @@ void testNa01FailedConstructionRegistration(){
    }
    check(IntegrationAccess::viewCount(*f.c)==baseline,
          "NA01 failed constructor left a stale Controller View");
-   f.c->notifyViews(false);
+   IntegrationAccess::notifyControllerViews(*f.c);
  }
  check(failures>=8,"NA01 not enough actual allocation-failure sites exercised");
  auto* recovered=new DrumatorView(VSTGUI::CRect{0,0,1280,300},*f.c,editor);
