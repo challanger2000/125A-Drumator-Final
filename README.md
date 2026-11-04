@@ -1,4 +1,18 @@
-# 125A Drumator
+# 125A Drumator – V1.5.0 (aktueller Entwicklungsbranch)
+
+**DIESE BRANCH enthält V1.5.0, nicht die in `main` weiterhin veröffentlichte V1.0.1.**
+
+- **Aktuelles Gumroad-Kundenpaket erstellt:** `125A_Drumator_v1.5.0_Gumroad_Paket.zip`, ChatGPT-Dateibibliothek `/125A-Drumator/Aktuell-v1.5.0/`. SHA256 `9adf31ea2095c209ba861a6399bbc4f9c03dbd8ccc2f4b0a83842fd3ae4cb61a`. Shop-Upload bisher nicht bestätigt.
+- **Verbindliche Details:** [CURRENT.md](CURRENT.md) und [START-HERE.md](START-HERE.md). Diese enthalten den kompletten SHA-/Build-/Kit-Nachweis, aktuelle Anforderungen und offene Punkte.
+- **Verifizierter Windows-Run:** [#41923917904](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41923917904), **33/33 CTests**, **47/47 Validator**, **58 PASS / 0 WARNING / 0 FAIL**, mit zusätzlichem ursprünglichen Ein-Datei-MIDI-Drag-Test.
+- **Wichtige Nutzerverträge:** Complexity **5er-Schritte** (Start 35); MIDI Save As und Drag **eine SMF-Typ-1-Datei mit 17 Spuren**; Crash-Häufigkeitsfix erhalten; 50% Swing korrekt; Name DRUMATOR 20% kleiner; `VERSION 1.5` in GUI.
+- **NEU GEMELDETER OFFENER GUI-BEFUND (04.11.):** „VERSION 1.5“ ist zu tief am unteren Footer-Rand platziert. Im Kunden-ZIP noch **nicht korrigiert**. Bei korrigierter GUI sind neuer geprüfter Build und neue Kunden-ZIP nötig. Keine Eigenmächtigkeiten an produktiven Funktionen.
+- **Alte RC1–RC4-ZIPs:** in `/125A-Drumator/Archiv-RC1-RC4/`, nur historisch, RC3-Multi-MIDI explizit verworfen.
+
+---
+
+## Historische README für die veröffentlichte V1.0.1 (nicht die aktuelle V1.5)
+
 
 Windows x64 VST3 drum sampler and 32-step sequencer with a modern hardware-style interface.
 
