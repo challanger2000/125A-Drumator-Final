@@ -1,12 +1,14 @@
 # START HERE – 125A Drumator / verbindliche Projektübergabe
 
+**VOR ALLEM LESEN (04.11.2026):** Verbindliche V1.5-Regeln: **Complexity 35 %, +/- 5** (NICHT 10), Direkteingabe 0–100; Swing 50 % echte 2:1-Achtel; seltene Crash-Akzente BC59 erhalten; DRUMATOR 20 % kleiner und „VERSION 1.5“ unten. **MIDI-Export/Drag bleibt beim ursprünglichen einen SMF-Typ-1-File (17 Tracks); RC3-Multi-Dateien-Drag ist zurückgenommen.** Der bereits grüne Produktcode `7736fe9` bestand [CI #41921721850](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41921721850): 33/33, 47/47, 58/0/0. Aktuelle neue Änderungen `a1f50c7`/`d1b297e` betreffen AUSSCHLIESSLICH den Windows-Audit-Test des Original-Drag; [CI #41923917904](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41923917904) noch abzuwarten. **Kein Produktcode und keine Funktionen ohne nachgewiesenen Fehler oder Auftrag ändern.** Fehlersuche ist Engineering-Aufgabe, nicht Aufgabe des DAW-Nutzers. Kein FINAL oder Gumroad ohne Freigabe.
+
 **BC65 – verbindliche Nutzerentscheidung vom 04.11.2026:** Beat Creator Complexity verwendet die ursprüngliche Schrittweite **+/− 5 Prozentpunkte**, Startwert **35 %** (35 → 40 → 45); an 0/100 wird begrenzt. Direkteingabe 0–100 bleibt möglich. Frühere +/− 10-Angaben in RC2-/RC3-Berichten sind **historisch und überholt**. MIDI-Export/Drag bleibt auf dem originalen Funktionsstand ohne die unbeauftragte Änderung. Swing, DRUMATOR-Schriftzug und „VERSION 1.5“ bleiben unverändert.
 
 ## Verbindlicher Stand nach Rücknahme des unbeauftragten MIDI-Umbaus – 04.11.2026
 
 **Release Candidate – keine Freigabe:** MIDI-Export und MIDI-Drag sind *wortgleich auf den letzten geprüften Stand* `c6556014c1ff1d7e9322e8ba386a8f4b9ac614cf` zurückgestellt. Der Drag verwendet wieder die bislang in Studio One funktionierende **eine Format-1-MIDI-Datei mit getrennten Instrumentenspuren**. Die nachfolgenden RC3-Aussagen über Mehrdateien-Drag und neue per-row-Save-As-Ausgabe sind **historisch und ungültig für den jetzigen Code**.
 
-**Unverändert bewahrt:** SW05 echter 2:1-Achtel-Swing bei 50 %, BC64 Complexity +/- 10, Standard-GUI-Wortmarke bereits auf `kTitleReduction=0.64` (20 % kleiner als der vorige Faktor 0.80), und die kleine untere Beschriftung `VERSION 1.5` in der gemeinsamen MAIN/SONG-Fußleiste. Die GUI-Anforderungen waren also bereits umgesetzt; ein zweites Schrumpfen wäre falsch.
+**Unverändert bewahrt:** SW05 echter 2:1-Achtel-Swing bei 50 %, BC65 Complexity +/- 5, Standard-GUI-Wortmarke bereits auf `kTitleReduction=0.64` (20 % kleiner als der vorige Faktor 0.80), und die kleine untere Beschriftung `VERSION 1.5` in der gemeinsamen MAIN/SONG-Fußleiste. Die GUI-Anforderungen waren also bereits umgesetzt; ein zweites Schrumpfen wäre falsch.
 
 **Prüfpflicht:** Die Rücknahme wird erst bei erfolgreich abgeschlossenem Windows-Build, 33/33 CTests, Steinberg Validator 47/47 und 125A Plugin Tester 58/0/0 als technisch regressionsgeprüft betrachtet. Studio One/ASIO muss vor FINAL tatsächlich separat geprüft werden. `main` und die veröffentlichte 1.0.1 sind unangetastet. **RC3-Multi-Drag-Test-ZIP nicht verwenden.**
 
