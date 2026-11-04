@@ -1,4 +1,6 @@
 # START HERE – 125A Drumator / verbindliche Projektübergabe
+
+**Update 04.11.2026 – RC1-Vorbereitung:** Siehe den neuen obersten Abschnitt in [CURRENT.md](CURRENT.md). Vor öffentlich zugänglicher Freigabe: letztes vom Besitzer geliefertes `125A Drumator Kit.vstpreset` (3.1 MB), beide V1.5-Handbücher DE/EN, echte Studio-One-Abnahme und Sample-Weitergaberechte prüfen. Ältere Aussagen in diesem Dokument über „keine Kits“ betreffen den **Plugin-internen** Sample-Fallback und den ursprünglichen Stand; das optionale Preset wird als **separate Kundenbeilage** mitgeliefert. 1.0.1 bleibt unberührt.
 Stand: 03.11.2026. **Zuerst dieses Dokument und CURRENT.md lesen, bevor Dateien angefordert, Builds erstellt oder Änderungen vorgeschlagen werden.**
 
 ## 1. Verbindliche Verkaufsfassung – NIEMALS RÄTSELN
