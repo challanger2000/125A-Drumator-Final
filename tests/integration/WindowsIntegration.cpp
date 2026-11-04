@@ -186,6 +186,7 @@ struct IntegrationAccess {
  static bool editorStereo(const DrumatorView& view){return view.sampleEditorStereo_;}
  static std::shared_ptr<OutputMeter> processorMeter(const Processor& p){return p.meter_;}
  static void pollMeter(DrumatorView& view){view.pollMeter();}
+ static void forceLiveLease(DrumatorView& view){view.publishSampleEditorLive(true);}
  static std::array<float,4> meterPaintState(const DrumatorView& v){return {v.mainMeterL_,v.mainMeterR_,v.holdMeterL_,v.holdMeterR_};}
  static std::uint32_t editorFrameCount(const DrumatorView& view){return view.sampleEditorFrames_;}
  static std::array<double,3> rotaryImageStatus(const DrumatorView& view){
@@ -6800,7 +6801,7 @@ void testNa03SampleInvalidatesPeerLive(){
        IntegrationAccess::sampleEditorLive(*a),
        "NA03 LIVE ON not established in View A");
  check(f.c->clearSample(0),"NA03 peer sample clear failed");
- IntegrationAccess::pollMeter(*a);
+ IntegrationAccess::forceLiveLease(*a); // don't depend on the 400-ms refresh timer
  check(!IntegrationAccess::sampleEditorLive(*a)&&
        IntegrationAccess::sampleEditorStatus(*a).find("LIVE OFF")!=std::string::npos,
        "NA03 rejected LIVE session still displayed as active");
