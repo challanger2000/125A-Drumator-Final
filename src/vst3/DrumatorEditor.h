@@ -12,9 +12,38 @@ public:
  // Treat that as an attach failure rather than claiming a working editor.
  void markRequiredViewFailed() noexcept {requiredViewFailed_=true;}
  bool requiredViewFailed() const noexcept {return requiredViewFailed_;}
+ // Pinned VSTGUI's IdleUpdateHandler::start() runs only at the END of
+ // VST3Editor::open(). Its close() unconditionally calls stop(). Track
+ // successful SDK open before choosing cleanup so another editor's global
+ // idle-reference is never stolen after a partial failed attach.
+ bool PLUGIN_API open(void* parent,const VSTGUI::PlatformType& type) override {
+   sdkOpenCompleted_=false;
+   const bool ok=VSTGUI::VST3Editor::open(parent,type);
+   sdkOpenCompleted_=ok;
+   return ok;
+ }
+ void PLUGIN_API close() override {
+   if(sdkOpenCompleted_) {
+     sdkOpenCompleted_=false;
+     VSTGUI::VST3Editor::close(); // paired with SDK IdleUpdateHandler::start()
+     return;
+   }
+   // SDK open failed before acquiring an idle reference. Never call its
+   // unconditional IdleUpdateHandler::stop() for this incomplete opening.
+   // Mirror only the owned CFrame cleanup from the pinned SDK close().
+   if(auto* partial=getFrame()) {
+     partial->unregisterMouseObserver(this);
+     partial->removeAll(true);
+     const auto count=partial->getNbReference();
+     frame=nullptr;
+     if(count==1)partial->close();
+     else partial->forget();
+   }
+ }
  Steinberg::tresult PLUGIN_API attached(void* parent,Steinberg::FIDString type) override {
    requiredViewFailed_=false;
    failedAttachAlreadyCleaned_=false;
+   sdkOpenCompleted_=false;
    try {
      const auto result=VSTGUI::VST3Editor::attached(parent,type);
      if(result==Steinberg::kResultOk&&getFrame()&&!requiredViewFailed_)
@@ -31,10 +60,8 @@ public:
    return Steinberg::kResultFalse;
  }
  Steinberg::tresult PLUGIN_API removed() override {
-   if(failedAttachAlreadyCleaned_) {
-     failedAttachAlreadyCleaned_=false;
-     return Steinberg::kResultOk;
-   }
+   if(failedAttachAlreadyCleaned_)
+     return Steinberg::kResultOk; // repeated host cleanup must remain idempotent
    try {return VSTGUI::VST3Editor::removed();}
    catch(...) {return Steinberg::kResultFalse;}
  }
@@ -107,5 +134,6 @@ public:
 private:
  bool requiredViewFailed_{false};
  bool failedAttachAlreadyCleaned_{false};
+ bool sdkOpenCompleted_{false};
 };
 }

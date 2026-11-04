@@ -115,7 +115,9 @@ SineOracle inspectSine(const std::vector<std::uint8_t>& b,
   }
   previous=l;
  }
- result.stereo=leftE>1.&&rightE>.2&&assignmentError/leftE<.01;
+ // Opposite polarity alone is insufficient: -0.41*L was previously
+ // accepted as -0.5*L (about 1.72dB right-channel loss).
+ result.stereo=leftE>1.&&rightE>.2&&assignmentError/leftE<.0004;
  const double expectedHz=1000.*std::exp2(static_cast<double>(semitones)/12.);
  const double actualHz=positiveCrossings>=3&&lastCross>firstCross?
       (positiveCrossings-1)*48000./(lastCross-firstCross):0.;
@@ -129,11 +131,23 @@ SineOracle inspectSine(const std::vector<std::uint8_t>& b,
   return sum/static_cast<double>(to-from);
  };
  if(expectedEnd+500u<96000u&&expectedEnd>800u){
-  const auto before=meanPower(expectedEnd-700u,expectedEnd-450u);
+  // Sustained power must reach the LAST tenth of the predicted playback;
+  // a voice cut at 1600/2048 frames may not pass on an earlier window.
+  bool active=true;
+  for(const double point:{.40,.70,.85,.95}){
+   const auto end=static_cast<std::size_t>(expectedEnd*point);
+   if(end<128) {active=false;break;}
+   active=active&&meanPower(end-100u,end)>.001;
+  }
   const auto after=meanPower(expectedEnd+200u,expectedEnd+450u);
-  result.duration=before>.001&&after<.000001;
+  result.duration=active&&after<.000001;
  }else if(expectedEnd>=96000u){
-  result.duration=meanPower(50000u,51000u)>.001;
+  // Source exceeds fixed two-second export window. Check nearly the
+  // entire exported duration, not a single 50k-frame midpoint.
+  result.duration=meanPower(50000u,51000u)>.001&&
+                  meanPower(75000u,76000u)>.001&&
+                  meanPower(93000u,94000u)>.001&&
+                  meanPower(95000u,95500u)>.001;
  }
  return result;
 }
@@ -268,6 +282,12 @@ int main(){
      }
      check(!inspectSine(wrongFrequency,sourceRate,semitones).frequency,
            "NA05 negative control must reject 160Hz in place of 250Hz");
+     auto lateTruncate=result;
+     for(std::size_t frame=51001;frame<96000u;++frame)
+       for(unsigned byte=0;byte<6;++byte)
+         lateTruncate[44u+6u*frame+byte]=0;
+     check(!inspectSine(lateTruncate,sourceRate,semitones).duration,
+           "NA05 negative control must reject long source truncated at 51001");
    }
    if(sourceRate==384000u&&semitones==24){
      auto earlyEnd=result;
@@ -276,6 +296,19 @@ int main(){
          earlyEnd[44u+6u*frame+byte]=0;
      check(!inspectSine(earlyEnd,sourceRate,semitones).duration,
            "NA05 negative control must reject early sample truncation");
+     auto lateEnd=result;
+     for(std::size_t frame=1600u;frame<96000u;++frame)
+       for(unsigned byte=0;byte<6;++byte)
+         lateEnd[44u+6u*frame+byte]=0;
+     check(!inspectSine(lateEnd,sourceRate,semitones).duration,
+           "NA05 negative control must reject 1600/2048 partial tail");
+     auto wrongGain=result;
+     for(std::size_t frame=0;frame<96000u;++frame){
+       const auto l=pcm24(wrongGain,44u+6u*frame);
+       putPcm24(wrongGain,44u+6u*frame+3u,-.41f*l);
+     }
+     check(!inspectSine(wrongGain,sourceRate,semitones).stereo,
+           "NA05 negative control must reject -0.41 vs -0.5 channel gain");
    }
   }
  }

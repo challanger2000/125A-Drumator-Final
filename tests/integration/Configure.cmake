@@ -21,6 +21,12 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/ReauditInstrumentation.cm
 foreach(_name DrumatorController DrumatorView DrumatorProcessor)
   file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/vst3/${_name}.h" _header)
   qa_replace(_header "private:\n" "private:\n friend struct IntegrationAccess; // test observation only\n")
+  if(_name STREQUAL "DrumatorController")
+    # A real, late SDK open failure: VST3Editor::open() calls the delegate
+    # didOpen BEFORE IdleUpdateHandler::start(). No production changes.
+    qa_replace(_header " ~Controller() override;"
+      " ~Controller() override;\n void didOpen(VSTGUI::VST3Editor*) override {\n   if(drumator::qa::editorDidOpenFailures>0) {\n     --drumator::qa::editorDidOpenFailures;throw std::bad_alloc{};\n   }\n }")
+  endif()
   if(_name STREQUAL "DrumatorProcessor")
     qa_replace(_header "count_.store(static_cast<std::uint8_t>(chain.count()),std::memory_order_relaxed);"
       "count_.store(static_cast<std::uint8_t>(chain.count()),std::memory_order_relaxed);\n  drumator::qa::probe(drumator::qa::songMidPublish);")

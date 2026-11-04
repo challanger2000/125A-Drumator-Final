@@ -40,6 +40,7 @@
 #include "vstgui/lib/iviewlistener.h"
 #include "vstgui/lib/platform/iplatformframe.h"
 #include "vstgui/lib/cbitmap.h"
+#include "base/source/fobject.h"
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/lib/coffscreencontext.h"
 #include "vstgui/lib/idatapackage.h"
@@ -101,6 +102,7 @@ std::function<bool(VSTGUI::IDataPackage*)> exportDragObserver;
 thread_local bool legacyTriggerOrdering=false;
 thread_local int viewCtorFailureSite=-1;
 thread_local int editorAttachFailureSite=-1;
+thread_local int editorDidOpenFailures=0;
 thread_local int liveUpdateFailures=0;
 thread_local int liveEndFailures=0;
 std::atomic<AuditMutation> auditMutation{AuditMutation::none};
@@ -348,7 +350,9 @@ struct Fixture {
    check(c->connect(p)==kResultOk&&p->connect(c)==kResultOk,"connect real components");
  }
  ~Fixture(){
-   allocationFail=-1;qa::liveUpdateFailures=0;qa::liveEndFailures=0;releaseProbe();
+   allocationFail=-1;qa::liveUpdateFailures=0;qa::liveEndFailures=0;
+   qa::editorDidOpenFailures=0;qa::editorAttachFailureSite=-1;
+   releaseProbe();
    while(!editors.empty())closeLast();
    c->disconnect(p);p->disconnect(c);c->terminate();p->terminate();c->release();p->release();
  }
@@ -6777,9 +6781,30 @@ void testNa01FailedConstructionRegistration(){
 void testNv01ActualAttachFaultAndRequiredViewFallback(){
  Fixture f;(void)f.openV101();
  const auto baseline=IntegrationAccess::viewCount(*f.c);
- auto faultAttach=[&](int attachSite,int viewSite) {
+ // A continues to use the shared SDK IdleUpdateHandler while faulting B.
+ // Real deferred FObject notifications are delivered by Windows timers,
+ // not by a direct call to UpdateHandler::triggerDeferedUpdates().
+ struct IdleReceiver final : Steinberg::FObject {
+   std::atomic<unsigned> notifications{0};
+   void PLUGIN_API update(Steinberg::FUnknown*,Steinberg::int32) override {
+     ++notifications;
+   }
+ };
+ Steinberg::FObject source;
+ IdleReceiver receiver;
+ source.addDependent(&receiver);
+ const auto checkDeferred=[&](const char* failure) {
+   const auto before=receiver.notifications.load();
+   source.deferUpdate(static_cast<Steinberg::int32>(100+before));
+   for(int attempt=0;attempt<140&&receiver.notifications.load()==before;++attempt){
+     Sleep(3);pump();
+   }
+   check(receiver.notifications.load()>before,failure);
+ };
+ checkDeferred("NV01 initial editor A SDK idle notifications absent");
+ auto faultAttach=[&](int attachSite,int viewSite,bool lateDidOpenFault=false) {
    auto* editor=dynamic_cast<DrumatorEditor*>(f.c->createView(ViewType::kEditor));
-   check(editor!=nullptr,"NV01 production editor creation failed"); 
+   check(editor!=nullptr,"NV01 production editor creation failed");
    if(!editor)return;
    ResizeHost host;
    host.hwnd=CreateWindowExW(0,L"STATIC",L"NV01 attach fault",WS_OVERLAPPEDWINDOW,
@@ -6788,39 +6813,44 @@ void testNv01ActualAttachFaultAndRequiredViewFallback(){
    static_cast<IPlugView*>(editor)->setFrame(&host);
    qa::editorAttachFailureSite=attachSite;
    qa::viewCtorFailureSite=viewSite;
+   qa::editorDidOpenFailures=lateDidOpenFault?1:0;
    bool escaped=false;tresult result=kResultOk;
    try {result=static_cast<IPlugView*>(editor)->attached(host.hwnd,kPlatformTypeHWND);}
    catch(...){escaped=true;}
-   qa::editorAttachFailureSite=-1;qa::viewCtorFailureSite=-1;
+   qa::editorAttachFailureSite=-1;
+   qa::viewCtorFailureSite=-1;
+   qa::editorDidOpenFailures=0;
    check(!escaped&&result!=kResultOk,
          "NV01 attached leaked an exception or accepted failed required View");
    check(editor->getFrame()==nullptr,"NV01 failed attach retained SDK frame");
    check(IntegrationAccess::viewCount(*f.c)==baseline,
-         "NV01 failed attach retained a registered custom View");
-   (void)static_cast<IPlugView*>(editor)->removed(); // host may call removed on failure
+         "NV01 failed attach retained registered custom View");
+   checkDeferred("NV01 B failure stopped successful editor A deferred updates");
+   (void)static_cast<IPlugView*>(editor)->removed();
+   (void)static_cast<IPlugView*>(editor)->removed(); // idempotent host failure cleanup
+   const auto retry=static_cast<IPlugView*>(editor)->attached(host.hwnd,kPlatformTypeHWND);
+   check(retry==kResultOk&&editor->getFrame()!=nullptr,
+         "NV01 second attach on SAME editor failed after prior rollback");
+   check(IntegrationAccess::viewCount(*f.c)==baseline+1,
+         "NV01 second attach did not register actual Drumator View");
+   (void)static_cast<IPlugView*>(editor)->removed();
+   check(IntegrationAccess::viewCount(*f.c)==baseline,
+         "NV01 second attach/close left stale Drumator View");
    static_cast<IPlugView*>(editor)->setFrame(nullptr);
    editor->release();DestroyWindow(host.hwnd);
+   checkDeferred("NV01 A idle notifications lost after B recovery/close");
  };
- faultAttach(0,-1); // before SDK CFrame exists
- faultAttach(1,-1); // after successful native SDK attach
- faultAttach(-1,4); // required CBitmap fails; SDK would substitute empty CView
- auto* recovered=dynamic_cast<DrumatorEditor*>(f.c->createView(ViewType::kEditor));
- check(recovered!=nullptr,"NV01 new factory editor unavailable after fault");
- if(recovered){
-   ResizeHost host;host.hwnd=CreateWindowExW(0,L"STATIC",L"NV01 recovered",
-     WS_OVERLAPPEDWINDOW,0,0,1280,850,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
-   static_cast<IPlugView*>(recovered)->setFrame(&host);
-   check(static_cast<IPlugView*>(recovered)->attached(host.hwnd,kPlatformTypeHWND)==kResultOk,
-         "NV01 editor could not reattach cleanly after OOM");
-   check(IntegrationAccess::viewCount(*f.c)==baseline+1,
-         "NV01 recovered attach does not construct real required View");
-   (void)static_cast<IPlugView*>(recovered)->removed();
-   static_cast<IPlugView*>(recovered)->setFrame(nullptr);
-   recovered->release();DestroyWindow(host.hwnd);
- }
+ faultAttach(0,-1);        // throw before SDK open: no frame, no idle ref
+ faultAttach(-1,-1,true);  // throw inside SDK open AFTER CFrame and didOpen
+ faultAttach(1,-1);        // throw after successful SDK open: idle acquired
+ faultAttach(-1,4);        // failed required bitmap; SDK generic View fallback
  check(IntegrationAccess::viewCount(*f.c)==baseline,
-       "NV01 factory+native attach/removed leaked a registered View");
- evidence("NV01 native attach before/after CFrame, empty fallback rejected, recovery PASS");
+       "NV01 factory/native attach cleanup leaked registered View");
+ f.closeLast();            // balanced shutdown of successful editor A
+ (void)f.openV101();      // solitary editor C must restart SDK idle service
+ checkDeferred("NV01 editor C SDK timer failed after A close/reopen");
+ source.removeDependent(&receiver);
+ evidence("NV01 A/B/C measured SDK deferred delivery before/after failure, mid-open OOM, same-instance retry PASS");
 }
 void testNa02RefusedShrinkExportPosition(){
  using L=UiV101Layout;
