@@ -7,7 +7,7 @@
 - **Dateiname:** `125A_Drumator_v1.5.0_Gumroad_Paket.zip`.
 - **ChatGPT Library:** `/125A-Drumator/Aktuell-v1.5.0/125A_Drumator_v1.5.0_Gumroad_Paket.zip`. Diese Library-Datei wurde nach erfolgreicher GUI-Korrektur **in-place überschrieben** und ist die einzig aktuelle Kundenfassung.
 - **Library-Index:** `/125A-Drumator/Aktuell-v1.5.0/START-HIER.md`.
-- **SHA-256 ZIP:** `a4423f857fc345ade35fa496fc241f61df22c81c07033a5c01e933966886ccc8`.
+- **SHA-256 ZIP:** `d03532acb58b74d9d2b5c1093cf3413921997a2313509111766e672a509de401`.
 - **Größe:** 17.434.576 Bytes; **24 geprüfte Dateien**, ZIP-CRC und jedes enthaltene SHA256SUMS-Element erfolgreich geprüft.
 - **Plugin-DLL SHA-256:** `9899f9793077ff93db74180175ef75d911223439050ddcaaa3c6a70f56478c6b`, byteidentisch mit dem Windows-GitHub-CI-Artefakt des Quellcode-Commits `286be54c463fb09a488d68e0fff288b85d17b6aa`.
 - **Beispielkit SHA-256:** `4e76b529b18fa248aaa1a48fe44328f82f10490026f42daf8f85f000fe27c8e6`, `125A Drumator Kit.vstpreset`, acht eingebettete WAVs, unverändert. Das Original liegt unter `/125A-Drumator/Originaldateien/125A Drumator Kit(2).vstpreset`.

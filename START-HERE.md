@@ -5,7 +5,7 @@
 ## Kunden-ZIP und Integritätswerte
 
 - **Library:** `/125A-Drumator/Aktuell-v1.5.0/125A_Drumator_v1.5.0_Gumroad_Paket.zip`.
-- **Neuer ZIP SHA256:** `a4423f857fc345ade35fa496fc241f61df22c81c07033a5c01e933966886ccc8` (17.434.576 Bytes, 24 Dateien, ZIP CRC und Inhalts-Hashes PASS).
+- **Neuer ZIP SHA256:** `d03532acb58b74d9d2b5c1093cf3413921997a2313509111766e672a509de401` (17.434.576 Bytes, 24 Dateien, ZIP CRC und Inhalts-Hashes PASS).
 - **Neue geprüfte VST3-DLL SHA256:** `9899f9793077ff93db74180175ef75d911223439050ddcaaa3c6a70f56478c6b`.
 - **Besitzerkit enthalten:** `125A Drumator Kit.vstpreset` mit 8 WAVs, SHA256 `4e76b529b18fa248aaa1a48fe44328f82f10490026f42daf8f85f000fe27c8e6`. Zwei aktuelle Benutzerhandbücher DE/EN, Anleitung DE/EN, Changelog und Checksums sind drin.
 - **Ältere Kundenfassung vor Footer-Fix:** Archiv `/125A-Drumator/Archiv-RC1-RC4/125A_Drumator_v1.5.0_Gumroad_Paket_VOR_FooterFix.zip`; **nicht verwenden**. RC1–RC4 sind historische Testarchive.
