@@ -172,6 +172,11 @@ class BeatCreator final {
   }
   return std::clamp(base+r.deviation(4),1,127);
  }
+ // Crash is a sparse, style-weighted section accent, not a repeating hat.
+ static constexpr unsigned crashSpacing(BeatStyle s) noexcept {
+  constexpr std::array<unsigned,10> periods{{7,5,7,8,4,8,8,4,12,7}};
+  return periods[static_cast<unsigned>(s)];
+ }
  static bool fourOnFloor(BeatStyle s) noexcept {
   return s==BeatStyle::ItaloDisco||s==BeatStyle::EBM||
          s==BeatStyle::Eurodance90s||s==BeatStyle::House||
@@ -229,6 +234,10 @@ public:
      set(result,BeatRole::CHH,step,53+rng.deviation(3));
    }
   }
+  // A: occasionally mark a new section at its first downbeat.
+  // Never repeat the crash on both bars of a 32-step pattern.
+  if(complexity>=35u&&seed%crashSpacing(settings.style)==0u)
+   set(result,BeatRole::Crash,0u,voiceVelocity(rng,BeatRole::Crash,0u));
   return result;
  }
  // BC44: B must be an audible, style-specific groove variation,
@@ -286,6 +295,11 @@ public:
     note=note?0u:static_cast<std::uint8_t>(strength+rng.deviation(4));
    }
   }
+  // B: optional stronger section entrance; do not remove A's crash.
+  if(settings.complexity>=30u&&
+     seed%std::max(2u,crashSpacing(settings.style)/2u)==0u&&
+     !roleAt(b,BeatRole::Crash,0u))
+   set(b,BeatRole::Crash,0u,103+rng.deviation(4));
   return b;
  }
  // BC49: 6 authored style-specific 16th-note fills per genre, in the
@@ -364,8 +378,14 @@ public:
   if(complexity>=85u){
    for(unsigned pos=5;pos<8u;++pos)
     put(BeatRole::Snare,pos,static_cast<int>(80u+(pos-5u)*19u));
-   if(ending%3u==0u)put(BeatRole::Crash,7u,102);
   }
+  // C: crash on the first beat of the ending half-bar fill.
+  // Keep earlier steps identical to A, as guaranteed by BC49.
+  if(complexity>=30u&&
+     (seed%std::max(2u,crashSpacing(settings.style)/2u)==0u||
+      (complexity>=85u&&ending%3u==0u))&&
+     !roleAt(c,BeatRole::Crash,first))
+   put(BeatRole::Crash,0u,105);
   return c;
  }
  static BeatCreatorPreview preview(const BeatCreatorSettings& s,std::uint32_t seed) noexcept {

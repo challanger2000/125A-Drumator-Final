@@ -205,19 +205,40 @@ int main(){
   for(std::size_t i=0;i<e.size();++i)
       check(e[i].row==i&&e[i].pattern==7&&e[i].velocity==i+1,
             "velocity and row/pattern identity");
-  // Swing delays odd 16th boundaries by 25% without moving even steps.
+  // SW01: swing also delays eighth offbeats; quarter beats remain unchanged.
   PatternBank swung;
   check(swung.set(0,0,0,127)&&swung.set(0,0,1,127)&&
         swung.set(0,0,2,127),"swing fixture");
   auto delayed=get(swung,Clock{0,120,48000,15001,true,0.25});
   check(delayed.size()==3&&delayed[0].sampleOffset==0&&
-        delayed[1].sampleOffset==7500&&delayed[2].sampleOffset==12000,
+        delayed[1].sampleOffset==6750&&delayed[2].sampleOffset==13000,
         "swing positions incorrect");
-  delayed=get(swung,Clock{0.25,120,48000,6501,true,0.25});
+  delayed=get(swung,Clock{0.25,120,48000,7101,true,0.25});
   check(delayed.size()==2&&delayed[0].step==1&&
-        delayed[0].sampleOffset==1500&&delayed[1].step==2&&
-        delayed[1].sampleOffset==6000,
+        delayed[0].sampleOffset==750&&delayed[1].step==2&&
+        delayed[1].sampleOffset==7000,
         "swing boundary lost in split host block");
+  PatternBank eighthHats;
+  for(unsigned step:{0u,2u,4u,6u})
+   check(eighthHats.set(0,0,step,127),"SW01 eighth hat fixture");
+  const auto straight=get(eighthHats,Clock{0.,120.,48000.,40000,true,0.});
+  const auto triplet=get(eighthHats,Clock{0.,120.,48000.,40000,true,.5});
+  const auto mid=get(eighthHats,Clock{0.,120.,48000.,40000,true,.35});
+  check(straight.size()==4&&straight[0].sampleOffset==0&&
+        straight[1].sampleOffset==12000&&straight[2].sampleOffset==24000&&
+        straight[3].sampleOffset==36000,"SW01 straight eighth positions");
+  check(triplet.size()==4&&triplet[0].sampleOffset==0&&
+        triplet[1].sampleOffset==14000&&triplet[2].sampleOffset==24000&&
+        triplet[3].sampleOffset==38000,"SW01 triplet eighth swing");
+  check(mid.size()==4&&mid[1].sampleOffset==13400&&
+        mid[2].sampleOffset==24000&&mid[3].sampleOffset==37400,
+        "SW01 35-percent swing ineffective on eighths");
+  // Negative musical PPQ must preserve the same 8th phase as positive PPQ.
+  PatternBank preRoll;
+  check(preRoll.set(0,0,0,127),"SW01 negative PPQ fixture");
+  const auto negativeSwing=get(preRoll,Clock{-.5,120.,48000.,3000,true,.5,0.,-2});
+  check(negativeSwing.size()==1&&negativeSwing[0].sampleOffset==2000,
+        "SW01 negative PPQ eighth offbeat was not swung");
   check(get(swung,Clock{0,120,48000,100,true,0.75},
         ScheduleStatus::InvalidClock).empty(),"invalid swing accepted");
   // Humanize must repeat exactly and survive host buffer partitioning.

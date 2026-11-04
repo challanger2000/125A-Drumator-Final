@@ -1040,6 +1040,46 @@ int main(int argc,char** argv) {
    require(component->setActive(true)==kResultOk,"Pattern activate");
    require(audio->setProcessing(true)==kResultOk,"Pattern resume");
  };
+ // SW04: real packaged VST3 processor, live host-clock 256-frame
+ // callbacks, real saved kit/sampler PCM and real Swing control messages.
+ // The original integration check tested only Swing state persistence,
+ // allowing an inaudible timing implementation to pass.
+ {
+  const auto original=patternKit;
+  patternKit.grid.fill(0);
+  patternKit.grid[drumator::AtomicPatternBank::index(0,0,2)]=127;
+  patternKit.swing=0;patternKit.humanize=0;patternKit.songEnabled=0;
+  patternKit.muted=0;patternKit.solo=0;
+  const auto onsetForSwing=[&](int value){
+   loadPattern(0);
+   require(percentage("Drumator.Swing",value)==kResultOk,
+           "SW04 VST3 Swing message rejected");
+   context.state=0;run(-1);
+   context.state=ProcessContext::kPlaying|
+                 ProcessContext::kProjectTimeMusicValid|
+                 ProcessContext::kTempoValid;
+   context.tempo=120.;
+   std::int32_t onset=-1;
+   for(std::uint32_t frame=0;frame<20000u;frame+=256u){
+    context.projectTimeMusic=static_cast<double>(frame)/24000.;
+    run(-1);
+    for(unsigned i=0;i<256u;++i)if(std::abs(left[i])>.02f){
+     onset=static_cast<std::int32_t>(frame+i);break;
+    }
+    if(onset>=0)break;
+   }
+   require(onset>=0,"SW04 packaged VST3 produced no audible eighth hit");
+   return onset;
+  };
+  const auto straightOnset=onsetForSwing(0);
+  const auto swungOnset=onsetForSwing(50);
+  require(std::abs(straightOnset-12000)<=1&&
+          std::abs(swungOnset-14000)<=1,
+          "SW04 actual VST3 audio eighth onset did not swing 12000->14000");
+  patternKit=original;loadPattern(0);
+  context.state=0;run(-1);
+  std::cout<<"SW04 packaged VST3 actual Swing PCM onset 0%/50% PASS\n";
+ }
  // Transport regression: a fresh start at DAW bar 2 (PPQ 4), a locate
  // to bar 3, and a backwards loop must all restart pattern A at step zero.
  {

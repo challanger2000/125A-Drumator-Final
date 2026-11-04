@@ -198,6 +198,35 @@ int main(){
            "one-shot must end before next quarter note");
    }
  }else check(false,"120 BPM four-beat RIFF must be exactly 2.000 seconds");
+ // SW03: compare real exported PCM. 120BPM/48kHz eighth at step 2
+ // must move 12000 -> 14000 frames at Swing 50%; step 4 stays at 24000.
+ kit.grid.fill(0);
+ kit.grid[2]=127;kit.grid[4]=127;
+ kit.wav[0]=tone(256,0.6f);
+ kit.humanize=0;kit.swing=0;
+ check(OfflineWavExport::render(kit,false,120.,path),
+       "SW03 straight eighth WAV export");
+ const auto straightPcm=read(path);
+ kit.swing=50;
+ check(OfflineWavExport::render(kit,false,120.,path),
+       "SW03 swung eighth WAV export");
+ const auto swingPcm=read(path);
+ if(straightPcm.size()==44u+6u*96000u&&swingPcm.size()==straightPcm.size()){
+  const auto at=[](const std::vector<std::uint8_t>& b,std::size_t frame){
+   return pcm24(b,44u+6u*frame);
+  };
+  check(std::abs(at(straightPcm,12000u)-.6f)<.003f&&
+        std::abs(at(straightPcm,11999u))<.0001f,
+        "SW03 straight eighth onset wrong");
+  check(std::abs(at(swingPcm,12000u))<.0001f&&
+        std::abs(at(swingPcm,13999u))<.0001f&&
+        std::abs(at(swingPcm,14000u)-.6f)<.003f,
+        "SW03 swung eighth onset not at 14000");
+  check(std::abs(at(straightPcm,24000u)-.6f)<.003f&&
+        std::abs(at(swingPcm,24000u)-.6f)<.003f,
+        "SW03 quarter-note kick shifted by Swing");
+ }else check(false,"SW03 WAV export size mismatch");
+ kit.swing=0;
  kit.grid.fill(0);
  kit.grid[15]=127;
  kit.wav[0]=tone(10000,0.6f);

@@ -97,7 +97,13 @@ public:
    const auto first=static_cast<std::int64_t>(beginFloat);
    const auto last=static_cast<std::int64_t>(endFloat);
    for(auto absolute=first;absolute<last;++absolute){
-     const auto swingOffset=(absolute%2!=0)?static_cast<long double>(c.swing):0.0L;
+     // SW01: hats at 8th-note offbeats (steps 2/6/10/14) now swing too.
+     // Swing 50% reaches the 2:1 triplet eighth feel; quarter kicks
+     // remain exactly on the DAW grid. Intermediate 16ths move gently.
+     const long double amount=static_cast<long double>(c.swing);
+     const auto phase=((absolute%4)+4)%4; // also correct before PPQ zero
+     const auto swingOffset=phase==2?amount*(2.0L/3.0L):
+                            (phase%2!=0)?amount*0.5L:0.0L;
      const auto seed=static_cast<std::uint64_t>(absolute);
      const auto mixed=(seed^(seed>>30))*0xbf58476d1ce4e5b9ULL;
      const auto mixed2=(mixed^(mixed>>27))*0x94d049bb133111ebULL;

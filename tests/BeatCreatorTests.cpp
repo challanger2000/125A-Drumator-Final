@@ -118,6 +118,35 @@ int main(){
      }
     }
    }
+   // BC59: Crash must be reachable at 35% complexity without becoming
+   // a monotonous hit on every bar of every style.
+   {
+    unsigned inA=0u,inB=0u,inC=0u;
+    for(unsigned seed=0u;seed<96u;++seed){
+     const auto p=BeatCreator::preview({s,35,16},seed);
+     const auto minimal=BeatCreator::preview({s,0,16},seed);
+     inA+=v(p.a,BeatRole::Crash,0u)!=0u;
+     inB+=v(p.b,BeatRole::Crash,0u)!=0u;
+     inC+=v(p.c,BeatRole::Crash,8u)!=0u;
+     for(std::size_t step=0u;step<16u;++step){
+      ck(!v(minimal.a,BeatRole::Crash,step)&&
+         !v(minimal.b,BeatRole::Crash,step)&&
+         !v(minimal.c,BeatRole::Crash,step),
+         "BC59 zero-complexity pattern has Crash");
+      if(step!=0u)
+       ck(!v(p.a,BeatRole::Crash,step)&&
+          !v(p.b,BeatRole::Crash,step),
+          "BC59 A/B Crash not on first downbeat");
+      if(step!=0u&&step!=8u)
+       ck(!v(p.c,BeatRole::Crash,step),
+          "BC59 C Crash outside section/fill accent");
+     }
+    }
+    ck(inA>0u&&inB>0u&&inC>0u,
+       "BC59 a style never uses Crash at factory complexity");
+    ck(inA<48u&&inB<48u&&inC<48u,
+       "BC59 Crash is too frequent");
+   }
    // BC49: each style has six different audible 1/2-bar fill phrases,
    // including kits that load only Kick, Snare and Closed HH.
    const BeatCreatorSettings fillSettings{s,35,16};
