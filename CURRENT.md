@@ -1,17 +1,19 @@
 # 125A Drumator — authoritative current status
 
+**04.11.2026 – Letzter erfolgreich komplett geprüfter Produktcode:** `7736fe91090283e43c89b97b627bb872212b86b9`, [Windows-Actions #41921721850](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41921721850) **SUCCESS (33/33 CTests, 47/47 Steinberg, 58/0/0 125A Tester)**. Neue Commits `a1f50c7`/`d1b297e` ergänzen ausschließlich den Regressionstest AUD-F07 für den wiederhergestellten **Original-Ein-Datei-MIDI-Drag**; **KEINE Änderungen an `src/`**. [Audit-Testlauf #41923917904](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41923917904) bis zum Ergebnis ausdrücklich nicht als PASS bezeichnen. Der Benutzer muss nicht selbst Fehlersuche in Studio One betreiben. **RC3-Multi-Drag-ZIP ist ungültig; keine Gumroad-Freigabe.**
+
 **BC65 – verbindliche Nutzerentscheidung vom 04.11.2026:** Beat Creator Complexity verwendet die ursprüngliche Schrittweite **+/− 5 Prozentpunkte**, Startwert **35 %** (35 → 40 → 45); an 0/100 wird begrenzt. Direkteingabe 0–100 bleibt möglich. Frühere +/− 10-Angaben in RC2-/RC3-Berichten sind **historisch und überholt**. MIDI-Export/Drag bleibt auf dem originalen Funktionsstand ohne die unbeauftragte Änderung. Swing, DRUMATOR-Schriftzug und „VERSION 1.5“ bleiben unverändert.
 
 ## Verbindlicher Stand nach Rücknahme des unbeauftragten MIDI-Umbaus – 04.11.2026
 
 **Release Candidate – keine Freigabe:** MIDI-Export und MIDI-Drag sind *wortgleich auf den letzten geprüften Stand* `c6556014c1ff1d7e9322e8ba386a8f4b9ac614cf` zurückgestellt. Der Drag verwendet wieder die bislang in Studio One funktionierende **eine Format-1-MIDI-Datei mit getrennten Instrumentenspuren**. Die nachfolgenden RC3-Aussagen über Mehrdateien-Drag und neue per-row-Save-As-Ausgabe sind **historisch und ungültig für den jetzigen Code**.
 
-**Unverändert bewahrt:** SW05 echter 2:1-Achtel-Swing bei 50 %, BC64 Complexity +/- 10, Standard-GUI-Wortmarke bereits auf `kTitleReduction=0.64` (20 % kleiner als der vorige Faktor 0.80), und die kleine untere Beschriftung `VERSION 1.5` in der gemeinsamen MAIN/SONG-Fußleiste. Die GUI-Anforderungen waren also bereits umgesetzt; ein zweites Schrumpfen wäre falsch.
+**Unverändert bewahrt:** SW05 echter 2:1-Achtel-Swing bei 50 %, **BC65 Complexity +/- 5** mit Start 35 und freier Direkteingabe, Standard-GUI-Wortmarke bereits auf `kTitleReduction=0.64` (20 % kleiner als der vorige Faktor 0.80), und die kleine untere Beschriftung `VERSION 1.5` in der gemeinsamen MAIN/SONG-Fußleiste. Die GUI-Anforderungen waren also bereits umgesetzt; ein zweites Schrumpfen wäre falsch.
 
 **Prüfpflicht:** Die Rücknahme wird erst bei erfolgreich abgeschlossenem Windows-Build, 33/33 CTests, Steinberg Validator 47/47 und 125A Plugin Tester 58/0/0 als technisch regressionsgeprüft betrachtet. Studio One/ASIO muss vor FINAL tatsächlich separat geprüft werden. `main` und die veröffentlichte 1.0.1 sind unangetastet. **RC3-Multi-Drag-Test-ZIP nicht verwenden.**
 
 ---
-## RC3 MIDI-Multi-Drag – neuer privater V1.5-Prüfstand (04.11.2026)
+## HISTORISCH / UNGÜLTIG: RC3 MIDI-Multi-Drag – vollständig zurückgenommen
 
 **Aktueller geprüfter Windows-VST3-Code:** `e22e65517e3e61d5e55e29b0ee7e34ea9b856a3c` auf `develop/beat-creator-10-styles-20261102`. **GitHub Actions [#41916990564](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41916990564): SUCCESS – 33/33 CTests, 47/47 Steinberg Validator, unabhängiger 125A Plugin Tester v0.3.2: 58 PASS / 0 WARNING / 0 FAIL.** Windows-Nativtest F06 überprüft drei physisch getrennte MIDI-Dateien bis zur echten VSTGUI-/OLE-`CF_HDROP`-Darstellung mit `Win32DataObject`, deren Reihenfolge, Aufbewahrung und Schutz vor fremden Dateien. Das ist mehr als ein MIDI-Encoder-Test, aber **keine Ausführung von Studio One**.
 
