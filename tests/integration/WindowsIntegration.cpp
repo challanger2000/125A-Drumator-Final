@@ -14,6 +14,7 @@
 #include "core/PatternQuantization.h"
 #include "core/Utf8Path.h"
 #include "core/ExportFile.h"
+#include "core/DragExportFile.h"
 #include "core/FlacImport.h"
 #include "vst3/DrumatorController.h"
 #include "vst3/DrumatorAutomation.h"
