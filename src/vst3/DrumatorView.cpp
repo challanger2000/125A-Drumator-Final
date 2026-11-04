@@ -790,25 +790,49 @@ bool DrumatorView::removed(VSTGUI::CView* parent) {
 }
 void DrumatorView::editName(std::size_t row) {
  if(row>=controller_.visibleRows()||!getFrame())return;
- const bool newMain=v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_;
- const double y=newMain?
-    UiV101Layout::rowTop(v101_.state().firstRow,row-v101_.state().firstRow,
-                         v101_.expandedRows()):rowTopOnPage(row-firstRow_);
- const double left=newMain?UiV101Layout::load.x0:UiCompactLayout::sample.left;
- const double right=newMain?UiV101Layout::load.x1:UiCompactLayout::sample.right;
- if(!nameEdit_){
-   nameEdit_=new VSTGUI::CTextEdit({left,y+4,right,y+33},this,1001,controller_.label(row).c_str());
-   nameEdit_->registerTextEditListener(this);
-   getFrame()->addView(nameEdit_);
+ VSTGUI::CTextEdit* pending=nullptr;
+ bool registered=false;
+ try{
+  const bool newMain=v101Mode_&&!songEditorOpen_&&!sampleEditorOpen_;
+  const double y=newMain?
+      UiV101Layout::rowTop(v101_.state().firstRow,row-v101_.state().firstRow,
+                           v101_.expandedRows()):rowTopOnPage(row-firstRow_);
+  const double left=newMain?UiV101Layout::load.x0:UiCompactLayout::sample.left;
+  const double right=newMain?UiV101Layout::load.x1:UiCompactLayout::sample.right;
+  if(!nameEdit_){
+   pending=new VSTGUI::CTextEdit({left,y+4,right,y+33},
+                                    this,1001,controller_.label(row).c_str());
+   pending->registerTextEditListener(this);
+   registered=true;
+   if(!getFrame()->addView(pending))throw std::bad_alloc{};
+   nameEdit_=pending;pending=nullptr;
+  }
+  editingNameRow_=row;
+  nameEditGeneration_=controller_.editGeneration();
+  nameEdit_->setViewSize({left,y+4,right,y+33});
+  nameEdit_->setText(controller_.customName(row).empty()?controller_.label(row).c_str():
+                     controller_.customName(row).c_str());
+  nameEdit_->setVisible(true);
+  nameEdit_->takeFocus();
+ }catch(...){
+  // RA-03: a Win32 editor callback must never propagate allocation errors.
+  // The same frame-membership rule applies as for the Complexity editor.
+  if(pending){
+   try{if(registered)pending->unregisterTextEditListener(this);}catch(...){}
+   try{
+    if(auto* frame=getFrame();frame&&frame->isChild(pending))
+      (void)frame->removeView(pending);
+    else pending->forget();
+   }catch(...){}
+  }
+  editingNameRow_=kRows;nameEditGeneration_=0;
+  try{
+   if(nameEdit_)nameEdit_->setVisible(false);
+   status_="ROW NAME EDIT UNAVAILABLE";invalid();
+  }catch(...){}
  }
- editingNameRow_=row;
- nameEditGeneration_=controller_.editGeneration();
- nameEdit_->setViewSize({left,y+4,right,y+33});
- nameEdit_->setText(controller_.customName(row).empty()?controller_.label(row).c_str():
-                   controller_.customName(row).c_str());
- nameEdit_->setVisible(true);
- nameEdit_->takeFocus();
 }
+
 void DrumatorView::valueChanged(VSTGUI::CControl* control) {
  if(control==complexityEdit_){
   if(!beatCreatorOpen_||!complexityEditActive_)return;
@@ -833,13 +857,22 @@ void DrumatorView::valueChanged(VSTGUI::CControl* control) {
  }
  if(control!=nameEdit_||editingNameRow_>=kRows||
     nameEditGeneration_!=controller_.editGeneration())return;
- const auto text=std::string(nameEdit_->getText().getString());
- if(!controller_.renameRow(editingNameRow_,text))status_="ROW NAME NOT APPLIED";
- else status_="ROW NAME SAVED";
- nameEdit_->setVisible(false);
- editingNameRow_=kRows;
- nameEditGeneration_=0;
- invalid();
+ try{
+  const auto text=std::string(nameEdit_->getText().getString());
+  if(!controller_.renameRow(editingNameRow_,text))status_="ROW NAME NOT APPLIED";
+  else status_="ROW NAME SAVED";
+  nameEdit_->setVisible(false);
+  editingNameRow_=kRows;
+  nameEditGeneration_=0;
+  invalid();
+ }catch(...){
+  // No partially updated label and no exception across VSTGUI's callback.
+  editingNameRow_=kRows;nameEditGeneration_=0;
+  try{
+   if(nameEdit_)nameEdit_->setVisible(false);
+   status_="ROW NAME EDIT UNAVAILABLE";invalid();
+  }catch(...){}
+ }
 }
 bool DrumatorView::changeDetailValue(std::size_t row,int slot,int requested) {
  if(row>=controller_.visibleRows())return false;
@@ -1191,38 +1224,38 @@ void DrumatorView::setBeatCreatorComplexity(std::uint8_t requested) {
 }
 void DrumatorView::editBeatCreatorComplexity() {
  if(!beatCreatorOpen_||!getFrame())return;
- VSTGUI::CTextEdit* unattached=nullptr;
- bool listenerRegistered=false;
+ VSTGUI::CTextEdit* pending=nullptr;
+ bool registered=false;
  try{
   const auto r=UiBeatCreatorDialog::complexityValue(getViewSize().getHeight());
   char digits[8]{};
   std::snprintf(digits,sizeof(digits),"%u",static_cast<unsigned>(beatCreatorComplexity_));
   if(!complexityEdit_){
-   unattached=new VSTGUI::CTextEdit(
+   pending=new VSTGUI::CTextEdit(
        {r.x0+1.,r.y0,r.x1-1.,r.y1},this,1002,digits);
-   unattached->registerTextEditListener(this);
-   listenerRegistered=true;
-   if(!getFrame()->addView(unattached)){
-     unattached->unregisterTextEditListener(this);
-     unattached->forget();
-     unattached=nullptr;
-     beatCreatorNotice_="COMPLEXITY EDIT UNAVAILABLE";
-     invalid();
-     return;
-   }
-   complexityEdit_=unattached;
-   unattached=nullptr; // Ownership transferred to VSTGUI frame.
+   pending->registerTextEditListener(this);
+   registered=true;
+   // DA01: addView() can throw AFTER inserting its SharedPointer child.
+   // A failed/throwing return is not proof that 'pending' is unattached.
+   if(!getFrame()->addView(pending))throw std::bad_alloc{};
+   complexityEdit_=pending;
+   pending=nullptr; // Frame owns this reference now.
   }
   complexityEdit_->setViewSize({r.x0+1.,r.y0,r.x1-1.,r.y1});
   complexityEdit_->setText(digits);
   complexityEdit_->setVisible(true);
   complexityEdit_->takeFocus();
-  complexityEditActive_=true; // Only after complete initialization.
+  complexityEditActive_=true;
  }catch(...){
-  if(unattached){
-   if(listenerRegistered)
-     try{unattached->unregisterTextEditListener(this);}catch(...){}
-   unattached->forget();
+  if(pending){
+   // Never call forget() on an object already in the frame child list:
+   // removeView() releases the frame-owned reference exactly once.
+   try{if(registered)pending->unregisterTextEditListener(this);}catch(...){}
+   try{
+    if(auto* frame=getFrame();frame&&frame->isChild(pending))
+      (void)frame->removeView(pending);
+    else pending->forget();
+   }catch(...){} // Fail closed; do not double-release ambiguous ownership.
   }
   complexityEditActive_=false;
   try{
@@ -1232,6 +1265,7 @@ void DrumatorView::editBeatCreatorComplexity() {
   }catch(...){}
  }
 }
+
 void DrumatorView::closeBeatCreator() noexcept {
  if(!beatCreatorOpen_)return;
  beatCreatorOpen_=false;

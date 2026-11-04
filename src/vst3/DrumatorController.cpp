@@ -916,7 +916,15 @@ bool Controller::togglePatternLength(std::size_t pattern) {
  }
  const bool ok=sendEditMessage(msg)==Steinberg::kResultOk;
  
- if(ok){patternLengths_[pattern]=next;try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }}
+ if(ok){
+   // DA02: An accepted 32->16 (or 16->32) edit invalidates any gesture
+   // still using old lane geometry, even when made by a *different* View.
+   // Only do this after Processor acknowledgement: a rejected edit must
+   // leave the existing gesture and its Undo untouched.
+   if(strokePattern_==pattern)endVelocityStroke(true,strokeOwner_);
+   patternLengths_[pattern]=next;
+   try {notifyViews(false);}catch(...) { /* committed state; repaint later */ }
+ }
  return ok;
 
  }catch(...) {return false;}
