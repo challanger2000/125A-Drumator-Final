@@ -6208,43 +6208,55 @@ void testAuditDa01PostAttachAndRa03NameExceptions(){
  control->setText("48");v->valueChanged(control);
  check(IntegrationAccess::complexityValue(*v)==48,
        "DA01 post-OOM recovery did not commit valid Complexity");
- // RA03: the same post-addView rule also protects an Instrument name field.
- const auto afterComplexity=frame->getNbViews();
- PostInsertionFault nameTrap;
- frame->registerViewContainerListener(&nameTrap);
- escaped=false;
- try{IntegrationAccess::activateRowName(*v,0);}catch(...){escaped=true;}
- frame->unregisterViewContainerListener(&nameTrap);
- check(nameTrap.fired,
-       "RA03 name child was not newly inserted (existing field or no callback)");
- check(!escaped,"RA03 post-addView name exception escaped VSTGUI");
- check(frame->getNbViews()==afterComplexity,
-       "RA03 post-addView name orphan left behind in Frame");
- check(!IntegrationAccess::edit(*v),
-       "RA03 stale nameEdit_ pointer after failed insertion");
- IntegrationAccess::activateRowName(*v,0);
- auto* name=IntegrationAccess::edit(*v);
- check(name&&frame->isChild(name),"RA03 row name failed to recover");
- name->setText("Industrial Snare 7");
- const auto oldName=f.c->customName(0);
- allocationFail=0;escaped=false;
- try{v->valueChanged(name);}catch(...){escaped=true;}
- const bool injected=allocationFail==-1;
- allocationFail=-1;
- check(injected&&!escaped&&f.c->customName(0)==oldName,
-       "RA03 native name callback OOM escaped or partially changed the name");
- IntegrationAccess::activateRowName(*v,0);
- name=IntegrationAccess::edit(*v);
- check(name!=nullptr,"RA03 row name editor was lost after OOM");
- name->setText("Industrial Snare");
- v->valueChanged(name);
- check(f.c->customName(0)=="Industrial Snare",
-       "RA03 row name callback failed to recover after OOM");
- // Closing an actual native editor must release both correctly attached
- // CTextEdits and must not revisit either already-removed fault child.
+ // Closing this real native editor releases the recovered Complexity field.
  f.closeLast();
  check(IntegrationAccess::viewCount(*f.c)==0,
-       "DA01/RA03 native editor close leaked registered view");
+       "DA01 recovered Complexity field leaked on editor close");
+ // RA03 uses a FRESH VSTGUI Frame. Throwing through an arbitrary SDK
+ // ListenerList is itself an unusual injected test condition; reusing that
+ // same Frame to inject a second exception would test its listener state
+ // rather than the Drumator name-edit ownership rule.
+ {
+   Fixture n;KitState nameKit;nameKit.visible=2;n.kit(nameKit);
+   (void)n.openV101();auto* nv=IntegrationAccess::view(*n.c,0);
+   auto* nf=nv->getFrame();
+   check(nf!=nullptr&&!IntegrationAccess::edit(*nv),
+         "RA03 fresh native name field was unexpectedly preattached");
+   const auto beforeName=nf->getNbViews();
+   PostInsertionFault nameTrap;
+   nf->registerViewContainerListener(&nameTrap);
+   escaped=false;
+   try{IntegrationAccess::activateRowName(*nv,0);}catch(...){escaped=true;}
+   nf->unregisterViewContainerListener(&nameTrap);
+   check(nameTrap.fired,"RA03 addView post-insertion failure was not injected");
+   check(!escaped,"RA03 post-addView exception escaped VSTGUI");
+   check(nf->getNbViews()==beforeName,
+         "RA03 partially attached name child remained in the Frame");
+   check(!IntegrationAccess::edit(*nv),
+         "RA03 stale nameEdit_ pointer after failed insertion");
+   IntegrationAccess::activateRowName(*nv,0);
+   auto* name=IntegrationAccess::edit(*nv);
+   check(name&&nf->isChild(name),"RA03 row name failed to recover");
+   name->setText("Industrial Snare 7");
+   const auto oldName=n.c->customName(0);
+   allocationFail=0;escaped=false;
+   try{nv->valueChanged(name);}catch(...){escaped=true;}
+   const bool injected=allocationFail==-1;
+   allocationFail=-1;
+   check(injected&&!escaped&&n.c->customName(0)==oldName,
+         "RA03 native name callback OOM escaped or partially changed the name");
+   IntegrationAccess::activateRowName(*nv,0);
+   name=IntegrationAccess::edit(*nv);
+   check(name!=nullptr,"RA03 row name editor was lost after OOM");
+   name->setText("Industrial Snare");
+   nv->valueChanged(name);
+   check(n.c->customName(0)=="Industrial Snare",
+         "RA03 row name callback failed to recover after OOM");
+   n.closeLast();
+   check(IntegrationAccess::viewCount(*n.c)==0,
+         "RA03 native editor close leaked a registered view");
+ }
+
  evidence("DA01 post-insertion child ownership and RA03 name OOM/native-close PASS");
 }
 void testAuditDa02PeerPatternLengthRevokesModernStroke(){
