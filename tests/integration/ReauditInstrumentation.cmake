@@ -67,6 +67,29 @@ function(reaudit_instrument name variable)
     qa_replace(_code "if(rendered.status!=RenderStatus::Ok)return Steinberg::kResultFalse;"
       "if(rendered.status!=RenderStatus::Ok)return Steinberg::kResultFalse;\n const auto qaMode=drumator::qa::auditMutation.load();\n const bool shortLatePrefix=qaMode==drumator::qa::AuditMutation::zeroLaterPrefix&&\n   data.numSamples==64&&drumator::qa::auditLatePrefixCalls.fetch_add(1u)>0u;\n if(qaMode==drumator::qa::AuditMutation::zeroPrefix||shortLatePrefix||\n    (qaMode==drumator::qa::AuditMutation::muteImportedProcessor&&\n     drumator::qa::auditImportTarget.load()==this)) {\n   const auto auditMutationFrames=qaMode==drumator::qa::AuditMutation::zeroPrefix?\n     std::min(Steinberg::int32{32},data.numSamples):\n     shortLatePrefix?std::min(Steinberg::int32{8},data.numSamples):data.numSamples;\n   if(left)std::fill_n(left,auditMutationFrames,0.f);\n   if(right)std::fill_n(right,auditMutationFrames,0.f);\n }\n if(qaMode==drumator::qa::AuditMutation::delayImportedProcessor&&\n    drumator::qa::auditImportTarget.load()==this&&drumator::qa::auditDelayCalls.fetch_add(1)<8u)\n   std::this_thread::sleep_for(std::chrono::milliseconds(10));")
     set(_code "#include <chrono>\n${_code}")
+    # NA01: inject std::bad_alloc ONLY at explicit post-construction resource
+    # boundaries in the generated Windows test View. Failing arbitrary SDK
+    # internal new() calls can trigger unrelated Win32/VSTGUI fail-fast paths.
+    qa_replace(_code "backgroundBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription(\"125A_Drumator_Faceplate.png\"));"
+      "backgroundBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription(\"125A_Drumator_Faceplate.png\"));\n if(drumator::qa::viewCtorFailureSite==0)throw std::bad_alloc{};")
+    qa_replace(_code "productLogoBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription(\"DRUMATOR_Logo_Modern_Transparent.png\"));"
+      "productLogoBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription(\"DRUMATOR_Logo_Modern_Transparent.png\"));\n if(drumator::qa::viewCtorFailureSite==1)throw std::bad_alloc{};")
+    qa_replace(_code "knobBitmap_=new VSTGUI::CMultiFrameBitmap(VSTGUI::CResourceDescription(\"125A_Drumator_Knob.png\"),{{125.,125.},101,1});"
+      "knobBitmap_=new VSTGUI::CMultiFrameBitmap(VSTGUI::CResourceDescription(\"125A_Drumator_Knob.png\"),{{125.,125.},101,1});\n if(drumator::qa::viewCtorFailureSite==2)throw std::bad_alloc{};")
+    qa_replace(_code "screwBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription(\"125A_Drumator_Screw.png\"));"
+      "screwBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription(\"125A_Drumator_Screw.png\"));\n if(drumator::qa::viewCtorFailureSite==3)throw std::bad_alloc{};")
+    qa_replace(_code "v101TitleBitmap_=new VSTGUI::CBitmap(\n     VSTGUI::CResourceDescription(\"DRUMATOR_Logo_Modern_Transparent.png\"));"
+      "v101TitleBitmap_=new VSTGUI::CBitmap(\n     VSTGUI::CResourceDescription(\"DRUMATOR_Logo_Modern_Transparent.png\"));\n if(drumator::qa::viewCtorFailureSite==4)throw std::bad_alloc{};")
+    qa_replace(_code "v101FaceplateBitmap_=new VSTGUI::CBitmap(\n     VSTGUI::CResourceDescription(\"Futuristische industrielle Metalloberfläche.png\"));"
+      "v101FaceplateBitmap_=new VSTGUI::CBitmap(\n     VSTGUI::CResourceDescription(\"Futuristische industrielle Metalloberfläche.png\"));\n if(drumator::qa::viewCtorFailureSite==5)throw std::bad_alloc{};")
+    qa_replace(_code "v101VintageButtons_[0]=new VSTGUI::CBitmap(\n     VSTGUI::CResourceDescription(\"125A_Dark_Button_83x32_Normal_4x.png\"));"
+      "v101VintageButtons_[0]=new VSTGUI::CBitmap(\n     VSTGUI::CResourceDescription(\"125A_Dark_Button_83x32_Normal_4x.png\"));\n if(drumator::qa::viewCtorFailureSite==6)throw std::bad_alloc{};")
+    qa_replace(_code "v101VintageButtons_[1]=new VSTGUI::CBitmap(\n     VSTGUI::CResourceDescription(\"125A_Dark_Button_83x32_Aktiv_4x.png\"));"
+      "v101VintageButtons_[1]=new VSTGUI::CBitmap(\n     VSTGUI::CResourceDescription(\"125A_Dark_Button_83x32_Aktiv_4x.png\"));\n if(drumator::qa::viewCtorFailureSite==7)throw std::bad_alloc{};")
+    qa_replace(_code "v101VintageButtons_[2]=new VSTGUI::CBitmap(\n     VSTGUI::CResourceDescription(\"125A_Dark_Button_83x32_Gedrueckt_4x.png\"));"
+      "v101VintageButtons_[2]=new VSTGUI::CBitmap(\n     VSTGUI::CResourceDescription(\"125A_Dark_Button_83x32_Gedrueckt_4x.png\"));\n if(drumator::qa::viewCtorFailureSite==8)throw std::bad_alloc{};")
+    qa_replace(_code "v101VintageButtons_[3]=new VSTGUI::CBitmap(\n     VSTGUI::CResourceDescription(\"125A_Dark_Button_83x32_Deaktiviert_4x.png\"));"
+      "v101VintageButtons_[3]=new VSTGUI::CBitmap(\n     VSTGUI::CResourceDescription(\"125A_Dark_Button_83x32_Deaktiviert_4x.png\"));\n if(drumator::qa::viewCtorFailureSite==9)throw std::bad_alloc{};")
   elseif(name STREQUAL "DrumatorController")
     qa_replace(_code "if(!accepted)invalidateExportTempo();"
       "if(!accepted&&drumator::qa::auditMutation.load()!=drumator::qa::AuditMutation::keepStaleExportTempo)invalidateExportTempo();")
