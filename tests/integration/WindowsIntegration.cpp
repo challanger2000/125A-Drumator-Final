@@ -4538,8 +4538,11 @@ void testEveryButtonFeedbackCategory(){
    for(std::size_t k=2;k<5;++k){
      auto p=setCenter(k);
      noFlash(*v,p.x,p.y,"BF01 SET action got duplicate amber flash");
-     check(IntegrationAccess::settingsPressed(*v)==static_cast<int>(k),
-           "BF01 successful SET action has no pressed sprite");
+     // UI01: COPY is an action; PASTE of the very same row is an accepted
+     // no-op and must NOT receive a success sprite; CLEAR changes content.
+     const int expected=k==3?-1:static_cast<int>(k);
+     check(IntegrationAccess::settingsPressed(*v)==expected,
+           "BF01 SET action/no-op pressed sprite contract mismatch");
    }
    noFlash(*v,settings.x,settings.y,"BF01 SET close mode wrongly flashed");
    // Row-count mutation, paging and menu opening change their own visual
@@ -6212,9 +6215,13 @@ void testAuditDa01PostAttachAndRa03NameExceptions(){
  escaped=false;
  try{IntegrationAccess::activateRowName(*v,0);}catch(...){escaped=true;}
  frame->unregisterViewContainerListener(&nameTrap);
- check(nameTrap.fired&&!escaped&&frame->getNbViews()==afterComplexity&&
-       !IntegrationAccess::edit(*v),
-       "RA03 orphaned native Row Name child after partial addView");
+ check(nameTrap.fired,
+       "RA03 name child was not newly inserted (existing field or no callback)");
+ check(!escaped,"RA03 post-addView name exception escaped VSTGUI");
+ check(frame->getNbViews()==afterComplexity,
+       "RA03 post-addView name orphan left behind in Frame");
+ check(!IntegrationAccess::edit(*v),
+       "RA03 stale nameEdit_ pointer after failed insertion");
  IntegrationAccess::activateRowName(*v,0);
  auto* name=IntegrationAccess::edit(*v);
  check(name&&frame->isChild(name),"RA03 row name failed to recover");
