@@ -1,5 +1,7 @@
 # 125A Drumator — authoritative current status
 
+**BC65 – verbindliche Nutzerentscheidung vom 04.11.2026:** Beat Creator Complexity verwendet die ursprüngliche Schrittweite **+/− 5 Prozentpunkte**, Startwert **35 %** (35 → 40 → 45); an 0/100 wird begrenzt. Direkteingabe 0–100 bleibt möglich. Frühere +/− 10-Angaben in RC2-/RC3-Berichten sind **historisch und überholt**. MIDI-Export/Drag bleibt auf dem originalen Funktionsstand ohne die unbeauftragte Änderung. Swing, DRUMATOR-Schriftzug und „VERSION 1.5“ bleiben unverändert.
+
 ## Verbindlicher Stand nach Rücknahme des unbeauftragten MIDI-Umbaus – 04.11.2026
 
 **Release Candidate – keine Freigabe:** MIDI-Export und MIDI-Drag sind *wortgleich auf den letzten geprüften Stand* `c6556014c1ff1d7e9322e8ba386a8f4b9ac614cf` zurückgestellt. Der Drag verwendet wieder die bislang in Studio One funktionierende **eine Format-1-MIDI-Datei mit getrennten Instrumentenspuren**. Die nachfolgenden RC3-Aussagen über Mehrdateien-Drag und neue per-row-Save-As-Ausgabe sind **historisch und ungültig für den jetzigen Code**.
