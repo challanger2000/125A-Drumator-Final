@@ -1,13 +1,10 @@
 # 125A Drumator – V1.5.0 (aktueller Entwicklungsbranch)
 
-**DIESE BRANCH enthält V1.5.0, nicht die in `main` weiterhin veröffentlichte V1.0.1.**
+**FERTIGES AKTUELLES GUMROAD-KUNDENPAKET MIT GUI-FOOTER-FIX:** `125A_Drumator_v1.5.0_Gumroad_Paket.zip` in der ChatGPT-Library `/125A-Drumator/Aktuell-v1.5.0/`. SHA-256 `a4423f857fc345ade35fa496fc241f61df22c81c07033a5c01e933966886ccc8`. **Shop-Upload nicht bestätigt.**
 
-- **Aktuelles Gumroad-Kundenpaket erstellt:** `125A_Drumator_v1.5.0_Gumroad_Paket.zip`, ChatGPT-Dateibibliothek `/125A-Drumator/Aktuell-v1.5.0/`. SHA256 `9adf31ea2095c209ba861a6399bbc4f9c03dbd8ccc2f4b0a83842fd3ae4cb61a`. Shop-Upload bisher nicht bestätigt.
-- **Verbindliche Details:** [CURRENT.md](CURRENT.md) und [START-HERE.md](START-HERE.md). Diese enthalten den kompletten SHA-/Build-/Kit-Nachweis, aktuelle Anforderungen und offene Punkte.
-- **Verifizierter Windows-Run:** [#41923917904](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41923917904), **33/33 CTests**, **47/47 Validator**, **58 PASS / 0 WARNING / 0 FAIL**, mit zusätzlichem ursprünglichen Ein-Datei-MIDI-Drag-Test.
-- **Wichtige Nutzerverträge:** Complexity **5er-Schritte** (Start 35); MIDI Save As und Drag **eine SMF-Typ-1-Datei mit 17 Spuren**; Crash-Häufigkeitsfix erhalten; 50% Swing korrekt; Name DRUMATOR 20% kleiner; `VERSION 1.5` in GUI.
-- **NEU GEMELDETER OFFENER GUI-BEFUND (04.11.):** „VERSION 1.5“ ist zu tief am unteren Footer-Rand platziert. Im Kunden-ZIP noch **nicht korrigiert**. Bei korrigierter GUI sind neuer geprüfter Build und neue Kunden-ZIP nötig. Keine Eigenmächtigkeiten an produktiven Funktionen.
-- **Alte RC1–RC4-ZIPs:** in `/125A-Drumator/Archiv-RC1-RC4/`, nur historisch, RC3-Multi-MIDI explizit verworfen.
+**Aktueller Produktcode:** [`286be54c`](https://github.com/challanger2000/125A-Drumator-Final/commit/286be54c463fb09a488d68e0fff288b85d17b6aa), [Windows-CI #41932222861](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41932222861) **SUCCESS: 33/33 CTests, 47/47 Validator, 58 PASS / 0 WARNING / 0 FAIL.** V15-FTR1: `VERSION 1.5` sitzt in MAIN und SONG innerhalb des Footer-Bezels in einer eigenen zweiten Zeile, sicher getrennt von Statusmeldungen und Knöpfen. Reale Windows-Rasteransichten geprüft.
+
+**Verbindliche Anweisungen:** [CURRENT.md](CURRENT.md) · [START-HERE.md](START-HERE.md) · [V15-FTR1 Release-QA](docs/V15-FTR1-GUI-RELEASE-20261105.md). Complexity **5er-Schritte** (Start 35); **eine** MIDI-Datei SMF Typ 1/17 Tracks bei Save As und Drag; Crash-BC59 und SW05-Swing unverändert; Beispielkit und DE/EN-Handbücher im ZIP. Die vorherige Kunden-ZIP und alte RC1–RC4-Testpakete stehen ausschließlich im Library-Archiv. Das auf `main` bestehende V1.0.1-Produkt wurde nicht verändert.
 
 ---
 
