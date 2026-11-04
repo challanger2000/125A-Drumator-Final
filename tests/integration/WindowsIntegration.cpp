@@ -5,6 +5,8 @@
 #endif
 #include <windows.h>
 #include <objbase.h>
+#include <shellapi.h>
+#pragma comment(lib, "Shell32.lib")
 #include <malloc.h>
 #include "Probe.h"
 #include "ByteStream.h"
@@ -16,6 +18,7 @@
 #include "vst3/DrumatorController.h"
 #include "vst3/DrumatorAutomation.h"
 #include "vst3/DrumatorView.h"
+#include "vstgui/lib/platform/win32/win32dragging.h"
 #include "core/UiDetailGeometry.h"
 #include "core/UiRowControls.h"
 #include "core/UiCompactLayout.h"
@@ -136,6 +139,7 @@ namespace drumator {
 struct IntegrationAccess {
  static void expireExportTempo(Controller& controller){controller.exportTempoSeenAt_-=std::chrono::seconds(4);}
  static void exportMenu(DrumatorView& view){view.v101Menu_=UiV101Popup::Kind::Export;}
+ static bool invokeExistingMidiDrag(DrumatorView& view,int option){return view.startExportDrag(option);}
  static bool sampleEditorOpen(const DrumatorView& view){return view.sampleEditorOpen_;}
  static bool sampleEditorLive(const DrumatorView& view){return view.sampleEditorLive_;}
  static bool liveStopPending(const DrumatorView& view){return view.sampleEditorLiveStopPending_;}
@@ -2231,6 +2235,79 @@ void confirmExportHostTempo(Fixture& fixture,double bpm=120.){
  check(fixture.c->hasExportTempo()&&fixture.c->exportTempoBpm()==bpm,
        "real host export tempo not confirmed");
 }
+// AUD-F07: read the SAME original one-file MIDI drag that production publishes
+// through an attached VSTGUI view, then inspect real Windows OLE CF_HDROP.
+// No production export, drag, UI or audio source is modified by this test.
+void testAudF07OriginalMidiDragFromNativeView(){
+ Fixture f;
+ auto kit=v101PreviewKit();
+ kit.selected=0;kit.grid.fill(0);kit.patternLengths.fill(16);
+ kit.grid[AtomicPatternBank::index(0,0,0)]=100;
+ kit.grid[AtomicPatternBank::index(0,1,4)]=110;
+ kit.grid[AtomicPatternBank::index(1,7,0)]=120;
+ check(kit.chain.setCount(2)&&kit.chain.configure(0,0,16)&&
+       kit.chain.configure(1,1,16),"AUD-F07 pattern/song fixture");
+ f.kit(kit);
+ (void)f.openV101();
+ confirmExportHostTempo(f);
+ auto* view=IntegrationAccess::view(*f.c,0);
+ std::vector<std::filesystem::path> published;
+ std::vector<std::vector<std::uint8_t>> exported;
+ qa::exportDragObserver=[&](VSTGUI::IDataPackage* data)->bool {
+   check(data&&data->getCount()==1u,
+         "AUD-F07 changed original one-file MIDI drag into multiple payloads");
+   auto* ole=new VSTGUI::Win32DataObject(data);
+   FORMATETC format{};
+   format.cfFormat=CF_HDROP;format.dwAspect=DVASPECT_CONTENT;
+   format.lindex=-1;format.tymed=TYMED_HGLOBAL;
+   STGMEDIUM medium{};
+   const auto query=ole->QueryGetData(&format);
+   const auto read=query==S_OK?ole->GetData(&format,&medium):E_FAIL;
+   if(query!=S_OK||read!=S_OK||medium.tymed!=TYMED_HGLOBAL){
+     ole->Release();
+     check(false,"AUD-F07 original MIDI drag not usable as native Windows CF_HDROP");
+   }
+   const auto drop=reinterpret_cast<HDROP>(medium.hGlobal);
+   const auto count=DragQueryFileW(drop,0xffffffffu,nullptr,0);
+   wchar_t name[32768]{};
+   const auto len=count==1?DragQueryFileW(drop,0,name,32768):0u;
+   ReleaseStgMedium(&medium);ole->Release();
+   check(count==1&&len>0u&&len<32768u,
+         "AUD-F07 OLE file list does not contain exactly one Unicode MIDI path");
+   const std::filesystem::path path(name);
+   check(path.extension()==L".mid"&&std::filesystem::is_regular_file(path),
+         "AUD-F07 OLE referred to a missing or wrong file");
+   std::ifstream file(path,std::ios::binary);
+   const std::vector<std::uint8_t> bytes{
+      std::istreambuf_iterator<char>(file),std::istreambuf_iterator<char>()};
+   check(bytes.size()>48u&&bytes[0]=='M'&&bytes[1]=='T'&&
+         bytes[2]=='h'&&bytes[3]=='d'&&
+         bytes[8]==0u&&bytes[9]==1u&&bytes[10]==0u&&bytes[11]==17u&&
+         bytes[12]==3u&&bytes[13]==0xc0u,
+         "AUD-F07 dragged MIDI is not the original 17-track 960PPQ SMF type 1");
+   published.push_back(path);
+   exported.push_back(bytes);
+   return true; // Host signals successful drag start; never rewrite file.
+ };
+ try {
+   check(IntegrationAccess::invokeExistingMidiDrag(*view,0),
+         "AUD-F07 native view could not publish original PATTERN MIDI drag");
+   check(IntegrationAccess::invokeExistingMidiDrag(*view,2),
+         "AUD-F07 native view could not publish original SONG MIDI drag");
+ }catch(...){qa::exportDragObserver={};throw;}
+ qa::exportDragObserver={};
+ check(published.size()==2u&&exported.size()==2u&&
+       published[0]!=published[1]&&exported[0]!=exported[1],
+       "AUD-F07 PATTERN and SONG drag lost independent file content/path");
+ for(const auto& path:published){
+   check(std::filesystem::is_regular_file(path),
+         "AUD-F07 drag ended before DAW could asynchronously import MIDI");
+   DragExportFile::discardFailed(path); // Test-only cleanup after host read.
+ }
+ f.closeLast();
+ evidence("AUD-F07 actual attached VSTGUI PATTERN+SONG MIDI drag: original one CF_HDROP file each, 17-track SMF1/960PPQ, nonempty independent content, deferred lifetime PASS");
+}
+
 void testV101ConnectedPatternSongExportsAndLimiter(){
  Fixture f;
  auto kit=v101PreviewKit(); // contains ten genuine, playable PCM samples
@@ -7318,6 +7395,7 @@ int main(int argc,char** argv){
  run("EXPTEMPO failed transfer must preserve destination",testExportTempoFailedTransfer);
  run("EXPTEMPO old stale-tempo cause must be killed",testExportTempoMutation);
  run("EXPTEMPO actual zero-frame, recall, delayed IPC and GUI lifecycle",testExportTempoLifecycle);
+ run("AUD-F07 unchanged MIDI drag from native VSTGUI via Windows OLE",testAudF07OriginalMidiDragFromNativeView);
  run("V101 connected Controller/Processor exports and limiter",testV101ConnectedPatternSongExportsAndLimiter);
  run("Codex01 paired legacy recall clears Export and LIMIT",testCodexLegacyControllerExportReset);
  run("Codex02 Controller IPC actions OOM-safe",testCodexControllerActionOOM);
