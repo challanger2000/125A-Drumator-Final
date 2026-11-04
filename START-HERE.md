@@ -1,6 +1,6 @@
 # START HERE – 125A Drumator V1.5.0
 
-**OWNER-UPDATE 04.11.:** Plugin V1.5 wurde in der DAW bereits geöffnet; Gumroad-Upload erfolgt jetzt. Ein vollumfänglicher DAW-Funktionstest und die abgeschlossene Shop-Veröffentlichung sind noch NICHT VERIFIZIERT. Siehe [V1.5-Release-Übergabe](docs/V15-RELEASE-HANDOFF-20261105.md).
+**OWNER-UPDATE 04.11.:** Plugin V1.5 wurde in der DAW bereits geöffnet; **Gumroad-Upload ist nach ausdrücklicher Eigentümerbestätigung abgeschlossen**. Vollumfänglicher DAW-Funktionstest und heruntergeladene Shop-ZIP-Bytes sind noch NICHT unabhängig VERIFIZIERT. Siehe [V1.5-Release-Übergabe](docs/V15-RELEASE-HANDOFF-20261105.md).
 
 **AKTUELL:** Korrigierte **Gumroad-Kundenfassung 1.5.0**, V15-FTR1 (Versionsgravur im Footer neu positioniert) ist **gebaut, auditiert und in der ChatGPT-Dateibibliothek gespeichert**. Nicht beim alten RC4, RC3 oder V1.0.1 stehen bleiben. [CURRENT.md](CURRENT.md) ist verbindlich.
 
@@ -28,7 +28,7 @@
 
 ## Was offen bleibt
 
-- **Noch nicht auf Gumroad veröffentlicht** (nur Kunden-ZIP fertig und in Library).
+- **Gumroad-Upload V1.5.0 vom Eigentümer als abgeschlossen bestätigt.** Keine erneute Upload-Aufforderung. Live heruntergeladenes Shop-ZIP/Hash unabhängig noch NICHT VERIFIZIERT.
 - Weitergabe-Rechte der Kit-WAVs vor kommerziellem Verkauf klären.
 - Native Windows-Actions-Testhost ist keine echte Studio-One-/ASIO-Sitzung.
 

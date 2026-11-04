@@ -1,8 +1,8 @@
 # 125A Drumator – V1.5.0 (aktueller Entwicklungsbranch)
 
-**Besitzerbericht:** V1.5 wurde bereits in der DAW geöffnet und wird gerade bei Gumroad hochgeladen. Das bestätigt noch keine vollständige DAW-Abnahme und keinen abgeschlossenen Store-Upload. Die derzeit nachweislich veröffentlichte 1.0.1 bleibt auf main. Weitere Gates: [V1.5-Release-Übergabe](docs/V15-RELEASE-HANDOFF-20261105.md).
+**Besitzerbericht:** V1.5 wurde in der DAW geöffnet und **laut ausdrücklicher Eigentümerbestätigung bei Gumroad hochgeladen**. Das bestätigt noch keine vollständige DAW-Funktionsabnahme oder einen unabhängig geprüften Shop-ZIP-Hash. Auf `main` liegt weiterhin der bisherige V1.0.1-Quellstand. Weitere Gates: [V1.5-Release-Übergabe](docs/V15-RELEASE-HANDOFF-20261105.md).
 
-**FERTIGES AKTUELLES GUMROAD-KUNDENPAKET MIT GUI-FOOTER-FIX:** `125A_Drumator_v1.5.0_Gumroad_Paket.zip` in der ChatGPT-Library `/125A-Drumator/Aktuell-v1.5.0/`. SHA-256 `d03532acb58b74d9d2b5c1093cf3413921997a2313509111766e672a509de401`. **Shop-Upload nicht bestätigt.**
+**FERTIGES AKTUELLES GUMROAD-KUNDENPAKET MIT GUI-FOOTER-FIX:** `125A_Drumator_v1.5.0_Gumroad_Paket.zip` in der ChatGPT-Library `/125A-Drumator/Aktuell-v1.5.0/`. SHA-256 `d03532acb58b74d9d2b5c1093cf3413921997a2313509111766e672a509de401`. **Eigentümer bestätigt Gumroad-Upload der V1.5.0; unabhängiger Shop-Download-Hash nicht geprüft.**
 
 **Aktueller Produktcode:** [`286be54c`](https://github.com/challanger2000/125A-Drumator-Final/commit/286be54c463fb09a488d68e0fff288b85d17b6aa), [Windows-CI #41932222861](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41932222861) **SUCCESS: 33/33 CTests, 47/47 Validator, 58 PASS / 0 WARNING / 0 FAIL.** V15-FTR1: `VERSION 1.5` sitzt in MAIN und SONG innerhalb des Footer-Bezels in einer eigenen zweiten Zeile, sicher getrennt von Statusmeldungen und Knöpfen. Reale Windows-Rasteransichten geprüft.
 

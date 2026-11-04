@@ -1,6 +1,6 @@
 # 125A Drumator V1.5.0 – AKTUELLER VERBINDLICHER STAND
 
-**Aktualisiert:** 05.11.2026 (Europe/Berlin). **Aktueller Kunden-Build:** V1.5.0 einschließlich **korrigierter Versionsgravur (V15-FTR1)**, vollständig im Windows-Test geprüft und als **Gumroad-Kunden-ZIP** bereitgestellt. **Der Eigentümer führt den V1.5-Gumroad-Upload jetzt durch; ob der Upload abgeschlossen und im Shop verfügbar ist, bleibt NOT VERIFIED**; `main` / bisherige V1.0.1 unverändert. Keine neue GUI-Korrektur offen.
+**Aktualisiert:** 05.11.2026 (Europe/Berlin). **Aktueller Kunden-Build:** V1.5.0 einschließlich **korrigierter Versionsgravur (V15-FTR1)**, vollständig im Windows-Test geprüft und als **Gumroad-Kunden-ZIP** bereitgestellt. **Gumroad-Upload der V1.5.0 ist laut ausdrücklicher Eigentümerbestätigung abgeschlossen; ein unabhängiger Live-Abruf/Shop-Dateihash wurde nicht geprüft**; `main` / bisherige V1.0.1 unverändert. Keine neue GUI-Korrektur offen.
 
 ## 1. Aktuelles Gumroad-Paket – eindeutig finden
 
@@ -35,7 +35,7 @@
 
 ## 4. Was tatsächlich noch offen ist
 
-- **Kein nachgewiesener Gumroad-Store-Upload** der V1.5: Kunden-ZIP in Library ≠ Shop-Veröffentlichung.
+- **Gumroad-Upload V1.5.0 vom Eigentümer als abgeschlossen bestätigt (04./05.11.2026).** Der konkrete Live-Download wurde hier nicht unabhängig geöffnet; tatsächliche Shop-ZIP-Bytes/SHA sind daher weiterhin NICHT VERIFIZIERT.
 - **Rechteklärung** für kommerzielle Weitergabe der acht WAV-Samples im Besitzerpreset.
 - GitHub Actions simulieren einen VST3-Host und rendern echte Windows-GUI, aber keine echte Studio-One-/ASIO-Sitzung. Der Nutzer darf nicht als Software-Fehlersucher behandelt werden.
 
