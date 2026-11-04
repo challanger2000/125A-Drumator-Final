@@ -1453,13 +1453,11 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
   editBeatCreatorComplexity();invalid();return true;
  }
  if(D::complexityMinus(h).hit(x,y)){
-  setBeatCreatorComplexity(static_cast<std::uint8_t>(
-   std::max(0,static_cast<int>(beatCreatorComplexity_)-5)));
+  setBeatCreatorComplexity(D::steppedComplexity(beatCreatorComplexity_,-1));
   return true;
  }
  if(D::complexityPlus(h).hit(x,y)){
-  setBeatCreatorComplexity(static_cast<std::uint8_t>(
-   std::min(100,static_cast<int>(beatCreatorComplexity_)+5)));
+  setBeatCreatorComplexity(D::steppedComplexity(beatCreatorComplexity_,+1));
   return true;
  }
  if(D::barOne(h).hit(x,y)||D::barTwo(h).hit(x,y)){

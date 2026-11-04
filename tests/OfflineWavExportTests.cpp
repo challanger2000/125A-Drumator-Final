@@ -199,7 +199,7 @@ int main(){
    }
  }else check(false,"120 BPM four-beat RIFF must be exactly 2.000 seconds");
  // SW03: compare real exported PCM. 120BPM/48kHz eighth at step 2
- // must move 12000 -> 14000 frames at Swing 50%; step 4 stays at 24000.
+ // must move 12000 -> 16000 frames at Swing 50%; step 4 stays at 24000.
  kit.grid.fill(0);
  kit.grid[2]=127;kit.grid[4]=127;
  kit.wav[0]=tone(256,0.6f);
@@ -219,9 +219,9 @@ int main(){
         std::abs(at(straightPcm,11999u))<.0001f,
         "SW03 straight eighth onset wrong");
   check(std::abs(at(swingPcm,12000u))<.0001f&&
-        std::abs(at(swingPcm,13999u))<.0001f&&
-        std::abs(at(swingPcm,14000u)-.6f)<.003f,
-        "SW03 swung eighth onset not at 14000");
+        std::abs(at(swingPcm,15999u))<.0001f&&
+        std::abs(at(swingPcm,16000u)-.6f)<.003f,
+        "SW03 swung eighth onset not at 16000");
   check(std::abs(at(straightPcm,24000u)-.6f)<.003f&&
         std::abs(at(swingPcm,24000u)-.6f)<.003f,
         "SW03 quarter-note kick shifted by Swing");

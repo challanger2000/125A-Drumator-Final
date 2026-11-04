@@ -1074,8 +1074,8 @@ int main(int argc,char** argv) {
   const auto straightOnset=onsetForSwing(0);
   const auto swungOnset=onsetForSwing(50);
   require(std::abs(straightOnset-12000)<=1&&
-          std::abs(swungOnset-14000)<=1,
-          "SW04 actual VST3 audio eighth onset did not swing 12000->14000");
+          std::abs(swungOnset-16000)<=1,
+          "SW04 actual VST3 audio eighth onset did not swing 12000->16000");
   patternKit=original;loadPattern(0);
   context.state=0;run(-1);
   std::cout<<"SW04 packaged VST3 actual Swing PCM onset 0%/50% PASS\n";

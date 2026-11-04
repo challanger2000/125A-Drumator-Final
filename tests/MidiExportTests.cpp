@@ -105,7 +105,7 @@ int main(){
  check(MidiExport::encode(c,again)&&b==again,"deterministic export");
  check(parse(b,17).size()==5,"humanized number of notes unchanged");
  // SW02: actual MIDI export, 960 PPQ. At 50% Swing the eighth offbeat
- // moves from tick 480 to 560 while both quarter beats stay in place.
+ // moves from tick 480 to 640 while both quarter beats stay in place.
  {
   MidiExportConfig eighths{};
   eighths.patternLengths.fill(16);
@@ -120,7 +120,7 @@ int main(){
         straightNotes[1].tick==480&&straightNotes[2].tick==960,
         "SW02 straight eighth notes");
   check(swungNotes.size()==3&&swungNotes[0].tick==0&&
-        swungNotes[1].tick==560&&swungNotes[2].tick==960,
+        swungNotes[1].tick==640&&swungNotes[2].tick==960,
         "SW02 eighth offbeat not swung or quarters moved");
  }
  c.patternLengths[1]=17;

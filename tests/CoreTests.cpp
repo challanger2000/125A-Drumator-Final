@@ -211,36 +211,66 @@ int main(){
         swung.set(0,0,2,127),"swing fixture");
   auto delayed=get(swung,Clock{0,120,48000,15001,true,0.25});
   check(delayed.size()==3&&delayed[0].sampleOffset==0&&
-        delayed[1].sampleOffset==6750&&delayed[2].sampleOffset==13000,
+        delayed[1].sampleOffset==7000&&delayed[2].sampleOffset==14000,
         "swing positions incorrect");
-  delayed=get(swung,Clock{0.25,120,48000,7101,true,0.25});
+  delayed=get(swung,Clock{0.25,120,48000,8101,true,0.25});
   check(delayed.size()==2&&delayed[0].step==1&&
-        delayed[0].sampleOffset==750&&delayed[1].step==2&&
-        delayed[1].sampleOffset==7000,
+        delayed[0].sampleOffset==1000&&delayed[1].step==2&&
+        delayed[1].sampleOffset==8000,
         "swing boundary lost in split host block");
   PatternBank eighthHats;
   for(unsigned step:{0u,2u,4u,6u})
    check(eighthHats.set(0,0,step,127),"SW01 eighth hat fixture");
-  const auto straight=get(eighthHats,Clock{0.,120.,48000.,40000,true,0.});
-  const auto triplet=get(eighthHats,Clock{0.,120.,48000.,40000,true,.5});
-  const auto mid=get(eighthHats,Clock{0.,120.,48000.,40000,true,.35});
+  const auto straight=get(eighthHats,Clock{0.,120.,48000.,42000,true,0.});
+  const auto triplet=get(eighthHats,Clock{0.,120.,48000.,42000,true,.5});
+  const auto mid=get(eighthHats,Clock{0.,120.,48000.,42000,true,.35});
   check(straight.size()==4&&straight[0].sampleOffset==0&&
         straight[1].sampleOffset==12000&&straight[2].sampleOffset==24000&&
         straight[3].sampleOffset==36000,"SW01 straight eighth positions");
   check(triplet.size()==4&&triplet[0].sampleOffset==0&&
-        triplet[1].sampleOffset==14000&&triplet[2].sampleOffset==24000&&
-        triplet[3].sampleOffset==38000,"SW01 triplet eighth swing");
-  check(mid.size()==4&&mid[1].sampleOffset==13400&&
-        mid[2].sampleOffset==24000&&mid[3].sampleOffset==37400,
+        triplet[1].sampleOffset==16000&&triplet[2].sampleOffset==24000&&
+        triplet[3].sampleOffset==40000,"SW01 triplet eighth swing");
+  check(mid.size()==4&&mid[1].sampleOffset==14800&&
+        mid[2].sampleOffset==24000&&mid[3].sampleOffset==38800,
         "SW01 35-percent swing ineffective on eighths");
   // Negative musical PPQ must preserve the same 8th phase as positive PPQ.
   PatternBank preRoll;
   check(preRoll.set(0,0,0,127),"SW01 negative PPQ fixture");
-  const auto negativeSwing=get(preRoll,Clock{-.5,120.,48000.,3000,true,.5,0.,-2});
-  check(negativeSwing.size()==1&&negativeSwing[0].sampleOffset==2000,
+  const auto negativeSwing=get(preRoll,Clock{-.5,120.,48000.,5000,true,.5,0.,-2});
+  check(negativeSwing.size()==1&&negativeSwing[0].sampleOffset==4000,
         "SW01 negative PPQ eighth offbeat was not swung");
   check(get(swung,Clock{0,120,48000,100,true,0.75},
         ScheduleStatus::InvalidClock).empty(),"invalid swing accepted");
+  // SW05: independent beat-fraction oracle, not a copied scheduler formula.
+  // At 50% Swing, eighths divide a quarter beat 2:1 (onsets 0 and 2/3).
+  // At 0/35/50%, assert rate/tempo-independent physical onset, including
+  // fractional-frame cases, without deriving expected frames from a helper.
+  for(const double rate:{44100.,48000.,96000.})
+   for(const double bpm:{90.,120.,150.})
+    for(const double percent:{0.,.35,.5}){
+     PatternBank singleOffbeat;
+     check(singleOffbeat.set(0,0,2,100),"SW05 independent fixture");
+     const double secondsPerQuarter=60.0/bpm;
+     const double eighthFraction=.5+(percent/.5)/6.0;
+     const double expectedFrame=rate*secondsPerQuarter*eighthFraction;
+     const auto actual=get(singleOffbeat,Clock{0.,bpm,rate,
+         static_cast<std::int32_t>(expectedFrame+1024.),true,percent});
+     check(actual.size()==1&&
+           std::fabs(static_cast<double>(actual[0].sampleOffset)-expectedFrame)<=1.01,
+           "SW05 independent 0/35/50 percent tempo/rate eighth oracle");
+    }
+  // Exact sixteenth order at 120 BPM / 48 kHz: 0,1/3,2/3,5/6,1
+  // quarter at maximum swing, with quarter-note grid unchanged.
+  PatternBank allSixteenths;
+  for(unsigned s=0;s<=4;++s)
+   check(allSixteenths.set(0,0,s,100),"SW05 sixteenth fixture");
+  const auto sixteenths=get(allSixteenths,Clock{0.,120.,48000.,25000,true,.5});
+  check(sixteenths.size()==5&&sixteenths[0].sampleOffset==0&&
+        sixteenths[1].sampleOffset==8000&&
+        sixteenths[2].sampleOffset==16000&&
+        sixteenths[3].sampleOffset==20000&&
+        sixteenths[4].sampleOffset==24000,
+        "SW05 musical subdivision and event order");
   // Humanize must repeat exactly and survive host buffer partitioning.
   auto human=get(swung,Clock{0,120,48000,24000,true,0.0,1.0});
   auto repeat=get(swung,Clock{0,120,48000,24000,true,0.0,1.0});

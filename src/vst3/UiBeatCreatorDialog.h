@@ -95,6 +95,13 @@ struct UiBeatCreatorDialog final {
  static constexpr Rect cancel(double h) noexcept {
   const auto p=panel(h);return {p.x0+479.,p.y0+221.,p.x0+574.,p.y0+246.};
  }
+ // BC64: confirmed user contract - start at 35, +/- in 10-point steps,
+ // clamp to the endpoints; direct numeric entry still allows every 0..100.
+ static constexpr std::uint8_t steppedComplexity(std::uint8_t old,int dir) noexcept {
+  const auto delta=dir<0?-10:dir>0?10:0;
+  const auto value=static_cast<int>(old)+delta;
+  return static_cast<std::uint8_t>(value<0?0:value>100?100:value);
+ }
  static bool parseComplexity(const char* t,std::uint8_t& out) noexcept {
   if(!t)return false;
   const auto ws=[](char c){return c==' '||c=='\t';};

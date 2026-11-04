@@ -373,6 +373,14 @@ for(std::size_t i=0;i<10;++i){
                       BC::cancel(hostHeight)})
       CHECK(r.x1-r.x0==95.&&r.y1-r.y0==25.);
   }
+  // BC64: exercise the actual View-side step function, not a test-only copy.
+  CHECK(BC::steppedComplexity(35,+1)==45);
+  CHECK(BC::steppedComplexity(45,-1)==35);
+  CHECK(BC::steppedComplexity(95,+1)==100);
+  CHECK(BC::steppedComplexity(5,-1)==0);
+  CHECK(BC::steppedComplexity(100,+1)==100);
+  CHECK(BC::steppedComplexity(0,-1)==0);
+  CHECK(BC::steppedComplexity(35,0)==35);
   std::uint8_t complexity=0;
   CHECK(BC::parseComplexity("0",complexity)&&complexity==0);
   CHECK(BC::parseComplexity(" 45% ",complexity)&&complexity==45);
