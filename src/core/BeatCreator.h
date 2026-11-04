@@ -297,7 +297,7 @@ public:
   }
   // B: optional stronger section entrance; do not remove A's crash.
   if(settings.complexity>=30u&&
-     seed%std::max(3u,(crashSpacing(settings.style)+1u)/2u)==0u&&
+     seed%std::max(5u,(crashSpacing(settings.style)+1u)/2u)==0u&&
      !roleAt(b,BeatRole::Crash,0u))
    set(b,BeatRole::Crash,0u,103+rng.deviation(4));
   return b;
@@ -382,7 +382,7 @@ public:
   // C: crash on the first beat of the ending half-bar fill.
   // Keep earlier steps identical to A, as guaranteed by BC49.
   if(complexity>=30u&&
-     (seed%std::max(3u,(crashSpacing(settings.style)+1u)/2u)==0u||
+     (seed%std::max(5u,(crashSpacing(settings.style)+1u)/2u)==0u||
       (complexity>=85u&&ending%3u==0u))&&
      !roleAt(c,BeatRole::Crash,first))
    put(BeatRole::Crash,0u,105);
