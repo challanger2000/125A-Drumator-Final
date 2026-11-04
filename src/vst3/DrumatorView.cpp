@@ -21,6 +21,7 @@
 #include "core/DropFeedback.h"
 #include "core/DragExportFile.h"
 #include "vstgui/lib/cdropsource.h"
+#include "vst3/MidiDragPackage.h"
 #include "core/UiHeaderHitZones.h"
 #include "core/RowMixControl.h"
 #include "core/ClipWarning.h"
@@ -2840,8 +2841,29 @@ bool DrumatorView::startExportDrag(int option) {
   const bool wav=option==1||option==3;
   const bool song=option>=2;
   const auto path=pathToUtf8(output);
-  const bool exported=wav?controller_.exportWav(song,path):
-                          controller_.exportMidi(song,path);
+  if(!wav) {
+   // F06: one physical MIDI file per programmed row in ONE CF_HDROP.
+   // Save As and MIDI drag now contain identical MIDI note bytes.
+   if(!controller_.exportMidiRows(song,path)){
+    DragExportFile::discardFailedMidiRows(output);
+    status_=controller_.hasExportTempo()?
+        "DRAG: SEPARATE MIDI EXPORT FAILED":
+        "EXPORT: HOST TEMPO UNAVAILABLE - PLAY HOST AND RETRY";
+    return false;
+   }
+   const auto source=MidiDragPackage::create(output);
+   if(!source){
+    DragExportFile::discardFailedMidiRows(output);
+    status_="DRAG: MIDI FILE LIST INVALID";
+    return false;
+   }
+   const bool started=doDrag(VSTGUI::DragDescription(source));
+   // Retain physical files after drag for asynchronous DAW importing.
+   status_=started?"MIDI FILE DRAG STARTED - DROP INTO DAW":
+                   "MIDI FILE DRAG NOT STARTED";
+   return started;
+  }
+  const bool exported=controller_.exportWav(song,path);
   std::error_code ec;
   if(!exported||!std::filesystem::is_regular_file(output,ec)||ec||
      std::filesystem::file_size(output,ec)==0||ec){

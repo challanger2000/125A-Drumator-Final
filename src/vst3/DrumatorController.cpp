@@ -15,6 +15,7 @@
 #include "core/MidiExport.h"
 #include "core/OfflineWavExport.h"
 #include "core/ExportFile.h"
+#include "core/DragExportFile.h"
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "pluginterfaces/vst/ivstattributes.h"
@@ -2064,9 +2065,7 @@ bool Controller::exportMidiRows(bool song,const std::string& path){
    if(!MidiExport::encodeSeparate(config,files))return false;
    const auto chosen=pathFromUtf8(path);
    if(chosen.filename().empty()||chosen.stem().empty())return false;
-   auto target=chosen;
-   target.replace_extension();
-   target+=" - MIDI";
+   const auto target=DragExportFile::midiRowsFolder(chosen);
    std::error_code ec;
    if(std::filesystem::exists(target,ec)||ec)return false;
    // Publish the entire folder in one rename. Any failed write leaves
@@ -2092,16 +2091,11 @@ bool Controller::exportMidiRows(bool song,const std::string& path){
      if(ec&&ec!=std::errc::file_exists)return false;
    }
    if(!stage.owned)return false;
-   static constexpr const char* names[kRows]{
-     "01 Kick.mid","02 Snare.mid","03 Closed HH.mid","04 Open HH.mid",
-     "05 Low Tom.mid","06 High Tom.mid","07 Crash.mid","08 Clap.mid",
-     "09 Row.mid","10 Row.mid","11 Row.mid","12 Row.mid",
-     "13 Row.mid","14 Row.mid","15 Row.mid","16 Row.mid"
-   };
+   static_assert(kRows==DragExportFile::kMidiRowNames.size());
    unsigned written=0;
    for(std::size_t row=0;row<kRows;++row){
      if(files[row].empty())continue;
-     const auto destination=stage.path/names[row];
+     const auto destination=stage.path/DragExportFile::midiRowName(row);
      std::ofstream stream(destination,std::ios::binary|std::ios::trunc);
      if(!stream)return false;
      stream.write(reinterpret_cast<const char*>(files[row].data()),
