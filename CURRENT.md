@@ -1,6 +1,16 @@
 # 125A Drumator — authoritative current status
 
-## Drumator V1.5.0 RC1 – private Studio-One-Abnahme (04.11.2026)
+## Aktueller Entwicklungskandidat nach RC2 – 04.11.2026 (KEINE Verkaufsfreigabe)
+
+**Aktueller Quellcode:** `a1d76cec42a9caa56a7cfd9d18756c2771daa3df` auf `develop/beat-creator-10-styles-20261102`. **Windows Actions #41913685096: SUCCESS – 33/33 CTests, 47/47 Steinberg Validator, unabhängiger 125A Plugin Tester v0.3.2: 58 PASS / 0 WARNING / 0 FAIL.** [Beleglauf](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41913685096). Die vorgeschaltete Swing-/Complexity-Reparatur `c6556014` bestand dieselben drei Gates in [#41912269901](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41912269901).
+
+**Behobene Auditbefunde:** SW05: Swing 50 % liefert ein echtes 2:1-Achtel-Triolenverhältnis (belegt durch mathematisch unabhängige 0/35/50-%-Timingorakel und tatsächliche VST3-Audioausgabe); BC64: Beat-Creator-Complexity +/- 10, ab Start 35, mit Grenzwertklemmung und direkter Zahleneingabe; F03: **Save As MIDI** schreibt einen neuen Ordner `<gewählter Name> - MIDI` mit je einer MIDI-Datei pro musikalisch belegter Instrumentenreihe, gültigem Tempo und eigener Instrumentenspur. Der bestehende **MIDI-Drag bleibt vorerst bewusst beim kompatiblen Typ-1-Ein-Datei-Format**; eine echte Studio-One-Abnahme für Mehrdateien-D&D existiert nicht. Details, Nachweis-/Testmatrix und offene Grenzen: [docs/RC2-POSTAUDIT-QA-20261104.md](docs/RC2-POSTAUDIT-QA-20261104.md).
+
+**WICHTIG:** Die zuvor bereitgestellte `125A_Drumator_v1.5.0_RC2_Swing_Crash_StudioOne_Test.zip` ist noch aus Quellcommit `9d2eea4e` erstellt und enthält **NICHT** SW05, BC64 oder den getrennten Save-As-MIDI-Export. **Noch keine neue VST3-Test-ZIP erstellt oder an den Nutzer ausgehändigt.** Es fehlt außerdem die Anpassung der V1.5-PDF-Handbücher an diese Änderungen und der finale autorisierte Studio-One-Praxiseindruck (44,1 kHz/24 Bit). Die Sample-Weitergaberechte müssen vor jeglichem Verkauf geklärt werden. Kein Gumroad-Upload, kein FINAL-Tag und keine Änderung am veröffentlichten `main`/1.0.1 ohne Besitzerfreigabe.
+
+---
+
+## Historischer Stand: Drumator V1.5.0 RC1 – private Studio-One-Abnahme (04.11.2026)
 
 Die V1.5-Entwicklung bleibt ausschließlich auf `develop/beat-creator-10-styles-20261102`. Der gepinnte VSTGUI-NV01-Fix wurde vom unabhängigen Codex-Nachaudit auf `a30d72c` akzeptiert. Die bislang letzte CI bestand **33/33 CTests, 47/47 Validator, 58/0/0 Plugin Tester**: https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41801233263.
 
