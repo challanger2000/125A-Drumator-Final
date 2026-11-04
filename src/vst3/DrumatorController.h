@@ -114,6 +114,12 @@ public:
  bool copyRow(std::size_t row) noexcept;
  bool pasteRow(std::size_t row);
  bool clearRow(std::size_t row);
+ // Feedback gates distinguish a no-op from an accepted mutation without
+ // changing the historical bool result contracts of the edit operations.
+ bool rowWouldClear(std::size_t row) noexcept;
+ bool rowWouldPaste(std::size_t row) noexcept;
+ bool rowWouldResetVelocity(std::size_t row) noexcept;
+ bool canPasteCurrentPattern() const noexcept {return clipboardValid_;}
  bool canPasteRow() const noexcept {return rowClipboardValid_;}
  bool canDuplicateCurrentPattern() noexcept;
  bool duplicateCurrentPattern(bool* selectedCopy=nullptr);

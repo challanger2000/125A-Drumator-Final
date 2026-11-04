@@ -458,11 +458,15 @@ private:
      case SettingsAction::Copy:ok=controller_.copyRow(row);break;
      case SettingsAction::Paste:
        if(!controller_.canPasteRow())return Result::Ignored;
+       if(!controller_.rowWouldPaste(row))return Result::Handled;
        ok=controller_.pasteRow(row);break;
-     case SettingsAction::Clear:ok=controller_.clearRow(row);break;
+     case SettingsAction::Clear:
+       if(!controller_.rowWouldClear(row))return Result::Handled;
+       ok=controller_.clearRow(row);break;
      case SettingsAction::RandomVelocity:
        ok=controller_.randomizeRowVelocity(row);break;
      case SettingsAction::ResetVelocity:
+       if(!controller_.rowWouldResetVelocity(row))return Result::Handled;
        ok=controller_.resetRowVelocity(row);break;
      case SettingsAction::RandomRealtimeDown:
        ok=controller_.adjustRandomVelocity(row,-10);break;

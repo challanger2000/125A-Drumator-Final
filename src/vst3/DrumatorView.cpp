@@ -1335,8 +1335,10 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
                  10,{205,223,235,255},false);
  P::label(*c,"COMPLEXITY",rect(D::complexityLabel(h)),
           11,{211,227,239,255},false);
- P::cap(*c,D::complexityMinus(h),0.,"-",false,13,&buttons);
- P::cap(*c,D::complexityPlus(h),0.,"+",false,13,&buttons);
+ P::cap(*c,D::complexityMinus(h),0.,"-",false,13,&buttons,
+        beatCreatorComplexity_==0);
+ P::cap(*c,D::complexityPlus(h),0.,"+",false,13,&buttons,
+        beatCreatorComplexity_>=100);
  char percent[16]{};
  std::snprintf(percent,sizeof(percent),"%u%%",
                static_cast<unsigned>(beatCreatorComplexity_));
@@ -1514,8 +1516,13 @@ void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
        controller_.rowChoke(v101MenuRow_)==static_cast<unsigned>(i);
    // Every real pop-up shares the black MAIN/SONG 4x hardware button set.
    const auto cell=UiV101Popup::cell(g,i);
+   const bool disabledPattern=v101Menu_==UiV101Popup::Kind::Pattern&&
+       ((i==1&&!controller_.canPasteCurrentPattern())||
+        (i==3&&!controller_.canUndoCurrentPattern())||
+        (i==6&&!controller_.canDuplicateCurrentPattern()));
    Painter::cap(*c,cell,0.,caption,selectedOutput||selectedChoke,10,
-                &popupButtons,false,v101PressedMenuOption_==i);
+                &popupButtons,disabledPattern,
+                !disabledPattern&&v101PressedMenuOption_==i);
    if(v101Menu_==UiV101Popup::Kind::Export){
      c->setFont(VSTGUI::kNormalFont,9.);
      c->setFontColor(VSTGUI::CColor{160,205,220,255});
@@ -3060,7 +3067,13 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    VSTGUI::CPoint& pos,const VSTGUI::CButtonState& buttons) {
  const double x=pos.x,y=pos.y;
  if(!(buttons&VSTGUI::kLButton))return VSTGUI::kMouseEventNotHandled;
- if(v101Mode_)buttonFlashUntil_={}; // A new click clears any prior momentary acknowledgement.
+ if(v101Mode_){
+   // A new interaction invalidates BOTH old acknowledgement channels.
+   // Otherwise a no-op CLEAR/RESET could inherit an earlier press.
+   buttonFlashUntil_={};
+   settingsFeedbackUntil_={};
+   settingsFeedbackButton_=-1;
+ }
  if(v101Mode_&&beatCreatorOpen_){
   (void)beatCreatorMouseDown(x,y);
   return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;

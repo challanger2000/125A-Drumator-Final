@@ -59,7 +59,7 @@ struct UiV101NativePreview final {
    std::size_t pattern=0,visibleRows=L::visibleRows;
   std::size_t songPlaybackPattern=kPatterns+1u;
    std::uint8_t patternLength=32;
-   bool songEnabled=false,canRemoveRow=false;
+   bool songEnabled=false,canRemoveRow=false,canPasteRow=false;
    bool clipped=false;
    float meterLeft=0.f,meterRight=0.f;
    std::string status{};
@@ -412,6 +412,24 @@ struct UiV101NativePreview final {
    const double l=b.left,t=b.top,rr=b.right,bt=b.bottom;
    const bool compact=b.getHeight()<24.;
    const double radius=compact?2.:3.;
+   // UI04: bitmap fallback must preserve the exact same disabled/pressed
+   // hierarchy as the loaded hardware sprites, not only the ON/OFF latch.
+   if(disabled){
+     rounded(c,{l,t+2.,rr,bt+2.},{7,10,14,255},radius);
+     rounded(c,{l,t,rr,bt-1.},{24,29,36,255},radius);
+     rounded(c,{l+2.,t+2.,rr-2.,bt-3.},{46,53,62,255},radius);
+     label(c,text,{l+2.,t+2.,rr-2.,bt-2.},font,{119,129,140,255});
+     return;
+   }
+   if(pressed){
+     rounded(c,{l,t+2.,rr,bt+2.},{7,10,14,255},radius);
+     rounded(c,{l+1.,t+2.,rr-1.,bt-1.},{40,43,47,255},radius);
+     rounded(c,{l+2.,t+3.,rr-2.,bt-3.},
+             active?Color{136,72,25,255}:Color{100,100,99,255},radius);
+     label(c,text,{l+2.,t+3.,rr-2.,bt-1.},font,
+           active?Color{255,202,102,255}:Color{223,226,230,255});
+     return;
+   }
    // Deep charcoal pocket + soft offset shadow under the raised cap.
    rounded(c,{l,t+2.,rr,bt+2.},{7,10,14,255},radius);
    rounded(c,{l,t,rr,bt-1.},active?
@@ -459,7 +477,7 @@ struct UiV101NativePreview final {
  static void stepCap(VSTGUI::CDrawContext& c,double sx,double y,bool lit,bool downbeat){
    // This is a compact 17x27 physical switch INSIDE the established
    // 17x31 hit surface. Slightly rounded edges, black gasket, recess shadow.
-   const double x=sx+1.;
+   const double x=sx; // UI03: sx is already the exact stepRect().x0.
    if(lit){
      // Restrained warm halo is visible against navy, not an orange rectangle.
      fill(c,{x,y+12.,x+17.,y+38.},{70,42,22,255});
@@ -812,7 +830,8 @@ struct UiV101NativePreview final {
                   {32,165,195,205});
            }
          }
-         cap(c,UiV101Interaction::realtimeMinus,y,"-",false,13,vintageButtons);
+         cap(c,UiV101Interaction::realtimeMinus,y,"-",false,13,vintageButtons,
+             data.randomRealtime==0);
          // Genuine numeric drag field rather than an oversized faux key.
          // Exact 112x32 bounds are shared with the interaction hit map.
          const auto r=UiV101Interaction::realtimeValue;
@@ -834,7 +853,8 @@ struct UiV101NativePreview final {
          label(c,realtimeText,{display.left+3.,display.top+15.,
                                display.right-3.,display.bottom-2.},
                12,{247,193,99,255});
-         cap(c,UiV101Interaction::realtimePlus,y,"+",false,13,vintageButtons);
+         cap(c,UiV101Interaction::realtimePlus,y,"+",false,13,vintageButtons,
+             data.randomRealtime>=100);
        }else{
          const std::array<const char*,5> settingsLabels{{
            outputCaption(data.outputBus),chokeCaption(data.chokeGroup),
@@ -843,7 +863,8 @@ struct UiV101NativePreview final {
          for(std::size_t button=0;button<settingsLabels.size();++button)
            cap(c,UiV101Interaction::settingsRect(button),y,
                settingsLabels[button],button==1&&data.chokeGroup!=0,10,vintageButtons,
-               false,scene.settingsPressedRow==row&&
+               button==3&&!scene.canPasteRow,
+               scene.settingsPressedRow==row&&
                      scene.settingsPressedButton==static_cast<int>(button));
        }
      }

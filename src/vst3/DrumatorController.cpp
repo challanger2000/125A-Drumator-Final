@@ -1098,6 +1098,29 @@ bool Controller::pasteRow(std::size_t row) {
  // Its musical length, other rows, and all sound/routing metadata are kept.
  return replacePattern(p,target);
 }
+bool Controller::rowWouldClear(std::size_t row) noexcept {
+ if(row>=visibleRows_)return false;
+ const auto p=currentPattern();
+ for(std::size_t step=0;step<kSteps;++step)
+   if(grid_[(p*kRows+row)*kSteps+step]!=0)return true;
+ return false;
+}
+bool Controller::rowWouldPaste(std::size_t row) noexcept {
+ if(row>=visibleRows_||!rowClipboardValid_)return false;
+ const auto p=currentPattern();
+ for(std::size_t step=0;step<kSteps;++step)
+   if(grid_[(p*kRows+row)*kSteps+step]!=rowClipboard_[step])return true;
+ return false;
+}
+bool Controller::rowWouldResetVelocity(std::size_t row) noexcept {
+ if(row>=visibleRows_)return false;
+ const auto p=currentPattern();
+ for(std::size_t step=0;step<patternLength(p);++step){
+   const auto value=grid_[(p*kRows+row)*kSteps+step];
+   if(value!=0&&value!=100)return true;
+ }
+ return false;
+}
 bool Controller::clearRow(std::size_t row) {
  if(row>=visibleRows_)return false;
  const auto p=currentPattern();

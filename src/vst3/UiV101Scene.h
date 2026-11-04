@@ -13,6 +13,7 @@ inline UiV101NativePreview::Scene captureControllerScene(Controller& controller)
  scene.patternLength=controller.patternLength(scene.pattern);
  scene.songEnabled=controller.songEnabled();
  scene.canRemoveRow=controller.canHideLast();
+ scene.canPasteRow=controller.canPasteRow();
  scene.swing=controller.swingPercent();
  scene.humanize=controller.humanizePercent();
  scene.master=controller.masterVolume();
