@@ -40,6 +40,12 @@ foreach(_name DrumatorController DrumatorView DrumatorProcessor)
   reaudit_instrument("${_name}" _source)
   file(WRITE "${_qa}/vst3/${_name}.cpp" "#include \"Probe.h\"\n${_source}")
 endforeach()
+# NV01: inject before and after the SDK attach in a QA-only editor
+# header. Production's editor has no failure probes.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/vst3/DrumatorEditor.h" _editor)
+qa_replace(_editor "     const auto result=VSTGUI::VST3Editor::attached(parent,type);"
+  "     if(drumator::qa::editorAttachFailureSite==0)throw std::bad_alloc{};\n     const auto result=VSTGUI::VST3Editor::attached(parent,type);\n     if(drumator::qa::editorAttachFailureSite==1)throw std::bad_alloc{};")
+file(WRITE "${_qa}/vst3/DrumatorEditor.h" "#include \"Probe.h\"\n${_editor}")
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/core/AtomicPatternBank.h" _bank)
 # Pause a real A/B/C writer with an odd combined version.
 qa_replace(_bank "        tripleVersion_.fetch_add(1,std::memory_order_acq_rel);\n        for(std::size_t p=0;p<3;++p)"

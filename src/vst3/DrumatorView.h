@@ -164,6 +164,9 @@ private:
  // NV02: true while an END acknowledgement is still required. The session
  // token is retained and CANCEL/APPLY cannot discard it on IPC failure.
  bool sampleEditorLiveStopPending_{false};
+ // Retained even after recall closes the WAV modal; END needs the original
+ // row and token. sampleEditorRow_ describes only the open editor.
+ std::size_t sampleEditorLiveRow_{kRows};
  std::uint64_t sampleEditorLiveSession_{0};
  std::chrono::steady_clock::time_point sampleEditorLiveSentAt_{};
  bool startSampleEditorLive() noexcept;

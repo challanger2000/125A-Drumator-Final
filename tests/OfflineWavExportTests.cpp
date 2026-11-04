@@ -7,6 +7,7 @@
 #include <vector>
 #include <cmath>
 #include <cstring>
+#include <algorithm>
 using namespace drumator;
 namespace {
 void u16(std::vector<std::uint8_t>& b,std::size_t pos,std::uint16_t v){
@@ -71,6 +72,70 @@ float pcm24(const std::vector<std::uint8_t>& b,std::size_t pos){
         (static_cast<std::int32_t>(b[pos+2])<<16);
  if(n&0x800000)n|=static_cast<std::int32_t>(0xff000000);
  return static_cast<float>(n/8388608.0);
+}
+
+void putPcm24(std::vector<std::uint8_t>& b,std::size_t pos,float f){
+ const auto x=static_cast<std::int32_t>(std::lround(
+     std::clamp(f,-.999999f,.999999f)*8388607.f));
+ for(int c=0;c<3;++c)b[pos+static_cast<std::size_t>(c)]=
+     static_cast<std::uint8_t>(x>>(8*c));
+}
+struct SineOracle {
+ bool stereo{false},frequency{false},duration{false};
+};
+// Independent measurable facts: channel assignment, interpolated periods,
+// sustained PCM just before the exact source endpoint, and silence after it.
+// A file that merely contains the right RIFF header cannot satisfy these.
+SineOracle inspectSine(const std::vector<std::uint8_t>& b,
+                       std::uint32_t sourceRate,int semitones){
+ SineOracle result{};
+ if(b.size()!=44u+6u*96000u)return result;
+ const double ratio=static_cast<double>(sourceRate)/48000.*
+                    std::exp2(static_cast<double>(semitones)/12.);
+ const auto expectedEnd=static_cast<std::size_t>(65536./ratio);
+ const auto analysisEnd=std::min<std::size_t>(10000,expectedEnd>150?expectedEnd-100:0);
+ const auto analysisStart=std::min<std::size_t>(200,analysisEnd/10);
+ if(analysisEnd<=analysisStart+10)return result;
+ double leftE=0.,rightE=0.,assignmentError=0.;
+ double firstCross=-1.,lastCross=-1.;
+ unsigned positiveCrossings=0;
+ float previous=pcm24(b,44u+analysisStart*6u);
+ for(std::size_t frame=analysisStart+1;frame<analysisEnd;++frame){
+  const auto l=pcm24(b,44u+frame*6u);
+  const auto r=pcm24(b,44u+frame*6u+3u);
+  leftE+=static_cast<double>(l)*l;
+  rightE+=static_cast<double>(r)*r;
+  const auto residual=static_cast<double>(r)+.5*l;
+  assignmentError+=residual*residual;
+  if(previous<0.f&&l>=0.f&&l>previous){
+   const double point=static_cast<double>(frame-1)+
+       static_cast<double>(-previous)/(l-previous);
+   if(firstCross<0.)firstCross=point;
+   lastCross=point;++positiveCrossings;
+  }
+  previous=l;
+ }
+ result.stereo=leftE>1.&&rightE>.2&&assignmentError/leftE<.01;
+ const double expectedHz=1000.*std::exp2(static_cast<double>(semitones)/12.);
+ const double actualHz=positiveCrossings>=3&&lastCross>firstCross?
+      (positiveCrossings-1)*48000./(lastCross-firstCross):0.;
+ result.frequency=std::abs(actualHz-expectedHz)<=std::max(5.,expectedHz*.015);
+ auto meanPower=[&](std::size_t from,std::size_t to){
+  double sum=0.;
+  for(std::size_t j=from;j<to;++j){
+   const double l=pcm24(b,44u+j*6u);
+   sum+=l*l;
+  }
+  return sum/static_cast<double>(to-from);
+ };
+ if(expectedEnd+500u<96000u&&expectedEnd>800u){
+  const auto before=meanPower(expectedEnd-700u,expectedEnd-450u);
+  const auto after=meanPower(expectedEnd+200u,expectedEnd+450u);
+  result.duration=before>.001&&after<.000001;
+ }else if(expectedEnd>=96000u){
+  result.duration=meanPower(50000u,51000u)>.001;
+ }
+ return result;
 }
 }
 int main(){
@@ -181,28 +246,36 @@ int main(){
    check(result.size()==44u+6u*16u*6000u,
          "NA05 exact WAV frame count at 120 BPM");
    if(result.size()!=44u+6u*16u*6000u)continue;
-   double leftEnergy=0.,rightEnergy=0.,polarity=0.;
-   int crossings=0;
-   float prior=pcm24(result,44u+100u*6u);
-   for(std::size_t frame=101;frame<=1300;++frame){
-     const auto l=pcm24(result,44u+frame*6u);
-     const auto r=pcm24(result,44u+frame*6u+3u);
-     leftEnergy+=static_cast<double>(l)*l;
-     rightEnergy+=static_cast<double>(r)*r;
-     polarity+=static_cast<double>(l)*r;
-     if(prior<0.f&&l>=0.f)++crossings;
-     prior=l;
+   const auto oracle=inspectSine(result,sourceRate,semitones);
+   check(oracle.stereo,"NA05 true left/right assignment and gain ratio");
+   check(oracle.frequency,"NA05 interpolated sine-period pitch");
+   check(oracle.duration,"NA05 audible end-of-sample and silent post-tail");
+   // Falsify the oracle with three independently controlled corruptions.
+   if(sourceRate==48000u&&semitones==-24){
+     auto swapped=result;
+     for(std::size_t frame=0;frame<96000u;++frame)
+       for(int i=0;i<3;++i)
+         std::swap(swapped[44u+6u*frame+static_cast<std::size_t>(i)],
+                   swapped[44u+6u*frame+3u+static_cast<std::size_t>(i)]);
+     check(!inspectSine(swapped,sourceRate,semitones).stereo,
+           "NA05 negative control must reject swapped stereo channels");
+     auto wrongFrequency=result;
+     for(std::size_t frame=0;frame<96000u;++frame){
+       const float v=static_cast<float>(.3*std::sin(
+                       2.*3.141592653589793*160.*frame/48000.));
+       putPcm24(wrongFrequency,44u+6u*frame,v);
+       putPcm24(wrongFrequency,44u+6u*frame+3u,-.5f*v);
+     }
+     check(!inspectSine(wrongFrequency,sourceRate,semitones).frequency,
+           "NA05 negative control must reject 160Hz in place of 250Hz");
    }
-   check(leftEnergy>1.&&rightEnergy>.2&&polarity<-.2,
-         "NA05 non-silent opposite-polarity stereo WAV PCM");
-   const double actualHz=crossings*48000./1200.;
-   const double expectedHz=1000.*std::exp2(semitones/12.);
-   check(std::abs(actualHz-expectedHz)<std::max(120.,expectedHz*.05),
-         "NA05 pitch frequency from actual WAV zero crossings");
-   if(sourceRate==384000&&semitones==24) {
-     check(std::abs(pcm24(result,44u+2500u*6u))<.002f&&
-           std::abs(pcm24(result,44u+2500u*6u+3u))<.002f,
-           "NA05 384k/+24 sample tail should end before frame 2500");
+   if(sourceRate==384000u&&semitones==24){
+     auto earlyEnd=result;
+     for(std::size_t frame=1301u;frame<96000u;++frame)
+       for(unsigned byte=0;byte<6;++byte)
+         earlyEnd[44u+6u*frame+byte]=0;
+     check(!inspectSine(earlyEnd,sourceRate,semitones).duration,
+           "NA05 negative control must reject early sample truncation");
    }
   }
  }

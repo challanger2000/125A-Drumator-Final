@@ -814,7 +814,11 @@ VSTGUI::CView* Controller::createCustomView(VSTGUI::UTF8StringPtr name,
    if(candidate)view->enableV101(); // noexcept
    return view;
  }catch(...) {
-   return nullptr; // VSTGUI can handle a missing custom View.
+   // VSTGUI may replace a failed custom View with a generic empty CView.
+   // Signal the concrete editor so attached() rejects that fake success.
+   if(auto* drumatorEditor=dynamic_cast<DrumatorEditor*>(editor))
+     drumatorEditor->markRequiredViewFailed();
+   return nullptr;
  }
 }
 std::uint8_t Controller::velocity(std::size_t p,std::size_t r,std::size_t s) const noexcept {

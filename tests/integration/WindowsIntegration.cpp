@@ -100,6 +100,7 @@ namespace drumator::qa {
 std::function<bool(VSTGUI::IDataPackage*)> exportDragObserver;
 thread_local bool legacyTriggerOrdering=false;
 thread_local int viewCtorFailureSite=-1;
+thread_local int editorAttachFailureSite=-1;
 thread_local int liveUpdateFailures=0;
 thread_local int liveEndFailures=0;
 std::atomic<AuditMutation> auditMutation{AuditMutation::none};
@@ -131,6 +132,8 @@ struct IntegrationAccess {
  static bool sampleEditorLive(const DrumatorView& view){return view.sampleEditorLive_;}
  static bool liveStopPending(const DrumatorView& view){return view.sampleEditorLiveStopPending_;}
  static std::uint64_t liveSession(const DrumatorView& view){return view.sampleEditorLiveSession_;}
+ static std::size_t liveSessionRow(const DrumatorView& view){return view.sampleEditorLiveRow_;}
+ static std::size_t editorModalRow(const DrumatorView& view){return view.sampleEditorRow_;}
  static void expireLiveRetry(DrumatorView& view){view.sampleEditorLiveSentAt_-=std::chrono::seconds(2);}
  static std::uint64_t processorLiveSession(const Processor& p,std::size_t row){return p.liveSessions_[row];}
  static double v101LayoutHeight(const DrumatorView& view){return view.v101_.height();}
@@ -6771,6 +6774,54 @@ void testNa01FailedConstructionRegistration(){
        "NA01 recovered factory View did not unregister");
  evidence("NA01/NV01 11 native factory OOM boundaries, no ABI exception, recovery PASS");
 }
+void testNv01ActualAttachFaultAndRequiredViewFallback(){
+ Fixture f;(void)f.openV101();
+ const auto baseline=IntegrationAccess::viewCount(*f.c);
+ auto faultAttach=[&](int attachSite,int viewSite) {
+   auto* editor=dynamic_cast<DrumatorEditor*>(f.c->createView(ViewType::kEditor));
+   check(editor!=nullptr,"NV01 production editor creation failed"); 
+   if(!editor)return;
+   ResizeHost host;
+   host.hwnd=CreateWindowExW(0,L"STATIC",L"NV01 attach fault",WS_OVERLAPPEDWINDOW,
+                         0,0,1280,850,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
+   check(host.hwnd!=nullptr,"NV01 native host HWND missing");
+   static_cast<IPlugView*>(editor)->setFrame(&host);
+   qa::editorAttachFailureSite=attachSite;
+   qa::viewCtorFailureSite=viewSite;
+   bool escaped=false;tresult result=kResultOk;
+   try {result=static_cast<IPlugView*>(editor)->attached(host.hwnd,kPlatformTypeHWND);}
+   catch(...){escaped=true;}
+   qa::editorAttachFailureSite=-1;qa::viewCtorFailureSite=-1;
+   check(!escaped&&result!=kResultOk,
+         "NV01 attached leaked an exception or accepted failed required View");
+   check(editor->getFrame()==nullptr,"NV01 failed attach retained SDK frame");
+   check(IntegrationAccess::viewCount(*f.c)==baseline,
+         "NV01 failed attach retained a registered custom View");
+   (void)static_cast<IPlugView*>(editor)->removed(); // host may call removed on failure
+   static_cast<IPlugView*>(editor)->setFrame(nullptr);
+   editor->release();DestroyWindow(host.hwnd);
+ };
+ faultAttach(0,-1); // before SDK CFrame exists
+ faultAttach(1,-1); // after successful native SDK attach
+ faultAttach(-1,4); // required CBitmap fails; SDK would substitute empty CView
+ auto* recovered=dynamic_cast<DrumatorEditor*>(f.c->createView(ViewType::kEditor));
+ check(recovered!=nullptr,"NV01 new factory editor unavailable after fault");
+ if(recovered){
+   ResizeHost host;host.hwnd=CreateWindowExW(0,L"STATIC",L"NV01 recovered",
+     WS_OVERLAPPEDWINDOW,0,0,1280,850,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
+   static_cast<IPlugView*>(recovered)->setFrame(&host);
+   check(static_cast<IPlugView*>(recovered)->attached(host.hwnd,kPlatformTypeHWND)==kResultOk,
+         "NV01 editor could not reattach cleanly after OOM");
+   check(IntegrationAccess::viewCount(*f.c)==baseline+1,
+         "NV01 recovered attach does not construct real required View");
+   (void)static_cast<IPlugView*>(recovered)->removed();
+   static_cast<IPlugView*>(recovered)->setFrame(nullptr);
+   recovered->release();DestroyWindow(host.hwnd);
+ }
+ check(IntegrationAccess::viewCount(*f.c)==baseline,
+       "NV01 factory+native attach/removed leaked a registered View");
+ evidence("NV01 native attach before/after CFrame, empty fallback rejected, recovery PASS");
+}
 void testNa02RefusedShrinkExportPosition(){
  using L=UiV101Layout;
  Fixture f;KitState kit;kit.visible=1;kit.grid.fill(0);
@@ -6872,6 +6923,38 @@ void testNv02LiveEndRetryAndNv04StartStatus(){
  }
  evidence("NV02 rejected UPDATE+6 END transmissions: token retained, CANCEL blocked, retry and processor release PASS");
  evidence("NV04 initial rejected LIVE UPDATE: latch, session and status correctly OFF PASS");
+}
+void testNv02RecallPendingEndDoesNotLoseRow(){
+ Fixture f;KitState kit;kit.visible=1;kit.grid.fill(0);
+ kit.names[0]="NV02-recall.wav";kit.wav[0]=constantStereo(.5f,-.25f);
+ f.kit(kit);prepareAudio(*f.p);(void)f.openV101();
+ auto* view=IntegrationAccess::view(*f.c,0);
+ check(IntegrationAccess::openSampleEditorForCapture(*view,0)&&
+       IntegrationAccess::sampleEditorLive(*view),
+       "NV02 recall scenario cannot establish LIVE");
+ const auto token=IntegrationAccess::liveSession(*view);
+ qa::liveEndFailures=2;
+ f.kit(kit); // processor + controller recall, discards the WAV modal
+ check(!IntegrationAccess::sampleEditorOpen(*view)&&
+       IntegrationAccess::editorModalRow(*view)==kRows&&
+       IntegrationAccess::sampleEditorLive(*view)&&
+       IntegrationAccess::liveStopPending(*view)&&
+       IntegrationAccess::liveSession(*view)==token&&
+       IntegrationAccess::liveSessionRow(*view)==0,
+       "NV02 recall lost pending END identity");
+ qa::liveEndFailures=0;
+ IntegrationAccess::expireLiveRetry(*view);
+ IntegrationAccess::pollMeter(*view);
+ check(!IntegrationAccess::sampleEditorLive(*view)&&
+       !IntegrationAccess::liveStopPending(*view)&&
+       IntegrationAccess::liveSessionRow(*view)==kRows&&
+       IntegrationAccess::liveSession(*view)==0,
+       "NV02 closed WAV modal did not retry pending END after recall");
+ check(IntegrationAccess::openSampleEditorForCapture(*view,0),
+       "NV02 same View cannot reopen WAV editor after recall");
+ check(IntegrationAccess::sampleEditorLive(*view),
+       "NV02 WAV editor did not establish new session after recall");
+ evidence("NV02 two rejected END on recall: row preserved, modal-free retry, reopen PASS");
 }
 void testNv03HighRatePreviewAudible(){
  Fixture f;KitState kit;kit.visible=1;kit.grid.fill(0);
@@ -7012,10 +7095,12 @@ int main(int argc,char** argv){
  run("RV05 native Complexity OOM event boundaries",
      testRv05ComplexityAllocationFailure);
  run("NA01 constructor OOM lifetime",testNa01FailedConstructionRegistration);
+ run("NV01 native attach fail/fallback/recover",testNv01ActualAttachFaultAndRequiredViewFallback);
  run("NA02 rejected WAV shrink EXPORT hitbox",testNa02RefusedShrinkExportPosition);
  run("NA03 peer sample invalidates LIVE",testNa03SampleInvalidatesPeerLive);
  run("NA04 disabled Pattern actions inert",testNa04DisabledPopupActionsDoNotEdit);
  run("NV02 LIVE END retry and NV04 start feedback",testNv02LiveEndRetryAndNv04StartStatus);
+ run("NV02 recall pending END row preserved",testNv02RecallPendingEndDoesNotLoseRow);
  run("NV03 384k/24 PREVIEW actual PCM STOP/restart",testNv03HighRatePreviewAudible);
  run("DA01/RA03 post-insertion text ownership, native name OOM and close",
      testAuditDa01PostAttachAndRa03NameExceptions);

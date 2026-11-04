@@ -8,6 +8,36 @@ namespace drumator {
 class DrumatorEditor final : public VSTGUI::VST3Editor {
 public:
  using VSTGUI::VST3Editor::VST3Editor;
+ // A required custom View may fail while VSTGUI substitutes a plain CView.
+ // Treat that as an attach failure rather than claiming a working editor.
+ void markRequiredViewFailed() noexcept {requiredViewFailed_=true;}
+ bool requiredViewFailed() const noexcept {return requiredViewFailed_;}
+ Steinberg::tresult PLUGIN_API attached(void* parent,Steinberg::FIDString type) override {
+   requiredViewFailed_=false;
+   failedAttachAlreadyCleaned_=false;
+   try {
+     const auto result=VSTGUI::VST3Editor::attached(parent,type);
+     if(result==Steinberg::kResultOk&&getFrame()&&!requiredViewFailed_)
+       return result;
+   }catch(...) {
+     // Do not let VSTGUI/Win32 allocation errors cross the VST3 host ABI.
+   }
+   // Use the SDK's own close/removal path: it releases frame children,
+   // parameter listeners, mouse hooks and any partially built custom View.
+   // Even if cleanup encounters a second low-memory failure, never throw
+   // back into Studio One's attached() call.
+   try {(void)VSTGUI::VST3Editor::removed();}catch(...) {}
+   failedAttachAlreadyCleaned_=true;
+   return Steinberg::kResultFalse;
+ }
+ Steinberg::tresult PLUGIN_API removed() override {
+   if(failedAttachAlreadyCleaned_) {
+     failedAttachAlreadyCleaned_=false;
+     return Steinberg::kResultOk;
+   }
+   try {return VSTGUI::VST3Editor::removed();}
+   catch(...) {return Steinberg::kResultFalse;}
+ }
  double effectiveScale() const {return getAbsScaleFactor();}
 #ifdef VST3_CONTENT_SCALE_SUPPORT
  Steinberg::tresult PLUGIN_API setContentScaleFactor(ScaleFactor factor) override {
@@ -74,5 +104,8 @@ public:
    }
    return true;
  }
+private:
+ bool requiredViewFailed_{false};
+ bool failedAttachAlreadyCleaned_{false};
 };
 }

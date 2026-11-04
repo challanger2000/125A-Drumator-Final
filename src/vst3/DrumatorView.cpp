@@ -758,9 +758,11 @@ bool DrumatorView::removed(VSTGUI::CView* parent) {
  controller_.cancelSampleEditorRequestsForView(this);
  pendingEditorRow_=kRows;pendingViewport_=false;pendingMarkerKind_=0;
  draggingScroll_=false;
- if(sampleEditorOpen_){controller_.stopSampleEditPreview();
-   if(sampleEditorLive_)(void)stopSampleEditorLive();
-   sampleEditorOpen_=false;sampleEditorRow_=kRows;sampleEditorDrag_=0;}
+ if(sampleEditorOpen_)controller_.stopSampleEditPreview();
+ // Even when a previous recall closed the modal, END must use the retained
+ // live row/token before this native View is released.
+ if(sampleEditorLive_)(void)stopSampleEditorLive();
+ sampleEditorOpen_=false;sampleEditorRow_=kRows;sampleEditorDrag_=0;
  if(laneDragActive_){controller_.endVelocityStroke(false,this);laneDragActive_=false;}
  detailDragControl_=-1;detailDragRow_=kRows;
  activeKnob_=-1;knobRow_=kRows;
@@ -1045,7 +1047,8 @@ void DrumatorView::refreshFromHost(bool relayout) {
  }
 }
 void DrumatorView::pollMeter() noexcept {
- if(sampleEditorOpen_&&sampleEditorLive_){
+ // A pending rollback survives recall/closing of the WAV modal.
+ if(sampleEditorLive_&&(sampleEditorOpen_||sampleEditorLiveStopPending_)){
    const auto now=std::chrono::steady_clock::now();
    if(sampleEditorLiveStopPending_) {
      // An unacknowledged END must be retried, not replaced with a heartbeat.
@@ -2971,7 +2974,8 @@ bool DrumatorView::startSampleEditorLive() noexcept {
  std::uint64_t session=0;
  if(!controller_.beginLiveSampleEdit(sampleEditorRow_,sampleEditorRevision_,session))
    return false;
- sampleEditorLive_=true;sampleEditorLiveSession_=session;
+ sampleEditorLive_=true;sampleEditorLiveRow_=sampleEditorRow_;
+ sampleEditorLiveSession_=session;
  sampleEditorLiveStopPending_=false;
  sampleEditorLivePending_=true;
  publishSampleEditorLive(true);
@@ -2980,13 +2984,14 @@ bool DrumatorView::startSampleEditorLive() noexcept {
 }
 bool DrumatorView::stopSampleEditorLive() noexcept {
  if(!sampleEditorLive_)return true;
- if(!controller_.endLiveSampleEdit(sampleEditorRow_,sampleEditorLiveSession_)){
+ if(!controller_.endLiveSampleEdit(sampleEditorLiveRow_,sampleEditorLiveSession_)){
    // NV02: retain token/row and block CANCEL/APPLY until rollback is confirmed.
    sampleEditorLiveStopPending_=true;
    sampleEditorLivePending_=false;
    return false;
  }
  sampleEditorLive_=false;sampleEditorLiveSession_=0;
+ sampleEditorLiveRow_=kRows;
  sampleEditorLivePending_=false;sampleEditorLiveStopPending_=false;
  return true;
 }

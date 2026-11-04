@@ -11,6 +11,7 @@ extern thread_local bool legacyTriggerOrdering; // regression negative, test EXE
 extern thread_local int liveUpdateFailures; // QA-only transient message loss
 extern thread_local int liveEndFailures; // QA-only rejected END transmissions
 extern thread_local int viewCtorFailureSite; // targeted OOM after View resource initialization
+extern thread_local int editorAttachFailureSite; // 0 pre-frame, 1 post-attach
 enum class AuditMutation { none, keepStaleExportTempo, suppressZeroStop, staleDuration, skipPeerCommit,
  basenameOnly, delayMidiOne, dropMidi, doubleMidi, zeroPrefix, zeroLaterPrefix,
  ignoreSongLengths,
