@@ -295,9 +295,10 @@ struct UiV101NativePreview final {
    constexpr double left=192.,right=1118.,top=7.,bottom=76.;
    const double fit=std::min((right-left)/bounds.width,
                              (bottom-top)/bounds.height);
-   // -20% optical weight: the title must not visually dominate the controls.
-   // Restrict its rightmost edge clear of the adjacent LIMIT key.
-   constexpr double kTitleReduction=0.80;
+   // RC2: 20% smaller than the previous 80%-scale wordmark.
+   // Final scale = 0.80 * 0.80 = 0.64 of the original fitted title.
+   // Preserve the exact center, original PNG pixels, and aspect ratio.
+   constexpr double kTitleReduction=0.64;
    const double width=bounds.width*fit*kTitleReduction;
    const double height=bounds.height*fit*kTitleReduction;
    return {(left+right-width)/2.,(top+bottom-height)/2.,
@@ -572,6 +573,10 @@ struct UiV101NativePreview final {
    fill(c,{p.x0+3.,outer.top+2.,p.x1-3.,outer.top+3.},{81,108,123,255});
    fill(c,{p.x0+3.,outer.bottom-3.,p.x1-3.,outer.bottom-2.},
         {11,21,31,255});
+   // RC2: quiet factory engraving in the free lower footer band.
+   // Shared between MAIN and SONG, not a clickable control.
+   label(c,"VERSION 1.5",{599.,footerTop+34.,681.,footerTop+44.},
+         9,{153,171,185,255},true);
  }
  // PERF02: draw only the 127x32 LED meter well; do not rebuild the
  // 1280px faceplate, instrument lanes or controller-scene on meter updates.
