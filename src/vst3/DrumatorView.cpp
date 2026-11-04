@@ -2841,52 +2841,49 @@ bool DrumatorView::startExportDrag(int option) {
   const bool wav=option==1||option==3;
   const bool song=option>=2;
   const auto path=pathToUtf8(output);
-  if(!wav) {
-   // F06: one physical MIDI file per programmed row in ONE CF_HDROP.
-   // Save As and MIDI drag now contain identical MIDI note bytes.
-   if(!controller_.exportMidiRows(song,path)){
-    DragExportFile::discardFailedMidiRows(output);
-    status_=controller_.hasExportTempo()?
-        "DRAG: SEPARATE MIDI EXPORT FAILED":
-        "EXPORT: HOST TEMPO UNAVAILABLE - PLAY HOST AND RETRY";
-    return false;
-   }
-   const auto source=MidiDragPackage::create(output);
-   if(!source){
-    DragExportFile::discardFailedMidiRows(output);
-    status_="DRAG: MIDI FILE LIST INVALID";
-    return false;
-   }
-   const bool started=doDrag(VSTGUI::DragDescription(source));
-   // Retain physical files after drag for asynchronous DAW importing.
-   status_=started?"MIDI FILE DRAG STARTED - DROP INTO DAW":
-                   "MIDI FILE DRAG NOT STARTED";
-   return started;
+  VSTGUI::SharedPointer<VSTGUI::IDataPackage> source{};
+  if(!wav){
+    // F06: all MIDI rows are separate files inside one CF_HDROP payload.
+    if(!controller_.exportMidiRows(song,path)){
+      DragExportFile::discardFailedMidiRows(output);
+      status_=controller_.hasExportTempo()?
+          "DRAG: SEPARATE MIDI EXPORT FAILED":
+          "EXPORT: HOST TEMPO UNAVAILABLE - PLAY HOST AND RETRY";
+      return false;
+    }
+    source=MidiDragPackage::create(output);
+    if(!source){
+      DragExportFile::discardFailedMidiRows(output);
+      status_="DRAG: MIDI FILE LIST INVALID";
+      return false;
+    }
+  }else{
+    // WAV continues to advertise one independent file.
+    const bool exported=controller_.exportWav(song,path);
+    std::error_code ec;
+    if(!exported||!std::filesystem::is_regular_file(output,ec)||ec||
+       std::filesystem::file_size(output,ec)==0||ec){
+      DragExportFile::discardFailed(output);
+      status_=controller_.hasExportTempo()?"DRAG: EXPORT FAILED":
+         "EXPORT: HOST TEMPO UNAVAILABLE - PLAY HOST AND RETRY";
+      return false;
+    }
+    source=VSTGUI::CDropSource::create(
+       path.c_str(),static_cast<std::uint32_t>(path.size()+1),
+       VSTGUI::IDataPackage::kFilePath);
+    if(!source){
+      DragExportFile::discardFailed(output);
+      status_="DRAG: FILE PACKAGE UNAVAILABLE";
+      return false;
+    }
   }
-  const bool exported=controller_.exportWav(song,path);
-  std::error_code ec;
-  if(!exported||!std::filesystem::is_regular_file(output,ec)||ec||
-     std::filesystem::file_size(output,ec)==0||ec){
-    DragExportFile::discardFailed(output);
-    status_=controller_.hasExportTempo()?"DRAG: EXPORT FAILED":
-       "EXPORT: HOST TEMPO UNAVAILABLE - PLAY HOST AND RETRY";
-    return false;
-  }
-  // CFilePath is a UTF-8 NUL-terminated path. VSTGUI translates it to
-  // Windows CF_HDROP, which Studio One can accept on its arrange tracks.
-  const auto source=VSTGUI::CDropSource::create(
-      path.c_str(),static_cast<std::uint32_t>(path.size()+1),
-      VSTGUI::IDataPackage::kFilePath);
-  if(!source){
-    // The output must remain available to the host if a drag was started,
-    // but at this point no drag has been published.
-    DragExportFile::discardFailed(output);
-    status_="DRAG: FILE PACKAGE UNAVAILABLE";
-    return false;
-  }
+  // Exactly one native OLE entry point for WAV and multi-file MIDI.
+  // Its test-only interception in ReauditInstrumentation is the same.
   const bool started=doDrag(VSTGUI::DragDescription(source));
   // A started OLE drag is not proof that the DAW actually accepted the file.
-  status_=started?"DRAG STARTED - DROP INTO DAW":"DRAG NOT STARTED";
+  status_=started?(wav?"DRAG STARTED - DROP INTO DAW":
+                           "MIDI FILE DRAG STARTED - DROP INTO DAW"):
+                  (wav?"DRAG NOT STARTED":"MIDI FILE DRAG NOT STARTED");
   // Retain even on an unsuccessful drag: VSTGUI/host might have seen the path.
   return started;
  } catch(const std::exception&) {
