@@ -6738,7 +6738,7 @@ void testNa01FailedConstructionRegistration(){
  const auto baseline=IntegrationAccess::viewCount(*f.c);
  // Exercise each real post-resource View-constructor boundary. Unlike
  // arbitrary global new() failure, this does not fault inside SDK internals.
- for(int site=0;site<10;++site){
+ for(int site=0;site<11;++site){
    bool trapped=false;
    qa::viewCtorFailureSite=site;
    try {
@@ -6758,7 +6758,7 @@ void testNa01FailedConstructionRegistration(){
  recovered->forget();
  check(IntegrationAccess::viewCount(*f.c)==baseline,
        "NA01 recovered View did not unregister");
- evidence("NA01 10 deterministic ctor resource-boundary faults, recovery, Controller notifications PASS");
+ evidence("NA01 11 deterministic ctor resource-boundary faults, recovery, Controller notifications PASS");
 }
 void testNa02RefusedShrinkExportPosition(){
  using L=UiV101Layout;
