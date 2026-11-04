@@ -573,10 +573,15 @@ struct UiV101NativePreview final {
    fill(c,{p.x0+3.,outer.top+2.,p.x1-3.,outer.top+3.},{81,108,123,255});
    fill(c,{p.x0+3.,outer.bottom-3.,p.x1-3.,outer.bottom-2.},
         {11,21,31,255});
-   // RC2: quiet factory engraving in the free lower footer band.
-   // Shared between MAIN and SONG, not a clickable control.
-   label(c,"VERSION 1.5",{599.,footerTop+34.,681.,footerTop+44.},
-         9,{153,171,185,255},true);
+   // V15-FTR1: dedicated centered second footer line. Clip the 9px
+   // engraving to its own inset, so it can NEVER cover status or controls.
+   // Shared by MAIN and SONG and intentionally not clickable.
+   const auto v=L::footerVersion;
+   const Box engraving{v.x0,footerTop+v.y0,v.x1,footerTop+v.y1};
+   c.saveGlobalState();
+   c.setClipRect(engraving);
+   label(c,"VERSION 1.5",engraving,9,{153,171,185,255},true);
+   c.restoreGlobalState();
  }
  // PERF02: draw only the 127x32 LED meter well; do not rebuild the
  // 1280px faceplate, instrument lanes or controller-scene on meter updates.
@@ -895,11 +900,16 @@ struct UiV101NativePreview final {
        scene.visibleRows>=L::instruments);
    cap(c,L::footerRemove,footerTop,"REMOVE ROW",false,10,vintageButtons,
        !scene.canRemoveRow);
-   label(c,summary,{260.,footerTop+9.,510.,footerTop+33.},11,
-         {222,213,197,255},false);
-   if(!scene.status.empty())
-     fittedStatus(c,scene.status.c_str(),{520.,footerTop+9.,900.,footerTop+33.},
-           10,{220,203,180,255},false);
+   const auto summaryR=L::footerSummary;
+   fittedStatus(c,summary,
+     {summaryR.x0,footerTop+summaryR.y0,summaryR.x1,footerTop+summaryR.y1},
+     11,{222,213,197,255},false);
+   if(!scene.status.empty()) {
+     const auto statusR=L::footerStatus;
+     fittedStatus(c,scene.status.c_str(),
+       {statusR.x0,footerTop+statusR.y0,statusR.x1,footerTop+statusR.y1},
+       10,{220,203,180,255},false);
+   }
    // Both controls are identically sized 95x25 machined metal keys.
    cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10,vintageButtons,ui.firstRow==0);
    cap(c,L::footerNext,footerTop,"NEXT PAGE",false,10,vintageButtons,ui.firstRow+shown>=scene.visibleRows);

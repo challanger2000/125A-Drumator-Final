@@ -48,6 +48,13 @@ struct UiV101Layout final {
   static constexpr Rect footerNext{1130.,10.,1225.,35.};
   static constexpr Rect footerPanel{footerPanelLeft,footerPanelTop,
                                    footerPanelRight,footerPanelBottom};
+  // The shared factory engraving gets its own SECOND line in the middle of
+  // MAIN and SONG. Never place text over either status or any footer button.
+  // All coordinates are footer-relative and use the same 48px host scaling.
+  static constexpr Rect footerVersion{599.,27.,681.,37.};
+  static constexpr Rect footerSummary{260.,9.,510.,25.};
+  static constexpr Rect footerStatus{520.,9.,900.,25.};
+  static constexpr Rect songFooterStatus{32.,9.,1090.,25.};
   // SONG has no bottom page controls: its EXPORT key is aligned with the
   // right edge of the SONG navigation group.
   static constexpr Rect songFooterExport{1149.,10.,1244.,35.};

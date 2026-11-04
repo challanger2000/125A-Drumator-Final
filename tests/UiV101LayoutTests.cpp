@@ -52,6 +52,36 @@ int main(){
                 L::footerPanelRight==L::surfaceRight-4.);
   static_assert(L::footerPanelRight-L::footerPanelLeft==1248.);
   static_assert(L::footerPanelTop==4.&&L::footerPanelBottom==42.);
+  // V15-FTR1: no text or native hit area may cover the 9px version
+  // engraving in either MAIN or SONG. All regions are footer-relative.
+  constexpr auto separate=[](L::Rect a,L::Rect b) noexcept {
+    return a.x1<=b.x0||b.x1<=a.x0||a.y1<=b.y0||b.y1<=a.y0;
+  };
+  static_assert((L::footerVersion.x0+L::footerVersion.x1)/2.==L::width/2.);
+  static_assert(L::footerVersion.y0>=L::footerStatus.y1+2.);
+  static_assert(L::footerVersion.y0>=L::songFooterStatus.y1+2.);
+  static_assert(L::footerVersion.y1<=L::footerPanel.y1-4.);
+  static_assert(L::footerVersion.y0>=L::footerPanel.y0+4.);
+  static_assert(separate(L::footerVersion,L::footerSummary));
+  static_assert(separate(L::footerVersion,L::footerStatus));
+  static_assert(separate(L::footerVersion,L::songFooterStatus));
+  static_assert(separate(L::footerVersion,L::footerAdd));
+  static_assert(separate(L::footerVersion,L::footerRemove));
+  static_assert(separate(L::footerVersion,L::footerPrev));
+  static_assert(separate(L::footerVersion,L::footerNext));
+  static_assert(separate(L::footerVersion,L::footerExport));
+  static_assert(separate(L::footerVersion,L::songFooterExport));
+  for(const double height:{432.,686.}){
+    const double top=height-L::footer;
+    const auto v=L::footerVersion;
+    CHECK(top+v.y0>top+L::footerPanel.y0);
+    CHECK(top+v.y1<top+L::footerPanel.y1);
+    // At the version midpoint, both native footer status fields are empty.
+    const double cx=(v.x0+v.x1)*.5,cy=(v.y0+v.y1)*.5;
+    CHECK(v.hit(cx,cy)&&!L::footerStatus.hit(cx,cy)&&
+          !L::songFooterStatus.hit(cx,cy)&&
+          !L::footerExport.hit(cx,cy)&&!L::songFooterExport.hit(cx,cy));
+  }
   static_assert(L::songFooterExport.x1-L::songFooterExport.x0==95.);
   static_assert(L::songFooterExport.x1==drumator::UiSongLayout::nextRight);
   // COMPLETE Branding master (all 30 SVG paths) must sit INSIDE the

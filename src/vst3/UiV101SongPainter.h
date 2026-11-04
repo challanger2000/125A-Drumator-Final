@@ -153,11 +153,15 @@ struct UiV101SongPainter final {
        "ADD ENTRY",false,10,count>=SongChain::kCapacity);
    key(c,S::removeLeft,S::choiceTop,S::removeRight,S::choiceBottom,
        "REMOVE LAST",false,9,count<=1);
-   // Dedicated SONG footer plate with status at left and EXPORT at right.
-   P::footerPlate(c,bottom-UiV101Layout::footer);
+   // Shared two-line footer; SONG status must stay ABOVE the engraving,
+   // even for long error text and in hosts with non-default UI zoom.
+   const double footerTop=bottom-UiV101Layout::footer;
+   P::footerPlate(c,footerTop);
+   const auto statusR=UiV101Layout::songFooterStatus;
    P::fittedStatus(c,status&&*status?status:
            "REST and A-H are selectable. Only ADD ENTRY adds positions.",
-           {32.,394.,1090.,419.},11,{205,221,231,255},false);
+           {statusR.x0,footerTop+statusR.y0,statusR.x1,footerTop+statusR.y1},
+           11,{205,221,231,255},false);
  }
 };
 } // namespace drumator::v101
