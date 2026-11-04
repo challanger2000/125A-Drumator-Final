@@ -37,6 +37,7 @@
 #include "vstgui/lib/platform/platformfactory.h"
 #include "vstgui/lib/platform/win32/win32factory.h"
 #include "vstgui/lib/controls/ctextedit.h"
+#include "vstgui/lib/iviewlistener.h"
 #include "vstgui/lib/platform/iplatformframe.h"
 #include "vstgui/lib/cbitmap.h"
 #include "vstgui/lib/coffscreencontext.h"
@@ -152,6 +153,7 @@ struct IntegrationAccess {
  static const void* modernStrokeOwner(const DrumatorView& v){return &v.v101_;}
  static void openComplexityFaultFixture(DrumatorView& v){v.beatCreatorOpen_=true;}
  static void activateComplexity(DrumatorView& v){v.editBeatCreatorComplexity();}
+ static void activateRowName(DrumatorView& v,std::size_t row){v.editName(row);}
  static bool complexityActive(const DrumatorView& v){return v.complexityEditActive_;}
  static VSTGUI::CTextEdit* complexityControl(const DrumatorView& v){return v.complexityEdit_;}
  static unsigned complexityValue(const DrumatorView& v){return v.beatCreatorComplexity_;}
@@ -4496,9 +4498,11 @@ void testEveryButtonFeedbackCategory(){
    noFlash(*v,mute.x,mute.y,"BF01 MUTE ON had duplicate amber flash");
    check(f.c->isRowMuted(0),"BF01 MUTE did not activate");
    noFlash(*v,mute.x,mute.y,"BF01 MUTE OFF had duplicate amber flash");
+   check(!f.c->isRowMuted(0),"BF01 MUTE OFF failed to clear the latch");
    noFlash(*v,solo.x,solo.y,"BF01 SOLO ON had duplicate amber flash");
    check(f.c->isRowSolo(0),"BF01 SOLO did not activate");
    noFlash(*v,solo.x,solo.y,"BF01 SOLO OFF had duplicate amber flash");
+   check(!f.c->isRowSolo(0),"BF01 SOLO OFF failed to clear the latch");
    noFlash(*v,rowPoint(L::select).x,rowPoint(L::select).y,
            "BF01 channel SELECT wrongly flashed");
    const auto step=rowPoint(L::stepRect(0));
@@ -6172,6 +6176,183 @@ void testRv04SongUsesAudiblePatternLengths(){
  evidence("RV04 actual Processor SONG lengths A/B/C: 16 wraps Step16, 32 plays Step16 PASS");
 }
 
+void testAuditDa01PostAttachAndRa03NameExceptions(){
+ struct PostInsertionFault final : VSTGUI::ViewContainerListenerAdapter {
+   bool fired=false;
+   void viewContainerViewAdded(VSTGUI::CViewContainer*,VSTGUI::CView*) override{
+     if(!fired){fired=true;throw std::bad_alloc{};}
+   }
+ };
+ Fixture f;KitState kit;kit.visible=2;f.kit(kit);
+ (void)f.openV101();auto* v=IntegrationAccess::view(*f.c,0);
+ auto* frame=v->getFrame();
+ check(frame!=nullptr,"DA01 fixture frame not attached");
+ IntegrationAccess::openComplexityFaultFixture(*v);
+ const auto before=frame->getNbViews();
+ PostInsertionFault trap;
+ frame->registerViewContainerListener(&trap);
+ bool escaped=false;
+ try{IntegrationAccess::activateComplexity(*v);}catch(...){escaped=true;}
+ frame->unregisterViewContainerListener(&trap);
+ check(trap.fired&&!escaped,"DA01 addView post-insertion exception escaped");
+ check(frame->getNbViews()==before&&!IntegrationAccess::complexityControl(*v)&&
+       !IntegrationAccess::complexityActive(*v),
+       "DA01 orphaned native Complexity child after partial addView");
+ IntegrationAccess::activateComplexity(*v);
+ auto* control=IntegrationAccess::complexityControl(*v);
+ check(control&&frame->isChild(control)&&IntegrationAccess::complexityActive(*v),
+       "DA01 Complexity re-open after post-insertion OOM failed");
+ control->setText("48");v->valueChanged(control);
+ check(IntegrationAccess::complexityValue(*v)==48,
+       "DA01 post-OOM recovery did not commit valid Complexity");
+ // RA03: the same post-addView rule also protects an Instrument name field.
+ const auto afterComplexity=frame->getNbViews();
+ PostInsertionFault nameTrap;
+ frame->registerViewContainerListener(&nameTrap);
+ escaped=false;
+ try{IntegrationAccess::activateRowName(*v,0);}catch(...){escaped=true;}
+ frame->unregisterViewContainerListener(&nameTrap);
+ check(nameTrap.fired&&!escaped&&frame->getNbViews()==afterComplexity&&
+       !IntegrationAccess::edit(*v),
+       "RA03 orphaned native Row Name child after partial addView");
+ IntegrationAccess::activateRowName(*v,0);
+ auto* name=IntegrationAccess::edit(*v);
+ check(name&&frame->isChild(name),"RA03 row name failed to recover");
+ name->setText("Industrial Snare 7");
+ const auto oldName=f.c->customName(0);
+ allocationFail=0;escaped=false;
+ try{v->valueChanged(name);}catch(...){escaped=true;}
+ const bool injected=allocationFail==-1;
+ allocationFail=-1;
+ check(injected&&!escaped&&f.c->customName(0)==oldName,
+       "RA03 native name callback OOM escaped or partially changed the name");
+ IntegrationAccess::activateRowName(*v,0);
+ name=IntegrationAccess::edit(*v);
+ check(name!=nullptr,"RA03 row name editor was lost after OOM");
+ name->setText("Industrial Snare");
+ v->valueChanged(name);
+ check(f.c->customName(0)=="Industrial Snare",
+       "RA03 row name callback failed to recover after OOM");
+ // Closing an actual native editor must release both correctly attached
+ // CTextEdits and must not revisit either already-removed fault child.
+ f.closeLast();
+ check(IntegrationAccess::viewCount(*f.c)==0,
+       "DA01/RA03 native editor close leaked registered view");
+ evidence("DA01 post-insertion child ownership and RA03 name OOM/native-close PASS");
+}
+void testAuditDa02PeerPatternLengthRevokesModernStroke(){
+ using L=UiV101Layout;
+ const auto sx=[](std::size_t step){
+   const auto r=L::stepRect(step);return (r.x0+r.x1)*.5;
+ };
+ for(const int mode:{VSTGUI::kShift,VSTGUI::kShift|VSTGUI::kAlt}){
+   Fixture f;KitState kit;kit.visible=2;kit.patternLengths.fill(32);
+   kit.grid.fill(0);
+   for(std::size_t step=0;step<32;++step)kit.grid[step]=80;
+   f.kit(kit);(void)f.openV101();(void)f.openV101();
+   auto* first=IntegrationAccess::view(*f.c,0);
+   auto* peer=IntegrationAccess::view(*f.c,1);
+   const double top=L::rowTop(0,0,L::Expansions{});
+   VSTGUI::CPoint vel{1235.,top+12.};
+   first->onMouseDown(vel,VSTGUI::CButtonState(VSTGUI::kLButton));
+   check(IntegrationAccess::v101Expansion(*first)==L::Expansion::Velocity,
+         "DA02 modern Velocity lane not open");
+   VSTGUI::CPoint begin{sx(31),top+76.};
+   first->onMouseDown(begin,VSTGUI::CButtonState(VSTGUI::kLButton|mode));
+   check(f.c->ownsVelocityStroke(0,IntegrationAccess::modernStrokeOwner(*first)),
+         "DA02 line/curve gesture not owned");
+   const auto bars=L::barsButton;
+   VSTGUI::CPoint toggle{(bars.x0+bars.x1)*.5,(bars.y0+bars.y1)*.5};
+   peer->onMouseDown(toggle,VSTGUI::CButtonState(VSTGUI::kLButton));
+   check(f.c->patternLength(0)==16,"DA02 peer 32->16 not accepted");
+   check(!f.c->ownsVelocityStroke(0,IntegrationAccess::modernStrokeOwner(*first)),
+         "DA02 accepted 32->16 did not revoke the old Velocity gesture");
+   std::array<std::uint8_t,32> after{};
+   for(std::size_t i=0;i<32;++i)after[i]=f.c->velocity(0,0,i);
+   VSTGUI::CPoint late{sx(0),top+89.};
+   first->onMouseMoved(late,VSTGUI::CButtonState(VSTGUI::kLButton|mode));
+   first->onMouseUp(late,VSTGUI::CButtonState{});
+   first->onMouseCancel();
+   for(std::size_t i=0;i<32;++i)
+     check(f.c->velocity(0,0,i)==after[i],
+           "DA02 stale line/curve edited hidden steps after peer shortened Pattern");
+   peer->onMouseDown(toggle,VSTGUI::CButtonState(VSTGUI::kLButton));
+   check(f.c->patternLength(0)==32,"DA02 16->32 restore not accepted");
+   for(std::size_t i=16;i<32;++i)
+     check(f.c->velocity(0,0,i)==after[i],
+           "DA02 hidden 17-32 became corrupted when returning to 2 bars");
+   check(f.c->canUndoCurrentPattern(),
+         "DA02 accepted length transition lost previous gesture Undo");
+ }
+ evidence("DA02 real twin V101 Views; Line/Curve 32-to-16 revocation, hidden steps and Undo PASS");
+}
+void testAuditUi01NoopFeedback(){
+ using L=UiV101Layout;
+ auto midpoint=[](L::Rect r){return VSTGUI::CPoint{(r.x0+r.x1)*.5,(r.y0+r.y1)*.5};};
+ Fixture f;KitState kit;kit.visible=2;kit.grid.fill(0);
+ kit.grid[0]=100;kit.patternLengths.fill(16);
+ f.kit(kit);(void)f.openV101();
+ auto* v=IntegrationAccess::view(*f.c,0);
+ const double top=L::rowTop(0,0,L::Expansions{});
+ VSTGUI::CPoint vel{1235.,top+12.};
+ v->onMouseDown(vel,VSTGUI::CButtonState(VSTGUI::kLButton));
+ auto rst=midpoint(UiV101Interaction::velocityReset);rst.y+=top;
+ click(*v,rst.x,rst.y);
+ check(!IntegrationAccess::flashVisible(*v)&&f.c->velocity(0,0,0)==100,
+       "UI01 RESET on already 100 MIDI wrongly flashed");
+ check(f.c->setStepVelocity(0,0,0,71),"UI01 set non-default Velocity");
+ click(*v,rst.x,rst.y);
+ check(IntegrationAccess::flashVisible(*v)&&f.c->velocity(0,0,0)==100,
+       "UI01 RESET changing 71->100 was not acknowledged");
+ click(*v,rst.x,rst.y);
+ check(!IntegrationAccess::flashVisible(*v),
+       "UI01 repeated RESET generated a false success flash");
+ click(*v,vel.x,vel.y);
+ VSTGUI::CPoint settings{1235.,top+36.};
+ click(*v,settings.x,settings.y);
+ check(IntegrationAccess::v101Expansion(*v)==L::Expansion::Settings,
+       "UI01 SET expansion not opened");
+ auto target=[&](std::size_t k){
+   auto p=midpoint(UiV101Interaction::settingsRect(k));p.y+=top;return p;
+ };
+ auto copy=target(2),paste=target(3),clear=target(4);
+ click(*v,copy.x,copy.y);
+ check(IntegrationAccess::settingsPressed(*v)==2,"UI01 COPY did not acknowledge");
+ click(*v,paste.x,paste.y);
+ check(IntegrationAccess::settingsPressed(*v)==-1,
+       "UI01 same-data PASTE incorrectly acknowledged");
+ click(*v,clear.x,clear.y);
+ check(IntegrationAccess::settingsPressed(*v)==4&&f.c->velocity(0,0,0)==0,
+       "UI01 actual CLEAR was not acknowledged");
+ click(*v,clear.x,clear.y);
+ check(IntegrationAccess::settingsPressed(*v)==-1,
+       "UI01 repeated CLEAR on empty row incorrectly acknowledged");
+ evidence("UI01 real RESET/PASTE/CLEAR changed-vs-no-op acknowledgements PASS");
+}
+void testAuditUi04FallbackStates(){
+ using P=drumator::v101::UiV101NativePreview;
+ const auto pixel=[](bool active,bool disabled,bool pressed){
+   auto image=VSTGUI::renderBitmapOffscreen({95.,32.},1.,
+     [&](VSTGUI::CDrawContext& ctx){
+       P::fill(ctx,{0.,0.,95.,32.},{7,9,12,255});
+       P::cap(ctx,{0.,0.,95.,32.},0.,"CAP",active,10,nullptr,disabled,pressed);
+     });
+   check(image!=nullptr,"UI04 raster missing");
+   auto* access=VSTGUI::CBitmapPixelAccess::create(image.get(),false);
+   check(access&&access->setPosition(9,10),"UI04 pixel inaccessible");
+   VSTGUI::CColor color{};access->getColor(color);access->forget();
+   return std::array<int,3>{color.red,color.green,color.blue};
+ };
+ const auto regular=pixel(false,false,false);
+ const auto selected=pixel(true,false,false);
+ const auto pushed=pixel(false,false,true);
+ const auto inactive=pixel(false,true,false);
+ check(regular!=selected&&regular!=pushed&&regular!=inactive&&
+       selected!=pushed&&selected!=inactive&&pushed!=inactive,
+       "UI04 fallback visual states ignored disabled/pressed/active");
+ evidence("UI04 native fallback normal/active/pressed/disabled distinct pixels PASS");
+}
+
 void testRv05ComplexityAllocationFailure(){
  Fixture f;KitState kit;kit.visible=2;f.kit(kit);
  (void)f.openV101();auto* v=IntegrationAccess::view(*f.c,0);
@@ -6605,6 +6786,12 @@ int main(int argc,char** argv){
      testRv02CoherentTripleRejectsSingleEditInterleave);
  run("RV05 native Complexity OOM event boundaries",
      testRv05ComplexityAllocationFailure);
+ run("DA01/RA03 post-insertion text ownership, native name OOM and close",
+     testAuditDa01PostAttachAndRa03NameExceptions);
+ run("DA02 accepted peer bar length revokes Line/Curve strokes",
+     testAuditDa02PeerPatternLengthRevokesModernStroke);
+ run("UI01 no-op RESET/PASTE/CLEAR feedback",testAuditUi01NoopFeedback);
+ run("UI04 fallback pressed and disabled painted states",testAuditUi04FallbackStates);
  run("BT02 cold SONG and Recall cache invalidation",
      testBt02ColdSongAndRecallInvalidation);
  run("RV04 audible SONG A/B/C Pattern length wrapping",
