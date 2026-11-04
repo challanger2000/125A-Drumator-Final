@@ -273,6 +273,8 @@ if(DRUMATOR_BUILD_VST3)
   if(WIN32)
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchVstguiWin32Drop.cmake")
     phraseator_patch_vstgui_windows_drop("${_DrumatorSdkRoot}/vstgui4/vstgui/lib/platform/win32/win32datapackage.cpp")
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchVstguiIdleStart.cmake")
+    drumator_patch_vstgui_idle_start("${_DrumatorSdkRoot}/vstgui4/vstgui/plugin-bindings/vst3editor.cpp")
   endif()
   # Decoder pinned to an immutable upstream commit, used only at import time.
   set(_drflac_dir "${CMAKE_BINARY_DIR}/third_party")

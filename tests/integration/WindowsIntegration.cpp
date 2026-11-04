@@ -103,6 +103,12 @@ thread_local bool legacyTriggerOrdering=false;
 thread_local int viewCtorFailureSite=-1;
 thread_local int editorAttachFailureSite=-1;
 thread_local int editorDidOpenFailures=0;
+thread_local int editorTimerOomOnDidOpen=0;
+void armNextSdkTimerAllocationFailure() noexcept {
+ // didOpen() is immediately followed by the pinned IdleUpdateHandler::start.
+ // Avoid throwing inside didOpen: the first timer new must be the failure.
+ allocationFail=0;
+}
 thread_local int liveUpdateFailures=0;
 thread_local int liveEndFailures=0;
 std::atomic<AuditMutation> auditMutation{AuditMutation::none};
@@ -351,7 +357,8 @@ struct Fixture {
  }
  ~Fixture(){
    allocationFail=-1;qa::liveUpdateFailures=0;qa::liveEndFailures=0;
-   qa::editorDidOpenFailures=0;qa::editorAttachFailureSite=-1;
+   qa::editorDidOpenFailures=0;qa::editorTimerOomOnDidOpen=0;
+   qa::editorAttachFailureSite=-1;
    releaseProbe();
    while(!editors.empty())closeLast();
    c->disconnect(p);p->disconnect(c);c->terminate();p->terminate();c->release();p->release();
@@ -6778,6 +6785,65 @@ void testNa01FailedConstructionRegistration(){
        "NA01 recovered factory View did not unregister");
  evidence("NA01/NV01 11 native factory OOM boundaries, no ABI exception, recovery PASS");
 }
+// Standalone process: zero pre-existing VSTGUI editor users. The first
+// IdleUpdateHandler::start() must really attempt construction of its timer.
+// A successfully opened editor A would skip the vulnerable users==1 branch.
+void testNv01FirstSdkIdleTimerOOMCold(){
+ Fixture f;
+ check(IntegrationAccess::viewCount(*f.c)==0,
+       "NV01 coldstart test unexpectedly has an open View");
+ auto* editor=dynamic_cast<DrumatorEditor*>(f.c->createView(ViewType::kEditor));
+ check(editor!=nullptr,"NV01 coldstart editor factory failed");
+ ResizeHost host;
+ host.hwnd=CreateWindowExW(0,L"STATIC",L"NV01 isolated idle OOM",
+                          WS_OVERLAPPEDWINDOW,0,0,1280,850,nullptr,nullptr,
+                          GetModuleHandleW(nullptr),nullptr);
+ check(host.hwnd!=nullptr,"NV01 coldstart host HWND creation failed");
+ static_cast<IPlugView*>(editor)->setFrame(&host);
+ const auto newCountBefore=allocationCount;
+ qa::editorTimerOomOnDidOpen=1;
+ Steinberg::tresult failed=Steinberg::kResultOk;
+ bool escaped=false;
+ try {failed=static_cast<IPlugView*>(editor)->attached(host.hwnd,kPlatformTypeHWND);}
+ catch(...){escaped=true;}
+ const bool injectionReached=(qa::editorTimerOomOnDidOpen==0);
+ const bool allocationWasConsumed=(allocationFail==-1&&allocationCount>newCountBefore);
+ qa::editorTimerOomOnDidOpen=0;allocationFail=-1;
+ check(!escaped&&failed!=kResultOk,
+       "NV01 first CVSTGUITimer allocation error leaked or looked successful");
+ check(injectionReached&&allocationWasConsumed,
+       "NV01 coldstart first timer allocation injection did not execute");
+ check(editor->getFrame()==nullptr&&IntegrationAccess::viewCount(*f.c)==0,
+       "NV01 first timer allocation failure retained a View or CFrame");
+ (void)static_cast<IPlugView*>(editor)->removed(); // idempotent cleanup
+ check(static_cast<IPlugView*>(editor)->attached(host.hwnd,kPlatformTypeHWND)==kResultOk,
+       "NV01 same editor could not retry after first timer allocation OOM");
+ check(editor->getFrame()!=nullptr&&IntegrationAccess::viewCount(*f.c)==1,
+       "NV01 recovered attach has no real Drumator View");
+ // This MUST be delivered by the restored SDK timer, not by a direct
+ // triggerDeferedUpdates call or a substitute test timer.
+ struct Receiver final : Steinberg::FObject {
+   std::atomic<unsigned> hits{0};
+   void PLUGIN_API update(Steinberg::FUnknown*,Steinberg::int32) override {++hits;}
+ };
+ Steinberg::FObject source;
+ Receiver receiver;
+ source.addDependent(&receiver);
+ source.deferUpdate(0x125A);
+ for(int tries=0;tries<140&&receiver.hits.load()==0;++tries){
+   Sleep(3);pump();
+ }
+ check(receiver.hits.load()==1,
+       "NV01 phantom SDK idle user: successful retry has no deferred notifications");
+ source.removeDependent(&receiver);
+ (void)static_cast<IPlugView*>(editor)->removed();
+ check(IntegrationAccess::viewCount(*f.c)==0,
+       "NV01 coldstart recovery did not unregister final View");
+ static_cast<IPlugView*>(editor)->setFrame(nullptr);
+ editor->release();
+ DestroyWindow(host.hwnd);
+ evidence("NV01 isolated first SDK idle-timer bad_alloc, rollback, same editor retry and real deferred updates PASS");
+}
 void testNv01ActualAttachFaultAndRequiredViewFallback(){
  Fixture f;(void)f.openV101();
  const auto baseline=IntegrationAccess::viewCount(*f.c);
@@ -7097,6 +7163,16 @@ int main(int argc,char** argv){
        evidence("Packaged VST3: V1.0.1 dark graphite metal, transparent DRUMATOR title and black 4x button states rendered PASS");
      }catch(const std::exception& ex){
        std::cerr<<"Packaged resource native render FAIL: "<<ex.what()<<'\n';
+       result=3;
+     }
+     CloseHandle(entered);CloseHandle(resume);
+     VSTGUI::exit();CoUninitialize();return result;
+   }
+   if(std::strcmp(argv[2],"--nv01-idle-cold")==0){
+     int result=0;
+     try{testNv01FirstSdkIdleTimerOOMCold();}
+     catch(const std::exception& ex){
+       std::cerr<<"NV01 first SDK Idle timer OOM FAIL: "<<ex.what()<<'\n';
        result=3;
      }
      CloseHandle(entered);CloseHandle(resume);

@@ -13,6 +13,8 @@ extern thread_local int liveEndFailures; // QA-only rejected END transmissions
 extern thread_local int viewCtorFailureSite; // targeted OOM after View resource initialization
 extern thread_local int editorAttachFailureSite; // 0 pre-frame, 1 post-attach
 extern thread_local int editorDidOpenFailures; // QA-only throw after CFrame, before SDK idle start
+extern thread_local int editorTimerOomOnDidOpen; // arm next SDK allocation after didOpen returns
+void armNextSdkTimerAllocationFailure() noexcept; // test EXE's global new hook
 enum class AuditMutation { none, keepStaleExportTempo, suppressZeroStop, staleDuration, skipPeerCommit,
  basenameOnly, delayMidiOne, dropMidi, doubleMidi, zeroPrefix, zeroLaterPrefix,
  ignoreSongLengths,

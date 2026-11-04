@@ -25,7 +25,7 @@ foreach(_name DrumatorController DrumatorView DrumatorProcessor)
     # A real, late SDK open failure: VST3Editor::open() calls the delegate
     # didOpen BEFORE IdleUpdateHandler::start(). No production changes.
     qa_replace(_header " ~Controller() override;"
-      " ~Controller() override;\n void didOpen(VSTGUI::VST3Editor*) override {\n   if(drumator::qa::editorDidOpenFailures>0) {\n     --drumator::qa::editorDidOpenFailures;throw std::bad_alloc{};\n   }\n }")
+      " ~Controller() override;\n void didOpen(VSTGUI::VST3Editor*) override {\n   if(drumator::qa::editorDidOpenFailures>0) {\n     --drumator::qa::editorDidOpenFailures;throw std::bad_alloc{};\n   }\n   if(drumator::qa::editorTimerOomOnDidOpen>0) {\n     --drumator::qa::editorTimerOomOnDidOpen;\n     drumator::qa::armNextSdkTimerAllocationFailure();\n   }\n }")
   endif()
   if(_name STREQUAL "DrumatorProcessor")
     qa_replace(_header "count_.store(static_cast<std::uint8_t>(chain.count()),std::memory_order_relaxed);"
@@ -89,6 +89,11 @@ target_compile_options(drumator_integration_tests PRIVATE /W4 /WX /external:W0)
 add_dependencies(drumator_test_suite drumator_integration_tests)
 add_test(NAME drumator_integration_tests COMMAND drumator_integration_tests
   "${CMAKE_CURRENT_SOURCE_DIR}/resource")
+# NV01: isolated PROCESS coldstart, so the first SDK timer allocation is
+# forced to throw with IdleUpdateHandler::users starting at zero.
+add_test(NAME drumator_nv01_first_idle_timer_oom COMMAND drumator_integration_tests
+  "${CMAKE_CURRENT_SOURCE_DIR}/resource" "--nv01-idle-cold")
+set_tests_properties(drumator_nv01_first_idle_timer_oom PROPERTIES TIMEOUT 60)
 # The full native Windows pixel/host suite exercises all four zoom factors
 # and multiple host-owned HWND lifecycles. The 130% factory default makes
 # its unattended full-run slower; preserve the complete suite without masking
