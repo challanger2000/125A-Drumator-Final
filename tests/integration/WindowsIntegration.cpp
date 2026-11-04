@@ -5,6 +5,8 @@
 #endif
 #include <windows.h>
 #include <objbase.h>
+#include <shellapi.h>
+#pragma comment(lib, "Shell32.lib")
 #include <malloc.h>
 #include "Probe.h"
 #include "ByteStream.h"
@@ -16,6 +18,8 @@
 #include "vst3/DrumatorController.h"
 #include "vst3/DrumatorAutomation.h"
 #include "vst3/DrumatorView.h"
+#include "vst3/MidiDragPackage.h"
+#include "vstgui/lib/platform/win32/win32dragging.h"
 #include "core/UiDetailGeometry.h"
 #include "core/UiRowControls.h"
 #include "core/UiCompactLayout.h"
@@ -2231,6 +2235,73 @@ void confirmExportHostTempo(Fixture& fixture,double bpm=120.){
  check(fixture.c->hasExportTempo()&&fixture.c->exportTempoBpm()==bpm,
        "real host export tempo not confirmed");
 }
+// F06: actual VSTGUI multi-path data source and Windows CF_HDROP converter.
+// We verify the OLE payload itself, not merely MIDI encoding or filenames.
+void testF06MultiFileMidiWindowsOle(){
+ Fixture f;
+ auto kit=v101PreviewKit(); // ten real samples; program only three rows
+ kit.selected=0;kit.grid.fill(0);kit.swing=0;kit.humanize=0;
+ kit.grid[AtomicPatternBank::index(0,0,0)]=100;
+ kit.grid[AtomicPatternBank::index(0,1,4)]=110;
+ kit.grid[AtomicPatternBank::index(0,7,8)]=120;
+ f.kit(kit);confirmExportHostTempo(f);
+ const auto choice=DragExportFile::create(0);
+ check(!choice.empty(),"F06 isolated drag path not created");
+ check(f.c->exportMidiRows(false,pathToUtf8(choice)),
+       "F06 actual connected MIDI row export rejected");
+ const auto files=DragExportFile::existingMidiRows(choice);
+ check(files.size()==3&&files[0].filename()=="01 Kick.mid"&&
+       files[1].filename()=="02 Snare.mid"&&
+       files[2].filename()=="08 Clap.mid",
+       "F06 absent/present instrument lanes or row order wrong");
+ auto source=MidiDragPackage::create(choice);
+ check(source&&source->getCount()==3u,
+       "F06 native VSTGUI CDropSource is not a 3-file package");
+ auto* ole=new VSTGUI::Win32DataObject(source.get());
+ FORMATETC format{};
+ format.cfFormat=CF_HDROP;format.dwAspect=DVASPECT_CONTENT;
+ format.lindex=-1;format.tymed=TYMED_HGLOBAL;
+ STGMEDIUM medium{};
+ const auto available=ole->QueryGetData(&format);
+ const auto pulled=available==S_OK?ole->GetData(&format,&medium):E_FAIL;
+ check(available==S_OK&&pulled==S_OK&&medium.tymed==TYMED_HGLOBAL,
+       "F06 native Win32DataObject does not expose valid CF_HDROP");
+ const auto drop=reinterpret_cast<HDROP>(medium.hGlobal);
+ const auto count=DragQueryFileW(drop,0xffffffffu,nullptr,0);
+ check(count==files.size(),"F06 CF_HDROP merged or lost separate MIDI files");
+ for(unsigned i=0;i<count;++i){
+  wchar_t native[32768]{};
+  const auto len=DragQueryFileW(drop,i,native,32768);
+  check(len>0&&len<32768,"F06 CF_HDROP cannot decode a Unicode path");
+  const std::filesystem::path actual(native);
+  check(actual==files[i]&&std::filesystem::is_regular_file(actual),
+        "F06 CF_HDROP path/order not the actual exported MIDI files");
+ }
+ ReleaseStgMedium(&medium);
+ ole->Release();
+ check(DragExportFile::existingMidiRows(choice).size()==3,
+       "F06 files did not survive OLE read for deferred host import");
+ DragExportFile::discardFailedMidiRows(choice);
+ check(!std::filesystem::exists(DragExportFile::midiRowsFolder(choice)),
+       "F06 safe unpublished-folder cleanup failed");
+ const auto adversarial=DragExportFile::create(0);
+ check(!adversarial.empty(),"F06 foreign-file fixture missing");
+ check(f.c->exportMidiRows(false,pathToUtf8(adversarial)),
+       "F06 foreign-file fixture export failed");
+ {
+  std::ofstream foreign(DragExportFile::midiRowsFolder(adversarial)/"unrelated.txt");
+  foreign<<"retain";
+ }
+ check(!MidiDragPackage::create(adversarial),
+       "F06 foreign-file injection was advertised to Windows");
+ DragExportFile::discardFailedMidiRows(adversarial);
+ check(std::filesystem::exists(DragExportFile::midiRowsFolder(adversarial)/"unrelated.txt"),
+       "F06 cleanup removed foreign contents");
+ std::error_code ignored;
+ std::filesystem::remove_all(adversarial.parent_path(),ignored);
+ evidence("F06 native Windows CF_HDROP carries 3 physical row MIDI files in order; bad payload rejected; temp lifetime and foreign files protected PASS");
+}
+
 void testV101ConnectedPatternSongExportsAndLimiter(){
  Fixture f;
  auto kit=v101PreviewKit(); // contains ten genuine, playable PCM samples
@@ -7340,6 +7411,7 @@ int main(int argc,char** argv){
  run("EXPTEMPO old stale-tempo cause must be killed",testExportTempoMutation);
  run("EXPTEMPO actual zero-frame, recall, delayed IPC and GUI lifecycle",testExportTempoLifecycle);
  run("V101 connected Controller/Processor exports and limiter",testV101ConnectedPatternSongExportsAndLimiter);
+ run("F06 actual multi-file MIDI drag Windows CF_HDROP",testF06MultiFileMidiWindowsOle);
  run("Codex01 paired legacy recall clears Export and LIMIT",testCodexLegacyControllerExportReset);
  run("Codex02 Controller IPC actions OOM-safe",testCodexControllerActionOOM);
  run("Codex03 foreign export scratch ownership",testCodexForeignExportFileOwnership);
