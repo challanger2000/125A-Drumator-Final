@@ -85,7 +85,8 @@ class OfflineWavExport final {
        static_cast<double>(static_cast<int>(kit.pitch[row])-24),
        static_cast<float>(kit.gain[row])/100.f,
        (static_cast<float>(kit.pan[row])-100.f)/100.f,
-       kit.choke[row],muted,prepared[row],kit.sampleEdits[row]);
+       kit.choke[row],muted,prepared[row],kit.sampleEdits[row],true);
+     // NA05: offline and live support the same 49-pitch resampling bank.
      if(status!=PrepareStatus::Ok||!prepared[row])return false;
      auto sound=prepared[row]->rowSound();
      // Export sums all instrument buses into the stereo master, regardless

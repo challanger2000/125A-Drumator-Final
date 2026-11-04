@@ -1149,8 +1149,9 @@ DrumatorView::DrumatorView(const VSTGUI::CRect& size,
                            Controller& controller,VSTGUI::VST3Editor& editor)
  : CView(size),controller_(controller),v101_(controller),editor_(editor) {
  setMouseEnabled(true);
- // The view itself owns the drop-target interface, as in Phraseator.
- controller_.registerView(this);
+ // NA01: never publish a partially constructed View to the Controller.
+ // If construction fails, the View destructor is NOT invoked.
+ try {
  backgroundBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription("125A_Drumator_Faceplate.png"));
  productLogoBitmap_=new VSTGUI::CBitmap(VSTGUI::CResourceDescription("DRUMATOR_Logo_Modern_Transparent.png"));
  knobBitmap_=new VSTGUI::CMultiFrameBitmap(VSTGUI::CResourceDescription("125A_Drumator_Knob.png"),{{125.,125.},101,1});
@@ -1167,6 +1168,17 @@ DrumatorView::DrumatorView(const VSTGUI::CRect& size,
      VSTGUI::CResourceDescription("125A_Dark_Button_83x32_Gedrueckt_4x.png"));
  v101VintageButtons_[3]=new VSTGUI::CBitmap(
      VSTGUI::CResourceDescription("125A_Dark_Button_83x32_Deaktiviert_4x.png"));
+ controller_.registerView(this); // vector push_back has strong exception guarantee
+ }catch(...) {
+   for(auto*& p:v101VintageButtons_)if(p){p->forget();p=nullptr;}
+   if(v101FaceplateBitmap_){v101FaceplateBitmap_->forget();v101FaceplateBitmap_=nullptr;}
+   if(v101TitleBitmap_){v101TitleBitmap_->forget();v101TitleBitmap_=nullptr;}
+   if(screwBitmap_){screwBitmap_->forget();screwBitmap_=nullptr;}
+   if(knobBitmap_){knobBitmap_->forget();knobBitmap_=nullptr;}
+   if(productLogoBitmap_){productLogoBitmap_->forget();productLogoBitmap_=nullptr;}
+   if(backgroundBitmap_){backgroundBitmap_->forget();backgroundBitmap_=nullptr;}
+   throw;
+ }
 }
 void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  using Painter=v101::UiV101NativePreview;
@@ -1517,9 +1529,7 @@ void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
    // Every real pop-up shares the black MAIN/SONG 4x hardware button set.
    const auto cell=UiV101Popup::cell(g,i);
    const bool disabledPattern=v101Menu_==UiV101Popup::Kind::Pattern&&
-       ((i==1&&!controller_.canPasteCurrentPattern())||
-        (i==3&&!controller_.canUndoCurrentPattern())||
-        (i==6&&!controller_.canDuplicateCurrentPattern()));
+       !patternMenuOptionEnabled(i);
    Painter::cap(*c,cell,0.,caption,selectedOutput||selectedChoke,10,
                 &popupButtons,disabledPattern,
                 !disabledPattern&&v101PressedMenuOption_==i);
@@ -1530,10 +1540,18 @@ void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
    }
  }
 }
+bool DrumatorView::patternMenuOptionEnabled(int option) {
+ // NA04: shared availability policy for both painting and dispatch.
+ return (option!=1||controller_.canPasteCurrentPattern())&&
+        (option!=3||controller_.canUndoCurrentPattern())&&
+        (option!=6||controller_.canDuplicateCurrentPattern());
+}
 bool DrumatorView::applyV101Menu(int option) {
  const auto kind=v101Menu_;
  const auto row=v101MenuRow_;
  if(option<0||option>=UiV101Popup::count(kind))return true;
+ if(kind==UiV101Popup::Kind::Pattern&&!patternMenuOptionEnabled(option))
+   return true; // Disabled options are inert, not failed actions.
  if(kind!=UiV101Popup::Kind::Pattern&&kind!=UiV101Popup::Kind::Export&&
     row>=controller_.visibleRows())return false;
  switch(kind) {
@@ -1594,8 +1612,11 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine,bool acc
  }
  const auto footerKey=songEditorOpen_?UiV101Layout::songFooterExport:
                                       UiV101Layout::footerExport;
- if(!v101_.state().zoomOpen&&footerKey.hit(
-      x,y-(getViewSize().getHeight()-UiV101Layout::footer))){
+ // NA02: MAIN paints EXPORT at v101_.height() after a refused WAV shrink.
+ // SONG uses the real Song board height, as before.
+ const double footerTop=(songEditorOpen_?getViewSize().getHeight():v101_.height())-
+                         UiV101Layout::footer;
+ if(!v101_.state().zoomOpen&&footerKey.hit(x,y-footerTop)){
     v101Menu_=UiV101Popup::Kind::Export;v101MenuRow_=kRows;
     invalid();return true;
  }
@@ -2962,7 +2983,14 @@ void DrumatorView::publishSampleEditorLive(bool force) noexcept {
  }
  if(!controller_.updateLiveSampleEdit(sampleEditorRow_,sampleEditorRevision_,
                                       sampleEditorLiveSession_,sampleEditorEdit_)){
-   status_="LIVE UPDATE REJECTED (SOURCE CHANGED?)";return;
+   // NA03: a peer can invalidate our session by replacing its source.
+   // The processor checks the session token before processing End.
+   const auto staleSession=sampleEditorLiveSession_;
+   sampleEditorLive_=false;sampleEditorLiveSession_=0;
+   sampleEditorLivePending_=false;
+   (void)controller_.endLiveSampleEdit(sampleEditorRow_,staleSession);
+   status_="LIVE OFF: SOURCE CHANGED OR UPDATE REJECTED";
+   invalid();return;
  }
  sampleEditorLiveSentAt_=now;sampleEditorLivePending_=false;
 }

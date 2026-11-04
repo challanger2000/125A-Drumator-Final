@@ -107,6 +107,7 @@ private:
  bool startExportDrag(int option);
  int dragExportOption_{-1};
  VSTGUI::CPoint dragExportStart_{};
+ bool patternMenuOptionEnabled(int option);
  bool applyV101Menu(int item);
  // Transient GUI-only pressed state for the five SET actions; no kit/DAW state.
  std::size_t settingsFeedbackRow_{kRows};

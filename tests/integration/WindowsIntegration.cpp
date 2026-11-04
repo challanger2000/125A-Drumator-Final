@@ -125,6 +125,7 @@ struct IntegrationAccess {
  static void exportMenu(DrumatorView& view){view.v101Menu_=UiV101Popup::Kind::Export;}
  static bool sampleEditorOpen(const DrumatorView& view){return view.sampleEditorOpen_;}
  static bool sampleEditorLive(const DrumatorView& view){return view.sampleEditorLive_;}
+ static double v101LayoutHeight(const DrumatorView& view){return view.v101_.height();}
  static bool songEditorOpen(const DrumatorView& view){return view.songEditorOpen_;}
  static std::size_t v101SelectedRow(const DrumatorView& view){return view.v101_.state().selectedRow;}
  static std::size_t v101FirstRow(const DrumatorView& view){return view.v101_.state().firstRow;}
@@ -6727,6 +6728,114 @@ void testA03ProcessorMidiOverflow() {
  evidence("A03 real processor 2048/2200 MIDI density, deterministic overflow and invalid-event exclusion PASS");
 }
 }
+
+void testNa01FailedConstructionRegistration(){
+ Fixture f;
+ auto& editor=f.openV101();
+ const auto baseline=IntegrationAccess::viewCount(*f.c);
+ int failures=0;
+ // Move the injected failure through each allocation in the real View
+ // constructor. The already attached View must remain usable.
+ for(long index=0;index<48;++index){
+   DrumatorView* extra=nullptr;
+   allocationFail=index;
+   try {extra=new DrumatorView(VSTGUI::CRect{0,0,1280,300},*f.c,editor);}
+   catch(const std::bad_alloc&){++failures;}
+   allocationFail=-1;
+   if(extra){
+     check(IntegrationAccess::viewCount(*f.c)==baseline+1,
+           "NA01 successfully built View not registered");
+     extra->forget();
+   }
+   check(IntegrationAccess::viewCount(*f.c)==baseline,
+         "NA01 failed constructor left a stale Controller View");
+   f.c->notifyViews(false);
+ }
+ check(failures>=8,"NA01 not enough actual allocation-failure sites exercised");
+ auto* recovered=new DrumatorView(VSTGUI::CRect{0,0,1280,300},*f.c,editor);
+ check(IntegrationAccess::viewCount(*f.c)==baseline+1,
+       "NA01 clean construction failed after OOM");
+ recovered->forget();
+ check(IntegrationAccess::viewCount(*f.c)==baseline,
+       "NA01 recovered View did not unregister");
+ evidence("NA01 constructor OOM matrix, recovery and Controller notifications PASS");
+}
+void testNa02RefusedShrinkExportPosition(){
+ using L=UiV101Layout;
+ Fixture f;KitState kit;kit.visible=1;kit.grid.fill(0);
+ kit.names[0]="NA02.wav";kit.wav[0]=constantStereo(.5f,-.25f);
+ f.kit(kit);prepareAudio(*f.p);(void)f.openV101();
+ auto* v=IntegrationAccess::view(*f.c,0);
+ check(IntegrationAccess::openSampleEditorForCapture(*v,0),
+       "NA02 WAV editor failed to open");
+ check(v->getViewSize().getHeight()==620.,"NA02 WAV resize was not accepted");
+ f.frames[0].accept=false;
+ const auto cancel=UiV101WaveLayout::toolbar[6];
+ click(*v,(cancel.left+cancel.right)*.5,(cancel.top+cancel.bottom)*.5);
+ check(!IntegrationAccess::sampleEditorOpen(*v)&&
+       v->getViewSize().getHeight()==620.,
+       "NA02 failed to exercise rejected host shrink");
+ const auto r=L::footerExport;
+ const double x=(r.x0+r.x1)*.5;
+ const double drawn=IntegrationAccess::v101LayoutHeight(*v)-L::footer+
+                    (r.y0+r.y1)*.5;
+ const double oldHit=v->getViewSize().getHeight()-L::footer+
+                     (r.y0+r.y1)*.5;
+ check(std::abs(drawn-oldHit)>100.,"NA02 old and new hit positions equal");
+ click(*v,x,oldHit);
+ check(IntegrationAccess::v101Popup(*v)!=UiV101Popup::Kind::Export,
+       "NA02 ghost EXPORT hitbox remains after shrink refusal");
+ click(*v,x,drawn);
+ check(IntegrationAccess::v101Popup(*v)==UiV101Popup::Kind::Export,
+       "NA02 visible EXPORT ignored actual mouse click");
+ evidence("NA02 rejected native WAV shrink: EXPORT paint and hitbox aligned PASS");
+}
+void testNa03SampleInvalidatesPeerLive(){
+ Fixture f;KitState kit;kit.visible=2;kit.grid.fill(0);
+ kit.names[0]="NA03.wav";kit.wav[0]=constantStereo(.5f,-.25f);
+ f.kit(kit);prepareAudio(*f.p);(void)f.openV101();(void)f.openV101();
+ auto* a=IntegrationAccess::view(*f.c,0);
+ check(IntegrationAccess::openSampleEditorForCapture(*a,0)&&
+       IntegrationAccess::sampleEditorLive(*a),
+       "NA03 LIVE ON not established in View A");
+ check(f.c->clearSample(0),"NA03 peer sample clear failed");
+ IntegrationAccess::pollMeter(*a);
+ check(!IntegrationAccess::sampleEditorLive(*a)&&
+       IntegrationAccess::sampleEditorStatus(*a).find("LIVE OFF")!=std::string::npos,
+       "NA03 rejected LIVE session still displayed as active");
+ IntegrationAccess::pollMeter(*a);
+ check(!IntegrationAccess::sampleEditorLive(*a),
+       "NA03 stale LIVE session restarted without user request");
+ evidence("NA03 two native editors: invalidated WAV session leaves LIVE OFF PASS");
+}
+void testNa04DisabledPopupActionsDoNotEdit(){
+ Fixture f;KitState kit;kit.visible=2;kit.grid.fill(0);kit.grid[0]=90;
+ f.kit(kit);(void)f.openV101();(void)f.openV101();
+ auto* a=IntegrationAccess::view(*f.c,0);
+ auto* b=IntegrationAccess::view(*f.c,1);
+ const auto owner=IntegrationAccess::modernStrokeOwner(*a);
+ check(!f.c->canUndoCurrentPattern()&&!f.c->canPasteCurrentPattern(),
+       "NA04 disabled menu precondition failed");
+ f.c->beginVelocityStroke(0,owner);
+ check(f.c->ownsVelocityStroke(0,owner)&&
+       f.c->setStepVelocity(0,0,0,110,owner),
+       "NA04 active peer Velocity stroke failed");
+ check(!f.c->canUndoCurrentPattern(),
+       "NA04 pending stroke should not have completed Undo");
+ for(int option:{1,3}){
+   IntegrationAccess::setPopup(*b,UiV101Popup::Kind::Pattern,kRows);
+   const auto g=UiV101Popup::geometry(UiV101Popup::Kind::Pattern,
+                                     UiV101Layout::header,b->getViewSize().getHeight(),false);
+   const auto cell=UiV101Popup::cell(g,option);
+   click(*b,(cell.x0+cell.x1)*.5,(cell.y0+cell.y1)*.5);
+   check(f.c->velocity(0,0,0)==110&&
+         f.c->ownsVelocityStroke(0,owner)&&!f.c->canUndoCurrentPattern(),
+         "NA04 disabled PASTE/UNDO mutated another View's active edit");
+ }
+ f.c->endVelocityStroke(false,owner);
+ evidence("NA04 disabled Pattern PASTE and UNDO are inert across two Views PASS");
+}
+
 int main(int argc,char** argv){
  std::cout<<std::unitbuf;
  if(argc!=2&&argc!=3)return 2;
@@ -6806,6 +6915,10 @@ int main(int argc,char** argv){
      testRv02CoherentTripleRejectsSingleEditInterleave);
  run("RV05 native Complexity OOM event boundaries",
      testRv05ComplexityAllocationFailure);
+ run("NA01 constructor OOM lifetime",testNa01FailedConstructionRegistration);
+ run("NA02 rejected WAV shrink EXPORT hitbox",testNa02RefusedShrinkExportPosition);
+ run("NA03 peer sample invalidates LIVE",testNa03SampleInvalidatesPeerLive);
+ run("NA04 disabled Pattern actions inert",testNa04DisabledPopupActionsDoNotEdit);
  run("DA01/RA03 post-insertion text ownership, native name OOM and close",
      testAuditDa01PostAttachAndRa03NameExceptions);
  run("DA02 accepted peer bar length revokes Line/Curve strokes",

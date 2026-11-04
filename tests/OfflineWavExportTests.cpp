@@ -18,12 +18,13 @@ std::uint32_t get32(const std::vector<std::uint8_t>& b,std::size_t p){
  return static_cast<std::uint32_t>(b[p])|(std::uint32_t(b[p+1])<<8)|
        (std::uint32_t(b[p+2])<<16)|(std::uint32_t(b[p+3])<<24);
 }
-std::vector<std::uint8_t> tone(std::size_t frames,float amplitude){
+std::vector<std::uint8_t> tone(std::size_t frames,float amplitude,
+                               std::uint32_t rate=48000){
  std::vector<std::uint8_t> b(44+frames*2);
  const char* h="RIFF";for(int i=0;i<4;++i)b[static_cast<std::size_t>(i)]=static_cast<std::uint8_t>(h[i]);
  u32(b,4,static_cast<std::uint32_t>(b.size()-8));
  for(int i=0;i<8;++i)b[8u+static_cast<std::size_t>(i)]=static_cast<std::uint8_t>("WAVEfmt "[i]);
- u32(b,16,16);u16(b,20,1);u16(b,22,1);u32(b,24,48000);u32(b,28,96000);
+ u32(b,16,16);u16(b,20,1);u16(b,22,1);u32(b,24,rate);u32(b,28,rate*2u);
  u16(b,32,2);u16(b,34,16);
  for(int i=0;i<4;++i)b[36u+static_cast<std::size_t>(i)]=static_cast<std::uint8_t>("data"[i]);
  u32(b,40,static_cast<std::uint32_t>(frames*2));
@@ -133,7 +134,27 @@ int main(){
    for(std::size_t i=44;i<44+128*6;i+=3)peak=std::max(peak,std::abs(pcm24(bytes,i)));
    check(peak<=StereoPeakLimiter::kCeiling+0.003f,"export obeys peak limiter ceiling");
  }
- const auto previous=bytes;
+ // NA05: compare exact accepted live sample/pitch cases with offline export.
+ // 192kHz/+24 is the legacy limit (16x); 384kHz/+24 is 32x.
+ for(const std::uint32_t sourceRate:{192000u,384000u}){
+   KitState highRateKit{};
+   highRateKit.visible=1;highRateKit.patternLengths.fill(16);
+   highRateKit.grid.fill(0);highRateKit.grid[0]=127;
+   highRateKit.names[0]="high-rate.wav";
+   highRateKit.wav[0]=tone(4096,0.65f,sourceRate);
+   highRateKit.pitch[0]=48;
+   std::unique_ptr<PreparedSample> liveAsset;
+   check(PreparedSample::fromWav(highRateKit.wav[0].data(),
+             highRateKit.wav[0].size(),48000,24.,1.f,0.f,0,false,
+             liveAsset,SampleEdit{},true)==PrepareStatus::Ok&&liveAsset,
+         "NA05 realtime high-rate/+24 preparation");
+   check(OfflineWavExport::render(highRateKit,false,120.,path),
+         "NA05 offline high-rate/+24 must match live acceptance");
+   const auto result=read(path);
+   check(result.size()==44u+6u*16u*6000u,
+         "NA05 high-rate WAV grid stays exactly 2 seconds");
+ }
+ const auto previous=read(path);
  check(!OfflineWavExport::render(kit,false,0.,path),"bad tempo rejected");
  check(read(path)==previous,"failed export preserves existing destination");
  std::error_code ec;
