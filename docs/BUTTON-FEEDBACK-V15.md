@@ -25,6 +25,9 @@ The first indication must be the actual state/action, not a generic mouse-down o
   amber overlay. WAVE LIVE is latched and must never inherit action feedback.
 * **Disabled/rejected/no-op controls**: never display success feedback. A
   physical depressed key on mouse-down is not a completion acknowledgement.
+  Grey out disabled footer ADD/REMOVE, SONG START -/+/RESET, and
+  row EDIT/preview for an empty sample. The associated hit geometry remains
+  unchanged; the controller still enforces the actual operation gate.
 
 ## Complete surface inventory
 

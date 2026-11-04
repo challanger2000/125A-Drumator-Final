@@ -482,10 +482,11 @@ struct UiV101NativePreview final {
  // Headphone pictogram replaces the ambiguous play triangle in PREVIEW.
  // All coordinates derive from the preview cap's shared hit/paint rectangle.
  static void headphone(VSTGUI::CDrawContext& c,L::Rect r,double y,
-                       const ButtonSprites* vintage=nullptr){
-   cap(c,r,y,"",false,10,vintage);
+                       const ButtonSprites* vintage=nullptr,bool disabled=false){
+   cap(c,r,y,"",false,10,vintage,disabled);
    const double cx=(r.x0+r.x1)/2.,cy=y+(r.y0+r.y1)/2.;
-   c.setFrameColor({218,228,238,255});c.setLineWidth(2.5);
+   c.setFrameColor(disabled?Color{95,110,123,255}:Color{218,228,238,255});
+   c.setLineWidth(2.5);
    // Rounded headband arc, mirrored for even balance at 100% zoom.
    constexpr std::array<double,9> arc{{-1.,-.96,-.80,-.52,0.,.52,.80,.96,1.}};
    for(std::size_t i=1;i<arc.size();++i){
@@ -493,10 +494,11 @@ struct UiV101NativePreview final {
      const auto py=[&](double t){return cy-1.-10.*std::sqrt(1.-t*t);};
      c.drawLine({px(arc[i-1]),py(arc[i-1])},{px(arc[i]),py(arc[i])});
    }
-   c.setFillColor({216,227,236,255});
+   c.setFillColor(disabled?Color{95,110,123,255}:Color{216,227,236,255});
    c.drawRect({cx-12.,cy-2.,cx-8.,cy+9.},VSTGUI::kDrawFilled);
    c.drawRect({cx+8.,cy-2.,cx+12.,cy+9.},VSTGUI::kDrawFilled);
-   c.setFrameColor({155,181,200,255});c.setLineWidth(1.);
+   c.setFrameColor(disabled?Color{75,88,99,255}:Color{155,181,200,255});
+   c.setLineWidth(1.);
    c.drawLine({cx-9.,cy-1.},{cx-9.,cy+7.});
    c.drawLine({cx+9.,cy-1.},{cx+9.,cy+7.});
  }
@@ -760,9 +762,9 @@ struct UiV101NativePreview final {
            live?Color{203,222,235,255}:Color{103,116,127,255},false);
      c.restoreGlobalState();
      cap(c,L::sampleMenu,y,"...",false,10,vintageButtons);
-     headphone(c,L::preview,y,vintageButtons);
+     headphone(c,L::preview,y,vintageButtons,!data.hasSample);
      cap(c,L::fill,y,"FILL",false,9,vintageButtons);
-     cap(c,L::edit,y,"EDIT",false,11,vintageButtons);
+     cap(c,L::edit,y,"EDIT",false,11,vintageButtons,!data.hasSample);
      rounded(c,{L::stepWell.x0,y+4.,L::stepWell.x1,y+44.},
              {9,17,29,255},2.);
      fill(c,{L::stepWell.x0+2.,y+6.,L::stepWell.x1-2.,y+8.},
@@ -863,8 +865,10 @@ struct UiV101NativePreview final {
                    "ROWS %zu-%zu / %zu  |  PATTERN %c",
                    ui.firstRow+1,ui.firstRow+shown,scene.visibleRows,
                    static_cast<char>('A'+scene.pattern));
-   cap(c,L::footerAdd,footerTop,"ADD ROW",false,10,vintageButtons);
-   cap(c,L::footerRemove,footerTop,"REMOVE ROW",false,10,vintageButtons);
+   cap(c,L::footerAdd,footerTop,"ADD ROW",false,10,vintageButtons,
+       scene.visibleRows>=L::instruments);
+   cap(c,L::footerRemove,footerTop,"REMOVE ROW",false,10,vintageButtons,
+       !scene.canRemoveRow);
    label(c,summary,{260.,footerTop+9.,510.,footerTop+33.},11,
          {222,213,197,255},false);
    if(!scene.status.empty())

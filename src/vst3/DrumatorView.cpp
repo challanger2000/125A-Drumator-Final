@@ -1947,7 +1947,7 @@ void DrumatorView::recordButtonFlash(double x,double y) {
  const auto first=v101_.state().firstRow;
  if(hit.row<first)return;
  const double rowY=L::rowTop(first,hit.row-first,v101_.expandedRows());
- if(hit.action==L::Action::Preview) {
+ if(hit.action==L::Action::Preview&&controller_.hasSample(hit.row)) {
    set(L::preview,rowY);return;
  }
  if(hit.action==L::Action::VelocityLane){
