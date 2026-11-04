@@ -98,6 +98,7 @@ void operator delete[](void* p,std::size_t) noexcept{std::free(p);}
 namespace drumator::qa {
 std::function<bool(VSTGUI::IDataPackage*)> exportDragObserver;
 thread_local bool legacyTriggerOrdering=false;
+thread_local int viewCtorFailureSite=-1;
 std::atomic<AuditMutation> auditMutation{AuditMutation::none};
 std::atomic<bool> suppressRotaryFace{false};
 std::atomic<unsigned> auditSongScheduleCalls{0};
@@ -6735,32 +6736,29 @@ void testNa01FailedConstructionRegistration(){
  Fixture f;
  auto& editor=f.openV101();
  const auto baseline=IntegrationAccess::viewCount(*f.c);
- int failures=0;
- // Move the injected failure through each allocation in the real View
- // constructor. The already attached View must remain usable.
- for(long index=0;index<48;++index){
-   DrumatorView* extra=nullptr;
-   allocationFail=index;
-   try {extra=new DrumatorView(VSTGUI::CRect{0,0,1280,300},*f.c,editor);}
-   catch(const std::bad_alloc&){++failures;}
-   allocationFail=-1;
-   if(extra){
-     check(IntegrationAccess::viewCount(*f.c)==baseline+1,
-           "NA01 successfully built View not registered");
-     extra->forget();
-   }
+ // Exercise each real post-resource View-constructor boundary. Unlike
+ // arbitrary global new() failure, this does not fault inside SDK internals.
+ for(int site=0;site<10;++site){
+   bool trapped=false;
+   qa::viewCtorFailureSite=site;
+   try {
+     auto* unexpected=new DrumatorView(VSTGUI::CRect{0,0,1280,300},*f.c,editor);
+     qa::viewCtorFailureSite=-1;
+     unexpected->forget();
+   }catch(const std::bad_alloc&){trapped=true;}
+   qa::viewCtorFailureSite=-1;
+   check(trapped,"NA01 target construction boundary did not reject allocation");
    check(IntegrationAccess::viewCount(*f.c)==baseline,
          "NA01 failed constructor left a stale Controller View");
    IntegrationAccess::notifyControllerViews(*f.c);
  }
- check(failures>=8,"NA01 not enough actual allocation-failure sites exercised");
  auto* recovered=new DrumatorView(VSTGUI::CRect{0,0,1280,300},*f.c,editor);
  check(IntegrationAccess::viewCount(*f.c)==baseline+1,
        "NA01 clean construction failed after OOM");
  recovered->forget();
  check(IntegrationAccess::viewCount(*f.c)==baseline,
        "NA01 recovered View did not unregister");
- evidence("NA01 constructor OOM matrix, recovery and Controller notifications PASS");
+ evidence("NA01 10 deterministic ctor resource-boundary faults, recovery, Controller notifications PASS");
 }
 void testNa02RefusedShrinkExportPosition(){
  using L=UiV101Layout;
