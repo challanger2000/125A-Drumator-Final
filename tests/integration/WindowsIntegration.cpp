@@ -40,6 +40,7 @@
 #include "vstgui/lib/iviewlistener.h"
 #include "vstgui/lib/platform/iplatformframe.h"
 #include "vstgui/lib/cbitmap.h"
+#include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/lib/coffscreencontext.h"
 #include "vstgui/lib/idatapackage.h"
 #include <filesystem>
@@ -99,6 +100,8 @@ namespace drumator::qa {
 std::function<bool(VSTGUI::IDataPackage*)> exportDragObserver;
 thread_local bool legacyTriggerOrdering=false;
 thread_local int viewCtorFailureSite=-1;
+thread_local int liveUpdateFailures=0;
+thread_local int liveEndFailures=0;
 std::atomic<AuditMutation> auditMutation{AuditMutation::none};
 std::atomic<bool> suppressRotaryFace{false};
 std::atomic<unsigned> auditSongScheduleCalls{0};
@@ -126,6 +129,10 @@ struct IntegrationAccess {
  static void exportMenu(DrumatorView& view){view.v101Menu_=UiV101Popup::Kind::Export;}
  static bool sampleEditorOpen(const DrumatorView& view){return view.sampleEditorOpen_;}
  static bool sampleEditorLive(const DrumatorView& view){return view.sampleEditorLive_;}
+ static bool liveStopPending(const DrumatorView& view){return view.sampleEditorLiveStopPending_;}
+ static std::uint64_t liveSession(const DrumatorView& view){return view.sampleEditorLiveSession_;}
+ static void expireLiveRetry(DrumatorView& view){view.sampleEditorLiveSentAt_-=std::chrono::seconds(2);}
+ static std::uint64_t processorLiveSession(const Processor& p,std::size_t row){return p.liveSessions_[row];}
  static double v101LayoutHeight(const DrumatorView& view){return view.v101_.height();}
  static bool songEditorOpen(const DrumatorView& view){return view.songEditorOpen_;}
  static std::size_t v101SelectedRow(const DrumatorView& view){return view.v101_.state().selectedRow;}
@@ -338,7 +345,7 @@ struct Fixture {
    check(c->connect(p)==kResultOk&&p->connect(c)==kResultOk,"connect real components");
  }
  ~Fixture(){
-   allocationFail=-1;releaseProbe();
+   allocationFail=-1;qa::liveUpdateFailures=0;qa::liveEndFailures=0;releaseProbe();
    while(!editors.empty())closeLast();
    c->disconnect(p);p->disconnect(c);c->terminate();p->terminate();c->release();p->release();
  }
@@ -452,14 +459,16 @@ void prepareAudio(Processor& p){
  ProcessSetup s{};s.sampleRate=48000;s.maxSamplesPerBlock=256;s.symbolicSampleSize=kSample32;s.processMode=kRealtime;
  check(p.setupProcessing(s)==kResultOk&&p.setActive(true)==kResultOk&&p.setProcessing(true)==kResultOk,"prepare actual audio");
 }
-std::vector<std::uint8_t> constantStereo(float l,float r){
- std::vector<std::uint8_t> b(44+1024*8,0);
+std::vector<std::uint8_t> constantStereo(float l,float r,
+                                           std::uint32_t rate=48000,
+                                           std::size_t frames=1024){
+ std::vector<std::uint8_t> b(44+frames*8,0);
  auto put=[&](std::size_t at,std::uint32_t x,unsigned n){for(unsigned i=0;i<n;++i)b[at+i]=static_cast<std::uint8_t>(x>>(i*8));};
  std::memcpy(b.data(),"RIFF",4);put(4,static_cast<std::uint32_t>(b.size()-8),4);
  std::memcpy(b.data()+8,"WAVEfmt ",8);put(16,16,4);put(20,3,2);put(22,2,2);
- put(24,48000,4);put(28,48000*8,4);put(32,8,2);put(34,32,2);
- std::memcpy(b.data()+36,"data",4);put(40,1024*8,4);
- for(std::size_t n=0;n<1024;++n){std::memcpy(b.data()+44+n*8,&l,4);std::memcpy(b.data()+48+n*8,&r,4);}
+ put(24,rate,4);put(28,rate*8,4);put(32,8,2);put(34,32,2);
+ std::memcpy(b.data()+36,"data",4);put(40,static_cast<std::uint32_t>(frames*8),4);
+ for(std::size_t n=0;n<frames;++n){std::memcpy(b.data()+44+n*8,&l,4);std::memcpy(b.data()+48+n*8,&r,4);}
  return b;
 }
 void testWavEditorPreviewAndRecall(){
@@ -6736,29 +6745,31 @@ void testNa01FailedConstructionRegistration(){
  Fixture f;
  auto& editor=f.openV101();
  const auto baseline=IntegrationAccess::viewCount(*f.c);
- // Exercise each real post-resource View-constructor boundary. Unlike
- // arbitrary global new() failure, this does not fault inside SDK internals.
+ VSTGUI::UIAttributes attrs;
+ // Eleven exact resource-boundary failures now go through the REAL
+ // Controller/VSTGUI factory, not a direct 'new' with an outer test catch.
  for(int site=0;site<11;++site){
-   bool trapped=false;
+   VSTGUI::CView* unexpected=nullptr;
+   bool escaped=false;
    qa::viewCtorFailureSite=site;
    try {
-     auto* unexpected=new DrumatorView(VSTGUI::CRect{0,0,1280,300},*f.c,editor);
-     qa::viewCtorFailureSite=-1;
-     unexpected->forget();
-   }catch(const std::bad_alloc&){trapped=true;}
+     unexpected=f.c->createCustomView("DrumatorV101StepGrid",attrs,nullptr,&editor);
+   }catch(...){escaped=true;}
    qa::viewCtorFailureSite=-1;
-   check(trapped,"NA01 target construction boundary did not reject allocation");
+   if(unexpected)unexpected->forget();
+   check(!escaped,"NV01 factory leaked constructor exception into VSTGUI");
+   check(!unexpected,"NV01 failed factory should return null View");
    check(IntegrationAccess::viewCount(*f.c)==baseline,
-         "NA01 failed constructor left a stale Controller View");
+         "NA01 failed factory left a stale Controller View");
    IntegrationAccess::notifyControllerViews(*f.c);
  }
- auto* recovered=new DrumatorView(VSTGUI::CRect{0,0,1280,300},*f.c,editor);
- check(IntegrationAccess::viewCount(*f.c)==baseline+1,
-       "NA01 clean construction failed after OOM");
- recovered->forget();
+ auto* recovered=f.c->createCustomView("DrumatorV101StepGrid",attrs,nullptr,&editor);
+ check(recovered!=nullptr&&IntegrationAccess::viewCount(*f.c)==baseline+1,
+       "NA01/NV01 clean factory construction failed after OOM");
+ if(recovered)recovered->forget();
  check(IntegrationAccess::viewCount(*f.c)==baseline,
-       "NA01 recovered View did not unregister");
- evidence("NA01 11 deterministic ctor resource-boundary faults, recovery, Controller notifications PASS");
+       "NA01 recovered factory View did not unregister");
+ evidence("NA01/NV01 11 native factory OOM boundaries, no ABI exception, recovery PASS");
 }
 void testNa02RefusedShrinkExportPosition(){
  using L=UiV101Layout;
@@ -6807,6 +6818,91 @@ void testNa03SampleInvalidatesPeerLive(){
  check(!IntegrationAccess::sampleEditorLive(*a),
        "NA03 stale LIVE session restarted without user request");
  evidence("NA03 two native editors: invalidated WAV session leaves LIVE OFF PASS");
+}
+void testNv02LiveEndRetryAndNv04StartStatus(){
+ {
+  Fixture f;KitState kit;kit.visible=1;kit.grid.fill(0);
+  kit.names[0]="NV04.wav";kit.wav[0]=constantStereo(.5f,-.25f);
+  f.kit(kit);prepareAudio(*f.p);(void)f.openV101();
+  auto* v=IntegrationAccess::view(*f.c,0);
+  qa::liveUpdateFailures=1; // BEGIN succeeds, first UPDATE fails; END succeeds
+  check(IntegrationAccess::openSampleEditorForCapture(*v,0),"NV04 wave opening failed");
+  check(!IntegrationAccess::sampleEditorLive(*v)&&
+        !IntegrationAccess::liveStopPending(*v)&&
+        IntegrationAccess::liveSession(*v)==0&&
+        IntegrationAccess::processorLiveSession(*f.p,0)==0&&
+        IntegrationAccess::sampleEditorStatus(*v).find("LIVE OFF")!=std::string::npos,
+        "NV04 initial UPDATE failure was reported as LIVE ON");
+ }
+ {
+  Fixture f;KitState kit;kit.visible=1;kit.grid.fill(0);
+  kit.names[0]="NV02.wav";kit.wav[0]=constantStereo(.5f,-.25f);
+  f.kit(kit);prepareAudio(*f.p);(void)f.openV101();
+  auto* v=IntegrationAccess::view(*f.c,0);
+  check(IntegrationAccess::openSampleEditorForCapture(*v,0)&&
+        IntegrationAccess::sampleEditorLive(*v),"NV02 live session setup failed");
+  const auto token=IntegrationAccess::liveSession(*v);
+  check(token!=0&&IntegrationAccess::processorLiveSession(*f.p,0)==token,
+        "NV02 real processor session not active");
+  qa::liveUpdateFailures=1;qa::liveEndFailures=6;
+  IntegrationAccess::forceLiveLease(*v);
+  check(IntegrationAccess::sampleEditorLive(*v)&&
+        IntegrationAccess::liveStopPending(*v)&&
+        IntegrationAccess::liveSession(*v)==token&&
+        IntegrationAccess::processorLiveSession(*f.p,0)==token&&
+        IntegrationAccess::sampleEditorStatus(*v).find("PENDING")!=std::string::npos,
+        "NV02 unacknowledged END dropped live session token");
+  const auto cancel=UiV101WaveLayout::toolbar[6];
+  click(*v,(cancel.left+cancel.right)*.5,(cancel.top+cancel.bottom)*.5);
+  check(IntegrationAccess::sampleEditorOpen(*v)&&
+        IntegrationAccess::liveStopPending(*v)&&
+        IntegrationAccess::processorLiveSession(*f.p,0)==token,
+        "NV02 CANCEL closed while rollback was unconfirmed");
+  qa::liveEndFailures=0;
+  IntegrationAccess::expireLiveRetry(*v);
+  IntegrationAccess::pollMeter(*v);
+  check(!IntegrationAccess::sampleEditorLive(*v)&&
+        !IntegrationAccess::liveStopPending(*v)&&
+        IntegrationAccess::liveSession(*v)==0&&
+        IntegrationAccess::processorLiveSession(*f.p,0)==0,
+        "NV02 timer retry failed to retire actual processor live session");
+  click(*v,(cancel.left+cancel.right)*.5,(cancel.top+cancel.bottom)*.5);
+  check(!IntegrationAccess::sampleEditorOpen(*v),
+        "NV02 CANCEL still blocked after confirmed rollback");
+ }
+ evidence("NV02 rejected UPDATE+6 END transmissions: token retained, CANCEL blocked, retry and processor release PASS");
+ evidence("NV04 initial rejected LIVE UPDATE: latch, session and status correctly OFF PASS");
+}
+void testNv03HighRatePreviewAudible(){
+ Fixture f;KitState kit;kit.visible=1;kit.grid.fill(0);
+ kit.names[0]="NV03-384k.wav";
+ kit.wav[0]=constantStereo(.5f,-.25f,384000,8192);
+ kit.pitch[0]=48;
+ f.kit(kit);prepareAudio(*f.p);(void)f.openV101();
+ const auto edit=SampleEdit::reset(8192);
+ check(f.c->previewSampleEdit(0,edit),"NV03 384k/+24 real PREVIEW rejected");
+ std::array<float,256> left{},right{};
+ float* channels[]{left.data(),right.data()};
+ AudioBusBuffers out{};out.numChannels=2;out.channelBuffers32=channels;
+ ProcessData block{};block.numSamples=256;block.numOutputs=1;block.outputs=&out;
+ block.symbolicSampleSize=kSample32;
+ check(f.p->process(block)==kResultOk,"NV03 actual preview audio process failed");
+ float peakL=0.f,negativeR=0.f;
+ for(int i=12;i<160;++i){
+  peakL=std::max(peakL,left[static_cast<std::size_t>(i)]);
+  negativeR=std::min(negativeR,right[static_cast<std::size_t>(i)]);
+ }
+ check(peakL>.08f&&negativeR<-.04f,
+       "NV03 high-rate preview produced no distinguishable stereo PCM");
+ check(f.c->stopSampleEditPreview(),"NV03 preview STOP IPC failed");
+ check(f.p->process(block)==kResultOk,"NV03 preview STOP audio process failed");
+ check(std::abs(left[120])<.0001f&&std::abs(right[120])<.0001f,
+       "NV03 preview STOP left stale audible PCM");
+ check(f.c->previewSampleEdit(0,edit),"NV03 preview could not restart after STOP");
+ check(f.p->process(block)==kResultOk&&std::abs(left[80])>.08f,
+       "NV03 preview restart produced no PCM");
+ check(f.c->stopSampleEditPreview(),"NV03 restart STOP failed");
+ evidence("NV03 real 384k/+24 PREVIEW PCM stereo, STOP, restart PASS");
 }
 void testNa04DisabledPopupActionsDoNotEdit(){
  Fixture f;KitState kit;kit.visible=2;kit.grid.fill(0);kit.grid[0]=90;
@@ -6919,6 +7015,8 @@ int main(int argc,char** argv){
  run("NA02 rejected WAV shrink EXPORT hitbox",testNa02RefusedShrinkExportPosition);
  run("NA03 peer sample invalidates LIVE",testNa03SampleInvalidatesPeerLive);
  run("NA04 disabled Pattern actions inert",testNa04DisabledPopupActionsDoNotEdit);
+ run("NV02 LIVE END retry and NV04 start feedback",testNv02LiveEndRetryAndNv04StartStatus);
+ run("NV03 384k/24 PREVIEW actual PCM STOP/restart",testNv03HighRatePreviewAudible);
  run("DA01/RA03 post-insertion text ownership, native name OOM and close",
      testAuditDa01PostAttachAndRa03NameExceptions);
  run("DA02 accepted peer bar length revokes Line/Curve strokes",

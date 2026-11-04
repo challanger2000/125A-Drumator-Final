@@ -6,6 +6,7 @@
 #include <iterator>
 #include <vector>
 #include <cmath>
+#include <cstring>
 using namespace drumator;
 namespace {
 void u16(std::vector<std::uint8_t>& b,std::size_t pos,std::uint16_t v){
@@ -32,6 +33,31 @@ std::vector<std::uint8_t> tone(std::size_t frames,float amplitude,
  for(std::size_t i=0;i<frames;++i){
    b[44+i*2]=static_cast<std::uint8_t>(value);
    b[44+i*2+1]=static_cast<std::uint8_t>(value>>8);
+ }
+ return b;
+}
+// Signed-polarity stereo sine enables independent PCM, frequency and
+// channel-orientation checks; constant samples cannot establish correct pitch.
+std::vector<std::uint8_t> sineStereo(std::uint32_t rate,std::size_t frames,
+                                     double hz=1000.){
+ std::vector<std::uint8_t> b(44+frames*4u,0);
+ std::memcpy(b.data(),"RIFF",4);u32(b,4,static_cast<std::uint32_t>(b.size()-8));
+ std::memcpy(b.data()+8,"WAVEfmt ",8);
+ u32(b,16,16);u16(b,20,1);u16(b,22,2);
+ u32(b,24,rate);u32(b,28,rate*4u);u16(b,32,4);u16(b,34,16);
+ std::memcpy(b.data()+36,"data",4);
+ u32(b,40,static_cast<std::uint32_t>(frames*4u));
+ for(std::size_t i=0;i<frames;++i){
+   const auto phase=2.*3.141592653589793*hz*static_cast<double>(i)/rate;
+   const auto value=std::sin(phase);
+   const auto left=static_cast<std::int16_t>(std::lround(value*24000.));
+   const auto right=static_cast<std::int16_t>(std::lround(value*-12000.));
+   for(int ch=0;ch<2;++ch){
+     const auto sample=ch==0?left:right;
+     const auto at=44+4u*i+2u*static_cast<std::size_t>(ch);
+     b[at]=static_cast<std::uint8_t>(sample);
+     b[at+1]=static_cast<std::uint8_t>(sample>>8);
+   }
  }
  return b;
 }
@@ -134,25 +160,51 @@ int main(){
    for(std::size_t i=44;i<44+128*6;i+=3)peak=std::max(peak,std::abs(pcm24(bytes,i)));
    check(peak<=StereoPeakLimiter::kCeiling+0.003f,"export obeys peak limiter ceiling");
  }
- // NA05: compare exact accepted live sample/pitch cases with offline export.
- // 192kHz/+24 is the legacy limit (16x); 384kHz/+24 is 32x.
- for(const std::uint32_t sourceRate:{192000u,384000u}){
+ // NA05: real stereo sine, not only a file-size-only DC fixture.
+ // Verify all five rates and the full +/-24 semitone range at 48 kHz output.
+ for(const auto sourceRate:{44100u,48000u,96000u,192000u,384000u}){
+  for(const int semitones:{-24,0,24}){
    KitState highRateKit{};
    highRateKit.visible=1;highRateKit.patternLengths.fill(16);
    highRateKit.grid.fill(0);highRateKit.grid[0]=127;
-   highRateKit.names[0]="high-rate.wav";
-   highRateKit.wav[0]=tone(4096,0.65f,sourceRate);
-   highRateKit.pitch[0]=48;
+   highRateKit.names[0]="high-rate-stereo.wav";
+   highRateKit.wav[0]=sineStereo(sourceRate,65536);
+   highRateKit.pitch[0]=static_cast<std::uint8_t>(semitones+24);
    std::unique_ptr<PreparedSample> liveAsset;
    check(PreparedSample::fromWav(highRateKit.wav[0].data(),
-             highRateKit.wav[0].size(),48000,24.,1.f,0.f,0,false,
-             liveAsset,SampleEdit{},true)==PrepareStatus::Ok&&liveAsset,
-         "NA05 realtime high-rate/+24 preparation");
+             highRateKit.wav[0].size(),48000,static_cast<double>(semitones),
+             1.f,0.f,0,false,liveAsset,SampleEdit{},true)==PrepareStatus::Ok&&liveAsset,
+         "NA05 realtime sample-rate/pitch preparation");
    check(OfflineWavExport::render(highRateKit,false,120.,path),
-         "NA05 offline high-rate/+24 must match live acceptance");
+         "NA05 offline sample-rate/pitch must match LIVE acceptance");
    const auto result=read(path);
    check(result.size()==44u+6u*16u*6000u,
-         "NA05 high-rate WAV grid stays exactly 2 seconds");
+         "NA05 exact WAV frame count at 120 BPM");
+   if(result.size()!=44u+6u*16u*6000u)continue;
+   double leftEnergy=0.,rightEnergy=0.,polarity=0.;
+   int crossings=0;
+   float prior=pcm24(result,44u+100u*6u);
+   for(std::size_t frame=101;frame<=1300;++frame){
+     const auto l=pcm24(result,44u+frame*6u);
+     const auto r=pcm24(result,44u+frame*6u+3u);
+     leftEnergy+=static_cast<double>(l)*l;
+     rightEnergy+=static_cast<double>(r)*r;
+     polarity+=static_cast<double>(l)*r;
+     if(prior<0.f&&l>=0.f)++crossings;
+     prior=l;
+   }
+   check(leftEnergy>1.&&rightEnergy>.2&&polarity<-.2,
+         "NA05 non-silent opposite-polarity stereo WAV PCM");
+   const double actualHz=crossings*48000./1200.;
+   const double expectedHz=1000.*std::exp2(semitones/12.);
+   check(std::abs(actualHz-expectedHz)<std::max(120.,expectedHz*.05),
+         "NA05 pitch frequency from actual WAV zero crossings");
+   if(sourceRate==384000&&semitones==24) {
+     check(std::abs(pcm24(result,44u+2500u*6u))<.002f&&
+           std::abs(pcm24(result,44u+2500u*6u+3u))<.002f,
+           "NA05 384k/+24 sample tail should end before frame 2500");
+   }
+  }
  }
  const auto previous=read(path);
  check(!OfflineWavExport::render(kit,false,0.,path),"bad tempo rejected");
