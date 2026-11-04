@@ -6245,7 +6245,8 @@ void testAuditDa02PeerPatternLengthRevokesModernStroke(){
  const auto sx=[](std::size_t step){
    const auto r=L::stepRect(step);return (r.x0+r.x1)*.5;
  };
- for(const int mode:{VSTGUI::kShift,VSTGUI::kShift|VSTGUI::kAlt}){
+ const int modes[2]{VSTGUI::kShift,VSTGUI::kShift|VSTGUI::kAlt};
+ for(const int mode:modes){
    Fixture f;KitState kit;kit.visible=2;kit.patternLengths.fill(32);
    kit.grid.fill(0);
    for(std::size_t step=0;step<32;++step)kit.grid[step]=80;
