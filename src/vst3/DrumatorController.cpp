@@ -784,25 +784,38 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
 }
 Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString name) {
  if(name&&std::strcmp(name,Steinberg::Vst::ViewType::kEditor)==0) {
-    auto* editor=new DrumatorEditor(this,"DrumatorV101View","Drumator.uidesc");
-    // Disable inherited VSTGUI Zoom context menu: it bypasses checked
-    // host resize and persistent zoom. Visible 100/150 controls remain.
-    editor->setAllowedZoomFactors({});
-    editor->setZoomChecked(preferredZoom_);
-    return editor;
+    // NV01: no C++ exception may cross the VST3 host's createView ABI.
+    DrumatorEditor* editor=nullptr;
+    try {
+      editor=new DrumatorEditor(this,"DrumatorV101View","Drumator.uidesc");
+      // Keep host-checked zoom behaviour; release an incomplete editor on failure.
+      editor->setAllowedZoomFactors({});
+      editor->setZoomChecked(preferredZoom_);
+      return editor;
+    }catch(...) {
+      if(editor)editor->release();
+      return nullptr;
+    }
  }
  return nullptr;
 }
 VSTGUI::CView* Controller::createCustomView(VSTGUI::UTF8StringPtr name,
           const VSTGUI::UIAttributes&,const VSTGUI::IUIDescription*,
           VSTGUI::VST3Editor* editor) {
- if(!name)return nullptr;
+ if(!name||!editor)return nullptr;
  const bool legacy=std::strcmp(name,"DrumatorStepGrid")==0;
  const bool candidate=std::strcmp(name,"DrumatorV101StepGrid")==0;
  if(!legacy&&!candidate)return nullptr;
- auto* view=new DrumatorView(VSTGUI::CRect(0,0,1280,300),*this,*editor);
- if(candidate)view->enableV101();
- return view;
+ // The View constructor releases partially allocated bitmaps and never
+ // registers a failed instance. Do not propagate std::bad_alloc or other
+ // initialization exceptions into VSTGUI / the host.
+ try {
+   auto* view=new DrumatorView(VSTGUI::CRect(0,0,1280,300),*this,*editor);
+   if(candidate)view->enableV101(); // noexcept
+   return view;
+ }catch(...) {
+   return nullptr; // VSTGUI can handle a missing custom View.
+ }
 }
 std::uint8_t Controller::velocity(std::size_t p,std::size_t r,std::size_t s) const noexcept {
  if(p>=kPatterns||r>=kRows||s>=kSteps)return 0;

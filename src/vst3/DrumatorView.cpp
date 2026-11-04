@@ -1047,7 +1047,15 @@ void DrumatorView::refreshFromHost(bool relayout) {
 void DrumatorView::pollMeter() noexcept {
  if(sampleEditorOpen_&&sampleEditorLive_){
    const auto now=std::chrono::steady_clock::now();
-   if(sampleEditorLivePending_)publishSampleEditorLive();
+   if(sampleEditorLiveStopPending_) {
+     // An unacknowledged END must be retried, not replaced with a heartbeat.
+     if(now-sampleEditorLiveSentAt_>=std::chrono::milliseconds(400)) {
+       sampleEditorLiveSentAt_=now;
+       if(stopSampleEditorLive())status_="LIVE OFF: SESSION RELEASED";
+       else status_="LIVE END PENDING: RETRYING ROLLBACK";
+       invalid();
+     }
+   } else if(sampleEditorLivePending_)publishSampleEditorLive();
    else if(now-sampleEditorLiveSentAt_>=std::chrono::milliseconds(400))
      publishSampleEditorLive(true); // renew lease even without mouse motion
  }
@@ -2951,30 +2959,39 @@ bool DrumatorView::openSampleEditor(std::size_t row) {
  sampleEditorRow_=row;sampleEditorFirst_=0;sampleEditorLast_=frames;
  sampleEditorDrag_=0;sampleEditorPressed_=-1;sampleEditorOpen_=true;
  sampleEditorLivePending_=false;
- status_=startSampleEditorLive()?"LIVE ON: SONG/PATTERN MONITORING":
-                             "LIVE OFF: PREVIEW/EDIT STILL AVAILABLE";
+ const bool liveStarted=startSampleEditorLive();
+ status_=liveStarted?"LIVE ON: SONG/PATTERN MONITORING":
+         sampleEditorLiveStopPending_?"LIVE END PENDING: RETRYING ROLLBACK":
+         "LIVE OFF: PREVIEW/EDIT STILL AVAILABLE";
  invalid();return true;
 }
 bool DrumatorView::startSampleEditorLive() noexcept {
  if(!sampleEditorOpen_||sampleEditorRow_>=kRows)return false;
- if(sampleEditorLive_)return true;
+ if(sampleEditorLive_)return !sampleEditorLiveStopPending_;
  std::uint64_t session=0;
  if(!controller_.beginLiveSampleEdit(sampleEditorRow_,sampleEditorRevision_,session))
    return false;
  sampleEditorLive_=true;sampleEditorLiveSession_=session;
+ sampleEditorLiveStopPending_=false;
  sampleEditorLivePending_=true;
  publishSampleEditorLive(true);
- return true;
+ // NV04: BEGIN alone is not success if the initial UPDATE was rejected.
+ return sampleEditorLive_&&!sampleEditorLiveStopPending_;
 }
 bool DrumatorView::stopSampleEditorLive() noexcept {
  if(!sampleEditorLive_)return true;
- if(!controller_.endLiveSampleEdit(sampleEditorRow_,sampleEditorLiveSession_))return false;
+ if(!controller_.endLiveSampleEdit(sampleEditorRow_,sampleEditorLiveSession_)){
+   // NV02: retain token/row and block CANCEL/APPLY until rollback is confirmed.
+   sampleEditorLiveStopPending_=true;
+   sampleEditorLivePending_=false;
+   return false;
+ }
  sampleEditorLive_=false;sampleEditorLiveSession_=0;
- sampleEditorLivePending_=false;
+ sampleEditorLivePending_=false;sampleEditorLiveStopPending_=false;
  return true;
 }
 void DrumatorView::publishSampleEditorLive(bool force) noexcept {
- if(!sampleEditorOpen_||!sampleEditorLive_)return;
+ if(!sampleEditorOpen_||!sampleEditorLive_||sampleEditorLiveStopPending_)return;
  sampleEditorLivePending_=true;
  const auto now=std::chrono::steady_clock::now();
  if(!force&&now-sampleEditorLiveSentAt_<std::chrono::milliseconds(33))return;
@@ -2983,13 +3000,13 @@ void DrumatorView::publishSampleEditorLive(bool force) noexcept {
  }
  if(!controller_.updateLiveSampleEdit(sampleEditorRow_,sampleEditorRevision_,
                                       sampleEditorLiveSession_,sampleEditorEdit_)){
-   // NA03: a peer can invalidate our session by replacing its source.
-   // The processor checks the session token before processing End.
-   const auto staleSession=sampleEditorLiveSession_;
-   sampleEditorLive_=false;sampleEditorLiveSession_=0;
-   sampleEditorLivePending_=false;
-   (void)controller_.endLiveSampleEdit(sampleEditorRow_,staleSession);
-   status_="LIVE OFF: SOURCE CHANGED OR UPDATE REJECTED";
+   // NA03/NV02: transport failure and stale source have the same negative
+   // result. Never discard a potentially active processor session on END failure.
+   sampleEditorLiveSentAt_=now;
+   if(stopSampleEditorLive())
+     status_="LIVE OFF: SOURCE CHANGED OR UPDATE REJECTED";
+   else
+     status_="LIVE END PENDING: ROLLBACK NOT ACKNOWLEDGED";
    invalid();return;
  }
  sampleEditorLiveSentAt_=now;sampleEditorLivePending_=false;
@@ -3250,7 +3267,9 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
        else status_="LIVE OFF FAILED: EDIT STILL ACTIVE";
      }else{
        if(startSampleEditorLive())status_="LIVE ON: MONITOR NEXT PATTERN HIT";
-       else status_="LIVE UNAVAILABLE: OTHER EDITOR OR SOURCE CHANGED";
+       else status_=sampleEditorLiveStopPending_?
+            "LIVE END PENDING: ROLLBACK NOT ACKNOWLEDGED":
+            "LIVE UNAVAILABLE: OTHER EDITOR OR SOURCE CHANGED";
      }
      invalid();return done;
    }

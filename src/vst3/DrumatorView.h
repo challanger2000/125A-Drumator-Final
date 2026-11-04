@@ -161,6 +161,9 @@ private:
  int sampleEditorDrag_{0}; // 1=start, 2=end, 3=scroll, 4=fade-in, 5=fade-out, 6=gain
  bool sampleEditorLive_{false}; // default ON only after processor accepts session
  bool sampleEditorLivePending_{false};
+ // NV02: true while an END acknowledgement is still required. The session
+ // token is retained and CANCEL/APPLY cannot discard it on IPC failure.
+ bool sampleEditorLiveStopPending_{false};
  std::uint64_t sampleEditorLiveSession_{0};
  std::chrono::steady_clock::time_point sampleEditorLiveSentAt_{};
  bool startSampleEditorLive() noexcept;

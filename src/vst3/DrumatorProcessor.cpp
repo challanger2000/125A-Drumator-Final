@@ -357,7 +357,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* msg) {
    std::unique_ptr<PreparedSample> prepared;
    if(PreparedSample::fromWav(wav.data(),wav.size(),rate,
       static_cast<double>(static_cast<int>(rowPitch_[static_cast<std::size_t>(row)].load(std::memory_order_relaxed))-24),
-      1.f,0.f,0,false,prepared,edit)!=PrepareStatus::Ok)
+      1.f,0.f,0,false,prepared,edit,true)!=PrepareStatus::Ok)
        return Steinberg::kInvalidArgument;
    for(;;){auto old=auditionExchange_.pollReclaim();if(!old)break;}
    // Single control-side writer brackets asset + START publication as a unit.
