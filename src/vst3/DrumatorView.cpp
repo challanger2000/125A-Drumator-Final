@@ -2899,10 +2899,13 @@ bool DrumatorView::exportSelection(int option){
                          (slash==std::string::npos||dot>slash);
  if(!hasExtension)path+=wav?".wav":".mid";
  const bool ok=wav?controller_.exportWav(song,path):
-                   controller_.exportMidi(song,path);
- status_=ok?(song?"SONG EXPORT COMPLETED":"PATTERN EXPORT COMPLETED"):
-            controller_.hasExportTempo()?"EXPORT FAILED - PREVIOUS FILE PRESERVED":
-            "EXPORT: HOST TEMPO UNAVAILABLE - PLAY HOST AND RETRY";
+                   controller_.exportMidiRows(song,path);
+ status_=ok?(wav?(song?"SONG WAV EXPORT COMPLETED":"PATTERN WAV EXPORT COMPLETED"):
+                "MIDI FILES EXPORTED TO NEW FOLDER"):
+            controller_.hasExportTempo()?
+               (wav?"EXPORT FAILED - PREVIOUS FILE PRESERVED":
+                    "MIDI FOLDER EXPORT FAILED - CHOOSE NEW NAME"):
+               "EXPORT: HOST TEMPO UNAVAILABLE - PLAY HOST AND RETRY";
  return ok;
 }
 

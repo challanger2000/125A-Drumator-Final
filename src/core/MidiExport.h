@@ -168,5 +168,65 @@ public:
     dest.swap(out); // transactional: invalid input never changes output
     return true;
   }
+
+  // F03: one standard-MIDI file per programmed instrument, not a single
+  // 17-track file. Reuse the validated timing/velocity/tempo export above;
+  // split its conductor and exact row tracks without re-quantizing notes.
+  // Empty rows produce no file. The result commits only after all checks.
+  static bool encodeSeparate(const MidiExportConfig& c,
+      std::array<std::vector<std::uint8_t>,kRows>& output) {
+    std::vector<std::uint8_t> combined;
+    if(!encode(c,combined)||combined.size()<14||
+       combined[0]!='M'||combined[1]!='T'||combined[2]!='h'||combined[3]!='d'||
+       combined[8]!=0||combined[9]!=1||combined[10]!=0||
+       combined[11]!=kRows+1)return false;
+    const auto u32=[&](std::size_t p)->std::uint32_t {
+      return (static_cast<std::uint32_t>(combined[p])<<24)|
+             (static_cast<std::uint32_t>(combined[p+1])<<16)|
+             (static_cast<std::uint32_t>(combined[p+2])<<8)|
+              static_cast<std::uint32_t>(combined[p+3]);
+    };
+    std::array<std::size_t,kRows+1> offsets{},sizes{};
+    std::size_t position=14;
+    for(std::size_t track=0;track<kRows+1;++track){
+      if(position>combined.size()||combined.size()-position<8||
+         combined[position]!='M'||combined[position+1]!='T'||
+         combined[position+2]!='r'||combined[position+3]!='k')return false;
+      const auto body=static_cast<std::size_t>(u32(position+4));
+      if(body>combined.size()-position-8)return false;
+      offsets[track]=position;sizes[track]=body+8;
+      position+=body+8;
+    }
+    if(position!=combined.size())return false;
+    std::array<std::vector<std::uint8_t>,kRows> candidate{};
+    for(std::size_t row=0;row<kRows;++row){
+      bool hasNotes=false;
+      const auto active=[&](std::size_t pattern,std::size_t step){
+        return c.grid[(pattern*kRows+row)*kSteps+
+                      step%c.patternLengths[pattern]]!=0u;
+      };
+      if(c.exportSong){
+        for(std::size_t entry=0;entry<c.song.count()&&!hasNotes;++entry){
+          const auto part=c.song.entry(entry);
+          if(part.pattern>=kPatterns)continue; // REST
+          for(std::size_t step=0;step<part.steps;++step)
+            if(active(part.pattern,step)){hasNotes=true;break;}
+        }
+      }else{
+        for(std::size_t step=0;step<c.patternLengths[c.selectedPattern];++step)
+          if(active(c.selectedPattern,step)){hasNotes=true;break;}
+      }
+      if(!hasNotes)continue;
+      auto& file=candidate[row];
+      file.reserve(14+sizes[0]+sizes[row+1]);
+      file.insert(file.end(),combined.begin(),combined.begin()+14);
+      file[10]=0;file[11]=2; // Type 1: conductor + one instrument
+      for(const auto track:{std::size_t{0},row+1})
+        file.insert(file.end(),combined.begin()+offsets[track],
+                    combined.begin()+offsets[track]+sizes[track]);
+    }
+    output.swap(candidate);
+    return true;
+  }
 };
 } // namespace drumator

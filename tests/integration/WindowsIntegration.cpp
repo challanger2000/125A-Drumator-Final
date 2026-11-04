@@ -2262,6 +2262,27 @@ void testV101ConnectedPatternSongExportsAndLimiter(){
  };
  check(f.c->exportMidi(false,pm.string()),"connected PATTERN MIDI disk export");
  check(f.c->exportMidi(true,sm.string()),"connected SONG MIDI disk export");
+ // F03: the user-facing Save As emits one MIDI file per sounding row,
+ // without changing the proven single-file CF_HDROP drag export.
+ const auto trackChoice=base/"125a-v101-connected-row-export.mid";
+ const auto trackFolder=base/"125a-v101-connected-row-export - MIDI";
+ {std::error_code ec;std::filesystem::remove_all(trackFolder,ec);}
+ check(f.c->exportMidiRows(false,trackChoice.string()),
+       "F03 connected individual MIDI files Save As");
+ check(std::filesystem::is_directory(trackFolder),
+       "F03 connected multi-file export folder absent");
+ constexpr const char* firstName="01 Kick.mid";
+ const auto rowOne=read(trackFolder/firstName);
+ check(rowOne.size()>48&&rowOne[0]=='M'&&rowOne[1]=='T'&&
+       rowOne[8]==0&&rowOne[9]==1&&rowOne[10]==0&&rowOne[11]==2,
+       "F03 row MIDI is a self-contained 2-track tempo+instrument file");
+ check(!std::filesystem::exists(trackFolder/"11 Row.mid"),
+       "F03 empty musical rows must not create MIDI files");
+ const auto rowBefore=read(trackFolder/firstName);
+ check(!f.c->exportMidiRows(false,trackChoice.string())&&
+       read(trackFolder/firstName)==rowBefore,
+       "F03 repeat export must not overwrite an existing folder");
+ {std::error_code ec;std::filesystem::remove_all(trackFolder,ec);}
  const auto midiPattern=read(pm),midiSong=read(sm);
  check(validMidi(midiPattern)&&validMidi(midiSong),
        "connected MIDI files must parse as 17-track 960-PPQ type-1 SMF");
