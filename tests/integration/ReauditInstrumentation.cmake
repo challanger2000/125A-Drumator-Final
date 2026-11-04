@@ -67,19 +67,6 @@ function(reaudit_instrument name variable)
     qa_replace(_code "if(rendered.status!=RenderStatus::Ok)return Steinberg::kResultFalse;"
       "if(rendered.status!=RenderStatus::Ok)return Steinberg::kResultFalse;\n const auto qaMode=drumator::qa::auditMutation.load();\n const bool shortLatePrefix=qaMode==drumator::qa::AuditMutation::zeroLaterPrefix&&\n   data.numSamples==64&&drumator::qa::auditLatePrefixCalls.fetch_add(1u)>0u;\n if(qaMode==drumator::qa::AuditMutation::zeroPrefix||shortLatePrefix||\n    (qaMode==drumator::qa::AuditMutation::muteImportedProcessor&&\n     drumator::qa::auditImportTarget.load()==this)) {\n   const auto auditMutationFrames=qaMode==drumator::qa::AuditMutation::zeroPrefix?\n     std::min(Steinberg::int32{32},data.numSamples):\n     shortLatePrefix?std::min(Steinberg::int32{8},data.numSamples):data.numSamples;\n   if(left)std::fill_n(left,auditMutationFrames,0.f);\n   if(right)std::fill_n(right,auditMutationFrames,0.f);\n }\n if(qaMode==drumator::qa::AuditMutation::delayImportedProcessor&&\n    drumator::qa::auditImportTarget.load()==this&&drumator::qa::auditDelayCalls.fetch_add(1)<8u)\n   std::this_thread::sleep_for(std::chrono::milliseconds(10));")
     set(_code "#include <chrono>\n${_code}")
-    # NA01: deterministic test-only fault before each bitmap allocation and
-    # immediately before Controller registration; no arbitrary SDK allocation failures.
-    qa_replace(_code " backgroundBitmap_=new" " if(drumator::qa::viewCtorFailureSite==0)throw std::bad_alloc{};\n backgroundBitmap_=new")
-    qa_replace(_code " productLogoBitmap_=new" " if(drumator::qa::viewCtorFailureSite==1)throw std::bad_alloc{};\n productLogoBitmap_=new")
-    qa_replace(_code " knobBitmap_=new" " if(drumator::qa::viewCtorFailureSite==2)throw std::bad_alloc{};\n knobBitmap_=new")
-    qa_replace(_code " screwBitmap_=new" " if(drumator::qa::viewCtorFailureSite==3)throw std::bad_alloc{};\n screwBitmap_=new")
-    qa_replace(_code " v101TitleBitmap_=new" " if(drumator::qa::viewCtorFailureSite==4)throw std::bad_alloc{};\n v101TitleBitmap_=new")
-    qa_replace(_code " v101FaceplateBitmap_=new" " if(drumator::qa::viewCtorFailureSite==5)throw std::bad_alloc{};\n v101FaceplateBitmap_=new")
-    qa_replace(_code " v101VintageButtons_[0]=new" " if(drumator::qa::viewCtorFailureSite==6)throw std::bad_alloc{};\n v101VintageButtons_[0]=new")
-    qa_replace(_code " v101VintageButtons_[1]=new" " if(drumator::qa::viewCtorFailureSite==7)throw std::bad_alloc{};\n v101VintageButtons_[1]=new")
-    qa_replace(_code " v101VintageButtons_[2]=new" " if(drumator::qa::viewCtorFailureSite==8)throw std::bad_alloc{};\n v101VintageButtons_[2]=new")
-    qa_replace(_code " v101VintageButtons_[3]=new" " if(drumator::qa::viewCtorFailureSite==9)throw std::bad_alloc{};\n v101VintageButtons_[3]=new")
-    qa_replace(_code " controller_.registerView(this)" " if(drumator::qa::viewCtorFailureSite==10)throw std::bad_alloc{};\n controller_.registerView(this)")
   elseif(name STREQUAL "DrumatorController")
     qa_replace(_code "if(!accepted)invalidateExportTempo();"
       "if(!accepted&&drumator::qa::auditMutation.load()!=drumator::qa::AuditMutation::keepStaleExportTempo)invalidateExportTempo();")
@@ -106,6 +93,19 @@ function(reaudit_instrument name variable)
     qa_replace(_code "if(!sameName||(!pathsRestoredBeforeComponent_&&"
       "if(!sameName||(drumator::qa::auditMutation.load()!=drumator::qa::AuditMutation::basenameOnly&&\n                     !pathsRestoredBeforeComponent_&&")
   elseif(name STREQUAL "DrumatorView")
+    # NA01: deterministic test-only fault before each bitmap allocation and
+    # immediately before Controller registration; no arbitrary SDK allocation failures.
+    qa_replace(_code " backgroundBitmap_=new" " if(drumator::qa::viewCtorFailureSite==0)throw std::bad_alloc{};\n backgroundBitmap_=new")
+    qa_replace(_code " productLogoBitmap_=new" " if(drumator::qa::viewCtorFailureSite==1)throw std::bad_alloc{};\n productLogoBitmap_=new")
+    qa_replace(_code " knobBitmap_=new" " if(drumator::qa::viewCtorFailureSite==2)throw std::bad_alloc{};\n knobBitmap_=new")
+    qa_replace(_code " screwBitmap_=new" " if(drumator::qa::viewCtorFailureSite==3)throw std::bad_alloc{};\n screwBitmap_=new")
+    qa_replace(_code " v101TitleBitmap_=new" " if(drumator::qa::viewCtorFailureSite==4)throw std::bad_alloc{};\n v101TitleBitmap_=new")
+    qa_replace(_code " v101FaceplateBitmap_=new" " if(drumator::qa::viewCtorFailureSite==5)throw std::bad_alloc{};\n v101FaceplateBitmap_=new")
+    qa_replace(_code " v101VintageButtons_[0]=new" " if(drumator::qa::viewCtorFailureSite==6)throw std::bad_alloc{};\n v101VintageButtons_[0]=new")
+    qa_replace(_code " v101VintageButtons_[1]=new" " if(drumator::qa::viewCtorFailureSite==7)throw std::bad_alloc{};\n v101VintageButtons_[1]=new")
+    qa_replace(_code " v101VintageButtons_[2]=new" " if(drumator::qa::viewCtorFailureSite==8)throw std::bad_alloc{};\n v101VintageButtons_[2]=new")
+    qa_replace(_code " v101VintageButtons_[3]=new" " if(drumator::qa::viewCtorFailureSite==9)throw std::bad_alloc{};\n v101VintageButtons_[3]=new")
+    qa_replace(_code " controller_.registerView(this)" " if(drumator::qa::viewCtorFailureSite==10)throw std::bad_alloc{};\n controller_.registerView(this)")
     qa_replace(_code "const bool started=doDrag(VSTGUI::DragDescription(source));"
       "const bool started=drumator::qa::exportDragObserver?drumator::qa::exportDragObserver(source.get()):doDrag(VSTGUI::DragDescription(source));")
     # RV04: restore the EXACT historical fade calculation (2026-10-23
