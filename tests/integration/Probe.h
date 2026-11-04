@@ -16,7 +16,7 @@ enum class AuditMutation { none, keepStaleExportTempo, suppressZeroStop, staleDu
  basenameOnly, delayMidiOne, dropMidi, doubleMidi, zeroPrefix, zeroLaterPrefix,
  ignoreSongLengths,
  skipImport, muteImportedProcessor, delayImportedProcessor,
- rejectPreviewStop, rejectPreviewStopOnce, patternQueryOOM, patternReplyOOM,
+ rejectPreviewStop, rejectPreviewStopOnce, acceptButIgnorePreviewStop, patternQueryOOM, patternReplyOOM,
  oldFadeRenderer, oldKnobDrawCenters, loadRepaintOOM, refreshViewsOOM, disableWaveCache, bypassWaveRangeIndex, suppressMissingContextCarry,
  skipCycleSplit, skipCycleVelocityMap, skipCycleModulo,
  suppressCycleClockCache, freezeCycleTempo,

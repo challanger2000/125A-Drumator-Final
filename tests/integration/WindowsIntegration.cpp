@@ -6959,10 +6959,10 @@ void testNv02RecallPendingEndDoesNotLoseRow(){
 void testNv03HighRatePreviewAudible(){
  Fixture f;KitState kit;kit.visible=1;kit.grid.fill(0);
  kit.names[0]="NV03-384k.wav";
- kit.wav[0]=constantStereo(.5f,-.25f,384000,8192);
+ kit.wav[0]=constantStereo(.5f,-.25f,384000,81920);
  kit.pitch[0]=48;
  f.kit(kit);prepareAudio(*f.p);(void)f.openV101();
- const auto edit=SampleEdit::reset(8192);
+ const auto edit=SampleEdit::reset(81920);
  check(f.c->previewSampleEdit(0,edit),"NV03 384k/+24 real PREVIEW rejected");
  std::array<float,256> left{},right{};
  float* channels[]{left.data(),right.data()};
@@ -6977,6 +6977,18 @@ void testNv03HighRatePreviewAudible(){
  }
  check(peakL>.08f&&negativeR<-.04f,
        "NV03 high-rate preview produced no distinguishable stereo PCM");
+ // Negative control: the second block must STILL be audible without STOP.
+ // The original 8192-frame source ended exactly on the first block boundary.
+ check(f.p->process(block)==kResultOk&&std::abs(left[120])>.08f,
+       "NV03 no-STOP control must remain audibly active");
+ // Negative mutation: an ACK which does not set STOP must also leave PCM
+ // audible; the very next actual STOP must silence the same ongoing voice.
+ qa::auditMutation.store(qa::AuditMutation::acceptButIgnorePreviewStop);
+ const bool fakeStop=f.c->stopSampleEditPreview();
+ check(fakeStop,"NV03 deliberate ACK-only STOP mutation not accepted");
+ check(f.p->process(block)==kResultOk&&std::abs(left[120])>.08f,
+       "NV03 ACK-only STOP mutation should not silence still-playing PCM");
+ qa::auditMutation.store(qa::AuditMutation::none);
  check(f.c->stopSampleEditPreview(),"NV03 preview STOP IPC failed");
  check(f.p->process(block)==kResultOk,"NV03 preview STOP audio process failed");
  check(std::abs(left[120])<.0001f&&std::abs(right[120])<.0001f,
@@ -6985,7 +6997,7 @@ void testNv03HighRatePreviewAudible(){
  check(f.p->process(block)==kResultOk&&std::abs(left[80])>.08f,
        "NV03 preview restart produced no PCM");
  check(f.c->stopSampleEditPreview(),"NV03 restart STOP failed");
- evidence("NV03 real 384k/+24 PREVIEW PCM stereo, STOP, restart PASS");
+ evidence("NV03 384k/+24 PREVIEW: audible no-STOP, ACK-only STOP mutation, real STOP, restart PASS");
 }
 void testNa04DisabledPopupActionsDoNotEdit(){
  Fixture f;KitState kit;kit.visible=2;kit.grid.fill(0);kit.grid[0]=90;
