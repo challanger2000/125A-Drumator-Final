@@ -1,6 +1,18 @@
 # 125A Drumator — authoritative current status
 
-## Aktueller Entwicklungskandidat nach RC2 – 04.11.2026 (KEINE Verkaufsfreigabe)
+## RC3 MIDI-Multi-Drag – neuer privater V1.5-Prüfstand (04.11.2026)
+
+**Aktueller geprüfter Windows-VST3-Code:** `e22e65517e3e61d5e55e29b0ee7e34ea9b856a3c` auf `develop/beat-creator-10-styles-20261102`. **GitHub Actions [#41916990564](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41916990564): SUCCESS – 33/33 CTests, 47/47 Steinberg Validator, unabhängiger 125A Plugin Tester v0.3.2: 58 PASS / 0 WARNING / 0 FAIL.** Windows-Nativtest F06 überprüft drei physisch getrennte MIDI-Dateien bis zur echten VSTGUI-/OLE-`CF_HDROP`-Darstellung mit `Win32DataObject`, deren Reihenfolge, Aufbewahrung und Schutz vor fremden Dateien. Das ist mehr als ein MIDI-Encoder-Test, aber **keine Ausführung von Studio One**.
+
+**Private RC3-Test-ZIP erstellt und integritätsgeprüft:** `125A_Drumator_v1.5.0_RC3_MIDI_MultiDrag_StudioOne_Test.zip` (25 Dateien, SHA-256 `879406474e68400052dc3c5e28357c71c1cf494caaa5928f62c1daa5a289a67d`). Enthält genau das von GitHub Actions #41916990564 geprüfte VST3 (DLL-SHA256 `8a3f1571cbb497b04a54a0a15041574946aa18e7e4bae47584c51fd0634d8e28`), das unveränderte Besitzerpreset `125A Drumator Kit.vstpreset` (SHA-256 `4e76b529b18fa248aaa1a48fe44328f82f10490026f42daf8f85f000fe27c8e6`), korrigierte PDF-Handbücher DE/EN, Startanleitungen, Host-Kompatibilitätscheck und Dateiprüfsummen. GitHub Build-Artefakt: `125A-Drumator-M11-Full-Kit-Stress-QA`, Artefakt-ID `13365826473`. Die frühere RC2-ZIP gehört zum alten Quellstand und soll nicht mehr für V1.5-Abnahme verwendet werden.
+
+**Funktionsstand:** SW05 Swing 50 % = 2:1-Achtel-Triolenverhältnis, BC64 Complexity +/- 10 Punkte mit Startwert 35, F03 Save As getrennte MIDI-Dateien je musikalisch belegter Instrumentenzeile und F06 **auch MIDI-Drag mit mehreren getrennten Dateien** als eine Windows-Mehrdateienübergabe (kein einzelnes 17-Spuren-MIDI, kein Directory-Drag). WAV-Drag bleibt Einzeldatei. Das Handbuch erläutert die Bedienung und das enthaltene Kit. [RC3-Detailnachweise](docs/RC3-MIDI-MULTIDRAG-QA-20261104.md).
+
+**Freigabe weiterhin HOLD:** Der DAW-spezifische Effekt eines Mehrdateien-Drops auf Spuren/Clips und die Besitzerabnahme sind **NOT RUN**; Sample-Weitergaberechte noch ungeklärt. Kein FINAL, kein Release-Tag, keine Gumroad-Aktualisierung, keine Änderung an `main`/V1.0.1.
+
+---
+
+## Historischer Entwicklungskandidat nach RC2 – 04.11.2026 (KEINE Verkaufsfreigabe)
 
 **Aktueller Quellcode:** `a1d76cec42a9caa56a7cfd9d18756c2771daa3df` auf `develop/beat-creator-10-styles-20261102`. **Windows Actions #41913685096: SUCCESS – 33/33 CTests, 47/47 Steinberg Validator, unabhängiger 125A Plugin Tester v0.3.2: 58 PASS / 0 WARNING / 0 FAIL.** [Beleglauf](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41913685096). Die vorgeschaltete Swing-/Complexity-Reparatur `c6556014` bestand dieselben drei Gates in [#41912269901](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41912269901).
 
