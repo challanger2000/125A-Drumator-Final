@@ -23,7 +23,7 @@ struct UiV101Layout final {
   static constexpr std::size_t headerGroupCount=2;
   // Zoom presets are the actual existing Drumator choices, never visual guesses.
   static constexpr auto zoomPresets=UiCompactLayout::userZooms;
-  static constexpr double knobRadius=18.;
+  static constexpr double knobRadius=20.; // 40px drawn knob, aligned click target
   static constexpr std::array<double,3> knobCenters{{1062.,1122.,1182.}};
   struct Rect final {
     double x0,y0,x1,y1;
@@ -145,7 +145,7 @@ struct UiV101Layout final {
   }
   static constexpr Rect knobRect(std::size_t i)noexcept{
     const double x=knobCenters[i];
-    return {x-knobRadius,6.,x+knobRadius,42.};
+    return {x-knobRadius,24.-knobRadius,x+knobRadius,24.+knobRadius};
   }
   static constexpr double rowTop(std::size_t first,std::size_t index,
                                   const Expansions& expanded)noexcept{

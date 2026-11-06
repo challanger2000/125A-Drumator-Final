@@ -22,7 +22,10 @@ struct UiV101NativePreview final {
  using Color=VSTGUI::CColor;
  using Box=VSTGUI::CRect;
  static constexpr double kChassisLeft=12.,kChassisRight=1260.;
- static constexpr double kRowMountRadius=23.;
+ static constexpr double kRowMountRadius=19.;
+ static constexpr double kRowDialSize=40.;
+ static constexpr double kHeadphoneGlyphScale=.80;
+ static constexpr double kTitleReduction=.90;
  static constexpr double kHeaderMountRadius=22.;
  static_assert(2.*kRowMountRadius+2.<=L::rowHeight,
                "Rotary mounting socket must not overlap the next 48px row");
@@ -295,10 +298,8 @@ struct UiV101NativePreview final {
    constexpr double left=192.,right=1118.,top=7.,bottom=76.;
    const double fit=std::min((right-left)/bounds.width,
                              (bottom-top)/bounds.height);
-   // RC2: 20% smaller than the previous 80%-scale wordmark.
-   // Final scale = 0.80 * 0.80 = 0.64 of the original fitted title.
-   // Preserve the exact center, original PNG pixels, and aspect ratio.
-   constexpr double kTitleReduction=0.64;
+   // Owner-approved: 90% of the original fitted wordmark, rather than
+   // the previously compounded 64%. Preserve its PNG and exact center.
    const double width=bounds.width*fit*kTitleReduction;
    const double height=bounds.height*fit*kTitleReduction;
    return {(left+right-width)/2.,(top+bottom-height)/2.,
@@ -311,9 +312,16 @@ struct UiV101NativePreview final {
    const double sf=dest.getWidth()/bounds.width;
    const double x=dest.left-bounds.left*sf;
    const double y=dest.top-bounds.top*sf;
-   // A standalone metallic wordmark: draw at its intended 100% alpha.
-   // The PNG has no backing plate. Alpha-bound measurement skips near-zero
-   // stray pixels without altering or physically cropping the source asset.
+   // A restrained offset relief, behind the untouched metallic wordmark.
+   // No separate plaque or replacement font.
+   c.saveGlobalState();
+   c.setGlobalAlpha(.10f);
+   {
+     VSTGUI::CDrawContext::Transform shadow(c,
+       VSTGUI::CGraphicsTransform().scale(sf,sf).translate(x+1.5,y+1.8));
+     logo->draw(&c,{0.,0.,logo->getWidth(),logo->getHeight()});
+   }
+   c.restoreGlobalState();
    VSTGUI::CDrawContext::Transform tx(c,
       VSTGUI::CGraphicsTransform().scale(sf,sf).translate(x,y));
    logo->draw(&c,{0.,0.,logo->getWidth(),logo->getHeight()});
@@ -508,27 +516,30 @@ struct UiV101NativePreview final {
  // Headphone pictogram replaces the ambiguous play triangle in PREVIEW.
  // All coordinates derive from the preview cap's shared hit/paint rectangle.
  static void headphone(VSTGUI::CDrawContext& c,L::Rect r,double y,
-                       const ButtonSprites* vintage=nullptr,bool disabled=false){
+                        const ButtonSprites* vintage=nullptr,bool disabled=false){
    cap(c,r,y,"",false,10,vintage,disabled);
    const double cx=(r.x0+r.x1)/2.,cy=y+(r.y0+r.y1)/2.;
-   c.setFrameColor(disabled?Color{95,110,123,255}:Color{218,228,238,255});
-   c.setLineWidth(2.5);
-   // Rounded headband arc, mirrored for even balance at 100% zoom.
+   // 20% smaller, less prominent pictogram. The cap/hit area is unchanged.
+   constexpr double s=kHeadphoneGlyphScale;
+   const auto dx=[&](double v){return cx+s*v;};
+   const auto dy=[&](double v){return cy+s*v;};
+   c.setFrameColor(disabled?Color{95,110,123,255}:Color{177,195,209,255});
+   c.setLineWidth(2.);
    constexpr std::array<double,9> arc{{-1.,-.96,-.80,-.52,0.,.52,.80,.96,1.}};
    for(std::size_t i=1;i<arc.size();++i){
-     const auto px=[&](double t){return cx+10.*t;};
-     const auto py=[&](double t){return cy-1.-10.*std::sqrt(1.-t*t);};
+     const auto px=[&](double t){return dx(10.*t);};
+     const auto py=[&](double t){return dy(-1.-10.*std::sqrt(1.-t*t));};
      c.drawLine({px(arc[i-1]),py(arc[i-1])},{px(arc[i]),py(arc[i])});
    }
-   c.setFillColor(disabled?Color{95,110,123,255}:Color{216,227,236,255});
-   c.drawRect({cx-12.,cy-2.,cx-8.,cy+9.},VSTGUI::kDrawFilled);
-   c.drawRect({cx+8.,cy-2.,cx+12.,cy+9.},VSTGUI::kDrawFilled);
-   c.setFrameColor(disabled?Color{75,88,99,255}:Color{155,181,200,255});
+   c.setFillColor(disabled?Color{95,110,123,255}:Color{177,195,209,255});
+   c.drawRect({dx(-12.),dy(-2.),dx(-8.),dy(9.)},VSTGUI::kDrawFilled);
+   c.drawRect({dx(8.),dy(-2.),dx(12.),dy(9.)},VSTGUI::kDrawFilled);
+   c.setFrameColor(disabled?Color{75,88,99,255}:Color{128,153,171,255});
    c.setLineWidth(1.);
-   c.drawLine({cx-9.,cy-1.},{cx-9.,cy+7.});
-   c.drawLine({cx+9.,cy-1.},{cx+9.,cy+7.});
- }
- // Smaller hardware rotary with a steel mounting ring, scale and brushed face.
+   c.drawLine({dx(-9.),dy(-1.)},{dx(-9.),dy(7.)});
+   c.drawLine({dx(9.),dy(-1.)},{dx(9.),dy(7.)});
+  }
+  // Smaller hardware rotary with a steel mounting ring, scale and brushed face.
  // Used for the three actual global parameters, not painted as buttons.
  // Actual 125A knob sprite, reused for the two global musical controls
  // and master, with legible readouts and small engraved arc ticks.
@@ -557,19 +568,20 @@ struct UiV101NativePreview final {
    label(c,readout,{cx+24.,101.,cx+54.,126.},11,{221,231,239,255},false);
  }
  static void dial(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* sprite,
-                  double x,double y,int value,int index){
+                   double x,double y,int value,int index){
    const double fraction=index==0?value/200.:index==1?(value+100.)/200.:
                          (value+24.)/48.;
-   // Radius < 24px: mounting rings never touch adjacent 48px rows.
+   // Centered 40px dial with a 38px recessed mount, leaving 4px
+   // between painted dial and adjacent 48px instrument row.
    c.setFillColor({8,16,24,255});
    c.drawEllipse({x-kRowMountRadius,y-kRowMountRadius,x+kRowMountRadius,y+kRowMountRadius},VSTGUI::kDrawFilled);
    c.setFrameColor({92,100,108,255});c.setLineWidth(1.);
-   c.drawEllipse({x-22.,y-22.,x+22.,y+22.},VSTGUI::kDrawStroked);
+   c.drawEllipse({x-19.,y-19.,x+19.,y+19.},VSTGUI::kDrawStroked);
    c.setFillColor({7,11,17,255});
-   c.drawEllipse({x-20.,y-20.,x+20.,y+20.},VSTGUI::kDrawFilled);
-   originalDial(c,sprite,x,y,std::clamp(fraction,0.,1.),50.);
- }
- // Unified graphite hardware footer, used in MAIN and SONG.
+   c.drawEllipse({x-17.,y-17.,x+17.,y+17.},VSTGUI::kDrawFilled);
+   originalDial(c,sprite,x,y,std::clamp(fraction,0.,1.),kRowDialSize);
+  }
+  // Unified graphite hardware footer, used in MAIN and SONG.
  static void footerPlate(VSTGUI::CDrawContext& c,double footerTop){
    const auto p=L::footerPanel;
    const Box outer{p.x0,footerTop+p.y0,p.x1,footerTop+p.y1};

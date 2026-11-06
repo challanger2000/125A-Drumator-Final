@@ -1203,9 +1203,22 @@ void testV101ControllerScene(){
        "V101 controller pixel test original knob resource decode failed");
  auto* pngTitle=new VSTGUI::CBitmap(
    VSTGUI::CResourceDescription("DRUMATOR_Logo_Modern_Transparent.png"));
- const auto titleBounds=drumator::qa::UiV101NativePreview::measureTitle(pngTitle);
- check(titleBounds.valid()&&titleBounds.width>2000.&&titleBounds.height>250.&&titleBounds.height<350.,
-       "V101 native controller scene must load the corrected transparent DRUMATOR plaque");
+ using Painter=drumator::qa::UiV101NativePreview;
+  const auto titleBounds=Painter::measureTitle(pngTitle);
+  check(titleBounds.valid()&&titleBounds.width>2000.&&titleBounds.height>250.&&titleBounds.height<350.,
+        "V101 native controller scene must load the corrected transparent DRUMATOR plaque");
+  // G15: production pixel geometry, not merely a screenshot label.
+  const auto title=Painter::titleTarget(titleBounds);
+  const double titleFit=std::min(926./titleBounds.width,69./titleBounds.height);
+  check(Painter::kTitleReduction==.90&&
+        std::abs(title.getWidth()-titleBounds.width*titleFit*.90)<.001&&
+        std::abs(title.getHeight()-titleBounds.height*titleFit*.90)<.001&&
+        std::abs((title.left+title.right)*.5-655.)<.001&&
+        std::abs((title.top+title.bottom)*.5-41.5)<.001,
+        "G15 wordmark not centered at 90% of original fitted title");
+  check(Painter::kRowDialSize==40.&&Painter::kRowMountRadius==19.&&
+        Painter::kHeadphoneGlyphScale==.80,
+        "G15 compact rotary and headphone painter geometry regressed");
  const auto stepPixel=[&](const drumator::qa::UiV101NativePreview::Scene& state){
    auto bmp=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
      [&](VSTGUI::CDrawContext& dc){
