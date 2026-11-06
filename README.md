@@ -1,12 +1,14 @@
-# 125A Drumator – V1.5.0 (aktueller Entwicklungsbranch)
+# 125A Drumator – V1.5.0, aktueller geprüfter Original-Steps-Build (06.11.2026)
 
-**Besitzerbericht:** V1.5 wurde in der DAW geöffnet und **laut ausdrücklicher Eigentümerbestätigung bei Gumroad hochgeladen**. Das bestätigt noch keine vollständige DAW-Funktionsabnahme oder einen unabhängig geprüften Shop-ZIP-Hash. Auf `main` liegt weiterhin der bisherige V1.0.1-Quellstand. Weitere Gates: [V1.5-Release-Übergabe](docs/V15-RELEASE-HANDOFF-20261105.md).
+**AKTUELLER GUI-FIX:** Die ursprünglichen kantigen **17×34 Step-Tasten aus dem ersten alten Screenshot** sind ohne Farb-/Größenänderung in die kompakte V1.5 umgesetzt. Ausschließlich vertikal versetzt; Mausflächen folgen dem tatsächlichen Tastenrahmen. **MIDI, DSP, Velocity, Beat Creator, Swing, Crash, Song und andere Buttons unverändert.**
 
-**FERTIGES AKTUELLES GUMROAD-KUNDENPAKET MIT GUI-FOOTER-FIX:** `125A_Drumator_v1.5.0_Gumroad_Paket.zip` in der ChatGPT-Library `/125A-Drumator/Aktuell-v1.5.0/`. SHA-256 `d03532acb58b74d9d2b5c1093cf3413921997a2313509111766e672a509de401`. **Eigentümer bestätigt Gumroad-Upload der V1.5.0; unabhängiger Shop-Download-Hash nicht geprüft.**
-
-**Aktueller Produktcode:** [`286be54c`](https://github.com/challanger2000/125A-Drumator-Final/commit/286be54c463fb09a488d68e0fff288b85d17b6aa), [Windows-CI #41932222861](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/41932222861) **SUCCESS: 33/33 CTests, 47/47 Validator, 58 PASS / 0 WARNING / 0 FAIL.** V15-FTR1: `VERSION 1.5` sitzt in MAIN und SONG innerhalb des Footer-Bezels in einer eigenen zweiten Zeile, sicher getrennt von Statusmeldungen und Knöpfen. Reale Windows-Rasteransichten geprüft.
-
-**Verbindliche Anweisungen:** [CURRENT.md](CURRENT.md) · [START-HERE.md](START-HERE.md) · [V15-FTR1 Release-QA](docs/V15-FTR1-GUI-RELEASE-20261105.md). Complexity **5er-Schritte** (Start 35); **eine** MIDI-Datei SMF Typ 1/17 Tracks bei Save As und Drag; Crash-BC59 und SW05-Swing unverändert; Beispielkit und DE/EN-Handbücher im ZIP. Die vorherige Kunden-ZIP und alte RC1–RC4-Testpakete stehen ausschließlich im Library-Archiv. Das auf `main` bestehende V1.0.1-Produkt wurde nicht verändert.
+- **Neueste geprüfte Quelle:** `develop/beat-creator-10-styles-20261102`; Produktcode `92c2e412d78b4685f0527f8fb8e31571735b3bb3`, erfolgreich geprüfter Teststand `f95cc5d5d09bd142f1f55799791eb1c1bf5b427f`.
+- **[Windows QA #42174832595](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/42174832595): SUCCESS.** 33/33 CTests inkl. exakter Original-Step-Pixelvergleich, 47/47 Steinberg Validator, 58 PASS / 0 WARNING / 0 FAIL 125A Plugin Tester.
+- **Neues Windows-x64-VST3 FULL-Kundenpaket:** `125A_Drumator_v1.5.0_Gumroad_Paket.zip`, Library `/125A-Drumator/Aktuell-v1.5.0/`, SHA256 `33d40c5125818b87d41b525aa8e277303722b619058ca631e7b6e305195403f2`; DLL SHA256 `04ad26caa0ee1abe3985b90860d7e23da85043d59d963c0b9097c9623bfff7e5`. Kit, DE/EN-Handbücher und übrige Ressourcen identisch zur bisherigen Version.
+- **SHOP-VORSICHT:** Der Eigentümer bestätigte den früheren V1.5.0-Upload (DLL SHA `9899f979...`), **noch nicht das aktualisierte Original-Steps-Paket**. Bis er es ersetzt, unterscheidet sich die neue Library-ZIP vom bereits veröffentlichten Shop-Paket.
+- **Genaue Status- und Release-Trennung:** [CURRENT.md](CURRENT.md), [START-HERE.md](START-HERE.md), [Original-Steps Release-Test](docs/V15-ORIGINAL-STEPS-20261106.md).
+- `main` bleibt frühere stabile 1.0.1; die divergierte alte Branch `develop/v1.5.0` ist keine aktuelle Quelle. Keine eigenmächtige Hauptbranch-Zusammenführung.
+- **Unverrückbare Funktionsverträge:** Complexity Start 35 +/-5, MIDI Save/Drag eine SMF-1-Datei mit 17 Spuren und 960 PPQ; ursprünglicher Crash/Swing-Fix unverändert.
 
 ---
 

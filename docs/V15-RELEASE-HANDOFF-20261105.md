@@ -1,4 +1,4 @@
-# 125A Drumator V1.5.0 – Release-Übergabe und offener Gate-Status
+> **Historische Release-Übergabe vom 05.11.2026:** Beschreibt die zuvor veröffentlichte V1.5.0 **vor** dem Original-Steps-Update. Die neueste am 06.11. vollständig geprüfte Quell-/ZIP-Fassung steht in [V15-ORIGINAL-STEPS](V15-ORIGINAL-STEPS-20261106.md). Das neue ZIP wurde erstellt, aber dessen Austausch im Gumroad-Shop ist noch **NICHT bestätigt**.\n\n# 125A Drumator V1.5.0 – Release-Übergabe und offener Gate-Status
 
 **Stand 05.11.2026:** Windows-FULL-Kundenpaket erstellt und technisch getestet. Besitzer bestätigte das Öffnen in seiner DAW und bestätigte anschließend ausdrücklich, dass das ZIP **bei Gumroad hochgeladen ist**. Besitzerbestätigter Upload: ABGESCHLOSSEN. Unabhängiger Shop-Dateiabruf und vollständige Host-Interaktion: noch NICHT VERIFIZIERT.
 
