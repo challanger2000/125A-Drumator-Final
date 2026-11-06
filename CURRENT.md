@@ -1,15 +1,25 @@
 # 125A Drumator V1.5.0 – AKTUELLER PROJEKTSTAND
 
-**Stand: 06.11.2026.** Die vom Eigentümer gewünschte **exakte Wiederherstellung der ursprünglichen 17×34-Step-Tasten aus dem ersten Screenshot** wurde implementiert und durch Windows-Pixelvergleich, alle CTests, Steinberg Validator sowie 125A Plugin Tester geprüft. Die **aktualisierte Kunden-ZIP wurde erstellt und in ChatGPT Library gesichert, aber NOCH NICHT als bei Gumroad hochgeladen bestätigt**. Das bisherige Gumroad-V1.5.0-Angebot enthält nach letzter Eigentümerbestätigung die frühere V1.5.0 ohne diesen neuen Step-Fix.
+## AKTUELL: GUI-Feinschliff 06.11.2026 – neuer geprüfter V1.5.0-Gumroad-Paketstand
 
-## SOFORT: Neueste geprüfte V1.5.0 – Original-Steps Update
+- **Source/Branch:** `develop/beat-creator-10-styles-20261102`; GUI-Produktänderung `e1106fa321d6ca75de6baf2fc0b5ea55a2074527`; vollständig geprüfter Quell-/Teststand `3f1e82c99e716071486fa73b81c3e4f062400276`.
+- **Windows QA:** [Actions #42179212802](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/42179212802) **SUCCESS**: 33/33 CTests inklusive nativer Original-Steps-Pixelparität, 47/47 Steinberg Validator, unabhängiger 125A Plugin Tester v0.3.2 mit **58 PASS / 0 WARNING / 0 FAIL**.
+- **VST3-Binärdatei:** Windows x64, SHA256 `33bcf9e5d270192ba55cf211e63f1efa004f6e5230d33bc4090ad6b300e189be`. Byteidentisch mit Windows-CI-Artefakt.
+- **Neueste komplette Kunden-ZIP:** ChatGPT Library `/125A-Drumator/Aktuell-v1.5.0/125A_Drumator_v1.5.0_Gumroad_GUI_Update_2026-11-06.zip`; ZIP SHA256 `d308ed84700cfed3392d0cc3bd6a9c31451145fde13711c481737b07d707b217`; 17.444.371 Bytes, 24 Mitglieder. ZIP CRC PASS, sämtliche 23 Dateihashes in SHA256SUMS.txt kontrolliert.
+- **Nur GUI:** DRUMATOR-Wortmarke 90% des ursprünglichen Fitted-Renders plus schwacher 10%-Offset-Reliefschatten; VOL/PAN/PITCH 40px zentriert mit 40x40 passenden Maushitflächen; Preview-Kopfhörersymbole 20% kleiner und dezenter, unveränderte 37x32 Buttonflächen. **Originale 17x34 Steps und MIDI/DSP/Swing/Export/Beat-Creator/State unverändert.**
+- **Paketinhalt:** Die 16 VST3-Ressourcen, Kit-Preset mit 8 WAV, DE/EN-Handbücher und Installationstexte sind bytegleich mit dem vorigen Original-Steps-Paket. Nur VST3-DLL und SHA256SUMS.txt unterscheiden sich.
+- **Release-Grenze:** Dieses neue GUI-Paket ist in der Library, aber **ein Upload/Ersetzen auf Gumroad ist NICHT bestätigt**. Echter Studio-One-Praxistest mit der neuen DLL ist **NOT VERIFIED**; Windows-CI ersetzt nicht die Eigentümer-DAW-Abnahme. Altes V1.5.0-Kundenpaket nicht überschreiben oder als neuen GUI-Stand ausgeben.
+
+**Vorheriger Ausgangsstand 06.11.2026 (vor dem GUI-Feinschliff).** Die vom Eigentümer gewünschte **exakte Wiederherstellung der ursprünglichen 17×34-Step-Tasten aus dem ersten Screenshot** wurde implementiert und durch Windows-Pixelvergleich, alle CTests, Steinberg Validator sowie 125A Plugin Tester geprüft. Die **aktualisierte Kunden-ZIP wurde erstellt und in ChatGPT Library gesichert, aber NOCH NICHT als bei Gumroad hochgeladen bestätigt**. Das bisherige Gumroad-V1.5.0-Angebot enthält nach letzter Eigentümerbestätigung die frühere V1.5.0 ohne diesen neuen Step-Fix.
+
+## VORHERIGE geprüfte V1.5.0 – Original-Steps Update vor GUI-Feinschliff
 
 - **Repository:** https://github.com/challanger2000/125A-Drumator-Final
 - **Aktuelle Entwicklungsbranch:** `develop/beat-creator-10-styles-20261102`.
 - **Produktcode-Fix:** `92c2e412d78b4685f0527f8fb8e31571735b3bb3`; letzter geprüfter Source-/Test-Commit `f95cc5d5d09bd142f1f55799791eb1c1bf5b427f`.
 - **Windows QA:** [Actions #42174832595](https://github.com/challanger2000/125A-Drumator-Final/actions/runs/42174832595) **SUCCESS**: **33/33 CTests**, inklusive nativer originaler Hardware-Step-Pixel-Parität für On/Off/Downbeat/Disabled; **47/47 Steinberg Validator**; **58 PASS / 0 WARNING / 0 FAIL unabhängiger 125A Plugin Tester v0.3.2**. Echte Windows-MAIN- und SONG-Ansichten im CI archiviert.
-- **Neueste installierbare Windows-x64-VST3-DLL SHA256:** `04ad26caa0ee1abe3985b90860d7e23da85043d59d963c0b9097c9623bfff7e5` (bytegleich mit erfolgreichem CI-Artefakt).
-- **Neueste aktualisierte Kunden-ZIP (24 Dateien):** `125A_Drumator_v1.5.0_Gumroad_Paket.zip` in **ChatGPT Library** `/125A-Drumator/Aktuell-v1.5.0/`; **ZIP SHA-256 `33d40c5125818b87d41b525aa8e277303722b619058ca631e7b6e305195403f2`**, Größe **17.444.393 Bytes**, ZIP CRC und die 23 Datei-Hashes in `SHA256SUMS.txt` PASS.
+- **Vorherige Windows-x64-VST3-DLL SHA256:** `04ad26caa0ee1abe3985b90860d7e23da85043d59d963c0b9097c9623bfff7e5` (bytegleich mit erfolgreichem CI-Artefakt).
+- **Vorherige aktualisierte Kunden-ZIP (24 Dateien):** `125A_Drumator_v1.5.0_Gumroad_Paket.zip` in **ChatGPT Library** `/125A-Drumator/Aktuell-v1.5.0/`; **ZIP SHA-256 `33d40c5125818b87d41b525aa8e277303722b619058ca631e7b6e305195403f2`**, Größe **17.444.393 Bytes**, ZIP CRC und die 23 Datei-Hashes in `SHA256SUMS.txt` PASS.
 - **Optional eindeutiger Nutzer-Downloadname derselben Bytes:** `125A_Drumator_v1.5.0_Gumroad_OriginalSteps_Update_2026-11-06.zip`. Der Name dient zur Unterscheidung von der bereits hochgeladenen früheren V1.5.0.
 - **Unverändert:** `125A Drumator Kit.vstpreset` mit 8 WAVs, SHA256 `4e76b529b18fa248aaa1a48fe44328f82f10490026f42daf8f85f000fe27c8e6`; DE/EN-PDF-Handbücher, Installationsinfos, sämtliche VST3-Ressourcen byteidentisch zur bisherigen V1.5.0. Nur die DLL und aktualisierte Prüfsummenliste unterscheiden sich.
 
