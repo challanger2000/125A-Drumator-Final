@@ -273,13 +273,18 @@ int main(){
   CHECK(action(1122,y+20)==L::Action::Pan);
   CHECK(action(1182,y+20)==L::Action::Pitch);
   // G15: visible 40x40 rotaries and mouse targets share their centers.
-  CHECK(L::knobRadius==20.);
+  static_assert(L::knobRadius==20.);
+  static_assert(L::knobRect(0).x0==1042.&&L::knobRect(0).x1==1082.);
+  static_assert(L::knobRect(1).x0==1102.&&L::knobRect(1).x1==1142.);
+  static_assert(L::knobRect(2).x0==1162.&&L::knobRect(2).x1==1202.);
+  static_assert(L::knobRect(0).y0==4.&&L::knobRect(0).y1==44.);
+  static_assert(L::knobRect(0).x0>L::stepEnd);
+  static_assert(L::knobRect(2).x1<L::velocity.x0);
+  static_assert(L::preview.x1-L::preview.x0==37.&&
+                L::preview.y1-L::preview.y0==32.);
   for(std::size_t i=0;i<L::knobCenters.size();++i){
     const auto r=L::knobRect(i);
-    CHECK(r.x1-r.x0==40.&&r.y1-r.y0==40.);
     CHECK((r.x0+r.x1)*.5==L::knobCenters[i]);
-    CHECK((r.y0+r.y1)*.5==24.);
-    CHECK(r.y0==4.&&r.y1==44.);
     const auto expected=i==0?L::Action::Volume:i==1?L::Action::Pan:L::Action::Pitch;
     CHECK(action(r.x0+.1,y+24)==expected);
     CHECK(action(r.x1-.1,y+24)==expected);
@@ -289,9 +294,6 @@ int main(){
     CHECK(action(L::knobCenters[i],y+44.1)==L::Action::None);
     if(i)CHECK(L::knobRect(i-1).x1+20.==r.x0);
   }
-  CHECK(L::knobRect(0).x0>L::stepEnd);
-  CHECK(L::knobRect(2).x1<L::velocity.x0);
-  CHECK(L::preview.x1-L::preview.x0==37.&&L::preview.y1-L::preview.y0==32.);
   CHECK(action(1230,y+12)==L::Action::Velocity);
   CHECK(action(1230,y+32)==L::Action::Settings);
   CHECK(action(419.9,y+20)==L::Action::None);
