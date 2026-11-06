@@ -1224,7 +1224,7 @@ void testV101ControllerScene(){
  // directly, independently of the production stepCap implementation.
  // Four cases: lit/downbeat, off/regular, off/downbeat, disabled after bar 1.
  // No image rescale, approximation or newly invented glossy key style.
- const restoreOriginalStepPixelParity=[&](){
+ const auto restoreOriginalStepPixelParity=[&](){
    using Skin=drumator::qa::UiV101NativePreview;
    auto referencePaint=[](VSTGUI::CDrawContext& dc,
                            double sx,double rowTop,bool lit,bool disabled,
@@ -1265,7 +1265,7 @@ void testV101ControllerScene(){
        for(const std::size_t i:{0u,1u,4u,20u}){
          const auto rect=L::stepRect(i);
          referencePaint(dc,rect.x0,L::header,
-                        i==0,false==false&&i>=16,i%4==0);
+                        i==0,i>=16,i%4==0);
        }
      });
    check(actual&&reference,"S15 original step native bitmaps unavailable");
