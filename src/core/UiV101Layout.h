@@ -131,10 +131,11 @@ struct UiV101Layout final {
   struct Hit {std::size_t row=instruments;Action action=Action::None;int step=-1;};
   using Expansions=std::array<Expansion,instruments>;
   static constexpr Rect stepRect(std::size_t i) noexcept{
-    // First and last painted edges are x+1 and x+18, respectively.
-    // Half-open hit bounds must match this physical step cap exactly.
+    // ORIGINAL 17x34 Drumator V1.0.1 step. V1.5 only translates it
+    // vertically to +7..+41 inside its compact row; mouse and pixels agree.
+    // Preserve x+1..x+18 and the existing 19px step pitch.
     const double x=stepX+1.+i*stepPitch;
-    return {x,9.,x+17.,40.};
+    return {x,7.,x+17.,41.};
   }
   // Actual paint is stepCap(x+1..x+18). Quarter captions use exactly
   // the SAME painted-cap center, not a two-step-wide 38px label field.
@@ -189,7 +190,7 @@ struct UiV101Layout final {
     if(next.hit(x,y))return {row,Action::Next,-1};
     if(preview.hit(x,y))return {row,Action::Preview,-1};
     if(edit.hit(x,y))return {row,Action::Edit,-1};
-    if(y>=9.&&y<40.&&x>=stepX&&x<stepEnd){
+    if(y>=7.&&y<41.&&x>=stepX&&x<stepEnd){
       const auto i=static_cast<std::size_t>((x-stepX)/stepPitch);
       if(i<steps&&stepRect(i).hit(x,y))return {row,Action::Step,static_cast<int>(i)};
     }

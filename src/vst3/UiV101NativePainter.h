@@ -471,32 +471,39 @@ struct UiV101NativePreview final {
    for(std::size_t i=0;i<L::zoomPresets.size();++i)
      cap(c,L::zoomOption(i),0.,names[i],i==selected,11,vintage);
  }
- // Dark-blue physical sequencer keycap, with matching bezel and warm
- // backlit orange state. Keep the same 17px step width / 19px pitch.
- // Faithful V1.0 drawHardwareStep paint translated into compact 48px row.
- // Original established dark face, quarter accent and lit amber key lens.
- static void stepCap(VSTGUI::CDrawContext& c,double sx,double y,bool lit,bool downbeat){
-   // This is a compact 17x27 physical switch INSIDE the established
-   // 17x31 hit surface. Slightly rounded edges, black gasket, recess shadow.
-   const double x=sx; // UI03: sx is already the exact stepRect().x0.
+
+ // Exact V1.0.1 physical 17 x 34 step-key drawing (original
+ // DrumatorView.cpp::drawHardwareStep). No new rounded caps, gradients,
+ // saturated glows or altered colors: use the old twelve drawing passes.
+ // The sole translation is vertical: original row +69..+103 becomes
+ // compact V1.5 row +7..+41; the key is still 17 x 34 logical pixels.
+ // sx is already the old (gridX + 1) physical left edge, not gridX.
+ static void stepCap(VSTGUI::CDrawContext& c,double sx,double rowTop,
+                     bool lit,bool disabled,bool downbeat){
+   const double y=rowTop-62.; // fixed vertical translation, no resizing
+   const Box outer{sx,y+69.,sx+17.,y+103.};
+   c.setFillColor(Color{5,17,33,255});
+   c.drawRect(outer,VSTGUI::kDrawFilled);
+   c.setFrameColor(downbeat?Color{91,139,183,255}:
+                            Color{38,77,117,255});
+   c.setLineWidth(1.);
+   c.drawRect(outer,VSTGUI::kDrawStroked);
+   c.setFillColor(disabled?Color{30,40,51,255}:
+                   lit?Color{234,93,12,255}:
+                       Color{41,53,69,255});
+   c.drawRect({sx+2.,y+72.,sx+15.,y+100.},VSTGUI::kDrawFilled);
+   c.setFillColor(disabled?Color{53,61,72,255}:
+                   lit?Color{255,156,39,255}:
+                       Color{79,94,111,255});
+   c.drawRect({sx+3.,y+73.,sx+14.,y+81.},VSTGUI::kDrawFilled);
+   c.setFillColor(disabled?Color{49,54,61,255}:
+                   lit?Color{255,201,92,255}:
+                       Color{103,114,127,255});
+   c.drawRect({sx+3.,y+73.,sx+14.,y+75.},VSTGUI::kDrawFilled);
    if(lit){
-     // Restrained warm halo is visible against navy, not an orange rectangle.
-     fill(c,{x,y+12.,x+17.,y+38.},{70,42,22,255});
+     c.setFillColor(Color{255,226,151,255});
+     c.drawRect({sx+5.,y+93.,sx+12.,y+97.},VSTGUI::kDrawFilled);
    }
-   rounded(c,{x,y+10.,x+17.,y+39.},{6,11,18,255},2.);
-   rounded(c,{x+1.,y+11.,x+16.,y+37.},
-           downbeat?Color{94,111,129,255}:Color{46,64,83,255},2.);
-   rounded(c,{x+2.,y+12.,x+15.,y+36.},
-           lit?Color{211,71,10,255}:Color{29,43,62,255},2.);
-   satin(c,{x+3.,y+14.,x+14.,y+34.},
-         lit?Color{255,206,91,255}:Color{86,105,124,255},
-         lit?Color{252,150,35,255}:Color{47,67,90,255},
-         lit?Color{229,86,14,255}:Color{23,38,55,255},9);
-   fill(c,{x+4.,y+13.,x+13.,y+15.},
-        lit?Color{255,235,145,255}:Color{125,140,156,255});
-   fill(c,{x+4.,y+34.,x+13.,y+35.},
-        lit?Color{166,54,9,255}:Color{13,26,41,255});
-   if(lit)fill(c,{x+5.,y+28.,x+12.,y+31.},{255,198,79,255});
  }
  // Headphone pictogram replaces the ambiguous play triangle in PREVIEW.
  // All coordinates derive from the preview cap's shared hit/paint rectangle.
@@ -803,7 +810,7 @@ struct UiV101NativePreview final {
        const auto r=L::stepRect(step);
        const double sx=r.x0;
        const bool active=live&&step<scene.patternLength&&data.velocities[step]>0;
-       stepCap(c,sx,y,active,step%4==0);
+       stepCap(c,sx,y,active,step>=scene.patternLength,step%4==0);
      }
      for(std::size_t k=0;k<L::knobCenters.size();++k)
        dial(c,knobSprite,L::knobCenters[k],y+24.,

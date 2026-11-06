@@ -1218,6 +1218,81 @@ void testV101ControllerScene(){
    VSTGUI::CColor color{};a->getColor(color);a->forget();
    return std::array<int,3>{{color.red,color.green,color.blue}};
  };
+
+ // S15-STEP-RESTORE: 100%-native pixel parity with the ORIGINAL old
+ // DrumatorView::drawHardwareStep. The reference paints the old rectangles
+ // directly, independently of the production stepCap implementation.
+ // Four cases: lit/downbeat, off/regular, off/downbeat, disabled after bar 1.
+ // No image rescale, approximation or newly invented glossy key style.
+ const restoreOriginalStepPixelParity=[&](){
+   using Skin=drumator::qa::UiV101NativePreview;
+   auto referencePaint=[](VSTGUI::CDrawContext& dc,
+                           double sx,double rowTop,bool lit,bool disabled,
+                           bool downbeat){
+     // Translated only by -62 logical Y pixels from the V1.0.1 130px row.
+     const double y=rowTop-62.;
+     const VSTGUI::CRect outer{sx,y+69.,sx+17.,y+103.};
+     dc.setFillColor({5,17,33,255});dc.drawRect(outer,VSTGUI::kDrawFilled);
+     dc.setFrameColor(downbeat?VSTGUI::CColor{91,139,183,255}:
+                               VSTGUI::CColor{38,77,117,255});
+     dc.setLineWidth(1.);dc.drawRect(outer,VSTGUI::kDrawStroked);
+     dc.setFillColor(disabled?VSTGUI::CColor{30,40,51,255}:
+                     lit?VSTGUI::CColor{234,93,12,255}:VSTGUI::CColor{41,53,69,255});
+     dc.drawRect({sx+2.,y+72.,sx+15.,y+100.},VSTGUI::kDrawFilled);
+     dc.setFillColor(disabled?VSTGUI::CColor{53,61,72,255}:
+                     lit?VSTGUI::CColor{255,156,39,255}:VSTGUI::CColor{79,94,111,255});
+     dc.drawRect({sx+3.,y+73.,sx+14.,y+81.},VSTGUI::kDrawFilled);
+     dc.setFillColor(disabled?VSTGUI::CColor{49,54,61,255}:
+                     lit?VSTGUI::CColor{255,201,92,255}:VSTGUI::CColor{103,114,127,255});
+     dc.drawRect({sx+3.,y+73.,sx+14.,y+75.},VSTGUI::kDrawFilled);
+     if(lit){
+       dc.setFillColor({255,226,151,255});
+       dc.drawRect({sx+5.,y+93.,sx+12.,y+97.},VSTGUI::kDrawFilled);
+     }
+   };
+   auto frame=s;
+   // Step 0 lit/downbeat; step 1 off/regular; step 4 off/downbeat;
+   // step 20 disabled in a one-bar pattern, independent of any muted row.
+   frame.patternLength=16;
+   frame.rows[0].velocities[0]=100;
+   frame.rows[0].velocities[1]=0;
+   frame.rows[0].velocities[4]=0;
+   frame.rows[0].velocities[20]=0;
+   auto actual=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+     [&](VSTGUI::CDrawContext& dc){Skin::draw(dc,knob,pngTitle,titleBounds,frame);});
+   auto reference=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+     [&](VSTGUI::CDrawContext& dc){
+       for(const std::size_t i:{0u,1u,4u,20u}){
+         const auto rect=L::stepRect(i);
+         referencePaint(dc,rect.x0,L::header,
+                        i==0,false==false&&i>=16,i%4==0);
+       }
+     });
+   check(actual&&reference,"S15 original step native bitmaps unavailable");
+   auto* got=VSTGUI::CBitmapPixelAccess::create(actual.get(),false);
+   auto* wanted=VSTGUI::CBitmapPixelAccess::create(reference.get(),false);
+   check(got&&wanted,"S15 original step native pixel access unavailable");
+   for(const std::size_t i:{0u,1u,4u,20u}){
+     const auto rect=L::stepRect(i);
+     // Compare interior exactly; edge anti-aliasing can blend with the
+     // surrounding instrument well which is intentionally different.
+     for(int py=static_cast<int>(rect.y0)+1;py<static_cast<int>(rect.y1)-1;++py){
+       for(int px=static_cast<int>(rect.x0)+1;px<static_cast<int>(rect.x1)-1;++px){
+         const auto x=static_cast<std::uint32_t>(px);
+         const auto y=static_cast<std::uint32_t>(L::header+py);
+         check(got->setPosition(x,y)&&wanted->setPosition(x,y),
+               "S15 original step reference sampled outside native image");
+         VSTGUI::CColor a{},b{};
+         got->getColor(a);wanted->getColor(b);
+         check(a.red==b.red&&a.green==b.green&&a.blue==b.blue,
+               "S15 V1.5 step pixels diverged from original V1.0.1 hardware-key drawing");
+       }
+     }
+   }
+   got->forget();wanted->forget();
+ };
+ restoreOriginalStepPixelParity();
+
  const auto beforePixel=stepPixel(s),afterPixel=stepPixel(updated);
  // Dynamic L/R and clip LEDs must be driven by numeric scene values.
  // A decorative/static meter would fail this exact same native paint test.

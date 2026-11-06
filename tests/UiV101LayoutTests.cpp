@@ -36,6 +36,11 @@ int main(){
     const auto painted=L::stepRect(step);
     CHECK(painted.x0==L::stepX+1.+step*L::stepPitch);
     CHECK(painted.x1==L::stepX+18.+step*L::stepPitch);
+    // Regression: the owner-approved original physical key is 17x34.
+    // The compact V1.5 row has 48px, no row/velocity collision.
+    CHECK(painted.y0==7.&&painted.y1==41.);
+    CHECK(painted.y0>=L::stepWell.y0+2. &&
+          painted.y1<=L::stepWell.y1-2.);
     CHECK(!painted.hit(painted.x0-.01,20.));
     CHECK(painted.hit(painted.x0,20.)&&painted.hit(painted.x1-.01,20.));
     CHECK(!painted.hit(painted.x1,20.));
@@ -288,6 +293,11 @@ int main(){
   e[1]=L::Expansion::Settings;
   CHECK(L::hit(500,y+L::rowHeight*2+10,0,10,e).action==L::Action::SettingsLane);
   CHECK(L::hit(421,L::rowTop(0,2,e)+20,0,10,e).row==2);
+  // Every original 17x34 cap must be clickable to its visible boundary.
+  for(const double relY:{6.99,7.,9.,39.99,40.99,41.}){
+    const auto h=L::rowHit(0,L::stepX+8.,relY,L::Expansion::None);
+    CHECK((h.action==L::Action::Step)==(relY>=7.&&relY<41.));
+  }
   // Every step has an isolated 17 px clickable cap and a 2 px non-clickable gutter.
   for(std::size_t i=0;i<32;++i){
     const double x=L::stepX+L::stepPitch*i;
