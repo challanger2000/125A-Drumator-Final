@@ -433,7 +433,14 @@ struct UiV101NativePreview final {
                  bool active=false,int font=10,
                  const ButtonSprites* vintage=nullptr,
                  bool disabled=false,bool pressed=false){
-   const Box b{r.x0,y+r.y0,r.x1,y+r.y1};
+   const bool modernSampleSegment=ModernDrawStyle::enabled()&&
+       r.y0==L::previous.y0&&r.y1==L::previous.y1&&
+       r.x0>=L::previous.x0&&r.x1<=L::sampleMenu.x1;
+   // A 1px optical gutter on each side prevents the segmented sample
+   // chooser from looking like four unrelated, glued-together metal caps.
+   // Preserve all original hit rectangles for PREV/LOAD/NEXT/MENU.
+   const double inset=modernSampleSegment?1.:0.;
+   const Box b{r.x0+inset,y+r.y0,r.x1-inset,y+r.y1};
    if(ModernDrawStyle::enabled()){
      const auto p=ModernDrawStyle::colors();
      const Color top=disabled?mix(p.button,p.well,.65):
