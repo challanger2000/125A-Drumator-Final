@@ -2,6 +2,7 @@
 // Shared native VSTGUI painter for both production view and pixel-regression fixture.
 // All control geometry is taken from UiV101Layout; this class does not change DSP.
 #include "core/UiV101Layout.h"
+#include "vst3/UiModernTheme.h"
 #include "vst3/UiV101Interaction.h"
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
@@ -36,20 +37,20 @@ struct UiV101NativePreview final {
  // original light steel is warm (R>G>B), and the sequencer is dark navy,
  // deliberately NOT Windows grey or near-black.
  struct Skin {
-   static Color steel(){return {201,194,183,255};}
-   static Color steelHighlight(){return {217,209,197,255};}
-   static Color steelShadow(){return {171,164,155,255};}
-   static Color headerWell(){return {197,190,179,255};}
-   static Color headerSurface(){return {207,200,189,255};}
-   static Color graphite(){return {29,32,36,255};}
-   static Color panelEdge(){return {101,93,86,255};}
-   static Color navyWell(){return {15,27,40,255};}
-   static Color navyA(){return {27,41,56,255};}
-   static Color navyB(){return {30,45,61,255};}
-   static Color navyTrim(){return {63,78,92,255};}
-   static Color stepOff(){return {36,51,70,255};}
-   static Color amber(){return {250,145,30,255};}
-   static Color amberLens(){return {255,195,74,255};}
+   static Color steel(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().chassis:Color{201,194,183,255};}
+   static Color steelHighlight(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().header:Color{217,209,197,255};}
+   static Color steelShadow(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().rowB:Color{171,164,155,255};}
+   static Color headerWell(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().header:Color{197,190,179,255};}
+   static Color headerSurface(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().header:Color{207,200,189,255};}
+   static Color graphite(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().well:Color{29,32,36,255};}
+   static Color panelEdge(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().edge:Color{101,93,86,255};}
+   static Color navyWell(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().well:Color{15,27,40,255};}
+   static Color navyA(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().rowA:Color{27,41,56,255};}
+   static Color navyB(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().rowB:Color{30,45,61,255};}
+   static Color navyTrim(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().edge:Color{63,78,92,255};}
+   static Color stepOff(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().well:Color{36,51,70,255};}
+   static Color amber(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().orange:Color{250,145,30,255};}
+   static Color amberLens(){return ModernDrawStyle::enabled()?ModernDrawStyle::colors().orangeLight:Color{255,195,74,255};}
  };
  struct RowData final {
    std::string name;
@@ -128,6 +129,7 @@ struct UiV101NativePreview final {
  // Full-height MAIN and SONG retain their pixel-identical original rendering.
  static bool drawVintageFaceplate(VSTGUI::CDrawContext& c,
                                   VSTGUI::CBitmap* plate,double height,bool omitHeader=false){
+   if(ModernDrawStyle::enabled())return false;
    if(!plate||!plate->isLoaded()||plate->getWidth()<300.||
       plate->getHeight()<300.||height<L::header+L::footer)return false;
    const double w=plate->getWidth(),h=plate->getHeight();
@@ -171,6 +173,7 @@ struct UiV101NativePreview final {
  // Dark screw heads with a brushed rim, one highlight and cross recess.
  // These are paint-only and do not intrude into interactive rectangles.
  static void screw(VSTGUI::CDrawContext& c,double x,double y){
+   if(ModernDrawStyle::enabled())return;
    c.setFillColor({69,63,58,255});
    c.drawEllipse({x-7.,y-7.,x+7.,y+7.},VSTGUI::kDrawFilled);
    c.setFrameColor({226,220,210,255});c.setLineWidth(1.);
@@ -650,7 +653,15 @@ struct UiV101NativePreview final {
    const double total=L::pageViewHeight(ui.firstRow,shown,expanded,
                                        ui.viewportRows);
    const bool hasVintageFaceplate=drawVintageFaceplate(c,faceplatePng,total);
-   if(!hasVintageFaceplate){
+   if(ModernDrawStyle::enabled()){
+     const auto p=ModernDrawStyle::colors();
+     fill(c,{0.,0.,L::width,total},p.chassis);
+     satin(c,{7.,7.,L::width-7.,total-7.},
+           mix(p.chassis,p.label,.04),p.chassis,mix(p.chassis,p.well,.05),36);
+     rounded(c,{15.,75.,1265.,139.},p.header,5.);
+     rounded(c,{181.,8.,1073.,75.},mix(p.header,p.well,.25),5.);
+     border(c,{15.,75.,1265.,139.},p.edge);
+   }else if(!hasVintageFaceplate){
      // Proven procedural fallback for missing/corrupt packaged image.
      fill(c,{0.,0.,L::width,total},{105,98,91,255});
      rounded(c,{2.,2.,L::width-2.,total-2.},{165,157,148,255},3.);
@@ -670,7 +681,7 @@ struct UiV101NativePreview final {
    }
    // The source corner screws are now correctly sized and positioned by
    // the nine-slice. Do not overpaint them in the image-backed mode.
-   if(!hasVintageFaceplate){
+   if(!hasVintageFaceplate&&!ModernDrawStyle::enabled()){
      screw(c,14.,15.);screw(c,L::width-14.,15.);
    }
    // Complete 125A-Branding master, including original vector captions.
@@ -752,6 +763,16 @@ struct UiV101NativePreview final {
      const double y=L::rowTop(ui.firstRow,index,expanded);
      const auto& data=scene.rows[row];
      const bool live=row<scene.visibleRows;
+     if(ModernDrawStyle::enabled()){
+       const auto p=ModernDrawStyle::colors();
+       rounded(c,{kChassisLeft,y+1.,kChassisRight,y+L::rowHeight-1.},p.well,3.);
+       rounded(c,{14.,y+3.,1258.,y+L::rowHeight-3.},
+               row%2?p.rowA:p.rowB,3.);
+       satin(c,{17.,y+5.,1255.,y+L::rowHeight-5.},
+             mix(row%2?p.rowA:p.rowB,p.label,.06),
+             row%2?p.rowA:p.rowB,
+             mix(row%2?p.rowA:p.rowB,p.well,.16),8);
+     }else{
      // Recessed dark-navy instrument chassis: thick top gasket, soft
      // internal gradient, narrow upper reflection and lower occlusion.
      rounded(c,{kChassisLeft,y+1.,kChassisRight,y+L::rowHeight-1.},
@@ -764,6 +785,7 @@ struct UiV101NativePreview final {
      fill(c,{18.,y+4.,1254.,y+5.},{84,100,111,255});
      fill(c,{18.,y+L::rowHeight-5.,1254.,y+L::rowHeight-4.},
           {9,17,28,255});
+     }
      // Slim selection rail: visible without adding another chunky module.
      fill(c,{L::select.x0,y+L::select.y0,L::select.x1,y+L::select.y1},
           {5,12,19,255});
