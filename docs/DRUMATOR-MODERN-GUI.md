@@ -1,6 +1,6 @@
 # 125A Drumator Modern — separate GUI experiment
 
-**Status:** independent development branch. Not a release; owner DAW approval and Windows QA required.
+**Status:** OWNER REJECTED GUI DESIGN (2026-11-21). Independent development branch ONLY; not approved, not a distributable release. The previously provided GUI-review ZIP is withdrawn as a release candidate. Windows functional PASS never constitutes an owner design PASS.
 
 ## Frozen product contract
 - Reference: Windows x64 Drumator 1.5.0, `develop/beat-creator-10-styles-20261102` (base SHA `52dedc399424261a93905c622ca3ef42606e9207`).
@@ -34,3 +34,13 @@
 - Save screenshots of the three themes from the actual loaded VSTGUI editor; do not use mockup imagery as software verification.
 - **Unverified until run:** actual Studio One / Fender Studio Pro usability, multi-instance visual behavior, 100–150% zoom, Mouse gestures and DAW project reopening with this separate Modern ID.
 - No distribution, Gumroad upload, release tag or FINAL claim without owner approval and applicable release QA.
+
+## Non-negotiable visual acceptance blockers (owner feedback 2026-11-21)
+- The original Modern screens had uneven horizontal field starts/widths, misaligned theme controls, the second status line overlapping the theme buttons, an old metallic DRUMATOR title and distracting cyan subdivisions on inactive steps. These were explicitly rejected as unprofessional.
+- The title is now standard VSTGUI typography with palette-aware ink and a restrained shadow; the original image is Classic-only.
+- The Modern footer is being restructured as one aligned 25px action strip, plus a separate 9px information strip. All theme buttons must be equal width, aligned with Export/Prev/Next, with no text collision in MAIN or SONG.
+- The sample-name row segments use matched inset gutters while retaining their exact previous/next/load/menu click areas.
+- Inactive four-beat markers must be subtle neutral edging; orange is reserved for active Steps.
+- Geometry assertions and a successful validator are necessary but INSUFFICIENT. Inspect *actual* 100%, 120%, 130% and 150% loaded VSTGUI images; ensure fields have intentional, consistent proportions and no truncation or collisions in the real kit state, modal states and expanded Velocity/Settings rows.
+- Never deliver an additional "test ZIP", "review ZIP" or "complete package" as a finished product until owner signs off visual quality and Studio Pro practice results. Correct the design before packaging.
+
