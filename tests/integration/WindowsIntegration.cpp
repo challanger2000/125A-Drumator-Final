@@ -1365,6 +1365,34 @@ void testV101ControllerScene(){
  check(modernColors[0]!=modernColors[1]&&modernColors[1]!=modernColors[2]&&
        modernColors[0]!=modernColors[2],
        "MOD01 three themes render the same native pixels");
+ // MOD06: native DRUMATOR typography is visible in each theme without
+ // the legacy image. Sample the actual Windows VSTGUI glyph raster, not a mockup.
+ for(int mode=0;mode<3;++mode){
+   const auto theme=static_cast<drumator::v101::ModernTheme>(mode);
+   const auto palette=drumator::v101::modernPalette(theme);
+   const auto bmp=VSTGUI::renderBitmapOffscreen({1280.,90.},1.,
+      [&](VSTGUI::CDrawContext& dc){
+        const drumator::v101::ModernDrawStyle::Scope scope(theme);
+        Painter::fill(dc,{0.,0.,1280.,90.},palette.header);
+        Painter::modernTitle(dc);
+      });
+   check(bmp!=nullptr,"MOD06 native Modern title bitmap not created");
+   auto* pixels=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
+   check(pixels!=nullptr,"MOD06 native Modern title pixel access unavailable");
+   unsigned glyphPixels=0;
+   const int backgroundSum=int(palette.header.red)+
+                           int(palette.header.green)+int(palette.header.blue);
+   for(std::uint32_t y=12;y<72;y+=2)
+     for(std::uint32_t x=300;x<1000;x+=2){
+       check(pixels->setPosition(x,y),"MOD06 title sample beyond bitmap");
+       VSTGUI::CColor v{};pixels->getColor(v);
+       if(int(v.red)+int(v.green)+int(v.blue)>backgroundSum+65)
+         ++glyphPixels;
+     }
+   pixels->forget();
+   check(glyphPixels>160,"MOD06 DRUMATOR native text absent in Modern skin");
+ }
+
  // MOD05: dark inset labels on Graphite/Slate/Silver must remain readable,
  // including SMALL 9px muted labels and the active cyan-tinted keycap
  // highlight. Reject beautiful mockups that become illegible in VSTGUI.
