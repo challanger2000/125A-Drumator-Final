@@ -9,6 +9,7 @@
 #include "core/SequencerCore.h"
 #include "core/SampleEdit.h"
 #include "vst3/UiV101Interaction.h"
+#include "vst3/UiModernTheme.h"
 #include "vst3/UiV101Popup.h"
 #include "vst3/UiBeatCreatorDialog.h"
 #include "core/BeatCreator.h"
@@ -69,6 +70,8 @@ private:
  Controller& controller_;
  UiV101Interaction v101_;
  bool v101Mode_{false};
+ // GUI-only modern skin; the VST3 processor and serialized kit state are untouched.
+ v101::ModernTheme modernTheme_{v101::loadModernThemePreference()};
  bool v101LocalRowTransaction_{false};
  std::size_t v101LastRowsNotified_{0}; // do not retry refused HWND on every Step edit
  VSTGUI::CBitmap* v101TitleBitmap_{nullptr};
