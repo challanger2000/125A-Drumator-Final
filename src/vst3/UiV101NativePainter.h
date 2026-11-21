@@ -483,6 +483,16 @@ struct UiV101NativePreview final {
    label(c,text,{l+2.,t+2.,rr-2.,bt-2.},font,
          active?Color{65,32,16,255}:Color{24,27,30,255});
  }
+ // The new theme chooser is UI-only. It occupies only the second footer
+ // line; original version engraving, status, Export and page keys remain.
+ static void modernThemeTabs(VSTGUI::CDrawContext& c,double footerTop,
+                             ModernTheme selected){
+   if(!ModernDrawStyle::enabled())return;
+   constexpr const char* names[]={"GRAPHITE","SLATE","SILVER"};
+   for(std::size_t i=0;i<3;++i)
+     cap(c,L::modernThemeTabs[i],footerTop,names[i],
+         selected==static_cast<ModernTheme>(i),9,nullptr);
+ }
  // Modal zoom is a topmost shared overlay in MAIN and SONG. Painting
  // it only inside the main sequencer would let the SONG heading hide the
  // fourth (150%) option while pointer capture was still active.
