@@ -259,6 +259,12 @@ struct IntegrationAccess {
  static SampleEdit sampleEditorDraft(const DrumatorView& view){return view.sampleEditorEdit_;}
  static void setSampleEditorDraft(DrumatorView& view,const SampleEdit& edit){view.sampleEditorEdit_=edit;}
  static void setStatusText(DrumatorView& view,const std::string& status){view.status_=status;}
+ static void setModernTestTheme(DrumatorView& view,v101::ModernTheme theme){
+   view.modernTheme_=theme;view.invalid();
+ }
+ static v101::ModernTheme modernTestTheme(const DrumatorView& view){
+   return view.modernTheme_;
+ }
  static void seedTransportClock(Processor& p) {
    p.haveExpectedPpq_=true;
    p.expectedNextPpq_=19.5;
@@ -401,7 +407,12 @@ struct Fixture {
    static_cast<IPlugView*>(e)->setFrame(&h);
    check(static_cast<IPlugView*>(e)->attached(h.hwnd,kPlatformTypeHWND)==kResultOk,
          "attach native V101 editor template to actual Windows host frame");
-   editors.push_back(e);pump();return *e;
+   editors.push_back(e);pump();
+   // Historical integration cases remain Classic visual oracles.
+   // The shipping editor still initializes to the persisted Modern theme.
+   IntegrationAccess::setModernTestTheme(
+       *IntegrationAccess::view(*c,n),v101::ModernTheme::Classic);
+   return *e;
  }
  static std::vector<std::uint8_t> encode(const KitState& kit){std::vector<std::uint8_t> b;check(KitCodec::encode(kit,b),"valid kit encode");return b;}
  tresult recall(const std::vector<std::uint8_t>& bytes){
@@ -7374,7 +7385,16 @@ int main(int argc,char** argv){
              IntegrationAccess::modernTitleLoaded(*view),
              "packaged V1.0.1 graphite photo, title or buttons absent");
        captureVstgui(*view,"packaged-vst3-resources-silver-100",1.0);
-       evidence("Packaged VST3: V1.0.1 dark graphite metal, transparent DRUMATOR title and black 4x button states rendered PASS");
+       // Same actual packaged native editor in each Modern palette.
+       constexpr const char* names[]={
+         "drumator-modern-graphite-100","drumator-modern-slate-100",
+         "drumator-modern-silver-100"};
+       for(std::size_t index=0;index<3;++index){
+         IntegrationAccess::setModernTestTheme(
+             *view,static_cast<v101::ModernTheme>(index));
+         captureVstgui(*view,names[index],1.0);
+       }
+       evidence("Packaged VST3: original Classic plus three Modern native renderings PASS");
      }catch(const std::exception& ex){
        std::cerr<<"Packaged resource native render FAIL: "<<ex.what()<<'\n';
        result=3;
