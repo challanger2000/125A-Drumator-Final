@@ -54,6 +54,35 @@ struct ModernDrawStyle final {
  };
  static bool enabled() noexcept{return current!=ModernTheme::Classic;}
  static ModernPalette colors() noexcept{return modernPalette(current);}
+ // Shared semantic paint roles for every MAIN/SONG/Beat Creator/Wave popup.
+ // The caller provides the exact Classic color, preserving baseline pixels.
+ enum class Role : std::uint8_t {
+  Chassis,Header,RowA,RowB,Well,Edge,Button,Text,Muted,
+  Orange,OrangeLight,Cyan,Green
+ };
+ static VSTGUI::CColor paint(Role role,VSTGUI::CColor original) noexcept {
+  if(!enabled())return original;
+  const auto p=colors();
+  VSTGUI::CColor c=original;
+  switch(role){
+   case Role::Chassis:c=p.chassis;break;
+   case Role::Header:c=p.header;break;
+   case Role::RowA:c=p.rowA;break;
+   case Role::RowB:c=p.rowB;break;
+   case Role::Well:c=p.well;break;
+   case Role::Edge:c=p.edge;break;
+   case Role::Button:c=p.button;break;
+   case Role::Text:c=p.label;break;
+   case Role::Muted:c=p.dim;break;
+   case Role::Orange:c=p.orange;break;
+   case Role::OrangeLight:c=p.orangeLight;break;
+   case Role::Cyan:c=p.cyan;break;
+   case Role::Green:c=p.green;break;
+  }
+  // Preserve modal scrim / MIDI bar alpha from the approved Classic code.
+  c.alpha=original.alpha;
+  return c;
+ }
 };
 
 // GUI-only per-user preference, never serialized into a drum kit or VST3
