@@ -545,7 +545,7 @@ struct UiV101NativePreview final {
      const auto p=ModernDrawStyle::colors();
      const Box outer{sx,rowTop+7.,sx+17.,rowTop+41.};
      rounded(c,outer,p.well,2.);
-     border(c,outer,downbeat?p.cyan:p.edge);
+     border(c,outer,downbeat?mix(p.edge,p.label,.18):p.edge);
      const Box inset{sx+2.,rowTop+9.,sx+15.,rowTop+39.};
      if(disabled)fill(c,inset,mix(p.well,p.rowB,.30));
      else if(lit){
