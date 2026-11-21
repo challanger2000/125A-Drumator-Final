@@ -19,6 +19,8 @@ struct UiV101SongPainter final {
                   const char* status="",
                   VSTGUI::CBitmap* agedFaceplate=nullptr,
                   const P::ButtonSprites* vintageButtons=nullptr){
+   using M=ModernDrawStyle;
+   using R=M::Role;
    const auto key=[&](VSTGUI::CDrawContext& ctx,double x0,double y0,
                       double x1,double y1,const char* title,
                       bool selected=false,int font=10,bool disabled=false){
@@ -30,7 +32,7 @@ struct UiV101SongPainter final {
    // captions without changing the shared top-row key hit map.
    P::fill(c,{7.,138.,1273.,top},P::Skin::navyWell());
    P::label(c,"SONG EDITOR  /  64-POSITION CHAIN",
-            {28.,139.,627.,156.},10,{169,193,210,255},false);
+            {28.,139.,627.,156.},10,M::paint(R::Muted,{169,193,210,255}),false);
    // Shared industrial graphite artwork with MAIN; separate SONG hit map.
    if(!P::drawVintageFaceplate(c,agedFaceplate,bottom,true)){
      if(ModernDrawStyle::enabled()){
@@ -39,10 +41,10 @@ struct UiV101SongPainter final {
        P::satin(c,{6.,top+2.,1274.,bottom-6.},
                 palette.header,palette.rowA,palette.well,22);
      }else{
-     P::fill(c,{0.,top,1280.,bottom},{27,35,44,255});
+     P::fill(c,{0.,top,1280.,bottom},M::paint(R::Chassis,{27,35,44,255}));
      P::satin(c,{6.,top+2.,1274.,bottom-6.},
-              {51,60,69,255},{35,44,54,255},
-              {22,30,40,255},32);
+              M::paint(R::Header,{51,60,69,255}),M::paint(R::RowA,{35,44,54,255}),
+              M::paint(R::Well,{22,30,40,255}),32);
      }
    }
    P::border(c,{6.,top+2.,1274.,bottom-6.},P::Skin::panelEdge());
@@ -61,8 +63,8 @@ struct UiV101SongPainter final {
                  static_cast<unsigned>(first+1),
                  static_cast<unsigned>(first+S::perPage),
                  static_cast<unsigned>(count));
-   P::label(c,title,{27.,169.,307.,195.},12,{223,231,236,255},false);
-   P::label(c,"SONG START",{311.,169.,432.,194.},10,{177,195,206,255},false);
+   P::label(c,title,{27.,169.,307.,195.},12,M::paint(R::Text,{223,231,236,255}),false);
+   P::label(c,"SONG START",{311.,169.,432.,194.},10,M::paint(R::Muted,{177,195,206,255}),false);
    const auto startBar=controller.songStartBar();
    char bar[24]{};
    std::snprintf(bar,sizeof(bar),"BAR %u",static_cast<unsigned>(startBar));
@@ -76,7 +78,7 @@ struct UiV101SongPainter final {
              P::Skin::navyTrim());
    P::label(c,bar,{S::startBarLeft+3.,S::startTop+2.,
                    S::startBarRight-3.,S::startBottom-2.},11,
-             {224,233,239,255});
+             M::paint(R::Text,{224,233,239,255}));
    key(c,S::startPlusLeft,S::startTop,S::startPlusRight,S::startBottom,
        "+",false,12,startBar>=9999);
    key(c,S::startResetLeft,S::startTop,S::startResetRight,S::startBottom,
@@ -97,9 +99,9 @@ struct UiV101SongPainter final {
      // light-gray tiles of the previous design. They remain slightly
      // lighter than populated wells and must not imply clickable ADD.
      P::rounded(c,{x,y,x+S::cellWidth,y+S::cellHeight},
-                populated?P::Skin::navyWell():Color{45,57,69,255},3.);
+                populated?P::Skin::navyWell():M::paint(R::RowA,Color{45,57,69,255}),3.);
      P::border(c,{x,y,x+S::cellWidth,y+S::cellHeight},
-               !populated?Color{63,80,95,255}:
+               !populated?M::paint(R::Edge,Color{63,80,95,255}):
                index==slot?P::Skin::amber():P::Skin::navyTrim());
      if(!populated)continue;
      const auto entry=controller.songEntry(index);
@@ -116,28 +118,28 @@ struct UiV101SongPainter final {
      const auto* length=entry.steps==8?"1/2 BAR":entry.steps==16?
                         "1 BAR":"2 BARS";
      P::label(c,number,{x+5.,y+6.,x+37.,y+40.},11,
-              {170,188,201,255},true);
+              M::paint(R::Muted,{170,188,201,255}),true);
      P::label(c,pattern,{x+36.,y+6.,x+77.,y+40.},12,
               index==slot?P::Skin::amberLens():
-                          Color{171,219,246,255},true);
+                          M::paint(R::Text,Color{171,219,246,255}),true);
      P::label(c,length,{x+80.,y+6.,x+145.,y+40.},10,
-              {226,232,236,255},true);
+              M::paint(R::Text,{226,232,236,255}),true);
    }
    // Dark graphite tray shared with the MAIN header and footer. This
    // changes material color only, never UiSongLayout hit rectangles.
    P::rounded(c,{UiV101Layout::surfaceLeft,313.,UiV101Layout::surfaceRight,382.},
-              {30,44,58,255},3.);
+              M::paint(R::Well,{30,44,58,255}),3.);
    P::satin(c,{UiV101Layout::surfaceLeft+2.,315.,
-               UiV101Layout::surfaceRight-2.,380.},{39,53,66,255},
-            {26,40,54,255},{19,31,44,255},10);
+               UiV101Layout::surfaceRight-2.,380.},M::paint(R::RowA,{39,53,66,255}),
+            M::paint(R::RowB,{26,40,54,255}),M::paint(R::Well,{19,31,44,255}),10);
    P::border(c,{UiV101Layout::surfaceLeft,313.,
-                UiV101Layout::surfaceRight,382.},{64,87,106,255});
+                UiV101Layout::surfaceRight,382.},M::paint(R::Edge,{64,87,106,255}));
    char selection[72]{};
    if(selected)std::snprintf(selection,sizeof(selection),
        "POSITION %02u SELECTED",static_cast<unsigned>(slot+1));
    else std::snprintf(selection,sizeof(selection),"SELECT AN EXISTING ENTRY");
-   P::label(c,selection,{26.,314.,620.,339.},11,{219,207,192,255},false);
-   P::label(c,"PATTERN",{25.,339.,109.,366.},10,{228,216,199,255},false);
+   P::label(c,selection,{26.,314.,620.,339.},11,M::paint(R::Text,{219,207,192,255}),false);
+   P::label(c,"PATTERN",{25.,339.,109.,366.},10,M::paint(R::Muted,{228,216,199,255}),false);
    const auto current=controller.songEntry(std::min(slot,count-1));
    for(std::size_t i=0;i<8;++i){
      char letter[2]{static_cast<char>('A'+i),0};
@@ -149,7 +151,7 @@ struct UiV101SongPainter final {
        "REST",selected&&current.pattern==SongChain::kRest);
    P::label(c,"LENGTH",{S::lengthTitleLeft,339.,
                        S::lengthTitleRight,366.},10,
-             {228,216,199,255},false);
+             M::paint(R::Muted,{228,216,199,255}),false);
    constexpr const char* names[]={"1/2 BAR","1 BAR","2 BARS"};
    constexpr std::uint8_t lengths[]={8,16,32};
    for(int i=0;i<3;++i){
@@ -168,7 +170,7 @@ struct UiV101SongPainter final {
    P::fittedStatus(c,status&&*status?status:
            "REST and A-H are selectable. Only ADD ENTRY adds positions.",
            {statusR.x0,footerTop+statusR.y0,statusR.x1,footerTop+statusR.y1},
-           11,{205,221,231,255},false);
+           11,M::paint(R::Muted,{205,221,231,255}),false);
  }
 };
 } // namespace drumator::v101
