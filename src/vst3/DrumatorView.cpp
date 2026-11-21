@@ -1738,12 +1738,6 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine,bool acc
 }
 
 void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
- drawV101(c);
- // Visual-only modal scrim; preserves all hit rectangles and engine state.
- c->setFillColor(M::paint(R::Well,VSTGUI::CColor{9,15,24,128}));
- c->drawRect({0.,0.,UiV101Layout::width,v101_.height()},VSTGUI::kDrawFilled);
-   // Identical UiWaveEditorLayout geometry; only the V1.0.1 materials
-   // and paint primitives change. All source-frame marker math is preserved.
    using P=v101::UiV101NativePreview;
    using M=v101::ModernDrawStyle;
    using R=M::Role;
@@ -1751,6 +1745,13 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
    const auto waveOn=M::paint(R::Orange,::drumator::on);
    const auto waveOff=M::paint(R::Well,::drumator::off);
    const auto waveAccent=M::paint(R::Cyan,::drumator::accent);
+ drawV101(c);
+ // Visual-only modal scrim; preserves all hit rectangles and engine state.
+ c->setFillColor(M::paint(R::Well,VSTGUI::CColor{9,15,24,128}));
+ c->drawRect({0.,0.,UiV101Layout::width,v101_.height()},VSTGUI::kDrawFilled);
+   // Identical UiWaveEditorLayout geometry; only the V1.0.1 materials
+   // and paint primitives change. All source-frame marker math is preserved.
+
    // The modal editor uses the SAME brushed-metal source as MAIN/SONG.
    // Sample only the quiet center of the supplied faceplate: drawing the
    // whole photograph here would duplicate its large bevel and corner trim.
