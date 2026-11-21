@@ -743,6 +743,12 @@ struct UiV101NativePreview final {
            mix(p.chassis,p.label,.04),p.chassis,mix(p.chassis,p.well,.05),36);
      rounded(c,{15.,75.,1265.,139.},p.header,5.);
      rounded(c,{181.,8.,1073.,75.},mix(p.header,p.well,.25),5.);
+     // The original white 125A Systems master is near-invisible on a Silver
+     // chassis. Put a subdued dark header surface UNDER the unmodified brand
+     // logo, preserving its exact geometry, paths and brand colors.
+     // This is not a substitute brand asset or a visible new interaction.
+     rounded(c,{8.,8.,175.,72.},mix(p.header,p.well,.28),4.);
+     border(c,{8.,8.,175.,72.},mix(p.edge,p.header,.60));
      border(c,{15.,75.,1265.,139.},p.edge);
    }else if(!hasVintageFaceplate){
      // Proven procedural fallback for missing/corrupt packaged image.
