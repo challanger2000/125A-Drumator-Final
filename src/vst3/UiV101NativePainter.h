@@ -505,8 +505,8 @@ struct UiV101NativePreview final {
    const double right=L::zoomOption(0).x1+4.;
    const double top=L::zoomOption(0).y0-4.;
    const double bottom=L::zoomOption(L::zoomPresets.size()-1).y1+4.;
-   fill(c,{left,top,right,bottom},{12,20,29,255});
-   border(c,{left,top,right,bottom},{104,115,121,255});
+   fill(c,{left,top,right,bottom},M::paint(R::Well,{12,20,29,255}));
+   border(c,{left,top,right,bottom},M::paint(R::Edge,{104,115,121,255}));
    for(std::size_t i=0;i<L::zoomPresets.size();++i)
      cap(c,L::zoomOption(i),0.,names[i],i==selected,11,vintage);
  }
@@ -569,7 +569,7 @@ struct UiV101NativePreview final {
    constexpr double s=kHeadphoneGlyphScale;
    const auto dx=[&](double v){return cx+s*v;};
    const auto dy=[&](double v){return cy+s*v;};
-   c.setFrameColor(disabled?Color{95,110,123,255}:Color{177,195,209,255});
+   c.setFrameColor(disabled?M::paint(R::Muted,Color{95,110,123,255}):M::paint(R::Text,Color{177,195,209,255}));
    c.setLineWidth(2.);
    constexpr std::array<double,9> arc{{-1.,-.96,-.80,-.52,0.,.52,.80,.96,1.}};
    for(std::size_t i=1;i<arc.size();++i){
@@ -577,10 +577,10 @@ struct UiV101NativePreview final {
      const auto py=[&](double t){return dy(-1.-10.*std::sqrt(1.-t*t));};
      c.drawLine({px(arc[i-1]),py(arc[i-1])},{px(arc[i]),py(arc[i])});
    }
-   c.setFillColor(disabled?Color{95,110,123,255}:Color{177,195,209,255});
+   c.setFillColor(disabled?M::paint(R::Muted,Color{95,110,123,255}):M::paint(R::Text,Color{177,195,209,255}));
    c.drawRect({dx(-12.),dy(-2.),dx(-8.),dy(9.)},VSTGUI::kDrawFilled);
    c.drawRect({dx(8.),dy(-2.),dx(12.),dy(9.)},VSTGUI::kDrawFilled);
-   c.setFrameColor(disabled?Color{75,88,99,255}:Color{128,153,171,255});
+   c.setFrameColor(disabled?M::paint(R::Muted,Color{75,88,99,255}):M::paint(R::Edge,Color{128,153,171,255}));
    c.setLineWidth(1.);
    c.drawLine({dx(-9.),dy(-1.)},{dx(-9.),dy(7.)});
    c.drawLine({dx(9.),dy(-1.)},{dx(9.),dy(7.)});
@@ -702,13 +702,13 @@ struct UiV101NativePreview final {
        const auto lit=index<8?Color{44,187,125,255}:
                       index<10?Color{243,183,50,255}:Color{238,76,53,255};
        fill(c,{left,top,left+4.,top+7.},
-            db>=threshold?lit:Color{34,55,63,255});
+            db>=threshold?lit:M::paint(R::Well,Color{34,55,63,255}));
      }
    };
    miniMeter(meterLeft,105.);
    miniMeter(meterRight,118.);
-   label(c,"L",{1207.,102.,1221.,115.},10,{218,227,233,255});
-   label(c,"R",{1207.,117.,1221.,129.},10,{218,227,233,255});
+   label(c,"L",{1207.,102.,1221.,115.},10,M::paint(R::Text,{218,227,233,255}));
+   label(c,"R",{1207.,117.,1221.,129.},10,M::paint(R::Text,{218,227,233,255}));
    fill(c,{1230.,105.,1241.,116.},
         clipped?Color{251,45,36,255}:Color{75,34,31,255});
  }
