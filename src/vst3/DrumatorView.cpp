@@ -1740,11 +1740,17 @@ bool DrumatorView::v101MouseDown(double x,double y,bool erase,bool fine,bool acc
 void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
  drawV101(c);
  // Visual-only modal scrim; preserves all hit rectangles and engine state.
- c->setFillColor(VSTGUI::CColor{9,15,24,128});
+ c->setFillColor(M::paint(R::Well,VSTGUI::CColor{9,15,24,128}));
  c->drawRect({0.,0.,UiV101Layout::width,v101_.height()},VSTGUI::kDrawFilled);
    // Identical UiWaveEditorLayout geometry; only the V1.0.1 materials
    // and paint primitives change. All source-frame marker math is preserved.
    using P=v101::UiV101NativePreview;
+   using M=v101::ModernDrawStyle;
+   using R=M::Role;
+   const auto waveLetters=M::paint(R::Text,::drumator::letters);
+   const auto waveOn=M::paint(R::Orange,::drumator::on);
+   const auto waveOff=M::paint(R::Well,::drumator::off);
+   const auto waveAccent=M::paint(R::Cyan,::drumator::accent);
    // The modal editor uses the SAME brushed-metal source as MAIN/SONG.
    // Sample only the quiet center of the supplied faceplate: drawing the
    // whole photograph here would duplicate its large bevel and corner trim.
@@ -1773,23 +1779,23 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
    }
    P::border(*c,{225.,96.,1055.,610.},P::Skin::panelEdge());
    // Narrow metallic title shoulder; restrained lower bevel.
-   c->setFillColor(VSTGUI::CColor{27,41,56,255});
+   c->setFillColor(M::paint(R::Header,VSTGUI::CColor{27,41,56,255}));
    c->drawRect({234,104,1046,151},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{96,109,122,255});
+   c->setFillColor(M::paint(R::Edge,VSTGUI::CColor{96,109,122,255}));
    c->drawRect({234,104,1046,106},VSTGUI::kDrawFilled);
-   c->setFillColor(VSTGUI::CColor{53,61,68,255});
+   c->setFillColor(M::paint(R::RowB,VSTGUI::CColor{53,61,68,255}));
    c->drawRect({234,149,1046,151},VSTGUI::kDrawFilled);
-   c->setFrameColor(VSTGUI::CColor{91,102,111,255});
+   c->setFrameColor(M::paint(R::Edge,VSTGUI::CColor{91,102,111,255}));
    c->drawRect({230,100,1050,605},VSTGUI::kDrawStroked);
    // Three non-overlapping header regions: editor heading, shortened sample
    // filename, and the existing LIVE button (its mouse hitbox is unchanged).
    // A long UTF-8 sample name must never draw behind the LIVE key.
-   c->setFont(VSTGUI::kNormalFont,18);c->setFontColor(letters);
+   c->setFont(VSTGUI::kNormalFont,18);c->setFontColor(waveLetters);
    c->drawString("WAVE EDITOR",
                  editorRect(UiV101WaveLayout::titleLabel),VSTGUI::kLeftText);
    const auto sampleCaption=controller_.label(sampleEditorRow_);
    std::string fittedCaption=sampleCaption;
-   c->setFont(VSTGUI::kNormalFont,11);c->setFontColor({177,198,211,255});
+   c->setFont(VSTGUI::kNormalFont,11);c->setFontColor(M::paint(R::Muted,{177,198,211,255}));
    const double available=UiV101WaveLayout::sampleLabel.width()-8.;
    if(c->getStringWidth(fittedCaption.c_str())>available){
      const auto dot=sampleCaption.find_last_of('.');
@@ -1815,11 +1821,11 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
    c->restoreGlobalState();
    // Wide, filled peak envelope: adjacent interpolated columns preserve
    // transients without inventing audio or filtering source PCM.
-   c->setFillColor(VSTGUI::CColor{5,19,36,255});
+   c->setFillColor(M::paint(R::Well,VSTGUI::CColor{5,19,36,255}));
    c->drawRect(editorRect(UiWaveEditorLayout::waveform),VSTGUI::kDrawFilled);
-   c->setFrameColor(VSTGUI::CColor{47,109,154,255});
+   c->setFrameColor(M::paint(R::Edge,VSTGUI::CColor{47,109,154,255}));
    c->drawRect(editorRect(UiWaveEditorLayout::waveform),VSTGUI::kDrawStroked);
-   c->setFrameColor(VSTGUI::CColor{47,109,154,255});c->drawLine({284,268},{994,268});
+   c->setFrameColor(M::paint(R::Edge,VSTGUI::CColor{47,109,154,255}));c->drawLine({284,268},{994,268});
    if(sampleEditorStereo_)c->drawLine({284,326},{994,326});
    const auto n=sampleEditorWave_.size();
    for(int pixel=0;pixel<710;++pixel){
@@ -1845,7 +1851,7 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
                                    sampleEditorStereo_?264.:381.);
      const double lower=std::clamp(mid-lo*amp*fade,sampleEditorStereo_?156.:156.,
                                    sampleEditorStereo_?264.:381.);
-     c->setFrameColor(accent);c->drawLine({284.+pixel,upper},{284.+pixel,lower});
+     c->setFrameColor(waveAccent);c->drawLine({284.+pixel,upper},{284.+pixel,lower});
      if(sampleEditorStereo_){
        const auto& rightA=sampleEditorWaveRight_[idx];
        const auto& rightB=sampleEditorWaveRight_[next];
@@ -1861,38 +1867,38 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
    const auto visible=static_cast<double>(sampleEditorLast_-sampleEditorFirst_);
    const auto sx=284.+710.*(static_cast<double>(sampleEditorEdit_.start)-sampleEditorFirst_)/visible;
    const auto ex=284.+710.*(static_cast<double>(sampleEditorEdit_.end)-sampleEditorFirst_)/visible;
-   c->setFrameColor(on);c->setLineWidth(2.);
+   c->setFrameColor(waveOn);c->setLineWidth(2.);
    if(sx>=284.&&sx<=994.)c->drawLine({sx,175},{sx,382});
-   c->setFrameColor(letters);
+   c->setFrameColor(waveLetters);
    if(ex>=284.&&ex<=994.)c->drawLine({ex,175},{ex,382});
    // Fade handles and ramp overlays use source-frame positions.
    const auto fadeInX=sx+710.*static_cast<double>(sampleEditorEdit_.fadeIn)/visible;
    const auto fadeOutX=ex-710.*static_cast<double>(sampleEditorEdit_.fadeOut)/visible;
-   c->setFrameColor(on);
+   c->setFrameColor(waveOn);
    if(fadeInX>=284.&&sx<=994.)
      c->drawLine({std::clamp(sx,284.,994.),278},
                  {std::clamp(fadeInX,284.,994.),180});
-   c->setFrameColor(letters);
+   c->setFrameColor(waveLetters);
    if(ex>=284.&&fadeOutX<=994.)
      c->drawLine({std::clamp(fadeOutX,284.,994.),180},
                  {std::clamp(ex,284.,994.),278});
    if(fadeInX>=284.&&fadeInX<=994.){
      const auto handle=std::clamp(fadeInX,289.,989.);
-     c->setFillColor(on);c->drawRect({handle-5,175,handle+5,188},VSTGUI::kDrawFilled);
+     c->setFillColor(waveOn);c->drawRect({handle-5,175,handle+5,188},VSTGUI::kDrawFilled);
    }
    if(fadeOutX>=284.&&fadeOutX<=994.){
      const auto handle=std::clamp(fadeOutX,289.,989.);
-     c->setFillColor(letters);c->drawRect({handle-5,175,handle+5,188},VSTGUI::kDrawFilled);
+     c->setFillColor(waveLetters);c->drawRect({handle-5,175,handle+5,188},VSTGUI::kDrawFilled);
    }
    c->setLineWidth(1.);
    // Scrollbar is proportional to the visible source-frame interval.
    constexpr double scrollX=284.,scrollWidth=710.;
-   c->setFillColor(off);c->drawRect({scrollX,387,scrollX+scrollWidth,402},VSTGUI::kDrawFilled);
+   c->setFillColor(waveOff);c->drawRect({scrollX,387,scrollX+scrollWidth,402},VSTGUI::kDrawFilled);
    const double thumbWidth=scrollWidth*
        static_cast<double>(sampleEditorLast_-sampleEditorFirst_)/sampleEditorFrames_;
    const double thumbX=scrollX+scrollWidth*
        static_cast<double>(sampleEditorFirst_)/sampleEditorFrames_;
-   c->setFillColor(accent);
+   c->setFillColor(waveAccent);
    c->drawRect({thumbX,387,thumbX+thumbWidth,402},VSTGUI::kDrawFilled);
    // Separate labels and values; source WAV sample rate, never host tempo/rate.
    // Internal edits remain exact integer audio-frame positions and durations.
@@ -1909,16 +1915,16 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
      P::border(*c,{r.left,r.top,r.right,r.bottom},
                P::Skin::navyTrim());
      P::fill(*c,{r.left+4.,r.top+3.,r.right-4.,r.top+4.},
-             {69,91,105,255});
+             M::paint(R::Edge,{69,91,105,255}));
      char value[48]{};
      if(i==4)std::snprintf(value,sizeof(value),"%.0f %%",positions[i]);
      else if(sampleEditorRate_)std::snprintf(value,sizeof(value),"%.2f ms",positions[i]);
      else std::snprintf(value,sizeof(value),"-- ms");
      // Equal-weight hardware readouts, not five floating text fragments.
      P::label(*c,labels[i],{r.left+4.,r.top+5.,r.right-4.,r.top+21.},
-              10,{167,190,206,255});
+              10,M::paint(R::Muted,{167,190,206,255}));
      P::label(*c,value,{r.left+4.,r.top+22.,r.right-4.,r.bottom-3.},
-              12,{224,233,239,255});
+              12,M::paint(R::Text,{224,233,239,255}));
    }
    // All four functional groups use the same recessed midnight-blue
    // mounting bezel and blue rim. Previously only PREVIEW/STOP had a frame
@@ -1928,11 +1934,11 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
      // Inset only the decorative frames: 2px nominal separation reads as 4px.
      const double bezelLeft=g.left+1.,bezelRight=g.right-1.;
      P::rounded(*c,{bezelLeft,g.top,bezelRight,g.bottom},
-                {13,27,43,255},3.);
+                M::paint(R::Well,{13,27,43,255}),3.);
      P::border(*c,{bezelLeft,g.top,bezelRight,g.bottom},
-               {47,109,154,255});
+               M::paint(R::Edge,{47,109,154,255}));
      P::fill(*c,{bezelLeft+4.,g.top+2.,bezelRight-4.,g.top+3.},
-             {90,135,163,255});
+             M::paint(R::Edge,{90,135,163,255}));
    }
    // Eight precisely equal 86x32 hardware keys, 8px gutters. The
    // V1.0.1-specific click map is shared with the actual pointer handler.
@@ -1957,21 +1963,21 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
    // A second amber outline looked like an unrelated ON/OFF latch.
    // Machined buttons change their paint font to dark ink; restore the
    // light editor ink for GAIN and its numeric value against graphite.
-   c->setFont(VSTGUI::kNormalFont,12);c->setFontColor(letters);
+   c->setFont(VSTGUI::kNormalFont,12);c->setFontColor(waveLetters);
    c->drawString("GAIN",{558,405,622,428});
-   c->setFillColor(off);c->drawRect({615,416,900,430},VSTGUI::kDrawFilled);
+   c->setFillColor(waveOff);c->drawRect({615,416,900,430},VSTGUI::kDrawFilled);
    const auto gainX=615.+285.*std::clamp(static_cast<double>(sampleEditorEdit_.gain)/4.,0.,1.);
-   c->setFillColor(accent);c->drawRect({615,416,gainX,430},VSTGUI::kDrawFilled);
-   c->setFillColor(letters);c->drawRect({gainX-4,409,gainX+4,437},VSTGUI::kDrawFilled);
-   c->setFontColor(letters);
+   c->setFillColor(waveAccent);c->drawRect({615,416,gainX,430},VSTGUI::kDrawFilled);
+   c->setFillColor(waveLetters);c->drawRect({gainX-4,409,gainX+4,437},VSTGUI::kDrawFilled);
+   c->setFontColor(waveLetters);
    char gainText[36]{};
    std::snprintf(gainText,sizeof(gainText),"%u%%",
                  static_cast<unsigned>(std::lround(sampleEditorEdit_.gain*100.f)));
    c->drawString(gainText,{911,405,1001,439});
-   c->setFont(VSTGUI::kNormalFont,12);c->setFontColor(letters);
+   c->setFont(VSTGUI::kNormalFont,12);c->setFontColor(waveLetters);
    if(!status_.empty())
      v101::UiV101NativePreview::fittedStatus(
-       *c,status_.c_str(),{265.,556.,1020.,585.},12,letters,true);
+       *c,status_.c_str(),{265.,556.,1020.,585.},12,waveLetters,true);
  // Dark mounting fasteners at the corners of the modal metal surround.
  v101::UiV101NativePreview::screw(*c,235.,106.);
  v101::UiV101NativePreview::screw(*c,1045.,106.);
