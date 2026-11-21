@@ -1326,7 +1326,7 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
  const auto inner=VSTGUI::CRect{shell.x0+4.,shell.y0+4.,
                                 shell.x1-4.,shell.y1-4.};
  const double iw=inner.getWidth(),ih=inner.getHeight();
- const bool hasPlate=v101FaceplateBitmap_&&v101FaceplateBitmap_->isLoaded()&&
+ const bool hasPlate=!v101::ModernDrawStyle::enabled()&&v101FaceplateBitmap_&&v101FaceplateBitmap_->isLoaded()&&
                      v101FaceplateBitmap_->getWidth()>=iw&&
                      v101FaceplateBitmap_->getHeight()>=ih;
  if(hasPlate){
@@ -1334,6 +1334,9 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
   const double sy=(v101FaceplateBitmap_->getHeight()-ih)*.5;
   v101FaceplateBitmap_->draw(c,inner,{sx,sy});
   P::fill(*c,inner,{9,20,33,140});
+ }else if(v101::ModernDrawStyle::enabled()){
+  const auto p=v101::ModernDrawStyle::colors();
+  P::satin(*c,inner,p.header,p.rowA,p.well,16);
  }else{
   P::satin(*c,inner,{36,48,60,255},{24,36,49,255},
            {16,26,39,255},24);
@@ -1740,7 +1743,7 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
    // whole photograph here would duplicate its large bevel and corner trim.
    // Source and destination are both 820x505 in logical 100%-scale pixels.
    // The original resource stays unchanged, and no controls are relocated.
-   const bool hasWaveMetal=v101FaceplateBitmap_&&
+   const bool hasWaveMetal=!v101::ModernDrawStyle::enabled()&&v101FaceplateBitmap_&&
         v101FaceplateBitmap_->isLoaded()&&
         v101FaceplateBitmap_->getWidth()>=820.&&
         v101FaceplateBitmap_->getHeight()>=505.;
@@ -1751,6 +1754,10 @@ void DrumatorView::drawV101Wave(VSTGUI::CDrawContext* c) {
                                {sourceX,sourceY});
      // Show the supplied faceplate texture at its original brightness.
      // The waveform well and control readouts already have opaque surfaces.
+   }else if(v101::ModernDrawStyle::enabled()){
+     const auto p=v101::ModernDrawStyle::colors();
+     P::satin(*c,{225.,96.,1055.,610.},p.header,p.rowA,p.well,24);
+     P::fill(*c,{230.,100.,1050.,605.},p.rowB);
    }else{
      P::satin(*c,{225.,96.,1055.,610.},{67,76,85,255},
               {42,51,61,255},{25,34,44,255},22);
