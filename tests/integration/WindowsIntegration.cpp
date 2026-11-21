@@ -1306,6 +1306,54 @@ void testV101ControllerScene(){
  };
  restoreOriginalStepPixelParity();
 
+ // MOD01: all three themes are rendered by the actual native painter, and
+ // the original Classic pixel-parity oracle above remains active.
+ check(L::modernThemeHit(710.,32.)==0&&
+       L::modernThemeHit(788.,32.)==1&&
+       L::modernThemeHit(850.,32.)==2&&
+       L::modernThemeHit(684.,32.)==-1&&
+       L::modernThemeHit(710.,24.)==-1,
+       "MOD01 theme strip paint/hit rectangles collide with existing footer");
+ const auto modernPixel=[&](drumator::v101::ModernTheme theme,bool enabled){
+   auto rendered=s;rendered.patternLength=32;
+   rendered.rows[0].velocities[0]=enabled?110u:0u;
+   auto bmp=VSTGUI::renderBitmapOffscreen({1280.,686.},1.,
+     [&](VSTGUI::CDrawContext& dc){
+       const drumator::v101::ModernDrawStyle::Scope scope(theme);
+       Painter::draw(dc,knob,pngTitle,titleBounds,rendered);
+       Painter::modernThemeTabs(dc,686.-L::footer,theme);
+     });
+   check(bmp!=nullptr,"MOD01 native Modern VSTGUI render failed");
+   auto* pixels=VSTGUI::CBitmapPixelAccess::create(bmp.get(),false);
+   check(pixels!=nullptr,"MOD01 Modern raster pixels unavailable");
+   VSTGUI::CColor chassis{},step{},tab{};
+   check(pixels->setPosition(1270u,25u),"MOD01 chassis pixel unavailable");
+   pixels->getColor(chassis);
+   check(pixels->setPosition(428u,178u),"MOD01 step pixel unavailable");
+   pixels->getColor(step);
+   check(pixels->setPosition(720u,672u),"MOD01 theme tab pixel unavailable");
+   pixels->getColor(tab);pixels->forget();
+   return std::array<int,9>{{int(chassis.red),int(chassis.green),int(chassis.blue),
+          int(step.red),int(step.green),int(step.blue),
+          int(tab.red),int(tab.green),int(tab.blue)}};
+ };
+ std::array<std::array<int,9>,3> modernColors{};
+ for(int idx=0;idx<3;++idx){
+   const auto theme=static_cast<drumator::v101::ModernTheme>(idx);
+   const auto active=modernPixel(theme,true);
+   const auto inactive=modernPixel(theme,false);
+   check(active[3]>active[4]+30&&active[3]>inactive[3]+40,
+         "MOD01 active Modern step is not brighter orange than inactive");
+   modernColors[idx]=active;
+ }
+ check(modernColors[0]!=modernColors[1]&&modernColors[1]!=modernColors[2]&&
+       modernColors[0]!=modernColors[2],
+       "MOD01 three themes render the same native pixels");
+ check(drumator::v101::ModernDrawStyle::current==
+       drumator::v101::ModernTheme::Classic,
+       "MOD01 theme draw scope leaked into Classic renderer");
+
+
  const auto beforePixel=stepPixel(s),afterPixel=stepPixel(updated);
  // Dynamic L/R and clip LEDs must be driven by numeric scene values.
  // A decorative/static meter would fail this exact same native paint test.
