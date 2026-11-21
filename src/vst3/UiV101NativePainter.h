@@ -21,6 +21,8 @@ namespace drumator::v101 {
 struct UiV101NativePreview final {
  using L=UiV101Layout;
  using Color=VSTGUI::CColor;
+ using M=ModernDrawStyle;
+ using R=M::Role;
  using Box=VSTGUI::CRect;
  static constexpr double kChassisLeft=12.,kChassisRight=1260.;
  static constexpr double kRowMountRadius=19.;
@@ -744,21 +746,21 @@ struct UiV101NativePreview final {
      border(c,{15.,75.,1265.,139.},p.edge);
    }else if(!hasVintageFaceplate){
      // Proven procedural fallback for missing/corrupt packaged image.
-     fill(c,{0.,0.,L::width,total},{105,98,91,255});
-     rounded(c,{2.,2.,L::width-2.,total-2.},{165,157,148,255},3.);
+     fill(c,{0.,0.,L::width,total},M::paint(R::Chassis,{105,98,91,255}));
+     rounded(c,{2.,2.,L::width-2.,total-2.},M::paint(R::Header,{165,157,148,255}),3.);
      satin(c,{5.,5.,L::width-5.,total-5.},
-           {214,208,200,255},cream,{184,177,167,255},72);
+           M::paint(R::Header,{214,208,200,255}),cream,M::paint(R::RowB,{184,177,167,255}),72);
      border(c,{5.,5.,L::width-5.,total-5.},Skin::panelEdge());
      // Subpixel-style horizontal brushing is deliberately faint (alpha ~22).
      // Highlights change with vertical position; no generated bitmap needed.
      c.setLineWidth(1.);
      for(int yy=14;yy<static_cast<int>(total)-13;yy+=5){
-       c.setFrameColor({241,235,226,9});
+       c.setFrameColor(M::paint(R::Header,{241,235,226,9}));
        c.drawLine({12.,static_cast<double>(yy)},
                   {L::width-12.,static_cast<double>(yy)});
      }
      fill(c,{7.,7.,L::width-7.,9.},Skin::steelHighlight());
-     fill(c,{7.,total-9.,L::width-7.,total-7.},{157,148,139,255});
+     fill(c,{7.,total-9.,L::width-7.,total-7.},M::paint(R::Edge,{157,148,139,255}));
    }
    // The source corner screws are now correctly sized and positioned by
    // the nine-slice. Do not overpaint them in the image-backed mode.
@@ -787,14 +789,14 @@ struct UiV101NativePreview final {
    // both MAIN and SONG because they share this native painter.
    constexpr auto heading=L::patternHeading;
    label(c,"PATTERN",{heading.x0,heading.y0,heading.x1,heading.y1},
-         11,{218,226,235,255},true);
+         11,M::paint(R::Text,{218,226,235,255}),true);
    for(std::size_t i=0;i<8;++i){
      const char key[2]={static_cast<char>('A'+i),'\0'};
      cap(c,L::patternButton(i),0.,key,i==headerPattern(scene),12,vintageButtons);
    }
    // Spell out the action context; the obsolete "PTNR" abbreviation
    // was ambiguous beside the A-H PATTERN selector.
-   label(c,"PATTERN EDIT",{364.,80.,447.,96.},10,{210,223,231,255});
+   label(c,"PATTERN EDIT",{364.,80.,447.,96.},10,M::paint(R::Muted,{210,223,231,255}));
    // One identical 32px machined keycap and vertical baseline for all
    // header actions: PATTERN, MENU, 1/2 BARS, SONG, SONG EDIT.
    cap(c,L::patternMenu,0.,"MENU",false,10,vintageButtons);
@@ -857,29 +859,29 @@ struct UiV101NativePreview final {
      // Recessed dark-navy instrument chassis: thick top gasket, soft
      // internal gradient, narrow upper reflection and lower occlusion.
      rounded(c,{kChassisLeft,y+1.,kChassisRight,y+L::rowHeight-1.},
-           {7,15,25,255},3.);
+           M::paint(R::Well,{7,15,25,255}),3.);
      rounded(c,{14.,y+3.,1258.,y+L::rowHeight-3.},
              row%2?Skin::navyA():Skin::navyB(),2.);
      satin(c,{17.,y+5.,1255.,y+L::rowHeight-5.},
-           {44,61,76,255},row%2?Skin::navyA():Skin::navyB(),
-           {19,32,48,255},12);
-     fill(c,{18.,y+4.,1254.,y+5.},{84,100,111,255});
+           M::paint(R::RowA,{44,61,76,255}),row%2?Skin::navyA():Skin::navyB(),
+           M::paint(R::Well,{19,32,48,255}),12);
+     fill(c,{18.,y+4.,1254.,y+5.},M::paint(R::Edge,{84,100,111,255}));
      fill(c,{18.,y+L::rowHeight-5.,1254.,y+L::rowHeight-4.},
-          {9,17,28,255});
+          M::paint(R::Well,{9,17,28,255}));
      }
      // Slim selection rail: visible without adding another chunky module.
      fill(c,{L::select.x0,y+L::select.y0,L::select.x1,y+L::select.y1},
-          {5,12,19,255});
+          M::paint(R::Well,{5,12,19,255}));
      fill(c,{L::select.x0+3.,y+14.,L::select.x1-3.,y+33.},
-          live&&row==ui.selectedRow?Color{246,171,70,255}:Color{76,93,103,255});
+          live&&row==ui.selectedRow?M::paint(R::Orange,Color{246,171,70,255}):M::paint(R::Edge,Color{76,93,103,255}));
      cap(c,L::mute,y,"M",live&&data.muted,10,vintageButtons);
      cap(c,L::solo,y,"S",live&&data.solo,10,vintageButtons);
-     rounded(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},{3,8,14,255},2.);
+     rounded(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},M::paint(R::Well,{3,8,14,255}),2.);
      satin(c,{L::sample.x0+2.,y+10.,L::sample.x1-2.,y+38.},
-           {6,14,23,255},{11,22,35,255},{18,34,49,255},9);
+           M::paint(R::Well,{6,14,23,255}),M::paint(R::RowB,{11,22,35,255}),M::paint(R::RowA,{18,34,49,255}),9);
      fill(c,{L::sample.x0+3.,y+10.,L::sample.x1-3.,y+11.},
-          {71,88,101,255});
-     border(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},{62,82,98,255});
+          M::paint(R::Edge,{71,88,101,255}));
+     border(c,{L::sample.x0,y+8.,L::sample.x1,y+40.},M::paint(R::Edge,{62,82,98,255}));
      cap(c,L::previous,y,"<",false,12,vintageButtons);
      cap(c,L::next,y,">",false,12,vintageButtons);
      const std::string emptyName="(EMPTY)";
@@ -909,18 +911,18 @@ struct UiV101NativePreview final {
      c.saveGlobalState();
      c.setClipRect(nameRect);
      label(c,displayedName,nameRect,11,
-           live?Color{203,222,235,255}:Color{103,116,127,255},false);
+           live?M::paint(R::Text,Color{203,222,235,255}):M::paint(R::Muted,Color{103,116,127,255}),false);
      c.restoreGlobalState();
      cap(c,L::sampleMenu,y,"...",false,10,vintageButtons);
      headphone(c,L::preview,y,vintageButtons,!data.hasSample);
      cap(c,L::fill,y,"FILL",false,9,vintageButtons);
      cap(c,L::edit,y,"EDIT",false,11,vintageButtons,!data.hasSample);
      rounded(c,{L::stepWell.x0,y+4.,L::stepWell.x1,y+44.},
-             {9,17,29,255},2.);
+             M::paint(R::Well,{9,17,29,255}),2.);
      fill(c,{L::stepWell.x0+2.,y+6.,L::stepWell.x1-2.,y+8.},
-          {8,15,26,255});
+          M::paint(R::Well,{8,15,26,255}));
      fill(c,{L::stepWell.x0+2.,y+41.,L::stepWell.x1-2.,y+42.},
-          {55,71,88,255});
+          M::paint(R::Edge,{55,71,88,255}));
      for(std::size_t step=0;step<L::steps;++step){
        const auto r=L::stepRect(step);
        const double sx=r.x0;
@@ -939,27 +941,27 @@ struct UiV101NativePreview final {
        fill(c,{13.,y+49.,1260.,y+95.},Skin::navyWell());
        fill(c,{15.,y+50.,1258.,y+94.},Skin::navyA());
        if(ui.expansion==L::Expansion::Velocity){
-         label(c,"VELOCITY",{132.,y+49.,400.,y+63.},9,{183,202,218,255},false);
+         label(c,"VELOCITY",{132.,y+49.,400.,y+63.},9,M::paint(R::Text,{183,202,218,255}),false);
          // Original V1.5 quick guide, inside the unused left 102px fascia.
-         label(c,"SHIFT  LINE",{22.,y+51.,124.,y+63.},8,{138,161,178,255},false);
-         label(c,"SHIFT+ALT  CURVE",{22.,y+64.,124.,y+76.},8,{138,161,178,255},false);
-         label(c,"ALT  ACCENT",{22.,y+77.,124.,y+89.},8,{138,161,178,255},false);
+         label(c,"SHIFT  LINE",{22.,y+51.,124.,y+63.},8,M::paint(R::Muted,{138,161,178,255}),false);
+         label(c,"SHIFT+ALT  CURVE",{22.,y+64.,124.,y+76.},8,M::paint(R::Muted,{138,161,178,255}),false);
+         label(c,"ALT  ACCENT",{22.,y+77.,124.,y+89.},8,M::paint(R::Muted,{138,161,178,255}),false);
          cap(c,UiV101Interaction::velocityRandom,y,"RANDOM VEL",false,10,vintageButtons);
          cap(c,UiV101Interaction::velocityReset,y,"RESET VEL",false,10,vintageButtons);
-         fill(c,{417.,y+53.,1031.,y+92.},{4,13,25,255});
+         fill(c,{417.,y+53.,1031.,y+92.},M::paint(R::Well,{4,13,25,255}));
          for(std::size_t step=0;step<L::steps;++step){
            const auto velocity=step<scene.patternLength?
                                data.velocities[step]:std::uint8_t{0};
            const double xx=L::stepX+step*L::stepPitch;
            if(velocity==0){
-             fill(c,{xx+2.,y+88.,xx+15.,y+90.},{37,56,75,255});
+             fill(c,{xx+2.,y+88.,xx+15.,y+90.},M::paint(R::RowA,{37,56,75,255}));
            }else{
              const double barHeight=VelocityLaneScale::heightFor(velocity);
              // MIDI 1 is a 1px bar, MIDI 127 reaches the visible 35px top.
              // BC54: one subdued, semi-transparent bar without the bright
              // upper edge. Preserve pixel geometry and input height mapping.
              fill(c,{xx+2.,y+89.-barHeight,xx+15.,y+89.},
-                  {32,165,195,205});
+                  M::paint(R::Orange,{32,165,195,205}));
            }
          }
          cap(c,UiV101Interaction::realtimeMinus,y,"-",false,13,vintageButtons,
@@ -968,23 +970,23 @@ struct UiV101NativePreview final {
          // Exact 112x32 bounds are shared with the interaction hit map.
          const auto r=UiV101Interaction::realtimeValue;
          const Box display{r.x0,y+r.y0,r.x1,y+r.y1};
-         rounded(c,display,{7,12,17,255},3.);
+         rounded(c,display,M::paint(R::Well,{7,12,17,255}),3.);
          rounded(c,{display.left+2.,display.top+2.,
                     display.right-2.,display.bottom-2.},
-                 {24,36,44,255},2.);
-         border(c,display,{96,113,119,255});
+                 M::paint(R::RowB,{24,36,44,255}),2.);
+         border(c,display,M::paint(R::Edge,{96,113,119,255}));
          fill(c,{display.left+4.,display.top+3.,
-                 display.right-4.,display.top+4.},{73,102,112,255});
+                 display.right-4.,display.top+4.},M::paint(R::Edge,{73,102,112,255}));
          label(c,"LIVE VEL",
                {display.left+3.,display.top+3.,
                 display.right-3.,display.top+15.},
-               9,{159,183,191,255});
+               9,M::paint(R::Muted,{159,183,191,255}));
          char realtimeText[16]{};
          std::snprintf(realtimeText,sizeof(realtimeText),
                        "%u%%",data.randomRealtime);
          label(c,realtimeText,{display.left+3.,display.top+15.,
                                display.right-3.,display.bottom-2.},
-               12,{247,193,99,255});
+               12,M::paint(R::OrangeLight,{247,193,99,255}));
          cap(c,UiV101Interaction::realtimePlus,y,"+",false,13,vintageButtons,
              data.randomRealtime>=100);
        }else{
@@ -1025,12 +1027,12 @@ struct UiV101NativePreview final {
    const auto summaryR=L::footerSummary;
    fittedStatus(c,summary,
      {summaryR.x0,footerTop+summaryR.y0,summaryR.x1,footerTop+summaryR.y1},
-     11,{222,213,197,255},false);
+     11,M::paint(R::Muted,{222,213,197,255}),false);
    if(!scene.status.empty()) {
      const auto statusR=L::footerStatus;
      fittedStatus(c,scene.status.c_str(),
        {statusR.x0,footerTop+statusR.y0,statusR.x1,footerTop+statusR.y1},
-       10,{220,203,180,255},false);
+       10,M::paint(R::Muted,{220,203,180,255}),false);
    }
    // Both controls are identically sized 95x25 machined metal keys.
    cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10,vintageButtons,ui.firstRow==0);
