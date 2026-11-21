@@ -411,6 +411,22 @@ struct UiV101NativePreview final {
                  const ButtonSprites* vintage=nullptr,
                  bool disabled=false,bool pressed=false){
    const Box b{r.x0,y+r.y0,r.x1,y+r.y1};
+   if(ModernDrawStyle::enabled()){
+     const auto p=ModernDrawStyle::colors();
+     const Color top=disabled?mix(p.button,p.well,.65):
+                     active?mix(p.cyan,p.button,.48):p.button;
+     const Color mid=pressed?mix(top,p.well,.40):top;
+     rounded(c,{b.left,b.top+2.,b.right,b.bottom+2.},p.well,3.);
+     rounded(c,{b.left,b.top,b.right,b.bottom},p.edge,3.);
+     rounded(c,{b.left+1.,b.top+1.,b.right-1.,b.bottom-1.},mid,3.);
+     satin(c,{b.left+3.,b.top+3.,b.right-3.,b.bottom-3.},
+           mix(mid,p.label,.12),mid,mix(mid,p.well,.22),4);
+     if(active&&!disabled)
+       fill(c,{b.left+4.,b.bottom-4.,b.right-4.,b.bottom-2.},p.cyan);
+     label(c,text,{b.left+2.,b.top+1.,b.right-2.,b.bottom-1.},
+           font,disabled?mix(p.dim,p.well,.45):p.label);
+     return;
+   }
    VSTGUI::CBitmap* sprite=!vintage?nullptr:
       disabled?vintage->disabled:pressed?vintage->pressed:
       active?vintage->active:vintage->normal;
@@ -491,6 +507,21 @@ struct UiV101NativePreview final {
  // sx is already the old (gridX + 1) physical left edge, not gridX.
  static void stepCap(VSTGUI::CDrawContext& c,double sx,double rowTop,
                      bool lit,bool disabled,bool downbeat){
+   if(ModernDrawStyle::enabled()){
+     // Original 17x34 geometry and 19px pitch / click contract retained.
+     const auto p=ModernDrawStyle::colors();
+     const Box outer{sx,rowTop+7.,sx+17.,rowTop+41.};
+     rounded(c,outer,p.well,2.);
+     border(c,outer,downbeat?p.cyan:p.edge);
+     const Box inset{sx+2.,rowTop+9.,sx+15.,rowTop+39.};
+     if(disabled)fill(c,inset,mix(p.well,p.rowB,.30));
+     else if(lit){
+       satin(c,inset,p.orangeLight,p.orange,p.orange,6);
+       fill(c,{sx+4.,rowTop+11.,sx+13.,rowTop+13.},p.orangeLight);
+     }else satin(c,inset,mix(p.rowA,p.well,.5),p.rowA,
+                 mix(p.rowA,p.well,.7),5);
+     return;
+   }
    const double y=rowTop-62.; // fixed vertical translation, no resizing
    const Box outer{sx,y+69.,sx+17.,y+103.};
    c.setFillColor(Color{5,17,33,255});
@@ -550,6 +581,23 @@ struct UiV101NativePreview final {
                         double cx,double cy,double fraction,
                         const char* title,const char* readout){
    fraction=std::clamp(fraction,0.,1.);
+   if(ModernDrawStyle::enabled()){
+     const auto p=ModernDrawStyle::colors();
+     label(c,title,{cx-46.,78.,cx+46.,91.},11,p.label);
+     c.setFillColor(p.well);
+     c.drawEllipse({cx-21.,cy-21.,cx+21.,cy+21.},VSTGUI::kDrawFilled);
+     c.setFrameColor(p.edge);c.setLineWidth(1.);
+     c.drawEllipse({cx-20.,cy-20.,cx+20.,cy+20.},VSTGUI::kDrawStroked);
+     c.setFillColor(p.button);
+     c.drawEllipse({cx-16.,cy-16.,cx+16.,cy+16.},VSTGUI::kDrawFilled);
+     constexpr double pi=3.14159265358979323846;
+     const double a=(-135.+270.*fraction)*pi/180.;
+     c.setFrameColor(p.orangeLight);c.setLineWidth(3.);
+     c.drawLine({cx+std::sin(a)*5.,cy-std::cos(a)*5.},
+                {cx+std::sin(a)*13.,cy-std::cos(a)*13.});
+     label(c,readout,{cx+24.,101.,cx+56.,126.},11,p.label,false);
+     return;
+   }
    label(c,title,{cx-46.,78.,cx+46.,91.},11,{207,218,229,255});
    // Match VOL/PAN/PITCH's neutral graphite socket. Do not draw a warm
    // silver/tan rim on the top three controls.
@@ -574,6 +622,21 @@ struct UiV101NativePreview final {
                    double x,double y,int value,int index){
    const double fraction=index==0?value/200.:index==1?(value+100.)/200.:
                          (value+24.)/48.;
+   if(ModernDrawStyle::enabled()){
+     const auto p=ModernDrawStyle::colors();
+     c.setFillColor(p.well);
+     c.drawEllipse({x-19.,y-19.,x+19.,y+19.},VSTGUI::kDrawFilled);
+     c.setFrameColor(p.edge);c.setLineWidth(1.);
+     c.drawEllipse({x-18.,y-18.,x+18.,y+18.},VSTGUI::kDrawStroked);
+     c.setFillColor(p.button);
+     c.drawEllipse({x-15.,y-15.,x+15.,y+15.},VSTGUI::kDrawFilled);
+     constexpr double pi=3.14159265358979323846;
+     const double a=(-135.+270.*std::clamp(fraction,0.,1.))*pi/180.;
+     c.setFrameColor(p.cyan);c.setLineWidth(3.);
+     c.drawLine({x+std::sin(a)*6.,y-std::cos(a)*6.},
+                {x+std::sin(a)*13.,y-std::cos(a)*13.});
+     return;
+   }
    // Centered 40px dial with a 38px recessed mount, leaving 4px
    // between painted dial and adjacent 48px instrument row.
    c.setFillColor({8,16,24,255});
@@ -586,6 +649,14 @@ struct UiV101NativePreview final {
   }
   // Unified graphite hardware footer, used in MAIN and SONG.
  static void footerPlate(VSTGUI::CDrawContext& c,double footerTop){
+   if(ModernDrawStyle::enabled()){
+     const auto p=ModernDrawStyle::colors();
+     rounded(c,{12.,footerTop+4.,1260.,footerTop+42.},p.header,3.);
+     border(c,{12.,footerTop+4.,1260.,footerTop+42.},p.edge);
+     label(c,"VERSION 1.5",{599.,footerTop+27.,681.,footerTop+37.},
+           9,p.dim);
+     return;
+   }
    const auto p=L::footerPanel;
    const Box outer{p.x0,footerTop+p.y0,p.x1,footerTop+p.y1};
    rounded(c,outer,{13,24,34,255},3.);
