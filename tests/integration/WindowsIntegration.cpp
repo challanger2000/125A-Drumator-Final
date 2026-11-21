@@ -177,6 +177,11 @@ struct IntegrationAccess {
  static BeatTriple beatTriple(const Controller& c){return c.snapshotBeatTriple();}
  static const void* modernStrokeOwner(const DrumatorView& v){return &v.v101_;}
  static void openComplexityFaultFixture(DrumatorView& v){v.beatCreatorOpen_=true;}
+ static void previewBeatCreatorStyleMenu(DrumatorView& v,bool visible){
+   v.beatCreatorOpen_=visible;
+   v.beatCreatorStyleMenu_=visible;
+   v.invalid();
+ }
  static void activateComplexity(DrumatorView& v){v.editBeatCreatorComplexity();}
  static void activateRowName(DrumatorView& v,std::size_t row){v.editName(row);}
  static bool complexityActive(const DrumatorView& v){return v.complexityEditActive_;}
@@ -1426,7 +1431,21 @@ void testModernThemeNativeHostSwitch(){
        "MOD02 click outside theme selector changed palette");
  check(IntegrationAccess::snapshot(*f.c)==original,
        "MOD02 outside click unexpectedly changed Controller state");
- evidence("MOD02 three real VSTGUI footer clicks and unchanged kit PASS");
+ // All three real VSTGUI popups and Beat Creator genre menus.
+ constexpr const char* names[]={"graphite","slate","silver"};
+ for(std::size_t i=0;i<3;++i){
+   const auto theme=static_cast<v101::ModernTheme>(i);
+   IntegrationAccess::setModernTestTheme(*view,theme);
+   IntegrationAccess::setPopup(*view,UiV101Popup::Kind::Pattern,0);
+   captureVstgui(*view,std::string("drumator-modern-")+names[i]+"-pattern-menu-100",1.0);
+   IntegrationAccess::setPopup(*view,UiV101Popup::Kind::None,0);
+   IntegrationAccess::previewBeatCreatorStyleMenu(*view,true);
+   captureVstgui(*view,std::string("drumator-modern-")+names[i]+"-beat-genre-menu-100",1.0);
+   IntegrationAccess::previewBeatCreatorStyleMenu(*view,false);
+ }
+ check(IntegrationAccess::snapshot(*f.c)==original,
+       "MOD02 Modern menus changed controller state");
+ evidence("MOD02 native VSTGUI themes, pattern popup and Beat Creator dropdown PASS");
 }
 
 // Minimal VST3 host edit handler, used only by the isolated GUI input test.
@@ -2056,6 +2075,14 @@ void testV101LiveEditor(){
        std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
        "V101 SONG 100 percent screenshot has different actual host zoom");
  captureVstgui(*view,"v101-song-board-hardware-100",1.0);
+ // MOD03: real SONG editor in each palette; restore historic Classic oracle.
+ for(std::size_t theme=0;theme<3;++theme){
+   constexpr const char* names[]={"graphite","slate","silver"};
+   IntegrationAccess::setModernTestTheme(
+     *view,static_cast<v101::ModernTheme>(theme));
+   captureVstgui(*view,std::string("drumator-modern-")+names[theme]+"-song-100",1.0);
+ }
+ IntegrationAccess::setModernTestTheme(*view,v101::ModernTheme::Classic);
  // An unoccupied Song cell must be visibly less prominent than an entry.
  // The fixture starts with 8 real entries; both samples avoid title glyphs.
  check(f.c->songCount()==8,"V101 inactive-slot pixel fixture changed");
@@ -2267,6 +2294,15 @@ void testV101LiveEditor(){
        std::abs(hostEditor.getZoomFactor()-1.0)<.0001,
        "V101 Wave 100 percent raster did not use real 100 percent zoom");
  captureVstgui(*view,"v101-wave-editor-hardware-100",1.0);
+ // MOD04: real sample-loaded WAVE editor in each palette; retain the old
+ // exact Classic faceplate pixel comparison immediately below.
+ for(std::size_t theme=0;theme<3;++theme){
+   constexpr const char* names[]={"graphite","slate","silver"};
+   IntegrationAccess::setModernTestTheme(
+     *view,static_cast<v101::ModernTheme>(theme));
+   captureVstgui(*view,std::string("drumator-modern-")+names[theme]+"-wave-100",1.0);
+ }
+ IntegrationAccess::setModernTestTheme(*view,v101::ModernTheme::Classic);
  // The actual WAVE modal must expose the owner-approved source PNG at its
  // native brightness. A generic dark rectangle, fallback satin fill or
  // an unrequested translucent darkening pass must FAIL this pixel oracle.
