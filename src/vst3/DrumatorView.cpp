@@ -1310,6 +1310,8 @@ void DrumatorView::closeBeatCreator() noexcept {
 void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
  if(!beatCreatorOpen_)return;
  using P=v101::UiV101NativePreview;
+ using M=v101::ModernDrawStyle;
+ using R=M::Role;
  using D=UiBeatCreatorDialog;
  const double h=getViewSize().getHeight();
  const auto shell=D::panel(h);
@@ -1320,7 +1322,7 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
  };
  // Use the same graphite/navy/amber family as the Drumator itself.
  // Never stretch the 83x32 hardware sprite into a dropdown.
- P::fill(*c,{0.,0.,UiV101Layout::width,h},{8,13,21,200});
+ P::fill(*c,{0.,0.,UiV101Layout::width,h},M::paint(R::Well,{8,13,21,200}));
  // Reuse the Drumator's original faceplate texture without resizing or
  // stretching it. Crop its native pixels, then tint only for readability.
  const auto inner=VSTGUI::CRect{shell.x0+4.,shell.y0+4.,
@@ -1341,27 +1343,27 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
   P::satin(*c,inner,{36,48,60,255},{24,36,49,255},
            {16,26,39,255},24);
  }
- P::border(*c,rect(shell),{85,108,126,255});
+ P::border(*c,rect(shell),M::paint(R::Edge,{85,108,126,255}));
  P::fill(*c,{shell.x0+1.,shell.y0+1.,shell.x1-1.,shell.y0+38.},
-         {16,32,48,255});
- P::label(*c,"125A BEAT CREATOR",rect(D::title(h)),16,{230,237,243,255});
+         M::paint(R::Header,{16,32,48,255}));
+ P::label(*c,"125A BEAT CREATOR",rect(D::title(h)),16,M::paint(R::Text,{230,237,243,255}));
  const auto styleIndex=static_cast<unsigned>(beatCreatorStyle_);
  const auto styleField=D::styleSelect(h);
- P::label(*c,"STYLE",rect(D::styleLabel(h)),11,{211,227,239,255},false);
- P::rounded(*c,rect(styleField),{12,23,34,255},3.);
+ P::label(*c,"STYLE",rect(D::styleLabel(h)),11,M::paint(R::Muted,{211,227,239,255}),false);
+ P::rounded(*c,rect(styleField),M::paint(R::Well,{12,23,34,255}),3.);
  P::border(*c,rect(styleField),
-           beatCreatorStyleMenu_?VSTGUI::CColor{215,141,53,255}:
-                                 VSTGUI::CColor{72,96,114,255});
+           beatCreatorStyleMenu_?M::paint(R::Orange,VSTGUI::CColor{215,141,53,255}):
+                                 M::paint(R::Edge,VSTGUI::CColor{72,96,114,255}));
  P::label(*c,BeatCreator::styleNames[styleIndex],
           {styleField.x0+12.,styleField.y0,styleField.x1-30.,styleField.y1},
-          11,{229,236,244,255},false);
+          11,M::paint(R::Text,{229,236,244,255}),false);
  P::label(*c,"v",{styleField.x1-29.,styleField.y0,
                     styleField.x1-7.,styleField.y1},
-          12,{242,157,57,255});
+          12,M::paint(R::OrangeLight,{242,157,57,255}));
  P::fittedStatus(*c,beatCreatorNotice_.c_str(),rect(D::notice(h)),
-                 10,{205,223,235,255},false);
+                 10,M::paint(R::Muted,{205,223,235,255}),false);
  P::label(*c,"COMPLEXITY",rect(D::complexityLabel(h)),
-          11,{211,227,239,255},false);
+          11,M::paint(R::Muted,{211,227,239,255}),false);
  P::cap(*c,D::complexityMinus(h),0.,"-",false,13,&buttons,
         beatCreatorComplexity_==0);
  P::cap(*c,D::complexityPlus(h),0.,"+",false,13,&buttons,
@@ -1369,9 +1371,9 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
  char percent[16]{};
  std::snprintf(percent,sizeof(percent),"%u%%",
                static_cast<unsigned>(beatCreatorComplexity_));
- P::label(*c,percent,rect(D::complexityValue(h)),13,{245,175,70,255});
+ P::label(*c,percent,rect(D::complexityValue(h)),13,M::paint(R::OrangeLight,{245,175,70,255}));
  P::label(*c,"LENGTH",rect(D::lengthLabel(h)),
-          11,{211,227,239,255},false);
+          11,M::paint(R::Muted,{211,227,239,255}),false);
  P::cap(*c,D::barOne(h),0.,"1 BAR",beatCreatorSteps_==16,11,&buttons);
  P::cap(*c,D::barTwo(h),0.,"2 BARS",beatCreatorSteps_==32,11,&buttons);
  const auto* draft=controller_.beatCreatorDraft(this);
@@ -1380,11 +1382,11 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
  constexpr const char* captions[3]={"A  GROOVE","B  VARIATION","C  BREAK"};
  for(std::size_t pat=0;pat<3;++pat){
   const auto line=D::previewRow(h,pat);
-  P::fill(*c,rect(line),{9,25,41,235});
-  P::border(*c,rect(line),{58,93,121,255});
+  P::fill(*c,rect(line),M::paint(R::Well,{9,25,41,235}));
+  P::border(*c,rect(line),M::paint(R::Edge,{58,93,121,255}));
   P::label(*c,captions[pat],
            {line.x0+7.,line.y0,line.x0+128.,line.y1},
-           10,{214,230,241,255},false);
+           10,M::paint(R::Text,{214,230,241,255}),false);
   if(!patterns[pat])continue;
   for(std::size_t step=0;step<draft->steps;++step){
    std::uint8_t loudest=0;
@@ -1392,9 +1394,12 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
     loudest=std::max(loudest,(*patterns[pat])[row*kSteps+step]);
    if(!loudest)continue;
    const auto cell=D::previewStep(h,pat,step);
-   const auto color=loudest>=110?VSTGUI::CColor{103,204,232,255}:
+   const auto color=M::enabled()?
+     (loudest>=110?M::colors().orangeLight:
+      loudest>=75?M::colors().orange:P::mix(M::colors().orange,M::colors().well,.38)):
+     (loudest>=110?VSTGUI::CColor{103,204,232,255}:
       loudest>=75?VSTGUI::CColor{55,151,198,255}:
-                  VSTGUI::CColor{39,91,123,255};
+                  VSTGUI::CColor{39,91,123,255});
    P::fill(*c,rect(cell),color);
   }
  }
@@ -1403,11 +1408,11 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
  constexpr const char* legendNames[8]={
   "01 KICK","02 SNARE","03 CLOSED HH","04 OPEN HH",
   "05 LOW TOM","06 HIGH TOM","07 CRASH","08 CLAP"};
- P::rounded(*c,rect(D::legendPanel(h)),{11,23,35,255},2.);
- P::border(*c,rect(D::legendPanel(h)),{58,85,108,255});
+ P::rounded(*c,rect(D::legendPanel(h)),M::paint(R::Well,{11,23,35,255}),2.);
+ P::border(*c,rect(D::legendPanel(h)),M::paint(R::Edge,{58,85,108,255}));
  for(std::size_t lane=0;lane<8;++lane)
   P::label(*c,legendNames[lane],rect(D::legend(h,lane)),
-           10,{212,229,242,255},false);
+           10,M::paint(R::Muted,{212,229,242,255}),false);
  P::cap(*c,D::generate(h),0.,"GENERATE",false,11,&buttons);
  P::cap(*c,D::apply(h),0.,
         beatCreatorConfirmOverwrite_?"CONFIRM":"APPLY",
@@ -1415,19 +1420,19 @@ void DrumatorView::drawBeatCreator(VSTGUI::CDrawContext* c){
  P::cap(*c,D::cancel(h),0.,"CANCEL",false,11,&buttons);
  if(beatCreatorStyleMenu_){
   const auto area=D::styleMenu(h);
-  P::fill(*c,rect(area),{9,23,38,255});
-  P::border(*c,rect(area),{96,143,171,255});
+  P::fill(*c,rect(area),M::paint(R::Well,{9,23,38,255}));
+  P::border(*c,rect(area),M::paint(R::Edge,{96,143,171,255}));
   for(std::size_t i=0;i<BeatCreator::styleNames.size();++i){
    const auto item=D::styleOption(h,i);
    const bool chosen=styleIndex==i;
-   P::rounded(*c,rect(item),chosen?VSTGUI::CColor{83,49,26,255}:
-                                       VSTGUI::CColor{21,37,51,255},2.);
-   P::border(*c,rect(item),chosen?VSTGUI::CColor{226,142,52,255}:
-                                      VSTGUI::CColor{59,84,105,255});
+   P::rounded(*c,rect(item),chosen?M::enabled()?P::mix(M::colors().rowA,M::colors().orange,.18):VSTGUI::CColor{83,49,26,255}:
+                                       M::paint(R::RowB,VSTGUI::CColor{21,37,51,255}),2.);
+   P::border(*c,rect(item),chosen?M::paint(R::Orange,VSTGUI::CColor{226,142,52,255}):
+                                      M::paint(R::Edge,VSTGUI::CColor{59,84,105,255}));
    P::label(*c,BeatCreator::styleNames[i],
             {item.x0+9.,item.y0,item.x1-8.,item.y1},
-            11,chosen?VSTGUI::CColor{255,189,85,255}:
-                      VSTGUI::CColor{226,237,246,255},false);
+            11,chosen?M::paint(R::OrangeLight,VSTGUI::CColor{255,189,85,255}):
+                      M::paint(R::Text,VSTGUI::CColor{226,237,246,255}),false);
   }
  }
 }
