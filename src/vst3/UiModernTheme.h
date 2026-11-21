@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <system_error>
+#include <string>
 
 namespace drumator::v101 {
 enum class ModernTheme : std::uint8_t { Graphite=0, Slate=1, Silver=2, Classic=3 };
@@ -58,9 +59,21 @@ struct ModernDrawStyle final {
 // GUI-only per-user preference, never serialized into a drum kit or VST3
 // processor state. Disk access occurs solely in editor create/click handlers.
 inline std::filesystem::path modernThemePreferencePath() {
+#if defined(_WIN32)
+ // Query the Windows Unicode user profile safely. getenv() triggers the
+ // MSVC /WX C4996 gate and loses non-ASCII user-profile characters.
+ std::size_t length=0;
+ if(_wgetenv_s(&length,nullptr,0,L"LOCALAPPDATA")!=0||length<2)return {};
+ std::wstring root(length,L'\0');
+ if(_wgetenv_s(&length,root.data(),root.size(),L"LOCALAPPDATA")!=0||length<2)
+   return {};
+ root.resize(length-1);
+ return std::filesystem::path(root)/L"125A Systems"/L"Drumator Modern.theme";
+#else
  const char* root=std::getenv("LOCALAPPDATA");
  if(!root||!*root)return {};
  return std::filesystem::path(root)/"125A Systems"/"Drumator Modern.theme";
+#endif
 }
 inline ModernTheme loadModernThemePreference() noexcept {
  try{
