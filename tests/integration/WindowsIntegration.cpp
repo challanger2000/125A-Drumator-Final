@@ -1324,12 +1324,27 @@ void testV101ControllerScene(){
 
  // MOD01: all three themes are rendered by the actual native painter, and
  // the original Classic pixel-parity oracle above remains active.
- check(L::modernThemeHit(710.,32.)==0&&
-       L::modernThemeHit(788.,32.)==1&&
-       L::modernThemeHit(850.,32.)==2&&
-       L::modernThemeHit(684.,32.)==-1&&
-       L::modernThemeHit(710.,24.)==-1,
+ check(L::modernThemeHit(664.,32.)==0&&
+       L::modernThemeHit(752.,32.)==1&&
+       L::modernThemeHit(842.,32.)==2&&
+       L::modernThemeHit(610.,32.)==-1&&
+       L::modernThemeHit(664.,8.)==-1,
        "MOD01 theme strip paint/hit rectangles collide with existing footer");
+ // MOD07: same 25px action-key baseline across the entire Modern footer,
+ // three identically sized theme tabs and disjoint lower info strip.
+ for(const auto& tab:L::modernThemeTabs){
+   check(tab.y0==L::footerExport.y0&&tab.y1==L::footerExport.y1&&
+         tab.x1-tab.x0==84.,"MOD07 Modern theme cap not aligned to footer actions");
+   check(tab.y1<L::modernFooterStatus.y0&&
+         tab.y1<L::modernFooterSummary.y0&&
+         tab.y1<L::modernFooterVersion.y0,
+         "MOD07 theme buttons overpaint modern information baseline");
+ }
+ check(L::modernFooterSummary.x1<L::modernFooterStatus.x0&&
+       L::modernFooterVersion.x1<L::modernFooterSummary.x0&&
+       L::modernFooterStatus.y1<=L::footer,
+       "MOD07 modern footer labels overlap or extend outside canvas");
+
  const auto modernPixel=[&](drumator::v101::ModernTheme theme,bool enabled){
    auto rendered=s;rendered.patternLength=32;
    rendered.rows[0].velocities[0]=enabled?110u:0u;
@@ -1476,7 +1491,7 @@ void testModernThemeNativeHostSwitch(){
  const auto original=IntegrationAccess::snapshot(*f.c);
  const double y=IntegrationAccess::v101LayoutHeight(*view)-
                 UiV101Layout::footer+32.;
- constexpr std::array<double,3> centers{{712.,791.,859.}};
+ constexpr std::array<double,3> centers{{664.,752.,842.}};
  for(std::size_t i=0;i<centers.size();++i){
    click(*view,centers[i],y);
    check(IntegrationAccess::modernTestTheme(*view)==
