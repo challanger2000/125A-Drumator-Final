@@ -1399,6 +1399,36 @@ void testV101ControllerScene(){
  evidence("V101 controller-backed GUI model: PCM kit/labels, pattern C, step mutation, gates, actual mix and globals PASS");
 }
 
+void testModernThemeNativeHostSwitch(){
+ // Actual native VST3 editor, actual mouse hitboxes, not synthetic state.
+ Fixture f;f.openV101();
+ auto* view=IntegrationAccess::view(*f.c,0);
+ check(view&&view->isV101(),"MOD02 host editor missing");
+ check(IntegrationAccess::modernTestTheme(*view)==v101::ModernTheme::Classic,
+       "MOD02 historical visual fixture must start in Classic");
+ const auto original=IntegrationAccess::snapshot(*f.c);
+ const double y=IntegrationAccess::v101LayoutHeight(*view)-
+                UiV101Layout::footer+32.;
+ constexpr std::array<double,3> centers{{712.,791.,859.}};
+ for(std::size_t i=0;i<centers.size();++i){
+   click(*view,centers[i],y);
+   check(IntegrationAccess::modernTestTheme(*view)==
+         static_cast<v101::ModernTheme>(i),
+         "MOD02 native mouse did not select the expected theme");
+   check(IntegrationAccess::snapshot(*f.c)==original,
+         "MOD02 theme click modified Controller/kit/pattern/automation");
+ }
+ if(!v101::modernThemePreferencePath().empty())
+   check(v101::loadModernThemePreference()==v101::ModernTheme::Silver,
+         "MOD02 selected palette did not persist for a new editor");
+ click(*view,685.,y);
+ check(IntegrationAccess::modernTestTheme(*view)==v101::ModernTheme::Silver,
+       "MOD02 click outside theme selector changed palette");
+ check(IntegrationAccess::snapshot(*f.c)==original,
+       "MOD02 outside click unexpectedly changed Controller state");
+ evidence("MOD02 three real VSTGUI footer clicks and unchanged kit PASS");
+}
+
 // Minimal VST3 host edit handler, used only by the isolated GUI input test.
 // Pattern selector changes are host-automatable, and require a valid
 // IComponentHandler::performEdit. The generic Fixture does not install one.
@@ -7548,6 +7578,7 @@ int main(int argc,char** argv){
  run("V101 actual Controller to native visual scene",testV101ControllerScene);
  run("V101 native interactive controller, lane and zoom actions",testV101Interaction);
  run("V101 real VST3 editor attach, mouse dispatch, dialogs and zoom",testV101LiveEditor);
+ run("MOD02 real native theme switching and unchanged controller",testModernThemeNativeHostSwitch);
  run("EXPTEMPO connected host BPM and every live/export PCM frame",testExportTempoHostRoundTrip);
  run("EXPTEMPO failed transfer must preserve destination",testExportTempoFailedTransfer);
  run("EXPTEMPO old stale-tempo cause must be killed",testExportTempoMutation);
