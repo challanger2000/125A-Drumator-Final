@@ -1365,6 +1365,40 @@ void testV101ControllerScene(){
  check(modernColors[0]!=modernColors[1]&&modernColors[1]!=modernColors[2]&&
        modernColors[0]!=modernColors[2],
        "MOD01 three themes render the same native pixels");
+ // MOD05: dark inset labels on Graphite/Slate/Silver must remain readable,
+ // including SMALL 9px muted labels and the active cyan-tinted keycap
+ // highlight. Reject beautiful mockups that become illegible in VSTGUI.
+ const auto wcagLuminance=[](VSTGUI::CColor color) {
+   const auto channel=[](std::uint8_t n) {
+     const double v=static_cast<double>(n)/255.;
+     return v<=.04045?v/12.92:std::pow((v+.055)/1.055,2.4);
+   };
+   return .2126*channel(color.red)+.7152*channel(color.green)+
+          .0722*channel(color.blue);
+ };
+ const auto contrast=[&](VSTGUI::CColor foreground,VSTGUI::CColor background) {
+   const double l1=wcagLuminance(foreground),l2=wcagLuminance(background);
+   return (std::max(l1,l2)+.05)/(std::min(l1,l2)+.05);
+ };
+ for(int theme=0;theme<3;++theme){
+   const auto p=drumator::v101::modernPalette(
+       static_cast<drumator::v101::ModernTheme>(theme));
+   const auto activeButton=Painter::mix(
+        Painter::mix(p.button,p.cyan,.16),p.label,.06);
+   check(contrast(p.label,activeButton)>=4.5&&
+         contrast(p.label,p.rowA)>=4.5&&
+         contrast(p.label,p.rowB)>=4.5&&
+         contrast(p.dim,p.rowA)>=4.5&&
+         contrast(p.dim,p.rowB)>=4.5,
+         "MOD05 Modern selected button, primary or small muted text is low contrast");
+   const drumator::v101::ModernDrawStyle::Scope scope(
+       static_cast<drumator::v101::ModernTheme>(theme));
+   const auto translucent=drumator::v101::ModernDrawStyle::paint(
+       drumator::v101::ModernDrawStyle::Role::Well,{9,25,41,123});
+   check(translucent.alpha==123&&translucent.red==p.well.red&&
+         translucent.green==p.well.green&&translucent.blue==p.well.blue,
+         "MOD05 theme role color lost alpha or palette semantics");
+ }
  check(drumator::v101::ModernDrawStyle::current==
        drumator::v101::ModernTheme::Classic,
        "MOD01 theme draw scope leaked into Classic renderer");
