@@ -331,6 +331,27 @@ struct UiV101NativePreview final {
       VSTGUI::CGraphicsTransform().scale(sf,sf).translate(x,y));
    logo->draw(&c,{0.,0.,logo->getWidth(),logo->getHeight()});
  }
+ // Modern wordmark: native VSTGUI text, not the Classic image resource.
+ // It follows the exact three-theme font palette and is intentionally quiet:
+ // one standard sans-serif font with a 1.3px optical relief, no metal logo.
+ // Only the drawing changes. Header input and zoom layout are untouched.
+ static void modernTitle(VSTGUI::CDrawContext& c){
+   if(!ModernDrawStyle::enabled())return;
+   const auto p=ModernDrawStyle::colors();
+   constexpr const char* wordmark="DRUMATOR";
+   const Box title{192.,11.,1118.,72.};
+   c.setFont(VSTGUI::kNormalFont,54.);
+   c.saveGlobalState();
+   c.setGlobalAlpha(.35f);
+   c.setFontColor(p.well);
+   c.drawString(wordmark,{title.left+1.3,title.top+1.4,
+                          title.right+1.3,title.bottom+1.4},
+                VSTGUI::kCenterText);
+   c.restoreGlobalState();
+   c.setFont(VSTGUI::kNormalFont,54.);
+   c.setFontColor(p.label);
+   c.drawString(wordmark,title,VSTGUI::kCenterText);
+ }
  // Same 125x125, 101-frame JKnobMan image used by V1.0; the actual
  // opaque dial sits inside its transparent frame. Not a painted imitation.
  static void originalDial(VSTGUI::CDrawContext& c,VSTGUI::CMultiFrameBitmap* sprite,
@@ -778,7 +799,8 @@ struct UiV101NativePreview final {
    brandMasterLogo(c,L::brandMasterSafeArea);
    // The standalone owner-approved DRUMATOR wordmark is alpha-composited
    // directly on the original graphite plate, with no additional plaque.
-   hardwareTitle(c,titlePng,titleBounds);
+   if(ModernDrawStyle::enabled())modernTitle(c);
+   else hardwareTitle(c,titlePng,titleBounds);
    // The percentage and dropdown affordance identify the single zoom control;
    // no redundant "ZOOM" legend or decorative separating line.
    // The menu itself is painted as an
