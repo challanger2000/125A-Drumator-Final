@@ -14,6 +14,7 @@
 - Steinberg VSTGUI 4 via pinned SDK 3.8.1. **No JUCE dependency**.
 - Medium-gray, slightly dimensional controls without vintage photo/chassis artwork in Modern.
 - Three palettes: **Graphite, Slate (default), Silver**.
+- Modern `DRUMATOR` wordmark uses the default native VSTGUI font, theme-aware ink, and a subtle 1.3 px shadow. The original metallic title PNG is rendered only in Classic; the unmodified official 125A Systems master logo remains separate.
 - Orange active Steps; cyan only for secondary selections/knob pointers, restrained green status accents.
 - UI-specific theme tabs in footer. Painting and hit testing share `UiV101Layout::modernThemeTabs` rectangles.
 - Scoped per-editor palette is contained in the GUI paint thread; no Processor/DSP access.
