@@ -416,13 +416,13 @@ struct UiV101NativePreview final {
    if(ModernDrawStyle::enabled()){
      const auto p=ModernDrawStyle::colors();
      const Color top=disabled?mix(p.button,p.well,.65):
-                     active?mix(p.cyan,p.button,.48):p.button;
+                     active?mix(p.button,p.cyan,.16):p.button;
      const Color mid=pressed?mix(top,p.well,.40):top;
      rounded(c,{b.left,b.top+2.,b.right,b.bottom+2.},p.well,3.);
      rounded(c,{b.left,b.top,b.right,b.bottom},p.edge,3.);
      rounded(c,{b.left+1.,b.top+1.,b.right-1.,b.bottom-1.},mid,3.);
      satin(c,{b.left+3.,b.top+3.,b.right-3.,b.bottom-3.},
-           mix(mid,p.label,.12),mid,mix(mid,p.well,.22),4);
+           mix(mid,p.label,.06),mid,mix(mid,p.well,.22),4);
      if(active&&!disabled)
        fill(c,{b.left+4.,b.bottom-4.,b.right-4.,b.bottom-2.},p.cyan);
      label(c,text,{b.left+2.,b.top+1.,b.right-2.,b.bottom-1.},
