@@ -54,9 +54,17 @@ struct UiV101Layout final {
   static constexpr Rect footerVersion{599.,27.,681.,37.};
   // Modern-only, three GUI-theme controls. The hit and paint rectangles
   // are shared, footer-relative and disjoint from both status and actions.
+  // Two clean footer baselines in Modern: all actions are y10..35,
+  // the thin information strip is y36..45. This avoids theme tabs
+  // hovering below other buttons and covering the status/engraving.
+  // Classic footer geometry and all Classic click zones are unchanged.
   static constexpr std::array<Rect,3> modernThemeTabs{{
-    {692.,25.,757.,41.}, {761.,25.,822.,41.}, {826.,25.,895.,41.}
+    {622.,10.,706.,35.}, {714.,10.,798.,35.}, {806.,10.,890.,35.}
   }};
+  static constexpr Rect modernFooterVersion{45.,36.,155.,45.};
+  static constexpr Rect modernFooterSummary{260.,36.,510.,45.};
+  static constexpr Rect modernFooterStatus{520.,36.,900.,45.};
+  static constexpr Rect modernSongFooterStatus{166.,36.,1090.,45.};
   static constexpr int modernThemeHit(double x,double footerY)noexcept{
     for(std::size_t i=0;i<modernThemeTabs.size();++i)
       if(modernThemeTabs[i].hit(x,footerY))return static_cast<int>(i);
@@ -299,12 +307,20 @@ static_assert(UiV101Layout::footerPrev.x0>=UiV101Layout::footerPanel.x0+10.&&
 static_assert(UiV101Layout::footerAdd.x0>=UiV101Layout::footerPanel.x0+10.&&
               UiV101Layout::footerRemove.x1<UiV101Layout::footerPrev.x0);
 static_assert(UiV101Layout::footerAdd.x1+10.<=UiV101Layout::footerRemove.x0);
-static_assert(UiV101Layout::modernThemeTabs[0].x0>UiV101Layout::footerVersion.x1);
+static_assert(UiV101Layout::modernThemeTabs[0].x0>UiV101Layout::footerSummary.x1);
 static_assert(UiV101Layout::modernThemeTabs[2].x1<UiV101Layout::footerExport.x0);
-static_assert(UiV101Layout::modernThemeTabs[0].y0>=UiV101Layout::footerStatus.y1);
-static_assert(UiV101Layout::modernThemeTabs[2].y1<UiV101Layout::footerPanel.y1);
-static_assert(UiV101Layout::modernThemeTabs[0].x1<UiV101Layout::modernThemeTabs[1].x0);
-static_assert(UiV101Layout::modernThemeTabs[1].x1<UiV101Layout::modernThemeTabs[2].x0);
+static_assert(UiV101Layout::modernThemeTabs[0].y0==UiV101Layout::footerExport.y0);
+static_assert(UiV101Layout::modernThemeTabs[0].y1==UiV101Layout::footerExport.y1);
+static_assert(UiV101Layout::modernThemeTabs[0].x1+8.==UiV101Layout::modernThemeTabs[1].x0);
+static_assert(UiV101Layout::modernThemeTabs[1].x1+8.==UiV101Layout::modernThemeTabs[2].x0);
+static_assert(UiV101Layout::modernThemeTabs[0].x1-UiV101Layout::modernThemeTabs[0].x0==
+              UiV101Layout::modernThemeTabs[2].x1-UiV101Layout::modernThemeTabs[2].x0);
+static_assert(UiV101Layout::modernFooterStatus.y0>UiV101Layout::modernThemeTabs[0].y1);
+static_assert(UiV101Layout::modernFooterSummary.y0==UiV101Layout::modernFooterStatus.y0);
+static_assert(UiV101Layout::modernFooterVersion.y0==UiV101Layout::modernFooterSummary.y0);
+static_assert(UiV101Layout::modernFooterStatus.y1<=UiV101Layout::footer);
+static_assert(UiV101Layout::modernFooterVersion.x1<UiV101Layout::modernFooterSummary.x0);
+static_assert(UiV101Layout::modernFooterSummary.x1<UiV101Layout::modernFooterStatus.x0);
 static_assert(UiV101Layout::footerAdd.y0==UiV101Layout::footerPrev.y0&&
               UiV101Layout::footerRemove.y1==UiV101Layout::footerNext.y1);
 static_assert(UiV101Layout::footerPrev.x1+10.<=UiV101Layout::footerNext.x0);
