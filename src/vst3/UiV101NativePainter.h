@@ -684,10 +684,13 @@ struct UiV101NativePreview final {
  static void footerPlate(VSTGUI::CDrawContext& c,double footerTop){
    if(ModernDrawStyle::enabled()){
      const auto p=ModernDrawStyle::colors();
-     rounded(c,{12.,footerTop+4.,1260.,footerTop+42.},p.header,3.);
-     border(c,{12.,footerTop+4.,1260.,footerTop+42.},p.edge);
-     label(c,"VERSION 1.5",{599.,footerTop+27.,681.,footerTop+37.},
-           9,p.dim);
+     rounded(c,{12.,footerTop+2.,1260.,footerTop+46.},p.header,3.);
+     border(c,{12.,footerTop+2.,1260.,footerTop+46.},p.edge);
+     // Consistent main action baseline (10..35) and lower 9px status strip.
+     // Do not draw centered engraving behind interactive theme buttons.
+     const auto v=L::modernFooterVersion;
+     label(c,"DRUMATOR 1.5",
+           {v.x0,footerTop+v.y0,v.x1,footerTop+v.y1},8,p.dim,false);
      return;
    }
    const auto p=L::footerPanel;
@@ -1052,15 +1055,16 @@ struct UiV101NativePreview final {
        scene.visibleRows>=L::instruments);
    cap(c,L::footerRemove,footerTop,"REMOVE ROW",false,10,vintageButtons,
        !scene.canRemoveRow);
-   const auto summaryR=L::footerSummary;
+   const bool modern=M::enabled();
+   const auto summaryR=modern?L::modernFooterSummary:L::footerSummary;
    fittedStatus(c,summary,
      {summaryR.x0,footerTop+summaryR.y0,summaryR.x1,footerTop+summaryR.y1},
-     11,M::paint(R::Muted,{222,213,197,255}),false);
+     modern?8:11,M::paint(R::Muted,{222,213,197,255}),false);
    if(!scene.status.empty()) {
-     const auto statusR=L::footerStatus;
+     const auto statusR=modern?L::modernFooterStatus:L::footerStatus;
      fittedStatus(c,scene.status.c_str(),
        {statusR.x0,footerTop+statusR.y0,statusR.x1,footerTop+statusR.y1},
-       10,M::paint(R::Muted,{220,203,180,255}),false);
+       modern?8:10,M::paint(R::Muted,{220,203,180,255}),false);
    }
    // Both controls are identically sized 95x25 machined metal keys.
    cap(c,L::footerPrev,footerTop,"PREV PAGE",false,10,vintageButtons,ui.firstRow==0);
