@@ -52,6 +52,17 @@ struct UiV101Layout final {
   // MAIN and SONG. Never place text over either status or any footer button.
   // All coordinates are footer-relative and use the same 48px host scaling.
   static constexpr Rect footerVersion{599.,27.,681.,37.};
+  // Modern-only, three GUI-theme controls. The hit and paint rectangles
+  // are shared, footer-relative and disjoint from both status and actions.
+  static constexpr std::array<Rect,3> modernThemeTabs{{
+    {692.,25.,757.,41.}, {761.,25.,822.,41.}, {826.,25.,895.,41.}
+  }};
+  static constexpr int modernThemeHit(double x,double footerY)noexcept{
+    for(std::size_t i=0;i<modernThemeTabs.size();++i)
+      if(modernThemeTabs[i].hit(x,footerY))return static_cast<int>(i);
+    return -1;
+  }
+
   static constexpr Rect footerSummary{260.,9.,510.,25.};
   static constexpr Rect footerStatus{520.,9.,900.,25.};
   static constexpr Rect songFooterStatus{32.,9.,1090.,25.};
@@ -288,6 +299,12 @@ static_assert(UiV101Layout::footerPrev.x0>=UiV101Layout::footerPanel.x0+10.&&
 static_assert(UiV101Layout::footerAdd.x0>=UiV101Layout::footerPanel.x0+10.&&
               UiV101Layout::footerRemove.x1<UiV101Layout::footerPrev.x0);
 static_assert(UiV101Layout::footerAdd.x1+10.<=UiV101Layout::footerRemove.x0);
+static_assert(UiV101Layout::modernThemeTabs[0].x0>UiV101Layout::footerVersion.x1);
+static_assert(UiV101Layout::modernThemeTabs[2].x1<UiV101Layout::footerExport.x0);
+static_assert(UiV101Layout::modernThemeTabs[0].y0>=UiV101Layout::footerStatus.y1);
+static_assert(UiV101Layout::modernThemeTabs[2].y1<UiV101Layout::footerPanel.y1);
+static_assert(UiV101Layout::modernThemeTabs[0].x1<UiV101Layout::modernThemeTabs[1].x0);
+static_assert(UiV101Layout::modernThemeTabs[1].x1<UiV101Layout::modernThemeTabs[2].x0);
 static_assert(UiV101Layout::footerAdd.y0==UiV101Layout::footerPrev.y0&&
               UiV101Layout::footerRemove.y1==UiV101Layout::footerNext.y1);
 static_assert(UiV101Layout::footerPrev.x1+10.<=UiV101Layout::footerNext.x0);
