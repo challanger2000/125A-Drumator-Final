@@ -33,10 +33,17 @@ struct UiV101SongPainter final {
             {28.,139.,627.,156.},10,{169,193,210,255},false);
    // Shared industrial graphite artwork with MAIN; separate SONG hit map.
    if(!P::drawVintageFaceplate(c,agedFaceplate,bottom,true)){
+     if(ModernDrawStyle::enabled()){
+       const auto palette=ModernDrawStyle::colors();
+       P::fill(c,{0.,top,1280.,bottom},palette.chassis);
+       P::satin(c,{6.,top+2.,1274.,bottom-6.},
+                palette.header,palette.rowA,palette.well,22);
+     }else{
      P::fill(c,{0.,top,1280.,bottom},{27,35,44,255});
      P::satin(c,{6.,top+2.,1274.,bottom-6.},
               {51,60,69,255},{35,44,54,255},
               {22,30,40,255},32);
+     }
    }
    P::border(c,{6.,top+2.,1274.,bottom-6.},P::Skin::panelEdge());
    // One recessed SONG-CHAIN rail, continuing the main GUI's navy enamel.
