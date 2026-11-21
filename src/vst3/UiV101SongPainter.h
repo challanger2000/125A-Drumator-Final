@@ -166,11 +166,13 @@ struct UiV101SongPainter final {
    // even for long error text and in hosts with non-default UI zoom.
    const double footerTop=bottom-UiV101Layout::footer;
    P::footerPlate(c,footerTop);
-   const auto statusR=UiV101Layout::songFooterStatus;
+   const bool modern=M::enabled();
+   const auto statusR=modern?UiV101Layout::modernSongFooterStatus:
+                             UiV101Layout::songFooterStatus;
    P::fittedStatus(c,status&&*status?status:
            "REST and A-H are selectable. Only ADD ENTRY adds positions.",
            {statusR.x0,footerTop+statusR.y0,statusR.x1,footerTop+statusR.y1},
-           11,M::paint(R::Muted,{205,221,231,255}),false);
+           modern?8:11,M::paint(R::Muted,{205,221,231,255}),false);
  }
 };
 } // namespace drumator::v101
