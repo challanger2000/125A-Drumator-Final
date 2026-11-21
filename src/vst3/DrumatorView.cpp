@@ -70,6 +70,18 @@ const VSTGUI::CColor rowBlueBorder{53,91,121,255};
 const VSTGUI::CColor stepWellBlue{6,17,30,255};
 const VSTGUI::CColor velocityWellBlue{9,28,43,255};
 
+// Native VSTGUI CTextEdit keeps the same input geometry and keyboard focus,
+// but matches the active Modern palette in both the name and Complexity fields.
+void styleTextEntry(VSTGUI::CTextEdit* editor,v101::ModernTheme theme){
+ if(!editor||theme==v101::ModernTheme::Classic)return;
+ const auto palette=v101::modernPalette(theme);
+ editor->setBackColor(palette.well);
+ editor->setFrameColor(palette.cyan);
+ editor->setFontColor(palette.label);
+ editor->setFrameWidth(1.);
+ editor->setRoundRectRadius(3.);
+}
+
 // GUI Step 1: material-only rendering. Confined strictly to y [0, header).
 // A soft, deterministic horizontal satin brushing with no tile seam,
 // no high-contrast waves, no extra bevels and no changes to widget geometry.
@@ -805,6 +817,7 @@ void DrumatorView::editName(std::size_t row) {
    pending=new VSTGUI::CTextEdit({left,y+4,right,y+33},
                                     this,1001,controller_.label(row).c_str());
    pending->registerTextEditListener(this);
+   styleTextEntry(pending,modernTheme_);
    registered=true;
    if(!getFrame()->addView(pending))throw std::bad_alloc{};
    nameEdit_=pending;pending=nullptr;
@@ -812,6 +825,7 @@ void DrumatorView::editName(std::size_t row) {
   editingNameRow_=row;
   nameEditGeneration_=controller_.editGeneration();
   nameEdit_->setViewSize({left,y+4,right,y+33});
+  styleTextEntry(nameEdit_,modernTheme_);
   nameEdit_->setText(controller_.customName(row).empty()?controller_.label(row).c_str():
                      controller_.customName(row).c_str());
   nameEdit_->setVisible(true);
@@ -1258,6 +1272,7 @@ void DrumatorView::editBeatCreatorComplexity() {
    pending=new VSTGUI::CTextEdit(
        {r.x0+1.,r.y0,r.x1-1.,r.y1},this,1002,digits);
    pending->registerTextEditListener(this);
+   styleTextEntry(pending,modernTheme_);
    registered=true;
    // DA01: addView() can throw AFTER inserting its SharedPointer child.
    // A failed/throwing return is not proof that 'pending' is unattached.
@@ -1266,6 +1281,7 @@ void DrumatorView::editBeatCreatorComplexity() {
    pending=nullptr; // Frame owns this reference now.
   }
   complexityEdit_->setViewSize({r.x0+1.,r.y0,r.x1-1.,r.y1});
+  styleTextEntry(complexityEdit_,modernTheme_);
   complexityEdit_->setText(digits);
   complexityEdit_->setVisible(true);
   complexityEdit_->takeFocus();
@@ -3161,6 +3177,8 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
    const int theme=UiV101Layout::modernThemeHit(x,y-footerTop);
    if(theme>=0){
      modernTheme_=static_cast<v101::ModernTheme>(theme);
+     styleTextEntry(nameEdit_,modernTheme_);
+     styleTextEntry(complexityEdit_,modernTheme_);
      if(!v101::saveModernThemePreference(modernTheme_))
        status_="THEME ACTIVE; COULD NOT SAVE USER PREFERENCE";
      invalid();
