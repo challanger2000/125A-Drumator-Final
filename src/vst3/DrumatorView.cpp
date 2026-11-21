@@ -1232,6 +1232,7 @@ void DrumatorView::drawV101(VSTGUI::CDrawContext* c) {
  Painter::cap(*c,UiV101Layout::limiterTrigger,0.,
               controller_.limiterEnabled()?"LIMIT ON":"LIMIT OFF",
               controller_.limiterEnabled(),10,&vintageButtons);
+ Painter::modernThemeTabs(*c,v101_.height()-UiV101Layout::footer,modernTheme_);
  // Draw the modal zoom popup OVER the limiter, never under its cap.
  if(v101_.state().zoomOpen)
    Painter::zoomPopup(*c,v101_.state().zoomIndex,&vintageButtons);
@@ -2055,6 +2056,8 @@ void DrumatorView::drawV101Song(VSTGUI::CDrawContext* c) {
  v101::UiV101NativePreview::cap(*c,UiV101Layout::songFooterExport,
      getViewSize().getHeight()-UiV101Layout::footer,"EXPORT",
      v101Menu_==UiV101Popup::Kind::Export,11,&songButtonSprites);
+ v101::UiV101NativePreview::modernThemeTabs(
+      *c,getViewSize().getHeight()-UiV101Layout::footer,modernTheme_);
  // Modal overlays must sit ABOVE the SONG fascia. The main painter already
  // drew them, but the editor board covers y>=138 and would hide both the
  // Pattern MENU and the last zoom option. This is not merely decorative:
@@ -2073,6 +2076,7 @@ void DrumatorView::drawRect(VSTGUI::CDrawContext* c,
     updateRect.left>=1133.&&updateRect.top>=100.&&
     updateRect.right<=1260.&&updateRect.bottom<=132.;
  if(meterOnly){
+   const v101::ModernDrawStyle::Scope themeScope(modernTheme_);
    v101::UiV101NativePreview::drawMeterDisplay(
        *c,mainMeterL_,mainMeterR_,controller_.meterState().clip!=0);
    setDirty(false);
@@ -2081,6 +2085,7 @@ void DrumatorView::drawRect(VSTGUI::CDrawContext* c,
  draw(c);
 }
 void DrumatorView::draw(VSTGUI::CDrawContext* c) {
+ const v101::ModernDrawStyle::Scope themeScope(modernTheme_);
  if(v101Mode_&&!sampleEditorOpen_){
    if(songEditorOpen_)drawV101Song(c);
    else drawV101(c);
@@ -3125,6 +3130,21 @@ VSTGUI::CMouseEventResult DrumatorView::onMouseDown(
  if(v101Mode_&&beatCreatorOpen_){
   (void)beatCreatorMouseDown(x,y);
   return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+ }
+ // Three theme tabs have paint/hit parity and are never clickable through a modal.
+ if(v101Mode_&&!sampleEditorOpen_&&!v101_.state().zoomOpen&&
+    v101Menu_==UiV101Popup::Kind::None){
+   const double footerTop=
+       (songEditorOpen_?getViewSize().getHeight():v101_.height())-
+       UiV101Layout::footer;
+   const int theme=UiV101Layout::modernThemeHit(x,y-footerTop);
+   if(theme>=0){
+     modernTheme_=static_cast<v101::ModernTheme>(theme);
+     if(!v101::saveModernThemePreference(modernTheme_))
+       status_="THEME ACTIVE; COULD NOT SAVE USER PREFERENCE";
+     invalid();
+     return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+   }
  }
  if(v101Mode_&&!sampleEditorOpen_&&
     !v101_.state().zoomOpen&&v101Menu_==UiV101Popup::Kind::None&&
