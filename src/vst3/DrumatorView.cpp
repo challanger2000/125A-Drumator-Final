@@ -1517,6 +1517,8 @@ bool DrumatorView::beatCreatorMouseDown(double x,double y) {
 void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
  if(v101Menu_==UiV101Popup::Kind::None)return;
  using Painter=v101::UiV101NativePreview;
+ using M=v101::ModernDrawStyle;
+ using R=M::Role;
  const auto first=v101_.state().firstRow;
  const auto valid=v101MenuRow_>=first&&
                   v101MenuRow_<first+v101_.shownRows();
@@ -1525,9 +1527,9 @@ void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
    UiV101Layout::header;
  const auto g=UiV101Popup::geometry(v101Menu_,rowY,getViewSize().getHeight(),songEditorOpen_);
  Painter::fill(*c,{g.x-4.,g.y-4.,g.x+g.width+4.,
-                   g.y+g.rows*g.cellHeight+4.},{17,26,36,255});
+                   g.y+g.rows*g.cellHeight+4.},M::paint(R::Well,{17,26,36,255}));
  Painter::border(*c,{g.x-4.,g.y-4.,g.x+g.width+4.,
-                     g.y+g.rows*g.cellHeight+4.},{100,111,120,255});
+                     g.y+g.rows*g.cellHeight+4.},M::paint(R::Edge,{100,111,120,255}));
  const Painter::ButtonSprites popupButtons{
    v101VintageButtons_[0],v101VintageButtons_[1],
    v101VintageButtons_[2],v101VintageButtons_[3]
@@ -1553,7 +1555,7 @@ void DrumatorView::drawV101Menu(VSTGUI::CDrawContext* c) {
                 !disabledPattern&&v101PressedMenuOption_==i);
    if(v101Menu_==UiV101Popup::Kind::Export){
      c->setFont(VSTGUI::kNormalFont,9.);
-     c->setFontColor(VSTGUI::CColor{160,205,220,255});
+     c->setFontColor(M::paint(R::Cyan,VSTGUI::CColor{160,205,220,255}));
      c->drawString("DRAG",{cell.x1-48.,cell.y0+3.,cell.x1-4.,cell.y1-3.});
    }
  }
